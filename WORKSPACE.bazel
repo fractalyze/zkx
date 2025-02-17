@@ -1,1 +1,5 @@
 workspace(name = "zkx")
+
+load("//bazel:zkx_deps.bzl", "zkx_deps")
+
+zkx_deps()
