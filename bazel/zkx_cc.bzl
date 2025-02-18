@@ -1,0 +1,109 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load(
+    "//bazel:zkx.bzl",
+    "if_has_exception",
+    "if_has_rtti",
+)
+
+def zkx_safe_code():
+    return ["-Wall", "-Werror"]
+
+def zkx_warnings(safe_code):
+    warnings = []
+    if safe_code:
+        warnings.extend(zkx_safe_code())
+    return warnings
+
+def zkx_exceptions(force_exceptions):
+    return if_has_exception(["-fexceptions"], (["-fexceptions"] if force_exceptions else ["-fno-exceptions"]))
+
+def zkx_rtti(force_rtti):
+    return if_has_rtti(["-frtti"], (["-frtti"] if force_rtti else ["-fno-rtti"]))
+
+def zkx_copts(safe_code = True):
+    return zkx_warnings(safe_code)
+
+def zkx_cxxopts(safe_code = True, force_exceptions = False, force_rtti = False):
+    return zkx_copts(safe_code) + zkx_exceptions(force_exceptions) + zkx_rtti(force_rtti)
+
+def zkx_defines():
+    return []
+
+def zkx_local_defines():
+    return []
+
+def zkx_linkopts():
+    return []
+
+def zkx_cc_library(
+        name,
+        copts = [],
+        defines = [],
+        local_defines = [],
+        linkopts = [],
+        alwayslink = True,
+        safe_code = True,
+        force_exceptions = False,
+        force_rtti = False,
+        **kwargs):
+    cc_library(
+        name = name,
+        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions, force_rtti = force_rtti),
+        defines = defines + zkx_defines(),
+        local_defines = local_defines + zkx_local_defines(),
+        linkopts = linkopts + zkx_linkopts(),
+        alwayslink = alwayslink,
+        **kwargs
+    )
+
+def zkx_cc_binary(
+        name,
+        copts = [],
+        defines = [],
+        local_defines = [],
+        linkopts = [],
+        safe_code = True,
+        force_exceptions = False,
+        force_rtti = False,
+        **kwargs):
+    cc_binary(
+        name = name,
+        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions, force_rtti = force_rtti),
+        defines = defines + zkx_defines(),
+        local_defines = local_defines + zkx_local_defines(),
+        linkopts = linkopts + zkx_linkopts(),
+        **kwargs
+    )
+
+def zkx_cc_test(
+        name,
+        copts = [],
+        defines = [],
+        local_defines = [],
+        linkopts = [],
+        linkstatic = True,
+        deps = [],
+        safe_code = True,
+        force_exceptions = False,
+        force_rtti = False,
+        **kwargs):
+    cc_test(
+        name = name,
+        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions, force_rtti = force_rtti),
+        defines = defines + zkx_defines(),
+        local_defines = local_defines + zkx_local_defines(),
+        linkopts = linkopts + zkx_linkopts(),
+        linkstatic = linkstatic,
+        deps = deps + ["@com_google_googletest//:gtest_main"],
+        **kwargs
+    )
+
+def zkx_cc_unittest(
+        name,
+        size = "small",
+        **kwargs):
+    zkx_cc_test(
+        name = name,
+        size = size,
+        **kwargs
+    )
