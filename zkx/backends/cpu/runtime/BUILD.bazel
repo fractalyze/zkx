@@ -15,6 +15,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "thread_pool_task_runner",
+    hdrs = ["thread_pool_task_runner.h"],
+    deps = [
+        ":thunk",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
+zkx_cc_library(
     name = "thunk",
     srcs = ["thunk.cc"],
     hdrs = ["thunk.h"],
