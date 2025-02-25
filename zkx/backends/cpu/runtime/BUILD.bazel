@@ -14,8 +14,28 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "thunk",
+    srcs = ["thunk.cc"],
+    hdrs = ["thunk.h"],
+    deps = [
+        ":resource_use",
+        "//xla/tsl/concurrency:async_value",
+        "//xla/tsl/platform:statusor",
+        "//zkx/runtime:buffer_use",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 zkx_cc_unittest(
     name = "runtime_unittests",
-    srcs = ["resource_use_unittest.cc"],
-    deps = [":resource_use"],
+    srcs = [
+        "resource_use_unittest.cc",
+        "thunk_unittest.cc",
+    ],
+    deps = [
+        ":resource_use",
+        ":thunk",
+    ],
 )
