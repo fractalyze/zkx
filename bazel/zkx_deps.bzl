@@ -1,9 +1,11 @@
 load("@zkx//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 load("@zkx//third_party/absl:workspace.bzl", absl = "repo")
+load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 
 def zkx_deps():
     absl()
+    eigen3()
 
     # Load the raw llvm-project.  llvm does not have build rules set up by default,
     # but provides a script for setting up build rules via overlays.
