@@ -1,0 +1,15 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "buffer_value",
+    srcs = ["buffer_value.cc"],
+    hdrs = ["buffer_value.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo_instruction",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+    ],
+)
