@@ -58,6 +58,9 @@ class Env {
   /// \brief Returns the number of seconds since the Unix epoch.
   virtual uint64_t NowSeconds() const { return EnvTime::NowSeconds(); }
 
+  /// Sleeps/delays the thread for the prescribed number of micro-seconds.
+  virtual void SleepForMicroseconds(int64_t micros) = 0;
+
   /// \brief Returns a new thread that is running fn() and is identified
   /// (for debugging/performance-analysis) by "name".
   ///
