@@ -17,11 +17,14 @@ limitations under the License.
 #define XLA_TSL_PLATFORM_ENV_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include <string_view>
 
 #include "absl/base/attributes.h"
 #include "absl/functional/any_invocable.h"
+
+#include "xla/tsl/platform/env_time.h"
 
 namespace tsl {
 
@@ -29,7 +32,7 @@ class Thread;
 struct ThreadOptions;
 
 // NOTE(chokobole): This class includes portions of the Env class to enable
-// zkx::thread::ThreadPool from:
+// zkx::thread::ThreadPool and zkx::cpu::ThunkExecutor from:
 // https://github.com/openxla/xla/blob/8bac4a2/xla/tsl/platform/env.h.
 // It is planned to be replaced with Chromium's implementation in the future.
 class Env {
@@ -45,6 +48,15 @@ class Env {
   ///
   /// The result of Default() belongs to this library and must never be deleted.
   static Env* Default();
+
+  /// \brief Returns the number of nano-seconds since the Unix epoch.
+  virtual uint64_t NowNanos() const { return EnvTime::NowNanos(); }
+
+  /// \brief Returns the number of micro-seconds since the Unix epoch.
+  virtual uint64_t NowMicros() const { return EnvTime::NowMicros(); }
+
+  /// \brief Returns the number of seconds since the Unix epoch.
+  virtual uint64_t NowSeconds() const { return EnvTime::NowSeconds(); }
 
   /// \brief Returns a new thread that is running fn() and is identified
   /// (for debugging/performance-analysis) by "name".

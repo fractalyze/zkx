@@ -8,12 +8,19 @@ zkx_cc_library(
     srcs = ["env.cc"] + if_posix(["env_posix.cc"]),
     hdrs = ["env.h"],
     deps = [
+        ":env_time",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/synchronization",
     ],
+)
+
+zkx_cc_library(
+    name = "env_time",
+    srcs = if_posix(["env_time_posix.cc"]),
+    hdrs = ["env_time.h"],
 )
 
 zkx_cc_library(
