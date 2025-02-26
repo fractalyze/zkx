@@ -13,3 +13,15 @@ zkx_cc_library(
         "@com_google_absl//absl/log:check",
     ],
 )
+
+zkx_cc_library(
+    name = "logical_buffer",
+    srcs = ["logical_buffer.cc"],
+    hdrs = ["logical_buffer.h"],
+    deps = [
+        ":buffer_value",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo_instruction",
+        "@com_google_absl//absl/strings",
+    ],
+)
