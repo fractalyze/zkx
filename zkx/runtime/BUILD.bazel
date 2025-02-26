@@ -1,0 +1,25 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "buffer_use",
+    srcs = ["buffer_use.cc"],
+    hdrs = ["buffer_use.h"],
+    deps = [
+        "//zkx/service:buffer_assignment",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "runtime_unittests",
+    srcs = ["buffer_use_unittest.cc"],
+    deps = [
+        ":buffer_use",
+        "//zkx/service:buffer_assignment",
+    ],
+)
