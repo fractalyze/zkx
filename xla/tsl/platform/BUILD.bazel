@@ -24,3 +24,16 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
     ],
 )
+
+zkx_cc_library(
+    name = "thread_pool",
+    srcs = ["thread_pool.cc"],
+    hdrs = ["thread_pool.h"],
+    deps = [
+        ":env",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@eigen_archive//:eigen3",
+    ],
+)
