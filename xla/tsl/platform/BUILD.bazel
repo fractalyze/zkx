@@ -1,6 +1,20 @@
+load("//bazel:zkx.bzl", "if_posix")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "env",
+    srcs = ["env.cc"] + if_posix(["env_posix.cc"]),
+    hdrs = ["env.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
 
 zkx_cc_library(
     name = "statusor",
