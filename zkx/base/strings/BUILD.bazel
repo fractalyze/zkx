@@ -1,0 +1,16 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "string_util",
+    srcs = ["string_util.cc"],
+    hdrs = ["string_util.h"],
+    deps = ["@com_google_absl//absl/strings:str_format"],
+)
+
+zkx_cc_unittest(
+    name = "strings_unittests",
+    srcs = ["string_util_unittest.cc"],
+    deps = [":string_util"],
+)
