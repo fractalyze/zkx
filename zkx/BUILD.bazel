@@ -1,6 +1,12 @@
+load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 
 package(default_visibility = ["//visibility:public"])
+
+cc_proto_library(
+    name = "zkx_data_proto",
+    srcs = ["zkx_data.proto"],
+)
 
 zkx_cc_library(
     name = "shape_util",
