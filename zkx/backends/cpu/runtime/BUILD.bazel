@@ -3,6 +3,21 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "buffer_allocations",
+    hdrs = ["buffer_allocations.h"],
+    deps = [
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:maybe_owning_device_memory",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "resource_use",
     srcs = ["resource_use.cc"],
     hdrs = ["resource_use.h"],
