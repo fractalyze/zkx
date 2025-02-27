@@ -12,6 +12,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "launch_dim",
+    hdrs = ["launch_dim.h"],
+    deps = ["@com_google_absl//absl/strings"],
+)
+
+zkx_cc_library(
     name = "semantic_version",
     srcs = ["semantic_version.cc"],
     hdrs = ["semantic_version.h"],
