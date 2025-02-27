@@ -9,6 +9,21 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "primitive_util",
+    srcs = ["primitive_util.cc"],
+    hdrs = ["primitive_util.h"],
+    deps = [
+        ":types",
+        ":zkx_data_proto",
+        "//xla/tsl/lib/math:math_util",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "printer",
     srcs = ["printer.cc"],
     hdrs = ["printer.h"],
