@@ -9,6 +9,18 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "printer",
+    srcs = ["printer.cc"],
+    hdrs = ["printer.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:cord",
+    ],
+)
+
+zkx_cc_library(
     name = "shape_util",
     srcs = ["shape_util.cc"],
     hdrs = ["shape_util.h"],
