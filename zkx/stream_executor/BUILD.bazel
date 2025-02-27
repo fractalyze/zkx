@@ -23,6 +23,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "device_memory_allocator",
+    hdrs = ["device_memory_allocator.h"],
+    deps = [
+        ":device_memory",
+        ":platform",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "launch_dim",
     hdrs = ["launch_dim.h"],
     deps = ["@com_google_absl//absl/strings"],
