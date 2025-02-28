@@ -57,3 +57,9 @@ zkx_cc_library(
     hdrs = ["util.h"],
     deps = ["@com_google_absl//absl/container:inlined_vector"],
 )
+
+zkx_cc_library(
+    name = "overflow_util",
+    hdrs = ["overflow_util.h"],
+    deps = ["@com_google_absl//absl/base:core_headers"],
+)
