@@ -25,6 +25,8 @@ limitations under the License.
 #include "absl/container/inlined_vector.h"
 #include "absl/types/span.h"
 
+#include "xla/tsl/lib/math/math_util.h"
+
 namespace zkx {
 
 // Ranks greater than 6 are very rare, so use InlinedVector<int64_t, 6> to store
@@ -33,6 +35,35 @@ namespace zkx {
 // memory to store its values.
 inline constexpr int InlineRank() { return 6; }
 using DimensionVector = absl::InlinedVector<int64_t, InlineRank()>;
+
+// Imports the templated FloorOfRatio math function from the TensorFlow
+// namespace, as it is very commonly used.
+template <typename T>
+constexpr T FloorOfRatio(T dividend, T divisor) {
+  return tsl::MathUtil::FloorOfRatio<T>(dividend, divisor);
+}
+
+// Imports the templated CeilOfRatio math function from the TensorFlow
+// namespace, as it is very commonly used.
+template <typename T>
+constexpr T CeilOfRatio(T dividend, T divisor) {
+  return tsl::MathUtil::CeilOfRatio<T>(dividend, divisor);
+}
+
+// Rounds the value up to a multiple of the divisor by first calling CeilOfRatio
+// then multiplying by the divisor. For example: RoundUpTo(13, 8) => 16
+template <typename T>
+constexpr T RoundUpTo(T value, T divisor) {
+  return CeilOfRatio(value, divisor) * divisor;
+}
+
+// Rounds the value down to a multiple of the divisor by first calling
+// FloorOfRatio then multiplying by the divisor. For example:
+// RoundDownTo(13, 8) => 8
+template <typename T>
+constexpr T RoundDownTo(T value, T divisor) {
+  return FloorOfRatio(value, divisor) * divisor;
+}
 
 template <typename Container>
 int64_t PositionInContainer(const Container& container, int64_t value) {

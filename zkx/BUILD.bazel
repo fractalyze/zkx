@@ -88,6 +88,7 @@ zkx_cc_library(
     name = "util",
     hdrs = ["util.h"],
     deps = [
+        "//xla/tsl/lib/math:math_util",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/types:span",
