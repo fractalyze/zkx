@@ -9,6 +9,12 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "maybe_owning",
+    hdrs = ["maybe_owning.h"],
+    deps = ["@com_google_absl//absl/log:check"],
+)
+
+zkx_cc_library(
     name = "primitive_util",
     srcs = ["primitive_util.cc"],
     hdrs = ["primitive_util.h"],
