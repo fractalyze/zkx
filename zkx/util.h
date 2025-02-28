@@ -21,7 +21,9 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include "absl/algorithm/container.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/types/span.h"
 
 namespace zkx {
 
@@ -31,6 +33,27 @@ namespace zkx {
 // memory to store its values.
 inline constexpr int InlineRank() { return 6; }
 using DimensionVector = absl::InlinedVector<int64_t, InlineRank()>;
+
+template <typename Container>
+int64_t PositionInContainer(const Container& container, int64_t value) {
+  return std::distance(container.begin(), absl::c_find(container, value));
+}
+
+// Returns a container with `sorted_ids_to_remove` elements removed.
+template <typename T>
+static T RemoveElements(absl::Span<const int64_t> sorted_ids_to_remove,
+                        const T& container) {
+  T result;
+  auto id_to_remove = sorted_ids_to_remove.begin();
+  for (size_t i = 0; i < container.size(); ++i) {
+    if (id_to_remove != sorted_ids_to_remove.end() && *id_to_remove == i) {
+      ++id_to_remove;
+      continue;
+    }
+    result.push_back(container[i]);
+  }
+  return result;
+}
 
 }  // namespace zkx
 

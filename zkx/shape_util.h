@@ -20,10 +20,18 @@ limitations under the License.
 
 #include <ostream>
 #include <string>
+#include <tuple>
 
 #include "absl/base/attributes.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/log/check.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/types/span.h"
+
+#include "xla/tsl/platform/errors.h"
+#include "zkx/overflow_util.h"
+#include "zkx/shape.h"
 
 namespace zkx {
 
@@ -68,6 +76,220 @@ struct ShapeIndex : public absl::InlinedVector<int64_t, 2> {
 };
 
 std::ostream& operator<<(std::ostream& out, const ShapeIndex& shape_index);
+
+// Namespaced collection of (static) shape utilities.
+//
+// These are all effectively convenience functions for testing/tweaking proto
+// properties, which do invariant checks before / after the operation.
+class ShapeUtil {
+ public:
+  using DynamicSizeType = int32_t;
+
+  // Returns the product of the statically bound dimensions.
+  template <bool kBoundedDynamicOk>
+  static inline std::pair<int64_t, bool> ExtentProduct(const Shape& shape) {
+    DCHECK(shape.IsArray()) << ShapeUtil::HumanString(shape);
+    DCHECK_EQ(shape.dimensions_size(), shape.rank());
+    int64_t product = 1;
+    bool any_overflows = false;
+    for (int dim = 0; dim < shape.dimensions_size(); ++dim) {
+      if constexpr (kBoundedDynamicOk) {
+        if (shape.is_unbounded_dynamic_dimension(dim)) {
+          continue;
+        }
+      } else {
+        DCHECK(!shape.is_unbounded_dynamic_dimension(dim));
+      }
+      bool overflow;
+      std::tie(product, overflow) =
+          OverflowSafeMultiply(product, shape.dimensions(dim));
+      any_overflows |= overflow;
+    }
+    return {product, any_overflows};
+  }
+
+  // Returns the number of elements contained within the provided shape;
+  // e.g. for rank 0 (scalars) the result is always 1.
+  // Precondition: shape.IsArray()
+  static inline int64_t ElementsIn(const Shape& shape) {
+    auto [product, overflow] =
+        ExtentProduct</*kBoundedDynamicOk=*/false>(shape);
+    DCHECK(!overflow);
+    return product;
+  }
+
+  // Returns the number of bytes required for an allocation of shape. The
+  // |pointer_size| parameter is used for calculating the size of tuple
+  // shapes. This includes only the size of the top-level buffer. For example, a
+  // tuple is stored as an array of pointers to other buffers. In this case,
+  // this method only returns the size of the pointer array.
+  static int64_t ByteSizeOf(const Shape& shape, int64_t pointer_size = -1);
+
+  // Returns the number of bytes used to store the primitive_type.
+  //
+  // Precondition: shape.IsArray()
+  static int64_t ByteSizeOfPrimitiveType(PrimitiveType primitive_type);
+
+  // Returns the number of bytes required to store the tuple member pointers for
+  // a allocation of shape. The `shape` must be a TUPLE shape, and
+  // `pointer_size` must be larger than zero.
+  static int64_t ByteSizeOfTupleIndexTable(const Shape& shape,
+                                           int64_t pointer_size);
+
+  // Returns the number of bytes required for the elements in an allocation of
+  // `shape`, which must be an array shape. Shapes use a separate
+  // memory location for each element, and so for these shapes,
+  // `ByteSizeOf(shape) == ByteSizeOfElements(shape)`. This
+  // size also includes padding if present in the layout.
+  static int64_t ByteSizeOfElements(const Shape& shape);
+
+  // Prints a human-readable string that represents the given shape, with or
+  // without layout. e.g. "u32[42x12] {0, 1}" or "u32[64]".
+  static void PrintHumanString(Printer* printer, const Shape& shape);
+  static void PrintHumanStringWithLayout(Printer* printer, const Shape& shape);
+
+  // Returns a human-readable string that represents the given shape, with or
+  // without layout. e.g. "u32[42x12] {0, 1}" or "u32[64]".
+  static std::string HumanString(const Shape& shape);
+  static std::string HumanStringWithLayout(const Shape& shape);
+
+  // Returns whether the LHS and RHS shapes have the same rank; note: does
+  // not check element type.
+  // Precondition: IsArray(lhs) && IsArray(rhs)
+  static bool SameRank(const Shape& lhs, const Shape& rhs) {
+    return lhs.rank() == rhs.rank();
+  }
+
+  // Returns whether the lhs and rhs shapes have the same element type.
+  static bool SameElementType(const Shape& lhs, const Shape& rhs) {
+    return lhs.element_type() == rhs.element_type();
+  }
+
+  // Returns whether the lhs and rhs shapes are identical.
+  static bool Equal(const Shape& lhs, const Shape& rhs);
+
+  // Two shapes have same structure if all subshape indices of lhs are presented
+  // on rhs and vice versa.
+  // A nested tuple shape of (U32, (S32[2], U32[2, 2])) is structurally equal to
+  // (S32, (U32[3], S32[2])) as their structures are both (,(,))
+  //
+  // In contrast, (U32, (U32, U32)) is structurally different from
+  // ((U32, U32), U32) as the former has structure (,(,)) while the latter has
+  // ((,),)
+  static bool EqualStructure(const Shape& lhs, const Shape& rhs);
+
+  ////////////////////
+  // Scalar-specific
+
+  static bool IsScalar(const Shape& shape) {
+    return shape.IsArray() && shape.rank() == 0;
+  }
+
+  // Constructs a new shape with the given element type and sequence of
+  // dimensions.
+  static Shape MakeShape(PrimitiveType element_type,
+                         absl::Span<const int64_t> dimensions);
+
+  // Validates that the provided shape satisfies invariants.
+  static absl::Status ValidateShape(const Shape& shape);
+
+  // Validates the provided shape satisfies invariants, except those that
+  // pertain to layout.
+  //
+  // Layout is optional for client-provided shapes, so that the compiler may
+  // determine and assign an optimized layout.
+  static absl::Status ValidateShapeWithOptionalLayout(const Shape& shape);
+
+  // Returns the number of elements in the given tuple shape.
+  // Precondition: IsTuple(shape)
+  static int64_t TupleElementCount(const Shape& shape);
+
+  // Returns true if the given shape has a subshape at the given index.
+  static bool IndexIsValid(const Shape& shape, ShapeIndexView index);
+
+  // GetSubshape and GetMutableSubshape return a particular nested Shape within
+  // the given Shape argument. The non-Try variants check fail if index is
+  // invalid.
+  static const Shape& GetSubshape(const Shape& shape, ShapeIndexView index);
+
+  // Faster version for one index.
+  static const Shape& GetSubshapeOneIndex(const Shape& shape, int64_t index);
+
+  static absl::StatusOr<const Shape*> TryGetSubshape(const Shape& shape,
+                                                     ShapeIndexView index);
+  static Shape* GetMutableSubshape(Shape* shape, ShapeIndexView index);
+
+  // Calls the given visitor function for each subshape of the given shape.
+  // Subshapes are visited in DFS pre-order starting with the entire shape
+  // (index {}).
+  //
+  // The visitor function must have the signature
+  //
+  //   void fn(const Shape& subshape, const ShapeIndex& index), or
+  //   void fn(Shape* subshape, const ShapeIndex& index) (mutable version)
+  template <typename Fn>
+  static void ForEachSubshape(const Shape& shape, Fn&& fn) {
+    ForEachSubshapeWithStatus(shape, [&](const Shape& subshape,
+                                         const ShapeIndex& index) {
+      fn(subshape, index);
+      return absl::OkStatus();
+    }).IgnoreError();
+  }
+  template <typename Fn>
+  static void ForEachMutableSubshape(Shape* shape, Fn&& fn) {
+    ForEachMutableSubshapeWithStatus(shape, [&](Shape* subshape,
+                                                const ShapeIndex& index) {
+      fn(subshape, index);
+      return absl::OkStatus();
+    }).IgnoreError();
+  }
+
+  // Variants of ForEach(Mutable)Subshape which propagate absl::Status from the
+  // visitor function.
+  //
+  // Visitor function must have the signature
+  //
+  //   absl::Status fn(const Shape& subshape, const ShapeIndex& index), or
+  //   absl::Status fn(Shape* subshape, const ShapeIndex& index) (mutable
+  //   version)
+  //
+  template <typename Fn>
+  static absl::Status ForEachSubshapeWithStatus(const Shape& shape, Fn&& fn) {
+    return ForEachMutableSubshapeWithStatus(
+        const_cast<Shape*>(&shape),
+        [&](Shape* subshape, const ShapeIndex& index) -> absl::Status {
+          return fn(*const_cast<const Shape*>(subshape), index);
+        });
+  }
+  template <typename Fn>
+  static absl::Status ForEachMutableSubshapeWithStatus(Shape* shape, Fn&& fn) {
+    ShapeIndex index;
+    return ForEachMutableSubshapeWithStatusHelper(shape, fn, &index);
+  }
+
+ private:
+  // Fills *shape ignoring dynamic dimensions. Returns true on success.
+  // REQUIRES: *shape is empty.
+  static bool FillNewShape(PrimitiveType element_type,
+                           absl::Span<const int64_t> dimensions, Shape* shape);
+
+  // Helper for ForEachSubshape which visits the subshapes of the given shape in
+  // DFS pre-order starting with the index.
+  template <typename Fn>
+  static absl::Status ForEachMutableSubshapeWithStatusHelper(
+      Shape* shape, Fn&& fn, ShapeIndex* index) {
+    TF_RETURN_IF_ERROR(fn(shape, *index));
+    if (shape->IsTuple()) {
+      for (int64_t i = 0; i < TupleElementCount(*shape); ++i) {
+        index->push_back(i);
+        TF_RETURN_IF_ERROR(ForEachMutableSubshapeWithStatusHelper(
+            shape->mutable_tuple_shapes(i), fn, index));
+        index->pop_back();
+      }
+    }
+    return absl::OkStatus();
+  }
+};
 
 }  // namespace zkx
 
