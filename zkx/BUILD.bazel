@@ -51,3 +51,9 @@ zkx_cc_library(
     name = "types",
     hdrs = ["types.h"],
 )
+
+zkx_cc_library(
+    name = "util",
+    hdrs = ["util.h"],
+    deps = ["@com_google_absl//absl/container:inlined_vector"],
+)
