@@ -23,6 +23,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "literal_util",
+    hdrs = ["literal_util.h"],
+    deps = [
+        ":literal",
+        ":primitive_util",
+        ":shape_util",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "maybe_owning",
     hdrs = ["maybe_owning.h"],
     deps = ["@com_google_absl//absl/log:check"],
