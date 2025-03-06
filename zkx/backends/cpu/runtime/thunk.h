@@ -30,6 +30,7 @@ limitations under the License.
 #include "xla/tsl/concurrency/async_value_ref.h"
 #include "xla/tsl/concurrency/chain.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/backends/cpu/runtime/buffer_allocations.h"
 #include "zkx/backends/cpu/runtime/resource_use.h"
 #include "zkx/runtime/buffer_use.h"
 
@@ -184,8 +185,7 @@ class Thunk {
   struct ExecuteParams {
     // TODO(chokobole): Uncomment this. Dependency: FunctionLibrary
     // FunctionLibrary* function_library = nullptr;
-    // TODO(chokobole): Uncomment this. Dependency: BufferAllocations
-    // const BufferAllocations* buffer_allocations = nullptr;
+    const BufferAllocations* buffer_allocations = nullptr;
     // TODO(chokobole): Uncomment this. Dependency: XfeedManager
     // runtime::XfeedManager* xfeed = nullptr;
     const Eigen::ThreadPoolDevice* intra_op_threadpool = nullptr;
