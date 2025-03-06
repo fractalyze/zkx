@@ -44,12 +44,14 @@ zkx_cc_library(
 zkx_cc_library(
     name = "shape_util",
     srcs = [
+        "index_util.cc",
         "layout.cc",
         "layout_util.cc",
         "shape.cc",
         "shape_util.cc",
     ],
     hdrs = [
+        "index_util.h",
         "layout.h",
         "layout_util.h",
         "shape.h",
@@ -104,6 +106,7 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "zkx_unittests",
     srcs = [
+        "index_util_unittest.cc",
         "layout_unittest.cc",
         "layout_util_unittest.cc",
     ],
