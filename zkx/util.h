@@ -21,7 +21,10 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <limits>
+
 #include "absl/algorithm/container.h"
+#include "absl/base/macros.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/types/span.h"
 
@@ -63,6 +66,18 @@ constexpr T RoundUpTo(T value, T divisor) {
 template <typename T>
 constexpr T RoundDownTo(T value, T divisor) {
   return FloorOfRatio(value, divisor) * divisor;
+}
+
+// Returns a mask with "width" number of least significant bits set.
+template <typename T>
+constexpr inline T LsbMask(int width) {
+  static_assert(std::is_unsigned<T>::value,
+                "T should be an unsigned integer type");
+  ABSL_ASSERT(width >= 0);
+  ABSL_ASSERT(width <= std::numeric_limits<T>::digits);
+  return width == 0
+             ? 0
+             : static_cast<T>(-1) >> (std::numeric_limits<T>::digits - width);
 }
 
 template <typename Container>

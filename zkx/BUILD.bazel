@@ -9,6 +9,20 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "literal",
+    srcs = ["literal.cc"],
+    hdrs = ["literal.h"],
+    deps = [
+        ":maybe_owning",
+        ":primitive_util",
+        ":shape_util",
+        ":util",
+        "//xla/tsl/platform:mem",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
     name = "maybe_owning",
     hdrs = ["maybe_owning.h"],
     deps = ["@com_google_absl//absl/log:check"],

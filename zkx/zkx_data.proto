@@ -228,3 +228,31 @@ message ShapeProto {
   // ShapeUtil::Compatible() and ShapeUtil::Hash() appropriately to account for
   // the new field.
 }
+
+// Literals are used when the server and client need to exchange materialized
+// data / results. Literals are also used to describe constants used in
+// computations.
+//
+// Transfers to/from the client are encoded in literal form, and the structure
+// of the repeated fields is implied by the shape.
+message LiteralProto {
+  ShapeProto shape = 1;
+  repeated bool preds = 2;
+  bytes s1s = 3;
+  bytes s2s = 4;
+  bytes s4s = 5;
+  bytes s8s = 6;
+  bytes u1s = 7;
+  bytes u2s = 8;
+  bytes u4s = 9;
+  bytes u8s = 10;
+  // The U16s and S16s are encoded in little endian byte order.
+  bytes u16s = 11;
+  bytes s16s = 12;
+  repeated int32 s32s = 13;
+  repeated int64 s64s = 14;
+  repeated uint32 u32s = 15;
+  repeated uint64 u64s = 16;
+  repeated LiteralProto tuple_literals = 17;
+  repeated int64 sparse_indices = 18;
+}
