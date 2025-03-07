@@ -23,6 +23,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "array2d",
+    hdrs = ["array2d.h"],
+    deps = [
+        ":array",
+        "//zkx/base:bits",
+        "@com_google_absl//absl/functional:function_ref",
+    ],
+)
+
+zkx_cc_library(
     name = "executable_run_options",
     srcs = ["executable_run_options.cc"],
     hdrs = ["executable_run_options.h"],
@@ -171,6 +181,7 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "zkx_unittests",
     srcs = [
+        "array2d_unittest.cc",
         "array_unittest.cc",
         "index_util_unittest.cc",
         "layout_unittest.cc",
@@ -179,6 +190,7 @@ zkx_cc_unittest(
     ],
     deps = [
         ":array",
+        ":array2d",
         ":shape_util",
         ":status_macros",
         "//xla/tsl/platform:errors",
