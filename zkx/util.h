@@ -85,6 +85,8 @@ int64_t PositionInContainer(const Container& container, int64_t value) {
   return std::distance(container.begin(), absl::c_find(container, value));
 }
 
+int64_t Product(absl::Span<const int64_t> xs);
+
 // Returns a container with `sorted_ids_to_remove` elements removed.
 template <typename T>
 static T RemoveElements(absl::Span<const int64_t> sorted_ids_to_remove,

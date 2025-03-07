@@ -138,6 +138,7 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "util",
+    srcs = ["util.cc"],
     hdrs = ["util.h"],
     deps = [
         "//xla/tsl/lib/math:math_util",
