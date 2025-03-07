@@ -32,6 +32,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "global_device_id",
+    srcs = ["global_device_id.cc"],
+    hdrs = ["global_device_id.h"],
+    deps = [
+        "//xla/tsl/lib/gtl:int_type",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "logical_buffer",
     srcs = ["logical_buffer.cc"],
     hdrs = ["logical_buffer.h"],
