@@ -9,6 +9,20 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "array",
+    hdrs = ["array.h"],
+    deps = [
+        "//zkx:types",
+        "//zkx:util",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "executable_run_options",
     srcs = ["executable_run_options.cc"],
     hdrs = ["executable_run_options.h"],
@@ -157,12 +171,14 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "zkx_unittests",
     srcs = [
+        "array_unittest.cc",
         "index_util_unittest.cc",
         "layout_unittest.cc",
         "layout_util_unittest.cc",
         "status_macros_unittest.cc",
     ],
     deps = [
+        ":array",
         ":shape_util",
         ":status_macros",
         "//xla/tsl/platform:errors",
