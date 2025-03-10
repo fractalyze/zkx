@@ -6,7 +6,15 @@ load(
 )
 
 def zkx_safe_code():
-    return ["-Wall", "-Werror"]
+    return [
+        "-Wall",
+        "-Werror",
+        # NOTE(chokobole): See the whole list of warnings in https://github.com/openxla/xla/tree/8bac4a2/warnings.bazelrc.
+        # TODO(chokobole): Remove this warning once resolved. This is required to compile async_value.h.
+        # ./xla/tsl/concurrency/async_value.h:722:19: warning: offset of on non-standard-layout type 'ConcreteAsyncValue<C>' [-Winvalid-offsetof]
+        # 722 |     static_assert(offsetof(ConcreteAsyncValue<T>, data_store_.data_) ==
+        "-Wno-invalid-offsetof",
+    ]
 
 def zkx_warnings(safe_code):
     warnings = []
