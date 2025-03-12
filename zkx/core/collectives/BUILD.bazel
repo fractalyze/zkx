@@ -14,6 +14,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "clique",
+    srcs = ["clique.cc"],
+    hdrs = ["clique.h"],
+    deps = [
+        ":communicator",
+        ":rank_id",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "clique_key",
     srcs = ["clique_key.cc"],
     hdrs = ["clique_key.h"],
