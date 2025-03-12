@@ -1,0 +1,17 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "cpu_clique_key",
+    srcs = ["cpu_clique_key.cc"],
+    hdrs = ["cpu_clique_key.h"],
+    deps = [
+        "//xla/tsl/platform:casts",
+        "//zkx/core/collectives:clique_key",
+        "//zkx/service:global_device_id",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
