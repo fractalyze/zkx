@@ -40,6 +40,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "computation_placer",
+    srcs = ["computation_placer.cc"],
+    hdrs = ["computation_placer.h"],
+    deps = [
+        ":global_device_id",
+        "//xla/tsl/platform:statusor",
+        "//zkx:array2d",
+        "//zkx:status_macros",
+        "//zkx:zkx_data_proto",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor/host:host_platform_id",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "global_device_id",
     srcs = ["global_device_id.cc"],
     hdrs = ["global_device_id.h"],
