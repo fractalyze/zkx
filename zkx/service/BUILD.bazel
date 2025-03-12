@@ -27,6 +27,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "collective_ops_utils",
+    hdrs = ["collective_ops_utils.h"],
+)
+
+zkx_cc_library(
     name = "logical_buffer",
     srcs = ["logical_buffer.cc"],
     hdrs = ["logical_buffer.h"],
