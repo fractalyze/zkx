@@ -40,6 +40,24 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "collectives_registry",
+    srcs = ["collectives_registry.cc"],
+    hdrs = ["collectives_registry.h"],
+    deps = [
+        ":collectives",
+        "//xla/tsl/platform:statusor",
+        "//zkx/service:platform_util",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "communicator",
     hdrs = ["communicator.h"],
     deps = [
