@@ -148,76 +148,14 @@ diff --color -r /path/to/openxla/xla/xla/tsl/concurrency/concurrent_vector.h xla
 29d29
 < #include "xla/tsl/platform/logging.h"
 diff --color -r /path/to/openxla/xla/xla/tsl/concurrency/concurrent_vector_test.cc xla/tsl/concurrency/concurrent_vector_test.cc
-21,23c21
+21,23c21,23
 < #include "xla/tsl/platform/env.h"
 < #include "xla/tsl/platform/test.h"
 < #include "xla/tsl/platform/threadpool.h"
 ---
 > #include "gtest/gtest.h"
-43,102c41,42
-< TEST(ConcurrentVectorTest, OneWriterOneReader) {
-<   ConcurrentVector<int> vec(1);
-<
-<   thread::ThreadPool pool(Env::Default(), "concurrent-vector", 4);
-<   constexpr int kCount = 1000;
-<
-<   pool.Schedule([&] {
-<     for (int i = 0; i < kCount; ++i) {
-<       ASSERT_EQ(i, vec.emplace_back(i));
-<     }
-<   });
-<
-<   pool.Schedule([&] {
-<     for (int i = 0; i < kCount; ++i) {
-<       while (i >= vec.size()) {
-<         // spin loop
-<       }
-<       EXPECT_EQ(i, vec[i]);
-<     }
-<   });
-< }
-<
-< TEST(ConcurrentVectorTest, TwoWritersTwoReaders) {
-<   ConcurrentVector<int> vec(1);
-<
-<   thread::ThreadPool pool(Env::Default(), "concurrent-vector", 4);
-<   constexpr int kCount = 1000;
-<
-<   // Each writer stores from 0 to kCount/2 - 1 to the vector.
-<   auto writer = [&] {
-<     for (int i = 0; i < kCount / 2; ++i) {
-<       vec.emplace_back(i);
-<     }
-<   };
-<
-<   pool.Schedule(writer);
-<   pool.Schedule(writer);
-<
-<   // Reader reads all the data from the vector and verifies its content.
-<   auto reader = [&] {
-<     std::vector<int> stored;
-<
-<     for (int i = 0; i < kCount; ++i) {
-<       while (i >= vec.size()) {
-<         // spin loop
-<       }
-<       stored.emplace_back(vec[i]);
-<     }
-<
-<     std::sort(stored.begin(), stored.end());
-<
-<     for (int i = 0; i < kCount / 2; ++i) {
-<       ASSERT_EQ(stored[2 * i], i);
-<       ASSERT_EQ(stored[2 * i + 1], i);
-<     }
-<   };
-<
-<   pool.Schedule(reader);
-<   pool.Schedule(reader);
-< }
----
-> // TODO(chokobole): Add OneWriterOneReader, TwoWritersTwoReaders test cases.
-> // Dependency: ThreadPool
+>
+> #include "xla/tsl/platform/thread_pool.h"
 ```
 
 The implementations are the same, but there are some differences in `BUILD.bazel`.

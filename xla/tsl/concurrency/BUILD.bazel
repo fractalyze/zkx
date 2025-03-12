@@ -104,7 +104,10 @@ cc_library(
 zkx_cc_unittest(
     name = "concurrent_vector_test",
     srcs = ["concurrent_vector_test.cc"],
-    deps = [":concurrent_vector"],
+    deps = [
+        ":concurrent_vector",
+        "//xla/tsl/platform:thread_pool",
+    ],
 )
 
 cc_library(

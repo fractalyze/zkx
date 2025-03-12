@@ -1,0 +1,82 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "resource_use",
+    srcs = ["resource_use.cc"],
+    hdrs = ["resource_use.h"],
+    deps = [
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "thread_pool_task_runner",
+    hdrs = ["thread_pool_task_runner.h"],
+    deps = [
+        ":thunk",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
+zkx_cc_library(
+    name = "thunk",
+    srcs = ["thunk.cc"],
+    hdrs = ["thunk.h"],
+    deps = [
+        ":resource_use",
+        "//xla/tsl/concurrency:async_value",
+        "//xla/tsl/platform:statusor",
+        "//zkx/runtime:buffer_use",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
+    name = "thunk_executor",
+    srcs = ["thunk_executor.cc"],
+    hdrs = ["thunk_executor.h"],
+    deps = [
+        ":resource_use",
+        ":thunk",
+        "//xla/tsl/concurrency:async_value",
+        "//xla/tsl/platform:env",
+        "//zkx/base:vlog",
+        "//zkx/base/strings:string_util",
+        "//zkx/runtime:buffer_use",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:fixed_array",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "runtime_unittests",
+    srcs = [
+        "resource_use_unittest.cc",
+        "thunk_executor_unittest.cc",
+        "thunk_unittest.cc",
+    ],
+    deps = [
+        ":resource_use",
+        ":thunk",
+        ":thunk_executor",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:thread_pool",
+        "@eigen_archive//:eigen3",
+    ],
+)
