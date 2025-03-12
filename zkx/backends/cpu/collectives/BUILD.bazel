@@ -3,6 +3,20 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "cpu_clique",
+    srcs = ["cpu_clique.cc"],
+    hdrs = ["cpu_clique.h"],
+    deps = [
+        ":cpu_clique_key",
+        "//zkx/core/collectives:clique",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "cpu_clique_key",
     srcs = ["cpu_clique_key.cc"],
     hdrs = ["cpu_clique_key.h"],
