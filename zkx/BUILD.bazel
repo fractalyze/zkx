@@ -9,6 +9,13 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "executable_run_options",
+    srcs = ["executable_run_options.cc"],
+    hdrs = ["executable_run_options.h"],
+    deps = ["@com_google_absl//absl/hash"],
+)
+
+zkx_cc_library(
     name = "literal",
     srcs = ["literal.cc"],
     hdrs = ["literal.h"],
