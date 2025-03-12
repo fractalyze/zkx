@@ -14,6 +14,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "clique_key",
+    srcs = ["clique_key.cc"],
+    hdrs = ["clique_key.h"],
+    deps = [
+        ":rank_id",
+        "//zkx/service:global_device_id",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "rank_id",
     hdrs = ["rank_id.h"],
     deps = ["//xla/tsl/lib/gtl:int_type"],
