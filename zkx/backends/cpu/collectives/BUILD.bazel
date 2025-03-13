@@ -66,3 +66,26 @@ zkx_cc_library(
         "@com_google_absl//absl/time",
     ],
 )
+
+zkx_cc_library(
+    name = "in_process_communicator",
+    srcs = ["in_process_communicator.cc"],
+    hdrs = ["in_process_communicator.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:primitive_util",
+        "//zkx:zkx_data_proto",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/core/collectives:communicator",
+        "//zkx/service:collective_ops_utils",
+        "//zkx/service:rendezvous",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
