@@ -49,5 +49,8 @@ build:native --copt=-march=native
 # NOTE(chokobole): `CliqueKey` depends on `std::type_index()`.
 build --//:has_rtti
 
+# NOTE(chokobole): pjrt needs exception.
+build --//:has_exception
+
 # Load rc file with user-specific options.
 try-import %workspace%/.bazelrc.user
