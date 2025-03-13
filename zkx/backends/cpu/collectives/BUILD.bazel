@@ -1,4 +1,5 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx.bzl", "if_linux", "if_macos")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -68,6 +69,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gloo_collectives",
+    srcs = ["gloo_collectives.cc"],
+    hdrs = ["gloo_collectives.h"],
+    deps = [
+        ":cpu_collectives",
+        ":gloo_communicator",
+        "@com_google_absl//absl/strings",
+        "@gloo",
+    ],
+)
+
+zkx_cc_library(
     name = "gloo_communicator",
     srcs = ["gloo_communicator.cc"],
     hdrs = ["gloo_communicator.h"],
@@ -131,4 +144,25 @@ zkx_cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
+)
+
+zkx_cc_unittest(
+    name = "collectives_unittests",
+    srcs = ["gloo_collectives_unittest.cc"],
+    deps = [
+        ":cpu_clique_key",
+        ":cpu_collectives",
+        ":gloo_collectives",
+        ":gloo_kv_store",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//xla/tsl/platform:thread_pool",
+        "//zkx/pjrt/distributed:in_memory_key_value_store",
+        "//zkx/service:collective_ops_utils",
+        "@gloo",
+    ] + if_linux([
+        "@gloo//:transport_tcp",
+    ]) + if_macos([
+        "@gloo//:transport_uv",
+    ]),
 )
