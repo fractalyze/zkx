@@ -31,6 +31,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cpu_cliques",
+    srcs = ["cpu_cliques.cc"],
+    hdrs = ["cpu_cliques.h"],
+    deps = [
+        ":cpu_clique",
+        ":cpu_clique_key",
+        ":cpu_collectives",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:vlog",
+        "//zkx/core/collectives:communicator",
+        "//zkx/core/collectives:rank_id",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "cpu_collectives",
     srcs = ["cpu_collectives.cc"],
     hdrs = ["cpu_collectives.h"],
