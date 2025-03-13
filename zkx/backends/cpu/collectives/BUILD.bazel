@@ -68,6 +68,24 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gloo_communicator",
+    srcs = ["gloo_communicator.cc"],
+    hdrs = ["gloo_communicator.h"],
+    deps = [
+        ":cpu_collectives",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:primitive_util",
+        "//zkx:status_macros",
+        "//zkx/base:vlog",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/time",
+        "@gloo",
+    ],
+)
+
+zkx_cc_library(
     name = "gloo_kv_store",
     srcs = ["gloo_kv_store.cc"],
     hdrs = ["gloo_kv_store.h"],
