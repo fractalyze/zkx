@@ -1,0 +1,13 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "key_value_store_interface",
+    hdrs = ["key_value_store_interface.h"],
+    deps = [
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/time",
+    ],
+)
