@@ -29,6 +29,12 @@ zkx_cc_library(
 zkx_cc_library(
     name = "collective_ops_utils",
     hdrs = ["collective_ops_utils.h"],
+    deps = [
+        ":global_device_id",
+        "//zkx:executable_run_options",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/strings:str_format",
+    ],
 )
 
 zkx_cc_library(
