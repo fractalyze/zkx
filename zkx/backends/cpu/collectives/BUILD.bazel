@@ -68,6 +68,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gloo_kv_store",
+    srcs = ["gloo_kv_store.cc"],
+    hdrs = ["gloo_kv_store.h"],
+    deps = [
+        "//zkx/pjrt:status_casters",
+        "//zkx/pjrt/distributed:key_value_store_interface",
+        "@com_google_absl//absl/time",
+        "@gloo",
+    ],
+)
+
+zkx_cc_library(
     name = "in_process_collectives",
     srcs = ["in_process_collectives.cc"],
     hdrs = ["in_process_collectives.h"],
