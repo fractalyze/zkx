@@ -68,6 +68,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "in_process_collectives",
+    srcs = ["in_process_collectives.cc"],
+    hdrs = ["in_process_collectives.h"],
+    deps = [
+        ":cpu_collectives",
+        ":in_process_communicator",
+        "//zkx/core/collectives:clique_id",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "in_process_communicator",
     srcs = ["in_process_communicator.cc"],
     hdrs = ["in_process_communicator.h"],
