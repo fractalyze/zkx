@@ -12,7 +12,11 @@ zkx_cc_library(
     name = "executable_run_options",
     srcs = ["executable_run_options.cc"],
     hdrs = ["executable_run_options.h"],
-    deps = ["@com_google_absl//absl/hash"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+    ],
 )
 
 zkx_cc_library(
