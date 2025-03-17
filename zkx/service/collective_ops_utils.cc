@@ -30,4 +30,40 @@ std::string_view ReductionKindToString(ReductionKind reduction_kind) {
   }
 }
 
+std::string_view CollectiveOpGroupModeToString(
+    CollectiveOpGroupMode group_mode) {
+  switch (group_mode) {
+    case CollectiveOpGroupMode::kCrossReplica:
+      return "kCrossReplica";
+    case CollectiveOpGroupMode::kCrossPartition:
+      return "kCrossPartition";
+    case CollectiveOpGroupMode::kCrossReplicaAndPartition:
+      return "kCrossReplicaAndPartition";
+    case CollectiveOpGroupMode::kFlattenedID:
+      return "kFlattenedID";
+  }
+}
+
+// Returns the group formation mode implied by (a) whether the operation has
+// channel_id and (b) if it has use_global_device_ids and if yes, its value.
+absl::StatusOr<CollectiveOpGroupMode> GetCollectiveOpGroupMode(
+    bool has_channel_id, std::optional<bool> use_global_device_ids) {
+  if (!has_channel_id) {
+    if (!use_global_device_ids.has_value() || !*use_global_device_ids) {
+      return CollectiveOpGroupMode::kCrossReplica;
+    } else {
+      return absl::InvalidArgumentError(
+          "Invalid combination of has_channel_id and use_global_device_ids");
+    }
+  } else {
+    if (!use_global_device_ids.has_value()) {
+      return CollectiveOpGroupMode::kCrossPartition;
+    } else if (!*use_global_device_ids) {
+      return CollectiveOpGroupMode::kCrossReplicaAndPartition;
+    } else {
+      return CollectiveOpGroupMode::kFlattenedID;
+    }
+  }
+}
+
 }  // namespace zkx
