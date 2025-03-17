@@ -30,9 +30,12 @@ limitations under the License.
 #include "xla/tsl/concurrency/async_value_ref.h"
 #include "xla/tsl/concurrency/chain.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/backends/cpu/collectives/cpu_collectives.h"
 #include "zkx/backends/cpu/runtime/buffer_allocations.h"
 #include "zkx/backends/cpu/runtime/resource_use.h"
+#include "zkx/executable_run_options.h"
 #include "zkx/runtime/buffer_use.h"
+#include "zkx/service/global_device_id.h"
 
 namespace Eigen {
 struct ThreadPoolDevice;
@@ -128,6 +131,36 @@ class Thunk {
   virtual ResourceUses resource_uses() const { return {}; }
 
   //===--------------------------------------------------------------------===//
+  // CollectiveExecuteParams
+  //===--------------------------------------------------------------------===//
+
+  // Parameters capturing all the details required for collective execution of
+  // ZKX executables (multiple partitions and replicas).
+  struct CollectiveExecuteParams {
+    static absl::StatusOr<CollectiveExecuteParams> Create(
+        const ExecutableRunOptions* run_options);
+
+    RunId run_id;
+
+    int64_t local_device_ordinal;
+    GlobalDeviceId global_device_id;
+
+    const DeviceAssignment* device_assignment = nullptr;
+    CpuCollectives* collectives = nullptr;
+
+   private:
+    CollectiveExecuteParams(RunId run_id, int64_t local_device_ordinal,
+                            GlobalDeviceId global_device_id,
+                            const DeviceAssignment* device_assignment,
+                            CpuCollectives* collectives)
+        : run_id(run_id),
+          local_device_ordinal(local_device_ordinal),
+          global_device_id(global_device_id),
+          device_assignment(device_assignment),
+          collectives(collectives) {}
+  };
+
+  //===--------------------------------------------------------------------===//
   // ExecuteParams
   //===--------------------------------------------------------------------===//
 
@@ -190,8 +223,7 @@ class Thunk {
     // runtime::XfeedManager* xfeed = nullptr;
     const Eigen::ThreadPoolDevice* intra_op_threadpool = nullptr;
     TaskRunner* task_runner = nullptr;
-    // TODO(chokobole): Uncomment this. Dependency: CollectiveExecuteParams
-    // CollectiveExecuteParams* collective_params = nullptr;
+    CollectiveExecuteParams* collective_params = nullptr;
     ExecuteSession session = ExecuteSession(ExecuteSession::kMaxWorkers,
                                             ExecuteSession::kSplitThreshold);
   };
