@@ -15,6 +15,11 @@ limitations under the License.
 
 #include "zkx/service/collective_ops_utils.h"
 
+#include "absl/strings/str_join.h"
+
+#include "xla/tsl/platform/statusor.h"
+#include "zkx/status_macros.h"
+
 namespace zkx {
 
 std::string_view ReductionKindToString(ReductionKind reduction_kind) {
@@ -44,6 +49,46 @@ std::string_view CollectiveOpGroupModeToString(
   }
 }
 
+absl::StatusOr<std::vector<int>> GetParticipatingIDs(
+    CollectiveOpGroupMode group_mode, int current_id,
+    std::optional<int> total_participant_count,
+    absl::Span<const ReplicaGroup> groups) {
+  // Empty replica_groups() means that all replicas participate.
+  if (groups.empty()) {
+    TF_RET_CHECK(total_participant_count.has_value());
+    std::vector<int> all_participants(*total_participant_count);
+    absl::c_iota(all_participants, 0);
+    return all_participants;
+  }
+
+  // Formatter for printing replica groups in StrJoin.
+  auto group_formatter = [](std::string* out, const ReplicaGroup& group) {
+    out->append("[");
+    out->append(absl::StrJoin(group.replica_ids(), ", "));
+    out->append("]");
+  };
+
+  // Figure out the other replicas that go together with this one.
+  std::optional<ReplicaGroup> group;
+  for (const ReplicaGroup& g : groups) {
+    if (absl::c_linear_search(g.replica_ids(), current_id)) {
+      TF_RET_CHECK(!group.has_value())
+          << "Replica ID " << current_id << " appears twice in replica groups"
+          << "; group_mode=" << CollectiveOpGroupModeToString(group_mode)
+          << "; groups_size=" << groups.size()
+          << "; groups= " << absl::StrJoin(groups, ", ", group_formatter);
+      group = g;
+    }
+  }
+  TF_RET_CHECK(group.has_value())
+      << "Replica ID " << current_id << " doesn't appear in replica groups"
+      << "; group_mode=" << CollectiveOpGroupModeToString(group_mode)
+      << "; groups_size=" << groups.size()
+      << "; groups= " << absl::StrJoin(groups, ", ", group_formatter);
+  return std::vector<int>(group->replica_ids().begin(),
+                          group->replica_ids().end());
+}
+
 // Returns the group formation mode implied by (a) whether the operation has
 // channel_id and (b) if it has use_global_device_ids and if yes, its value.
 absl::StatusOr<CollectiveOpGroupMode> GetCollectiveOpGroupMode(
@@ -62,6 +107,110 @@ absl::StatusOr<CollectiveOpGroupMode> GetCollectiveOpGroupMode(
       return CollectiveOpGroupMode::kCrossReplicaAndPartition;
     } else {
       return CollectiveOpGroupMode::kFlattenedID;
+    }
+  }
+}
+
+absl::StatusOr<std::vector<GlobalDeviceId>> GetParticipatingDevices(
+    GlobalDeviceId device_id, const DeviceAssignment& device_assignment,
+    absl::Span<const ReplicaGroup> replica_groups,
+    CollectiveOpGroupMode group_mode) {
+  int replica_count = device_assignment.replica_count();
+  int partition_count = device_assignment.computation_count();
+
+  TF_ASSIGN_OR_RETURN(const DeviceAssignment::LogicalID logical_id,
+                      device_assignment.LogicalIdForDevice(device_id));
+  int current_replica_id = logical_id.replica_id;
+  int current_partition_id = logical_id.computation_id;
+  TF_RET_CHECK(0 <= current_replica_id && current_replica_id < replica_count)
+      << current_replica_id << " " << replica_count;
+  TF_RET_CHECK(0 <= current_partition_id &&
+               current_partition_id < partition_count)
+      << current_partition_id << " " << partition_count;
+
+  std::vector<GlobalDeviceId> participants;
+  switch (group_mode) {
+    case CollectiveOpGroupMode::kCrossReplica: {
+      // This is a cross replica operation. replica group contains replica id.
+      // use current replica id to find the set of participating replicas. If
+      // replica groups are empty, assume a group with all replicas.
+      TF_ASSIGN_OR_RETURN(std::vector<int> participating_replicas,
+                          GetParticipatingIDs(group_mode, current_replica_id,
+                                              replica_count, replica_groups));
+
+      // The set of participating devices is the replicas from the current
+      // partition.
+      participants.reserve(participating_replicas.size());
+      for (int replica_id : participating_replicas) {
+        TF_RET_CHECK(0 <= replica_id && replica_id < replica_count)
+            << replica_id << " " << replica_count;
+        participants.emplace_back(
+            device_assignment(replica_id, current_partition_id));
+      }
+      return participants;
+    }
+
+    case CollectiveOpGroupMode::kCrossPartition: {
+      // replica_groups contain partition_id, group contains all partitions
+      // for the current replica.
+      TF_ASSIGN_OR_RETURN(std::vector<int> participating_partitions,
+                          GetParticipatingIDs(group_mode, current_partition_id,
+                                              partition_count, replica_groups));
+      participants.reserve(participating_partitions.size());
+      for (int partition_id : participating_partitions) {
+        TF_RET_CHECK(0 <= partition_id && partition_id < partition_count)
+            << partition_id << " " << partition_count;
+        participants.emplace_back(
+            device_assignment(current_replica_id, partition_id));
+      }
+      return participants;
+    }
+
+    case CollectiveOpGroupMode::kCrossReplicaAndPartition: {
+      // replica_groups contain replica_ids. Group contains replicas for all
+      // partitions.
+      TF_ASSIGN_OR_RETURN(std::vector<int> participating_replicas,
+                          GetParticipatingIDs(group_mode, current_replica_id,
+                                              replica_count, replica_groups));
+      participants.reserve(participating_replicas.size() * partition_count);
+      for (int replica_id : participating_replicas) {
+        TF_RET_CHECK(0 <= replica_id && replica_id < replica_count)
+            << replica_id << " " << replica_count;
+        for (int partition_id = 0; partition_id < partition_count;
+             ++partition_id) {
+          participants.emplace_back(
+              device_assignment(replica_id, partition_id));
+        }
+      }
+      return participants;
+    }
+
+    case CollectiveOpGroupMode::kFlattenedID: {
+      // replica groups contain flattened-ids and cannot be empty.
+      TF_RET_CHECK(!replica_groups.empty())
+          << "replica groups cannot be empty for kFlattenedID mode";
+
+      int current_flattened_id =
+          current_replica_id * partition_count + current_partition_id;
+
+      // Find participants based on flattened id. replica_groups cannot be
+      // empty so no need to pass in total_participant_count.
+      TF_ASSIGN_OR_RETURN(
+          std::vector<int> participating_flattened_ids,
+          GetParticipatingIDs(group_mode, current_flattened_id,
+                              /*total_participant_count=*/std::nullopt,
+                              replica_groups));
+
+      participants.reserve(participating_flattened_ids.size());
+      for (int flattened_id : participating_flattened_ids) {
+        // Map from flattened id back to replica_id, partition_id.
+        int replica_id = flattened_id / partition_count;
+        TF_RET_CHECK(0 <= replica_id && replica_id < replica_count)
+            << replica_id << " " << replica_count;
+        int partition_id = flattened_id % partition_count;
+        participants.emplace_back(device_assignment(replica_id, partition_id));
+      }
+      return participants;
     }
   }
 }

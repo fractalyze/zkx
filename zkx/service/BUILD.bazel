@@ -31,11 +31,16 @@ zkx_cc_library(
     srcs = ["collective_ops_utils.cc"],
     hdrs = ["collective_ops_utils.h"],
     deps = [
+        ":computation_placer",
         ":global_device_id",
+        "//xla/tsl/platform:statusor",
         "//zkx:executable_run_options",
+        "//zkx:status_macros",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
     ],
 )
 

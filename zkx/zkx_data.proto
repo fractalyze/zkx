@@ -271,3 +271,11 @@ message LiteralProto {
   repeated LiteralProto tuple_literals = 17;
   repeated int64 sparse_indices = 18;
 }
+
+// Describes the replica groups in a cross replica op (e.g., all-reduce and
+// all-to-all).
+message ReplicaGroup {
+  // The ids of the replicas that belongs to the same group. The ordering of the
+  // ids matters in some ops (e.g., all-to-all).
+  repeated int64 replica_ids = 1;
+}
