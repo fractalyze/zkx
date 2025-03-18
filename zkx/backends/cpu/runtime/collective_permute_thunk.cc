@@ -1,0 +1,109 @@
+/* Copyright 2024 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
+
+#include "absl/strings/str_format.h"
+#include "absl/strings/str_join.h"
+
+#include "xla/tsl/platform/statusor.h"
+#include "zkx/backends/cpu/collectives/cpu_collectives.h"
+#include "zkx/base/vlog.h"
+#include "zkx/core/collectives/communicator.h"
+#include "zkx/service/collective_ops_utils.h"
+#include "zkx/shape.h"
+#include "zkx/shape_util.h"
+#include "zkx/status_macros.h"
+
+namespace zkx::cpu {
+
+tsl::AsyncValueRef<CollectivePermuteThunk::ExecuteEvent>
+CollectivePermuteThunk::Execute(const ExecuteParams& params) {
+  // TODO(chokobole): Uncomment this. Dependency: Profiler
+  // tsl::profiler::TraceMe trace([&] { return TraceMeEncode(); });
+
+  TF_ASSIGN_OR_RETURN(OpDeviceMemory data, GetOpDeviceMemory(params));
+
+  Thunk::CollectiveExecuteParams* collective_params = params.collective_params;
+  TF_RET_CHECK(collective_params) << "Collectives parameters are not set";
+
+  TF_ASSIGN_OR_RETURN(DeviceAssignment::LogicalID logical_id,
+                      collective_params->device_assignment->LogicalIdForDevice(
+                          collective_params->global_device_id));
+
+  int32_t logical_device_id = op_params().has_channel_id
+                                  ? logical_id.computation_id
+                                  : logical_id.replica_id;
+
+  // Find replicas that we will communicate with.
+  std::optional<RankId> source_replica_id;
+  std::vector<RankId> copy_to;
+
+  for (auto& [from, to] : source_target_pairs_) {
+    if (from == logical_device_id) {
+      copy_to.push_back(RankId(to));
+    }
+    if (to == logical_device_id) {
+      TF_RET_CHECK(!source_replica_id.has_value())
+          << "Duplicate source replica: " << from << ". "
+          << "Previous source replica: " << *source_replica_id;
+      source_replica_id = from;
+    }
+  }
+
+  auto rank_fmt = [](std::string* out, RankId rank) {
+    absl::StrAppend(out, rank.value());
+  };
+
+  VLOG(3) << absl::StreamFormat(
+      "CollectivePermute: #source_buffers=%d, #destination_buffers=%d, "
+      "source_target_pairs=[%s], logical_device_id=%d (%s), "
+      "source_replica_id=%d, copy_to=[%s]",
+      data.source.size(), data.destination.size(),
+      absl::StrJoin(source_target_pairs_, ", ", absl::PairFormatter("->")),
+      logical_device_id,
+      op_params().has_channel_id ? "computation id" : "replica id",
+      source_replica_id.value_or(RankId(-1)).value(),
+      absl::StrJoin(copy_to, ",", rank_fmt));
+
+  for (int i = 0; i < data.source.size(); ++i) {
+    VLOG(3) << absl::StreamFormat(
+        "  src: %s in slice %s (%p)", source_shape(i).ToString(true),
+        source_buffer(i).ToString(), data.source[i].opaque());
+  }
+
+  for (int i = 0; i < data.destination.size(); ++i) {
+    VLOG(3) << absl::StreamFormat(
+        "  dst: %s in slice %s (%p)", destination_shape(i).ToString(true),
+        destination_buffer(i).ToString(), data.destination[i].opaque());
+  }
+
+  return ExecuteWithCommunicator(
+      params.collective_params,
+      [&](const RendezvousKey& key, Communicator& comm) {
+        CpuCollectives::Executor executor(key, DefaultCollectiveTimeout());
+
+        for (int32_t i = 0; i < data.source.size(); ++i) {
+          const Shape& shape = source_shape(i);
+          TF_RETURN_IF_ERROR(comm.CollectivePermute(
+              data.source[i], data.destination[i], shape.element_type(),
+              ShapeUtil::ElementsIn(shape), source_replica_id, copy_to,
+              executor));
+        }
+        return absl::OkStatus();
+      });
+}
+
+}  // namespace zkx::cpu
