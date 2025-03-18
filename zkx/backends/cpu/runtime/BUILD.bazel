@@ -119,6 +119,24 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "reduce_scatter_thunk",
+    srcs = ["reduce_scatter_thunk.cc"],
+    hdrs = ["reduce_scatter_thunk.h"],
+    deps = [
+        ":collective_thunk",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/base:vlog",
+        "//zkx/core/collectives:communicator",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "resource_use",
     srcs = ["resource_use.cc"],
     hdrs = ["resource_use.h"],
