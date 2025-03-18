@@ -18,6 +18,31 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "collective_thunk",
+    srcs = ["collective_thunk.cc"],
+    hdrs = ["collective_thunk.h"],
+    deps = [
+        ":thunk",
+        "//xla/tsl/concurrency:async_value",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:zkx_data_proto",
+        "//zkx/backends/cpu/collectives:cpu_clique_key",
+        "//zkx/backends/cpu/collectives:cpu_cliques",
+        "//zkx/base:vlog",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:collective_ops_utils",
+        "//zkx/stream_executor:device_memory",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "resource_use",
     srcs = ["resource_use.cc"],
     hdrs = ["resource_use.h"],
