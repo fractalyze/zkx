@@ -3,6 +3,24 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_test", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "all_gather_thunk",
+    srcs = ["all_gather_thunk.cc"],
+    hdrs = ["all_gather_thunk.h"],
+    deps = [
+        ":collective_thunk",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/base:vlog",
+        "//zkx/core/collectives:communicator",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "all_to_all_thunk",
     srcs = ["all_to_all_thunk.cc"],
     hdrs = ["all_to_all_thunk.h"],
