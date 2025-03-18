@@ -119,6 +119,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "kernel_c_api",
+    hdrs = ["kernel_c_api.h"],
+)
+
+zkx_cc_library(
     name = "reduce_scatter_thunk",
     srcs = ["reduce_scatter_thunk.cc"],
     hdrs = ["reduce_scatter_thunk.h"],
