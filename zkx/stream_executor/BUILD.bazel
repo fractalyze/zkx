@@ -1,0 +1,83 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "device_description",
+    hdrs = ["device_description.h"],
+    deps = [
+        ":launch_dim",
+        ":semantic_version",
+        "//xla/tsl/lib/math:math_util",
+        "//zkx/base:vlog",
+    ],
+)
+
+zkx_cc_library(
+    name = "device_memory",
+    hdrs = ["device_memory.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "device_memory_allocator",
+    hdrs = ["device_memory_allocator.h"],
+    deps = [
+        ":device_memory",
+        ":platform",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
+    name = "launch_dim",
+    hdrs = ["launch_dim.h"],
+    deps = ["@com_google_absl//absl/strings"],
+)
+
+zkx_cc_library(
+    name = "namespace_alias",
+    hdrs = ["namespace_alias.h"],
+)
+
+zkx_cc_library(
+    name = "platform",
+    srcs = ["platform.cc"],
+    hdrs = ["platform.h"],
+    deps = [
+        ":device_description",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
+    name = "semantic_version",
+    srcs = ["semantic_version.cc"],
+    hdrs = ["semantic_version.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "stream_executor_unittests",
+    srcs = [
+        "device_description_unittest.cc",
+        "semantic_version_unittest.cc",
+    ],
+    deps = [
+        ":device_description",
+        ":semantic_version",
+        "@com_google_absl//absl/hash:hash_testing",
+    ],
+)

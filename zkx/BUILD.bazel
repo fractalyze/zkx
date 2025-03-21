@@ -1,15 +1,139 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
+cc_proto_library(
+    name = "zkx_data_proto",
+    srcs = ["zkx_data.proto"],
+)
+
 zkx_cc_library(
-    name = "shape_util",
-    srcs = ["shape_util.cc"],
-    hdrs = ["shape_util.h"],
+    name = "literal",
+    srcs = ["literal.cc"],
+    hdrs = ["literal.h"],
     deps = [
-        "@com_google_absl//absl/base:core_headers",
-        "@com_google_absl//absl/container:inlined_vector",
-        "@com_google_absl//absl/strings",
+        ":maybe_owning",
+        ":primitive_util",
+        ":shape_util",
+        ":util",
+        "//xla/tsl/platform:mem",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "literal_util",
+    hdrs = ["literal_util.h"],
+    deps = [
+        ":literal",
+        ":primitive_util",
+        ":shape_util",
         "@com_google_absl//absl/types:span",
     ],
+)
+
+zkx_cc_library(
+    name = "maybe_owning",
+    hdrs = ["maybe_owning.h"],
+    deps = ["@com_google_absl//absl/log:check"],
+)
+
+zkx_cc_library(
+    name = "primitive_util",
+    srcs = ["primitive_util.cc"],
+    hdrs = ["primitive_util.h"],
+    deps = [
+        ":types",
+        ":zkx_data_proto",
+        "//xla/tsl/lib/math:math_util",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "printer",
+    srcs = ["printer.cc"],
+    hdrs = ["printer.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:cord",
+    ],
+)
+
+zkx_cc_library(
+    name = "shape_util",
+    srcs = [
+        "index_util.cc",
+        "layout.cc",
+        "layout_util.cc",
+        "shape.cc",
+        "shape_util.cc",
+    ],
+    hdrs = [
+        "index_util.h",
+        "layout.h",
+        "layout_util.h",
+        "shape.h",
+        "shape_util.h",
+    ],
+    deps = [
+        ":overflow_util",
+        ":primitive_util",
+        ":printer",
+        ":util",
+        ":zkx_data_proto",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "//zkx/base:vlog",
+        "//zkx/base/strings:string_util",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "types",
+    hdrs = ["types.h"],
+)
+
+zkx_cc_library(
+    name = "util",
+    hdrs = ["util.h"],
+    deps = [
+        "//xla/tsl/lib/math:math_util",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "overflow_util",
+    hdrs = ["overflow_util.h"],
+    deps = ["@com_google_absl//absl/base:core_headers"],
+)
+
+zkx_cc_unittest(
+    name = "zkx_unittests",
+    srcs = [
+        "index_util_unittest.cc",
+        "layout_unittest.cc",
+        "layout_util_unittest.cc",
+    ],
+    deps = [":shape_util"],
 )

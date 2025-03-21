@@ -1,0 +1,258 @@
+/* Copyright 2017 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+syntax = "proto3";
+
+package zkx;
+
+option cc_enable_arenas = true;
+
+// Primitive types are the individual values that can be held in rectangular
+// multidimensional arrays. A description of the rectangular multidimensional
+// array dimensions / primitive type is given by Shape, below.
+enum PrimitiveType {
+  // Invalid primitive type to serve as default.
+  PRIMITIVE_TYPE_INVALID = 0;
+
+  // Predicates are two-state booleans.
+  PRED = 1;
+
+  // Signed integral values of fixed width.
+  S1 = 2;
+  S2 = 3;
+  S4 = 4;
+  S8 = 5;
+  S16 = 6;
+  S32 = 7;
+  S64 = 8;
+
+  // Unsigned integral values of fixed width.
+  U1 = 9;
+  U2 = 10;
+  U4 = 11;
+  U8 = 12;
+  U16 = 13;
+  U32 = 14;
+  U64 = 15;
+
+  // A tuple is a polymorphic sequence; e.g. a shape that holds different
+  // sub-shapes. They are used for things like returning multiple values from a
+  // computation; e.g. a computation that returns weights and biases may have a
+  // signature that results in a tuple like (f32[784x2000], f32[2000])
+  //
+  // If a shape proto has the tuple element type, it may not have any entries
+  // in the dimensions field.
+  TUPLE = 16;
+
+  // An opaque type used for passing context-specific data to a custom
+  // operation. Shapes of this primitive type will have empty dimensions and
+  // tuple_shapes fields.
+  //
+  // (OPAQUE would be a better name for this identifier, but that conflicts with
+  // a macro defined in windows.h.)
+  OPAQUE_TYPE = 17;
+
+  // A token type threaded between side-effecting operations. Shapes of this
+  // primitive type will have empty dimensions and tuple_shapes fields.
+  TOKEN = 18;
+}
+
+// A DimLevelType indicates the encoding method for a dimension in an array.
+// The semantics of this field are identical to those of the MLIR SparseTensor
+// dialect.
+// This should be kept in sync with the SparseTensor DimLevelType enum:
+// https://github.com/llvm/llvm-project/blob/5674a3c/mlir/include/mlir/Dialect/SparseTensor/IR/SparseTensorAttrDefs.td#L86
+enum DimLevelType {
+  // The corresponding dimension is Dense, every entry is stored.
+  DIM_DENSE = 0;
+  // The corresponding dimension is Compressed, only nonzeros are stored.
+  DIM_COMPRESSED = 1;
+  // The corresponding dimension contains a single coordinate, no sibling
+  // elements for each parent.
+  DIM_SINGLETON = 2;
+  // The corresponding dimension is Compressed, but with potential trailing
+  // zeros, thus an extra upper bound (high) is used to exclude those zeros.
+  // E.g., indices = [1, 2, 0, 0, 3, 4, 0, 0], position = [(0, 2), (4, 6)].
+  DIM_LOOSE_COMPRESSED = 3;
+}
+
+// Describes a tile used in tiling-based layout. Refer to
+// g3doc/third_party/xla/docs/tiled_layout.md for details about tiling-based
+// layout.
+message TileProto {
+  // Number of elements in each dimension of the tile. It's ordered from the
+  // most major dimension of the tile to the most minor dimension of the tile.
+  // The dimensions correspond to a suffix of the dimensions of the shape being
+  // tiled.
+  repeated int64 dimensions = 1;
+}
+
+// Describes how data should be split between different memories.
+message SplitConfigProto {
+  // The dimension that is split.
+  int64 dimension = 1;
+  // The indices where each split point occurs. For example, if the dimension
+  // size is 1024, a split_indices value of {512} indicates a two-way split of
+  // data through the middle.
+  repeated int64 split_indices = 2;
+}
+
+// A layout describes how the array is placed in (1D) memory space.  This
+// includes the minor-to-major ordering of dimensions within a shape.
+//
+// Clients must specify the layouts of input Literals to the
+// computation. Layouts specified in interior operations which take Shapes (for
+// example, Convert) are ignored.
+message LayoutProto {
+  // The dimension level type list for this array, specifying the way in which
+  // each array dimension is represented in memory. If this list is empty, the
+  // array is assumed to be dense.
+  repeated DimLevelType dim_level_types = 9;
+
+  // Whether each dimension is unique or ordered.  Each of the following lists
+  // must be empty, or have one entry for each entry of dim_level_types.  If
+  // either list is empty, all dimensions are assumed to be unique and ordered,
+  // respectively.  Entries in this list may not be false for some DimLevelType
+  // values (such as DIM_DENSE in particular).
+  repeated bool dim_unique = 13;
+  repeated bool dim_ordered = 14;
+
+  // Sequence of dimension numbers, from minor (fastest varying index) to major
+  // (slowest varying index). This field is required.
+  repeated int64 minor_to_major = 1;
+
+  // A sequence of tiles, starting from the tile that's applied first to the
+  // Shape.
+  //
+  // TODO(b/119839262): implement tiling in each backend or add Unimplemented
+  // error.
+  repeated TileProto tiles = 6;
+
+  // The shape is padded at the end to multiple of, in terms of number of
+  // elements. This is useful when tiling does not bring the shape to certain
+  // desired granules. Tiling effectively pads/reshapes/transposes the shape
+  // to another shape. This field pads the total number of elements of that
+  // new shape to a multiple of certain number of elements. This is useful such
+  // as we want a layout which does not tile the data but still requires it to
+  // be padded to certain number of elements.
+  int64 tail_padding_alignment_in_elements = 16;
+
+  // (Optional) Bit size of each element. When unspecified or being 0, default
+  // to ShapeUtil::ByteSizeOfPrimitiveType.
+  int64 element_size_in_bits = 7;
+
+  // Memory space where this array resides. The integer field is interpreted in
+  // a backend-specific manner.
+  int64 memory_space = 8;
+
+  // The integer types to be used for indices and pointers.  These fields must
+  // not be used unless the layout represents a sparse array.  The PrimitiveType
+  // must correspond to an unsigned integer (U8, U16, U32, or U64).
+  // If not provided, the compiler will use the largest unsigned integer
+  // that is naturally supported by the target device (U32 or U64 in currently
+  // supported devices).
+  PrimitiveType index_primitive_type = 11;
+  PrimitiveType pointer_primitive_type = 12;
+
+  // The physical, on-device shape used to represent the shape this layout
+  // belongs to. Only used for sparse arrays.
+  // The layout(s) contained within the physical shape should not also contain
+  // a physical shape.
+  ShapeProto physical_shape = 10;
+
+  // The dynamic shape metadata size in bytes in front of the shape data. The
+  // field may be non-zero for a static shape whose associated buffer is for a
+  // dynamic shape, e.g. a result of SliceToDynamic.
+  int64 dynamic_shape_metadata_prefix_bytes = 15;
+
+  // The split configurations which describe if/how the data is split between
+  // different memories.
+  repeated SplitConfigProto split_configs = 17;
+
+  // Important: if any field is added, be sure to modify ShapeUtil::Equal() and
+  // LayoutUtil::Hash appropriately to account for the new field.
+
+  reserved 2;
+  reserved "padded_dimensions";
+  reserved 3;
+  reserved "padding_value";
+  reserved 4;
+  reserved "format";
+  reserved 5;
+  reserved "max_sparse_elements";
+}
+
+message ShapeProto {
+  // TODO(chokobole): Remove these reserved fields.
+  reserved 1;
+  reserved "rank";
+
+  // The element type for this shape.
+  PrimitiveType element_type = 2;
+
+  // The size (number of elements) for each dimension, or an upper bound on the
+  // size if the dimension is dynamic.  In ZKX, dimensions are numbered from 0
+  // to N-1 for an N-dimensional array. The first element of 'dimensions' is the
+  // size of dimension 0, the second element is the size of dimension 1, and so
+  // forth.  Empty list indicates a scalar.
+  //
+  // If the respective element in 'is_dimension_dynamic' is true then the value
+  // in this field represents an upper bound on the size of the dimension.
+  repeated int64 dimensions = 3;
+
+  // For tuples only, the shapes of constituent shapes in the tuple sequence.
+  repeated ShapeProto tuple_shapes = 4;
+
+  // The layout used to back this shape.
+  LayoutProto layout = 5;
+
+  // For arrays, this indicates whether or not each dimension is
+  // dynamically-sized. The number of elements in this repeated field should be
+  // zero (indicating that no dimensions are dynamic) or equal to the number of
+  // elements in the 'dimensions' field.
+  repeated bool is_dynamic_dimension = 6;
+
+  // Important: if any field is added, be sure to modify ShapeUtil::Equal(),
+  // ShapeUtil::Compatible() and ShapeUtil::Hash() appropriately to account for
+  // the new field.
+}
+
+// Literals are used when the server and client need to exchange materialized
+// data / results. Literals are also used to describe constants used in
+// computations.
+//
+// Transfers to/from the client are encoded in literal form, and the structure
+// of the repeated fields is implied by the shape.
+message LiteralProto {
+  ShapeProto shape = 1;
+  repeated bool preds = 2;
+  bytes s1s = 3;
+  bytes s2s = 4;
+  bytes s4s = 5;
+  bytes s8s = 6;
+  bytes u1s = 7;
+  bytes u2s = 8;
+  bytes u4s = 9;
+  bytes u8s = 10;
+  // The U16s and S16s are encoded in little endian byte order.
+  bytes u16s = 11;
+  bytes s16s = 12;
+  repeated int32 s32s = 13;
+  repeated int64 s64s = 14;
+  repeated uint32 u32s = 15;
+  repeated uint64 u64s = 16;
+  repeated LiteralProto tuple_literals = 17;
+  repeated int64 sparse_indices = 18;
+}

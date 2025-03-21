@@ -37,3 +37,14 @@ zkx_cc_library(
         "@com_google_absl//absl/strings",
     ],
 )
+
+zkx_cc_library(
+    name = "maybe_owning_device_memory",
+    srcs = ["maybe_owning_device_memory.cc"],
+    hdrs = ["maybe_owning_device_memory.h"],
+    deps = [
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:device_memory_allocator",
+        "//zkx/stream_executor:namespace_alias",
+    ],
+)

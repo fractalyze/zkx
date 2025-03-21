@@ -135,8 +135,7 @@ class BufferValue {
   // Return the shape of the buffer. This reference points into the shape field
   // of the instruction defining the buffer. Therefore, the returned shape will
   // contain the layout of instruction, if any.
-  // TODO(chokobole): Uncomment this. Dependency: Shape
-  // virtual const Shape& shape() const = 0;
+  virtual const Shape& shape() const = 0;
 
   // Returns true if this buffer is the top-level output buffer of the defining
   // HLO instruction. This is equivalent to index == {}.

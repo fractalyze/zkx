@@ -33,6 +33,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "mem",
+    srcs = if_posix(["mem_posix.cc"]),
+    hdrs = ["mem.h"],
+)
+
+zkx_cc_library(
+    name = "status",
+    srcs = ["status.cc"],
+    hdrs = ["status.h"],
+    deps = [
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "statusor",
     hdrs = ["statusor.h"],
     deps = [

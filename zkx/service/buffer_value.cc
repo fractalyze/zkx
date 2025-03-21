@@ -22,10 +22,9 @@ namespace zkx {
 BufferValue::BufferValue(HloInstruction* instruction, const ShapeIndex& index,
                          Id id)
     : id_(id) {
-  // TODO(chokobole): Uncomment this. Dependency: ShapeUtil::GetSubshape
-  // const Shape& shape = ShapeUtil::GetSubshape(instruction->shape(), index);
-  // is_array_ = shape.IsArray();
-  // is_tuple_ = shape.IsTuple();
+  const Shape& shape = ShapeUtil::GetSubshape(instruction->shape(), index);
+  is_array_ = shape.IsArray();
+  is_tuple_ = shape.IsTuple();
 }
 
 std::ostream& operator<<(std::ostream& out, const BufferValue& buffer) {

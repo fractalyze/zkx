@@ -57,4 +57,6 @@ std::string HumanReadableElapsedTime(double seconds) {
   return human_readable;
 }
 
+std::string_view BoolToString(bool b) { return b ? "true" : "false"; }
+
 }  // namespace zkx::base

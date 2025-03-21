@@ -37,10 +37,9 @@ class LogicalBuffer : public BufferValue {
   // Return the shape of the buffer. This reference points into the shape field
   // of the instruction defining the buffer.  Therefore, the returned shape will
   // contain the layout of instruction, if any.
-  // TODO(chokobole): Uncomment this. Dependency: ShapeUtil::GetSubshape
-  // const Shape& shape() const override {
-  //   return ShapeUtil::GetSubshape(instruction_->shape(), index_);
-  // }
+  const Shape& shape() const override {
+    return ShapeUtil::GetSubshape(instruction_->shape(), index_);
+  }
 
   std::string ToString() const override;
 
