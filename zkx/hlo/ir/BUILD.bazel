@@ -3,6 +3,15 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "hlo_clone_context",
+    hdrs = ["hlo_clone_context.h"],
+    deps = [
+        "//zkx:map_util",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_instruction",
     hdrs = ["hlo_instruction.h"],
     deps = ["//zkx:shape_util"],
