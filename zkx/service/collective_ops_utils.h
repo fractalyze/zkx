@@ -32,6 +32,8 @@ namespace zkx {
 
 enum class ReductionKind { kSum, kProduct, kMin, kMax };
 
+std::string_view ReductionKindToString(ReductionKind reduction_kind);
+
 // Key that identifies a particular Rendezvous object in our global hashtable.
 // This determines which calls to ExecuteOnStream communicate with each other.
 // The rules are as follows.
