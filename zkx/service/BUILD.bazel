@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -27,6 +27,28 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "collective_ops_utils",
+    hdrs = ["collective_ops_utils.h"],
+    deps = [
+        ":global_device_id",
+        "//zkx:executable_run_options",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "global_device_id",
+    srcs = ["global_device_id.cc"],
+    hdrs = ["global_device_id.h"],
+    deps = [
+        "//xla/tsl/lib/gtl:int_type",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "logical_buffer",
     srcs = ["logical_buffer.cc"],
     hdrs = ["logical_buffer.h"],
@@ -46,5 +68,39 @@ zkx_cc_library(
         "//zkx/stream_executor:device_memory",
         "//zkx/stream_executor:device_memory_allocator",
         "//zkx/stream_executor:namespace_alias",
+    ],
+)
+
+zkx_cc_library(
+    name = "platform_util",
+    srcs = ["platform_util.cc"],
+    hdrs = ["platform_util.h"],
+    deps = ["@com_google_absl//absl/status:statusor"],
+)
+
+zkx_cc_library(
+    name = "rendezvous",
+    srcs = ["rendezvous.cc"],
+    hdrs = ["rendezvous.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "service_unittests",
+    srcs = ["rendezvous_unittest.cc"],
+    deps = [
+        ":rendezvous",
+        "//xla/tsl/platform:thread_pool",
+        "@com_google_absl//absl/synchronization",
     ],
 )

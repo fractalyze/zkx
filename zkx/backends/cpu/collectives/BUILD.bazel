@@ -1,0 +1,168 @@
+load("//bazel:zkx.bzl", "if_linux", "if_macos")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "cpu_clique",
+    srcs = ["cpu_clique.cc"],
+    hdrs = ["cpu_clique.h"],
+    deps = [
+        ":cpu_clique_key",
+        "//zkx/core/collectives:clique",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "cpu_clique_key",
+    srcs = ["cpu_clique_key.cc"],
+    hdrs = ["cpu_clique_key.h"],
+    deps = [
+        "//xla/tsl/platform:casts",
+        "//zkx/core/collectives:clique_key",
+        "//zkx/service:global_device_id",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "cpu_cliques",
+    srcs = ["cpu_cliques.cc"],
+    hdrs = ["cpu_cliques.h"],
+    deps = [
+        ":cpu_clique",
+        ":cpu_clique_key",
+        ":cpu_collectives",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:vlog",
+        "//zkx/core/collectives:communicator",
+        "//zkx/core/collectives:rank_id",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "cpu_collectives",
+    srcs = ["cpu_collectives.cc"],
+    hdrs = ["cpu_collectives.h"],
+    deps = [
+        "//xla/tsl/platform:casts",
+        "//zkx/core/collectives",
+        "//zkx/core/collectives:collectives_registry",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+zkx_cc_library(
+    name = "gloo_collectives",
+    srcs = ["gloo_collectives.cc"],
+    hdrs = ["gloo_collectives.h"],
+    deps = [
+        ":cpu_collectives",
+        ":gloo_communicator",
+        "@com_google_absl//absl/strings",
+        "@gloo",
+    ],
+)
+
+zkx_cc_library(
+    name = "gloo_communicator",
+    srcs = ["gloo_communicator.cc"],
+    hdrs = ["gloo_communicator.h"],
+    deps = [
+        ":cpu_collectives",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:primitive_util",
+        "//zkx:status_macros",
+        "//zkx/base:vlog",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/time",
+        "@gloo",
+    ],
+)
+
+zkx_cc_library(
+    name = "gloo_kv_store",
+    srcs = ["gloo_kv_store.cc"],
+    hdrs = ["gloo_kv_store.h"],
+    deps = [
+        "//zkx/pjrt:status_casters",
+        "//zkx/pjrt/distributed:key_value_store_interface",
+        "@com_google_absl//absl/time",
+        "@gloo",
+    ],
+)
+
+zkx_cc_library(
+    name = "in_process_collectives",
+    srcs = ["in_process_collectives.cc"],
+    hdrs = ["in_process_collectives.h"],
+    deps = [
+        ":cpu_collectives",
+        ":in_process_communicator",
+        "//zkx/core/collectives:clique_id",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "in_process_communicator",
+    srcs = ["in_process_communicator.cc"],
+    hdrs = ["in_process_communicator.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:primitive_util",
+        "//zkx:zkx_data_proto",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/core/collectives:communicator",
+        "//zkx/service:collective_ops_utils",
+        "//zkx/service:rendezvous",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "collectives_unittests",
+    srcs = ["gloo_collectives_unittest.cc"],
+    deps = [
+        ":cpu_clique_key",
+        ":cpu_collectives",
+        ":gloo_collectives",
+        ":gloo_kv_store",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//xla/tsl/platform:thread_pool",
+        "//zkx/pjrt/distributed:in_memory_key_value_store",
+        "//zkx/service:collective_ops_utils",
+        "@gloo",
+    ] + if_linux([
+        "@gloo//:transport_tcp",
+    ]) + if_macos([
+        "@gloo//:transport_uv",
+    ]),
+)
