@@ -9,6 +9,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_opcode",
+    srcs = ["hlo_opcode.cc"],
+    hdrs = ["hlo_opcode.h"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "ptr_vec",
     hdrs = ["ptr_vec.h"],
     deps = ["//zkx:shape_util"],
