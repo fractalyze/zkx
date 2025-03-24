@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -6,4 +6,19 @@ zkx_cc_library(
     name = "hlo_instruction",
     hdrs = ["hlo_instruction.h"],
     deps = ["//zkx:shape_util"],
+)
+
+zkx_cc_library(
+    name = "ptr_vec",
+    hdrs = ["ptr_vec.h"],
+    deps = ["//zkx:shape_util"],
+)
+
+zkx_cc_unittest(
+    name = "ir_unittests",
+    srcs = ["ptr_vec_unittest.cc"],
+    deps = [
+        ":ptr_vec",
+        "@com_google_absl//absl/strings:str_format",
+    ],
 )
