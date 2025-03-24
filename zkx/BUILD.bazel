@@ -75,6 +75,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "map_util",
+    hdrs = ["map_util.h"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "maybe_owning",
     hdrs = ["maybe_owning.h"],
     deps = ["@com_google_absl//absl/log:check"],
