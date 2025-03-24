@@ -70,14 +70,14 @@ class CordPrinter : public Printer {
 // calling printer->Append(absl::StrJoin(...)), but does it in-place.
 template <typename Range, typename PrintFunc>
 void AppendJoin(Printer* printer, const Range& range,
-                absl::string_view separator, PrintFunc&& print) {
+                std::string_view separator, PrintFunc&& print) {
   AppendJoin(printer, range.begin(), range.end(), separator,
              std::forward<PrintFunc>(print));
 }
 
 template <typename Iterator, typename PrintFunc>
 void AppendJoin(Printer* printer, Iterator start, Iterator end,
-                absl::string_view separator, PrintFunc&& print) {
+                std::string_view separator, PrintFunc&& print) {
   if (ABSL_PREDICT_FALSE(start == end)) return;
   print(printer, *start);
   std::advance(start, 1);
@@ -90,7 +90,7 @@ void AppendJoin(Printer* printer, Iterator start, Iterator end,
 
 template <typename Range>
 void AppendJoin(Printer* printer, const Range& range,
-                absl::string_view separator) {
+                std::string_view separator) {
   AppendJoin(printer, range, separator,
              [](Printer* printer, auto& element) { printer->Append(element); });
 }

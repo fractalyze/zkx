@@ -51,7 +51,7 @@ TEST(SemanticVersion, ParseFromStringSuccess) {
 }
 
 TEST(SemanticVersion, ParseFromStringInvalid) {
-  auto test = [](absl::string_view str) {
+  auto test = [](std::string_view str) {
     absl::StatusOr<SemanticVersion> version =
         SemanticVersion::ParseFromString(str);
     EXPECT_EQ(version.status().code(), absl::StatusCode::kInvalidArgument);

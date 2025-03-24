@@ -70,6 +70,16 @@ diff --color -r /path/to/openxla/xla/xla/tsl/concurrency/async_value_ref.cc xla/
 >
 24d25
 < #include "xla/tsl/platform/logging.h"
+38,39c39,40
+< RCReference<ErrorAsyncValue> MakeErrorAsyncValueRef(absl::string_view message) {
+<   // Converting to `absl::string_view` because implicit conversion is not
+---
+> RCReference<ErrorAsyncValue> MakeErrorAsyncValueRef(std::string_view message) {
+>   // Converting to `std::string_view` because implicit conversion is not
+41c42
+<   absl::string_view message_view(message.data(), message.size());
+---
+>   std::string_view message_view(message.data(), message.size());
 diff --color -r /path/to/openxla/xla/xla/tsl/concurrency/async_value_ref.h xla/tsl/concurrency/async_value_ref.h
 32a33
 > #include "absl/log/log.h"
@@ -77,6 +87,16 @@ diff --color -r /path/to/openxla/xla/xla/tsl/concurrency/async_value_ref.h xla/t
 >
 40d41
 < #include "xla/tsl/platform/logging.h"
+350,351c351,352
+<   void SetError(absl::string_view message) const {
+<     // Converting to `absl::string_view` because implicit conversion is not
+---
+>   void SetError(std::string_view message) const {
+>     // Converting to `std::string_view` because implicit conversion is not
+353c354
+<     absl::string_view message_view(message.data(), message.size());
+---
+>     std::string_view message_view(message.data(), message.size());
 diff --color -r /path/to/openxla/xla/xla/tsl/concurrency/async_value_ref_test.cc xla/tsl/concurrency/async_value_ref_test.cc
 29a30,31
 > #include "gtest/gtest.h"

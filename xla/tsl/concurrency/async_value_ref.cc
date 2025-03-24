@@ -36,10 +36,10 @@ RCReference<ErrorAsyncValue> MakeErrorAsyncValueRef(absl::Status status) {
       internal::AllocateAndConstruct<ErrorAsyncValue>(std::move(status)));
 }
 
-RCReference<ErrorAsyncValue> MakeErrorAsyncValueRef(absl::string_view message) {
-  // Converting to `absl::string_view` because implicit conversion is not
+RCReference<ErrorAsyncValue> MakeErrorAsyncValueRef(std::string_view message) {
+  // Converting to `std::string_view` because implicit conversion is not
   // supported in android builds.
-  absl::string_view message_view(message.data(), message.size());
+  std::string_view message_view(message.data(), message.size());
   return MakeErrorAsyncValueRef(absl::InternalError(message_view));
 }
 
