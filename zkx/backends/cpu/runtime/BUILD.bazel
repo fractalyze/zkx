@@ -230,20 +230,38 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "work_queue",
+    hdrs = ["work_queue.h"],
+    deps = [
+        "//xla/tsl/concurrency:async_value",
+        "//xla/tsl/lib/math:math_util",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:fixed_array",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
 zkx_cc_unittest(
     name = "runtime_unittests",
     srcs = [
         "resource_use_unittest.cc",
         "thunk_executor_unittest.cc",
         "thunk_unittest.cc",
+        "work_queue_unittest.cc",
     ],
     deps = [
         ":resource_use",
         ":thunk",
         ":thunk_executor",
         ":thunk_testlib",
+        ":work_queue",
         "//xla/tsl/platform:thread_pool",
         "//zkx:literal_util",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/synchronization",
         "@eigen_archive//:eigen3",
     ],
 )
