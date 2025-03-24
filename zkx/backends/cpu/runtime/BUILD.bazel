@@ -142,6 +142,31 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "kernel_thunk",
+    srcs = ["kernel_thunk.cc"],
+    hdrs = ["kernel_thunk.h"],
+    deps = [
+        ":buffer_allocations",
+        ":kernel",
+        ":kernel_c_api",
+        ":thunk",
+        "//xla/tsl/platform:errors",
+        "//zkx/base:vlog",
+        "//zkx/codegen:kernel_spec",
+        "//zkx/stream_executor:launch_dim",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
+zkx_cc_library(
     name = "reduce_scatter_thunk",
     srcs = ["reduce_scatter_thunk.cc"],
     hdrs = ["reduce_scatter_thunk.h"],
