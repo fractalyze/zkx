@@ -24,6 +24,7 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/status.h"
 #include "zkx/stream_executor/device_memory.h"
+#include "zkx/stream_executor/namespace_alias.h"
 #include "zkx/stream_executor/platform.h"
 
 namespace stream_executor {
