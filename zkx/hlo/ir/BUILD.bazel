@@ -29,6 +29,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_print_options",
+    hdrs = ["hlo_print_options.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "ptr_vec",
     hdrs = ["ptr_vec.h"],
     deps = ["//zkx:shape_util"],
