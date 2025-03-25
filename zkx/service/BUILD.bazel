@@ -88,6 +88,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "mapped_ptr_container_sorter",
+    hdrs = ["mapped_ptr_container_sorter.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:vlog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "maybe_owning_device_memory",
     srcs = ["maybe_owning_device_memory.cc"],
     hdrs = ["maybe_owning_device_memory.h"],
@@ -124,8 +141,12 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "service_unittests",
-    srcs = ["rendezvous_unittest.cc"],
+    srcs = [
+        "mapped_ptr_container_sorter_unittest.cc",
+        "rendezvous_unittest.cc",
+    ],
     deps = [
+        ":mapped_ptr_container_sorter",
         ":rendezvous",
         "//xla/tsl/platform:thread_pool",
         "@com_google_absl//absl/synchronization",
