@@ -23,8 +23,24 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "hlo_instruction",
+    srcs = ["hlo_instruction.cc"],
     hdrs = ["hlo_instruction.h"],
-    deps = ["//zkx:shape_util"],
+    deps = [
+        ":hlo_opcode",
+        ":hlo_original_value",
+        ":hlo_print_options",
+        ":ptr_vec",
+        "//zkx:printer",
+        "//zkx:shape_util",
+        "//zkx/service:mapped_ptr_container_sorter",
+        "//zkx/service:name_uniquer",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+    ],
 )
 
 zkx_cc_library(

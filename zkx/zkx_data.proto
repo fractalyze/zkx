@@ -229,6 +229,103 @@ message ShapeProto {
   // the new field.
 }
 
+// The type optimization profiles in use for Op-level optimizations.
+enum ProfileType {
+  INVALID = 0;
+  WINDOW = 1;
+  FLAG = 2;
+  INTEGER = 3;
+}
+
+// The source of the optimization profile.
+enum ProfileSource {
+  PROFILE_SOURCE_UNKNOWN_SOURCE = 0;
+  PROFILE_SOURCE_EMBEDDED = 1;
+  PROFILE_SOURCE_REMOTE = 2;
+}
+
+// The compilation event that triggered the use of the profile.
+enum CompilationEvent {
+  COMPILATION_EVENT_UNKNOWN_EVENT = 0;
+  COMPILATION_EVENT_FIRST_COMPILATION = 1;
+  COMPILATION_EVENT_RECOMPILATION = 2;
+}
+
+// Symbolization metadata for HLO Instructions.
+//
+// This metadata is used for debugging ZKX code generation, as well as
+// performance profiling of ZKX-generated executables.
+message OpMetadata {
+  // The framework op name that generated this ZKX op.
+  //
+  // TODO(chokobole): Replace SoftMax with the appropriate op_type.
+  // Frameworks that build on top of ZKX should mirror the names of their ops
+  // back to users by specifying the op_type. In this way, even if the
+  // framework's "ops" are implemented as multiple ZKX HLO Ops, they can be
+  // grouped appropriately. (e.g. if a SoftMax layer is emitted into ZKX as
+  // multiple ops, then each op should have the op_type be "SoftMax".)
+  string op_type = 1;
+  // The user-specified name of the op.
+  //
+  // This name is often unique within a computation. Note: some frameworks
+  // add auto-generated names if the user does not provide one.
+  string op_name = 2;
+  // Indicate a file and line that this op is associated to in a user's program.
+  //
+  // e.g. it could be the file and line of user code that generated the op.
+  string source_file = 3;
+  int32 source_line = 4;
+
+  reserved 5;
+  reserved "creation_pass_id";
+
+  reserved 6;
+  reserved "logical_creation_pass_id";
+
+  // The footprint of the generated code for the instruction.
+  int64 size_of_generated_code_in_bytes = 7;
+  // The size of the working set, i.e., the amount of memory, used by the
+  // instruction in a compiler-managed fast device memory.
+  int64 size_of_memory_working_set_in_bytes = 8;
+
+  // Information about the optimization profile that this operation contains.
+  message ProfileInfo {
+    // The type of optimization profiles that this operation contains.
+    repeated ProfileType profile_type = 1;
+    // Speedup of tuned config compared to default config.
+    // TODO(b/203817882) Set the relative_speedup.
+    double relative_speedup = 2;
+    // The source of the optimization profiles that this operation contains.
+    ProfileSource profile_source = 3;
+    // The compilation event that triggered the use of the profiles.
+    CompilationEvent compilation_event = 4;
+  }
+
+  // Profile information for the Op.
+  ProfileInfo profile_info = 9;
+
+  reserved 10;
+
+  // Deduplicated HLO name for this op. In some cases, we can have multiple
+  // instructions (e.g. fusions) that are considered duplicates. We want to
+  // group them together under the same name so that we can group them together
+  // during analysis (e.g. HLO Op Profile tool in Xprof).
+  // E.g. If we have fusion.1, fusion.2, and fusion.3 marked as duplicates,
+  // fusion.2 and fusion.3 will have deduplicated_name = fusion.1
+  string deduplicated_name = 11;
+
+  reserved 12;
+
+  reserved 13;
+
+  // 1-based position of the frame in frames flat array.
+  // Ids are 1-based to keep 0 value as representation of non-set property.
+  int32 stack_frame_id = 14;
+
+  // Instruction name available upon scheduling.
+  string scheduling_name = 15;
+}
+
 // DeviceAssignmentProto is a serialized form of DeviceAssignment class, which
 // represents the device ids assigned to a set of replicated computations.
 // See zkx::DeviceAssignment class comment for more details.
@@ -270,6 +367,12 @@ message LiteralProto {
   repeated uint64 u64s = 16;
   repeated LiteralProto tuple_literals = 17;
   repeated int64 sparse_indices = 18;
+}
+
+// Generic map of attributes used to pass hints / configuration options from
+// the Python frontend to the XLA backend.
+message FrontendAttributes {
+  map<string, string> map = 1;
 }
 
 // Describes the replica groups in a cross replica op (e.g., all-reduce and
