@@ -116,6 +116,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "name_uniquer",
+    srcs = ["name_uniquer.cc"],
+    hdrs = ["name_uniquer.h"],
+    deps = [
+        "//zkx:primitive_util",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "platform_util",
     srcs = ["platform_util.cc"],
     hdrs = ["platform_util.h"],
@@ -143,10 +156,12 @@ zkx_cc_unittest(
     name = "service_unittests",
     srcs = [
         "mapped_ptr_container_sorter_unittest.cc",
+        "name_uniquer_unittest.cc",
         "rendezvous_unittest.cc",
     ],
     deps = [
         ":mapped_ptr_container_sorter",
+        ":name_uniquer",
         ":rendezvous",
         "//xla/tsl/platform:thread_pool",
         "@com_google_absl//absl/synchronization",
