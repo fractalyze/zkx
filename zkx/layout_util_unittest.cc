@@ -41,32 +41,31 @@ class LayoutUtilTest : public ::testing::Test {
   }
 };
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTupleShape
-// TEST_F(LayoutUtilTest, TupleLayoutComparison) {
-//   Shape shape =
-//       ShapeUtil::MakeTupleShape({MakeShapeWithLayout(U32, {2, 3}, {0, 1})});
-//   Shape other_shape =
-//       ShapeUtil::MakeTupleShape({MakeShapeWithLayout(U32, {2, 2}, {0, 1})});
+TEST_F(LayoutUtilTest, TupleLayoutComparison) {
+  Shape shape =
+      ShapeUtil::MakeTupleShape({MakeShapeWithLayout(U32, {2, 3}, {0, 1})});
+  Shape other_shape =
+      ShapeUtil::MakeTupleShape({MakeShapeWithLayout(U32, {2, 2}, {0, 1})});
 
-//   Shape tuple0 = ShapeUtil::MakeTupleShape({});
-//   Shape tuple1 = ShapeUtil::MakeTupleShape({shape});
-//   Shape tuple2 = ShapeUtil::MakeTupleShape({shape, shape});
+  Shape tuple0 = ShapeUtil::MakeTupleShape({});
+  Shape tuple1 = ShapeUtil::MakeTupleShape({shape});
+  Shape tuple2 = ShapeUtil::MakeTupleShape({shape, shape});
 
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(tuple0, tuple0));
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple0, tuple1));
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple0, tuple2));
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple1, tuple0));
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple2, tuple0));
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(tuple0, tuple0));
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple0, tuple1));
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple0, tuple2));
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple1, tuple0));
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple2, tuple0));
 
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(tuple1, tuple1));
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple1, tuple2));
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple2, tuple1));
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(tuple1, tuple1));
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple1, tuple2));
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(tuple2, tuple1));
 
-//   Shape other_tuple2 = ShapeUtil::MakeTupleShape({shape, other_shape});
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(tuple2, tuple2));
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(tuple2, other_tuple2));
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(other_tuple2, tuple2));
-// }
+  Shape other_tuple2 = ShapeUtil::MakeTupleShape({shape, other_shape});
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(tuple2, tuple2));
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(tuple2, other_tuple2));
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(other_tuple2, tuple2));
+}
 
 TEST_F(LayoutUtilTest, CopyLayoutDenseArray) {
   Shape src = MakeShapeWithLayout(U32, {2, 3}, {0, 1});
@@ -145,25 +144,24 @@ TEST_F(LayoutUtilTest, CopyLayoutDenseArray) {
 //   EXPECT_FALSE(LayoutUtil::IsCSRArray(dst));
 // }
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTupleShape
-// TEST_F(LayoutUtilTest, CopyLayoutTuple) {
-//   Shape src = ShapeUtil::MakeTupleShape(
-//       {MakeShapeWithLayout(U32, {2, 3}, {0, 1}),
-//        MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
-//        ShapeUtil::MakeTupleShape(
-//            {MakeShapeWithLayout(U32, {}, {}),
-//             MakeShapeWithLayout(U32, {1, 2, 3}, {0, 2, 1})})});
-//   Shape dst = ShapeUtil::MakeTupleShape(
-//       {MakeShapeWithLayout(U32, {2, 3}, {1, 0}),
-//        MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
-//        ShapeUtil::MakeTupleShape(
-//            {MakeShapeWithLayout(U32, {}, {}),
-//             MakeShapeWithLayout(U32, {1, 2, 3}, {1, 2, 0})})});
+TEST_F(LayoutUtilTest, CopyLayoutTuple) {
+  Shape src = ShapeUtil::MakeTupleShape(
+      {MakeShapeWithLayout(U32, {2, 3}, {0, 1}),
+       MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
+       ShapeUtil::MakeTupleShape(
+           {MakeShapeWithLayout(U32, {}, {}),
+            MakeShapeWithLayout(U32, {1, 2, 3}, {0, 2, 1})})});
+  Shape dst = ShapeUtil::MakeTupleShape(
+      {MakeShapeWithLayout(U32, {2, 3}, {1, 0}),
+       MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
+       ShapeUtil::MakeTupleShape(
+           {MakeShapeWithLayout(U32, {}, {}),
+            MakeShapeWithLayout(U32, {1, 2, 3}, {1, 2, 0})})});
 
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_IS_OK(LayoutUtil::CopyLayoutBetweenShapes(src, &dst));
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-// }
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+}
 
 TEST_F(LayoutUtilTest, CopyLayoutNotCompatibleSameRank) {
   Shape src = MakeShapeWithLayout(U32, {123, 42, 7}, {2, 0, 1});
@@ -181,25 +179,24 @@ TEST_F(LayoutUtilTest, CopyLayoutNotCompatibleDifferentRank) {
               ::testing::ContainsRegex("cannot copy layout from shape"));
 }
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTupleShape
-// TEST_F(LayoutUtilTest, CopyLayoutNotCompatibleTuple) {
-//   Shape src =
-//       ShapeUtil::MakeTupleShape({MakeShapeWithLayout(U32, {2, 3}, {0, 1}),
-//                                  MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
-//                                  ShapeUtil::MakeTupleShape({MakeShapeWithLayout(
-//                                      U32, {1, 2, 3}, {0, 2, 1})})});
-//   Shape dst = ShapeUtil::MakeTupleShape(
-//       {MakeShapeWithLayout(U32, {2, 3}, {1, 0}),
-//        MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
-//        ShapeUtil::MakeTupleShape(
-//            {MakeShapeWithLayout(U32, {}, {}),
-//             MakeShapeWithLayout(U32, {1, 2, 3}, {1, 2, 0})})});
+TEST_F(LayoutUtilTest, CopyLayoutNotCompatibleTuple) {
+  Shape src =
+      ShapeUtil::MakeTupleShape({MakeShapeWithLayout(U32, {2, 3}, {0, 1}),
+                                 MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
+                                 ShapeUtil::MakeTupleShape({MakeShapeWithLayout(
+                                     U32, {1, 2, 3}, {0, 2, 1})})});
+  Shape dst = ShapeUtil::MakeTupleShape(
+      {MakeShapeWithLayout(U32, {2, 3}, {1, 0}),
+       MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
+       ShapeUtil::MakeTupleShape(
+           {MakeShapeWithLayout(U32, {}, {}),
+            MakeShapeWithLayout(U32, {1, 2, 3}, {1, 2, 0})})});
 
-//   auto status = LayoutUtil::CopyLayoutBetweenShapes(src, &dst);
-//   EXPECT_FALSE(status.ok());
-//   EXPECT_THAT(status.message(),
-//               ::testing::ContainsRegex("cannot copy layout from shape"));
-// }
+  auto status = LayoutUtil::CopyLayoutBetweenShapes(src, &dst);
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(),
+              ::testing::ContainsRegex("cannot copy layout from shape"));
+}
 
 TEST_F(LayoutUtilTest, CopyLayoutBogusLayout) {
   Shape src = ShapeUtil::MakeShape(U32, {2, 3});
@@ -262,24 +259,23 @@ TEST_F(LayoutUtilTest, CopyLayoutBogusLayout) {
 //   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
 // }
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTupleShape
-// TEST_F(LayoutUtilTest, ClearLayoutTuple) {
-//   Shape shape = ShapeUtil::MakeTupleShape(
-//       {MakeShapeWithLayout(U32, {2, 3}, {1, 0}),
-//        MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
-//        ShapeUtil::MakeTupleShape(
-//            {MakeShapeWithLayout(U32, {}, {}),
-//             MakeShapeWithLayout(U32, {1, 2, 3}, {1, 2, 0})})});
-//   EXPECT_TRUE(LayoutUtil::HasLayout(shape));
-//   EXPECT_TRUE(shape.tuple_shapes(0).has_layout());
-//   EXPECT_TRUE(shape.tuple_shapes(2).tuple_shapes(1).has_layout());
+TEST_F(LayoutUtilTest, ClearLayoutTuple) {
+  Shape shape = ShapeUtil::MakeTupleShape(
+      {MakeShapeWithLayout(U32, {2, 3}, {1, 0}),
+       MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
+       ShapeUtil::MakeTupleShape(
+           {MakeShapeWithLayout(U32, {}, {}),
+            MakeShapeWithLayout(U32, {1, 2, 3}, {1, 2, 0})})});
+  EXPECT_TRUE(LayoutUtil::HasLayout(shape));
+  EXPECT_TRUE(shape.tuple_shapes(0).has_layout());
+  EXPECT_TRUE(shape.tuple_shapes(2).tuple_shapes(1).has_layout());
 
-//   LayoutUtil::ClearLayout(&shape);
+  LayoutUtil::ClearLayout(&shape);
 
-//   EXPECT_FALSE(LayoutUtil::HasLayout(shape));
-//   EXPECT_FALSE(shape.tuple_shapes(0).has_layout());
-//   EXPECT_FALSE(shape.tuple_shapes(2).tuple_shapes(1).has_layout());
-// }
+  EXPECT_FALSE(LayoutUtil::HasLayout(shape));
+  EXPECT_FALSE(shape.tuple_shapes(0).has_layout());
+  EXPECT_FALSE(shape.tuple_shapes(2).tuple_shapes(1).has_layout());
+}
 
 // TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTokenShape,
 // ShapeUtil::MakeOpaqueShape
@@ -294,23 +290,22 @@ TEST_F(LayoutUtilTest, CopyLayoutBogusLayout) {
 //   }
 // }
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTupleShape
-// TEST_F(LayoutUtilTest, SetToDefaultLayoutTuple) {
-//   Shape shape = ShapeUtil::MakeTupleShape(
-//       {MakeShapeWithLayout(U32, {2, 3, 4}, {1, 0, 2}),
-//        MakeShapeWithLayout(U32, {42, 123, 7}, {1, 2, 0}),
-//        ShapeUtil::MakeTupleShape(
-//            {MakeShapeWithLayout(U32, {}, {}),
-//             MakeShapeWithLayout(U32, {1, 2, 3, 4}, {3, 1, 2, 0})})});
-//   EXPECT_FALSE(LayoutUtil::Equal(shape.tuple_shapes(0).layout(),
-//                                  shape.tuple_shapes(1).layout()));
-//   LayoutUtil::SetToDefaultLayout(&shape);
-//   EXPECT_TRUE(LayoutUtil::Equal(shape.tuple_shapes(0).layout(),
-//                                 shape.tuple_shapes(1).layout()));
-//   EXPECT_TRUE(LayoutUtil::Equal(
-//       LayoutUtil::GetDefaultLayoutForShape(shape.tuple_shapes(0)),
-//       shape.tuple_shapes(1).layout()));
-// }
+TEST_F(LayoutUtilTest, SetToDefaultLayoutTuple) {
+  Shape shape = ShapeUtil::MakeTupleShape(
+      {MakeShapeWithLayout(U32, {2, 3, 4}, {1, 0, 2}),
+       MakeShapeWithLayout(U32, {42, 123, 7}, {1, 2, 0}),
+       ShapeUtil::MakeTupleShape(
+           {MakeShapeWithLayout(U32, {}, {}),
+            MakeShapeWithLayout(U32, {1, 2, 3, 4}, {3, 1, 2, 0})})});
+  EXPECT_FALSE(LayoutUtil::Equal(shape.tuple_shapes(0).layout(),
+                                 shape.tuple_shapes(1).layout()));
+  LayoutUtil::SetToDefaultLayout(&shape);
+  EXPECT_TRUE(LayoutUtil::Equal(shape.tuple_shapes(0).layout(),
+                                shape.tuple_shapes(1).layout()));
+  EXPECT_TRUE(LayoutUtil::Equal(
+      LayoutUtil::GetDefaultLayoutForShape(shape.tuple_shapes(0)),
+      shape.tuple_shapes(1).layout()));
+}
 
 TEST_F(LayoutUtilTest, DefaultLayoutGettersMajorToMinor) {
   EXPECT_TRUE(LayoutUtil::Equal(LayoutUtil::MakeLayout({1, 0}),
@@ -528,40 +523,38 @@ TEST_F(LayoutUtilTest, ValidateLayout_Sparse) {
                                    "encoding DIM_DENSE, non-unique"));
 }
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTupleShape
-// TEST_F(LayoutUtilTest, ValidateLayout_TupleSubshapesWithMissingLayouts) {
-//   Shape sub_1_1_1 = ShapeUtil::MakeShape(U32, {1, 2});
-//   Shape sub_1_1 = ShapeUtil::MakeTupleShape({sub_1_1_1});
-//   Shape sub_1_2 = ShapeUtil::MakeShape(U32, {1, 2});
-//   LayoutUtil::ClearLayout(&sub_1_2);
-//   Shape sub_1 = ShapeUtil::MakeTupleShape({sub_1_1, sub_1_2});
-//   Shape sub_2_1 = ShapeUtil::MakeShape(U32, {9});
-//   LayoutUtil::ClearLayout(&sub_2_1);
-//   Shape sub_2 = ShapeUtil::MakeTupleShape({sub_2_1});
-//   Shape shape = ShapeUtil::MakeTupleShape({sub_1, sub_2});
+TEST_F(LayoutUtilTest, ValidateLayout_TupleSubshapesWithMissingLayouts) {
+  Shape sub_1_1_1 = ShapeUtil::MakeShape(U32, {1, 2});
+  Shape sub_1_1 = ShapeUtil::MakeTupleShape({sub_1_1_1});
+  Shape sub_1_2 = ShapeUtil::MakeShape(U32, {1, 2});
+  LayoutUtil::ClearLayout(&sub_1_2);
+  Shape sub_1 = ShapeUtil::MakeTupleShape({sub_1_1, sub_1_2});
+  Shape sub_2_1 = ShapeUtil::MakeShape(U32, {9});
+  LayoutUtil::ClearLayout(&sub_2_1);
+  Shape sub_2 = ShapeUtil::MakeTupleShape({sub_2_1});
+  Shape shape = ShapeUtil::MakeTupleShape({sub_1, sub_2});
 
-//   auto status =
-//       LayoutUtil::ValidateLayoutInShape(shape,
-//                                         /*allow_missing_layouts=*/false);
-//   EXPECT_FALSE(status.ok());
-//   EXPECT_THAT(status.message(),
-//               ::testing::HasSubstr("shape f32[1,2] does not have a layout"));
-//   status = LayoutUtil::ValidateLayoutInShape(shape,
-//                                              /*allow_missing_layouts=*/true);
-//   EXPECT_TRUE(status.ok());
+  auto status =
+      LayoutUtil::ValidateLayoutInShape(shape,
+                                        /*allow_missing_layouts=*/false);
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(),
+              ::testing::HasSubstr("shape u32[1,2] does not have a layout"));
+  status = LayoutUtil::ValidateLayoutInShape(shape,
+                                             /*allow_missing_layouts=*/true);
+  EXPECT_TRUE(status.ok());
 
-//   // Add invalid layout on one of sub-shapes.
-//   *shape.mutable_tuple_shapes(1)->mutable_tuple_shapes(0)->mutable_layout() =
-//       LayoutUtil::MakeLayout({0, 2, 3});
+  // Add invalid layout on one of sub-shapes.
+  *shape.mutable_tuple_shapes(1)->mutable_tuple_shapes(0)->mutable_layout() =
+      LayoutUtil::MakeLayout({0, 2, 3});
 
-//   status = LayoutUtil::ValidateLayoutInShape(shape,
-//                                              /*allow_missing_layouts=*/true);
-//   EXPECT_FALSE(status.ok());
-//   EXPECT_THAT(status.message(),
-//               ::testing::HasSubstr("layout minor_to_major field "
-//                                    "contains 3 elements, but shape is rank
-//                                    1"));
-// }
+  status = LayoutUtil::ValidateLayoutInShape(shape,
+                                             /*allow_missing_layouts=*/true);
+  EXPECT_FALSE(status.ok());
+  EXPECT_THAT(status.message(),
+              ::testing::HasSubstr("layout minor_to_major field "
+                                   "contains 3 elements, but shape is rank 1"));
+}
 
 TEST_F(LayoutUtilTest, MoveDimToMajor) {
   const Layout layout = LayoutUtil::MakeLayout({2, 1, 0});
@@ -590,34 +583,33 @@ TEST_F(LayoutUtilTest, StridesNotMajorToMinor) {
       byte_strides, {8, 9, 10, 11}, PrimitiveType::U32));
 }
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTupleShape
-// TEST_F(LayoutUtilTest, HasCustomElementSizeInBits) {
-//   Shape shape = ShapeUtil::MakeShape(U32, {1, 2});
-//   EXPECT_FALSE(LayoutUtil::HasCustomElementSizeInBits(shape));
+TEST_F(LayoutUtilTest, HasCustomElementSizeInBits) {
+  Shape shape = ShapeUtil::MakeShape(U32, {1, 2});
+  EXPECT_FALSE(LayoutUtil::HasCustomElementSizeInBits(shape));
 
-//   shape = ShapeUtil::MakeShape(U32, {1, 2});
-//   shape.mutable_layout()->set_element_size_in_bits(0);
-//   EXPECT_FALSE(LayoutUtil::HasCustomElementSizeInBits(shape));
+  shape = ShapeUtil::MakeShape(U32, {1, 2});
+  shape.mutable_layout()->set_element_size_in_bits(0);
+  EXPECT_FALSE(LayoutUtil::HasCustomElementSizeInBits(shape));
 
-//   shape = ShapeUtil::MakeShape(U32, {1, 2});
-//   shape.mutable_layout()->set_element_size_in_bits(32);
-//   EXPECT_TRUE(LayoutUtil::HasCustomElementSizeInBits(shape));
+  shape = ShapeUtil::MakeShape(U32, {1, 2});
+  shape.mutable_layout()->set_element_size_in_bits(32);
+  EXPECT_TRUE(LayoutUtil::HasCustomElementSizeInBits(shape));
 
-//   shape = ShapeUtil::MakeTupleShape(
-//       {ShapeUtil::MakeTupleShape({ShapeUtil::MakeShape(U32, {1, 2}),
-//                                   ShapeUtil::MakeShape(U32, {1, 2})}),
-//        ShapeUtil::MakeShape(U32, {1, 2})});
-//   EXPECT_FALSE(LayoutUtil::HasCustomElementSizeInBits(shape));
+  shape = ShapeUtil::MakeTupleShape(
+      {ShapeUtil::MakeTupleShape({ShapeUtil::MakeShape(U32, {1, 2}),
+                                  ShapeUtil::MakeShape(U32, {1, 2})}),
+       ShapeUtil::MakeShape(U32, {1, 2})});
+  EXPECT_FALSE(LayoutUtil::HasCustomElementSizeInBits(shape));
 
-//   shape = ShapeUtil::MakeTupleShape(
-//       {ShapeUtil::MakeTupleShape({ShapeUtil::MakeShape(U32, {1, 2}),
-//                                   ShapeUtil::MakeShape(U32, {1, 2})}),
-//        ShapeUtil::MakeShape(U32, {1, 2})});
-//   ShapeUtil::GetMutableSubshape(&shape, {0, 1})
-//       ->mutable_layout()
-//       ->set_element_size_in_bits(32);
-//   EXPECT_TRUE(LayoutUtil::HasCustomElementSizeInBits(shape));
-// }
+  shape = ShapeUtil::MakeTupleShape(
+      {ShapeUtil::MakeTupleShape({ShapeUtil::MakeShape(U32, {1, 2}),
+                                  ShapeUtil::MakeShape(U32, {1, 2})}),
+       ShapeUtil::MakeShape(U32, {1, 2})});
+  ShapeUtil::GetMutableSubshape(&shape, {0, 1})
+      ->mutable_layout()
+      ->set_element_size_in_bits(32);
+  EXPECT_TRUE(LayoutUtil::HasCustomElementSizeInBits(shape));
+}
 
 TEST_F(LayoutUtilTest, MaxSplitSize) {
   Shape shape = ShapeUtil::MakeShape(U32, {150, 200, 100});

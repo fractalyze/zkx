@@ -148,6 +148,29 @@ absl::Status ValidateNonLayoutProperties(const Shape& shape) {
   return absl::OkStatus();
 }
 
+template <typename T>
+const T& Deref(const T* ptr) {
+  DCHECK(ptr != nullptr);
+  return *ptr;
+}
+
+template <typename T>
+const T& Deref(const T& ref) {
+  return ref;
+}
+
+template <typename ShapePtrOrRef>
+Shape MakeTupleShapeImpl(absl::Span<ShapePtrOrRef> shapes) {
+  Shape result;
+  result.set_element_type(TUPLE);
+  result.mutable_tuple_shapes()->reserve(shapes.size());
+  for (const auto& shape : shapes) {
+    ShapeUtil::AppendShapeToTuple(Deref(shape), &result);
+  }
+  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(result));
+  return result;
+}
+
 }  // namespace
 
 std::string ShapeIndex::ToString() const {
@@ -228,6 +251,22 @@ Shape ShapeUtil::MakeShape(PrimitiveType element_type,
   Shape shape;
   CHECK(FillNewShape(element_type, dimensions, &shape));
   return shape;
+}
+
+// static
+Shape ShapeUtil::MakeTupleShape(absl::Span<const Shape> shapes) {
+  return MakeTupleShapeImpl(shapes);
+}
+
+// static
+Shape ShapeUtil::MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes) {
+  return MakeTupleShapeImpl(shapes);
+}
+
+// static
+void ShapeUtil::AppendShapeToTuple(const Shape& shape, Shape* tuple_shape) {
+  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
+  *tuple_shape->add_tuple_shapes() = shape;
 }
 
 // static

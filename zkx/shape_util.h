@@ -185,6 +185,16 @@ class ShapeUtil {
     return shape.IsArray() && shape.rank() == 0;
   }
 
+  // Creates a tuple shape from a slice of element shapes within the tuple.
+  static Shape MakeTupleShape(absl::Span<const Shape> shapes);
+  static Shape MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes);
+
+  // Appends a shape to the given tuple.
+  static void AppendShapeToTuple(const Shape& shape, Shape* tuple_shape);
+
+  // Returns an empty tuple shape. Can be used as a sentinel Shape value.
+  static Shape MakeNil() { return MakeTupleShape({}); }
+
   // Constructs a new shape with the given element type and sequence of
   // dimensions.
   static Shape MakeShape(PrimitiveType element_type,
