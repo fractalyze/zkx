@@ -219,6 +219,9 @@ class ShapeUtil {
   // Precondition: IsTuple(shape)
   static int64_t TupleElementCount(const Shape& shape);
 
+  // Returns the number of elements, recursively, in the given shape.
+  static int64_t SubshapeCount(const Shape& shape);
+
   // Returns true if the given shape has a subshape at the given index.
   static bool IndexIsValid(const Shape& shape, ShapeIndexView index);
 

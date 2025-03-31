@@ -275,6 +275,14 @@ int64_t ShapeUtil::TupleElementCount(const Shape& shape) {
 }
 
 // static
+int64_t ShapeUtil::SubshapeCount(const Shape& shape) {
+  int64_t n = 0;
+  ForEachSubshape(shape, [&](const Shape& literal_subshape,
+                             const ShapeIndex& index) { ++n; });
+  return n;
+}
+
+// static
 void ShapeUtil::PrintHumanString(Printer* printer, const Shape& shape) {
   if (shape.IsTuple()) {
     PrintTupleShapes</*kPrintLayout=*/false>(printer, shape.tuple_shapes());
