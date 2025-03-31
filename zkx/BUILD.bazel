@@ -160,6 +160,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "shape_tree",
+    srcs = ["shape_tree.cc"],
+    hdrs = ["shape_tree.h"],
+    deps = [
+        ":shape_util",
+        "//xla/tsl/lib/gtl:iterator_range",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "types",
     hdrs = ["types.h"],
 )
