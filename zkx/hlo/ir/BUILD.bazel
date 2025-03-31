@@ -29,6 +29,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_original_value",
+    srcs = ["hlo_original_value.cc"],
+    hdrs = ["hlo_original_value.h"],
+    deps = [
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_proto",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_print_options",
     hdrs = ["hlo_print_options.h"],
     deps = [
