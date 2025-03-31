@@ -165,6 +165,11 @@ class ShapeUtil {
     return lhs.element_type() == rhs.element_type();
   }
 
+  // Returns true if the rank, dimension sizes, and element type are
+  // identical. Layout is ignored. Tuple elements are compared recursively for
+  // compatibility.
+  static bool Compatible(const Shape& lhs, const Shape& rhs);
+
   // Returns whether the lhs and rhs shapes are identical.
   static bool Equal(const Shape& lhs, const Shape& rhs);
 

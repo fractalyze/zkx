@@ -341,6 +341,11 @@ std::string ShapeUtil::HumanStringWithLayout(const Shape& shape) {
 }
 
 // static
+bool ShapeUtil::Compatible(const Shape& lhs, const Shape& rhs) {
+  return Shape::Equal().IgnoreDynamicDimension().IgnoreLayout()(lhs, rhs);
+}
+
+// static
 int64_t ShapeUtil::ByteSizeOfPrimitiveType(PrimitiveType primitive_type) {
   return primitive_util::ByteWidth(primitive_type);
 }
