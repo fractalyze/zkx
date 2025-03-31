@@ -3,6 +3,19 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "dfs_hlo_visitor",
+    srcs = ["dfs_hlo_visitor.cc"],
+    hdrs = ["dfs_hlo_visitor.h"],
+    deps = [
+        ":hlo_instruction",
+        "//zkx/base:vlog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_casting_utils",
     hdrs = ["hlo_casting_utils.h"],
     deps = [
