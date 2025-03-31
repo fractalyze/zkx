@@ -3,7 +3,8 @@
 This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a2/xla/tsl/lib/gtl).
 
 ```shell
-> diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
+diff -r /path/to/openxla/xla/xla/tsl/lib/gtl xla/tsl/lib/gtl
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 1,10c1,2
 < load("//xla/tsl:tsl.bzl", "internal_visibility")
 < load("//xla/tsl:tsl.default.bzl", "filegroup")
@@ -101,10 +102,7 @@ This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a
 ---
 >         "@com_google_absl//absl/base:core_headers",
 >         "@com_google_absl//absl/hash",
-98,208c19
-< cc_library(
-<     name = "iterator_range",
-<     hdrs = ["iterator_range.h"],
+101,107c22,24
 < )
 <
 < cc_library(
@@ -112,10 +110,13 @@ This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a
 <     srcs = [
 <         "map_util.h",
 <         "//xla/tsl/lib/gtl/subtle:map_traits",
-<     ],
+---
+>     deps = [
+>         "@com_google_absl//absl/base:core_headers",
+>         "@com_google_absl//absl/hash",
+109d25
 <     hdrs = ["map_util.h"],
-< )
-<
+112,208c28
 < filegroup(
 <     name = "legacy_lib_gtl_headers",
 <     srcs = [
@@ -215,19 +216,17 @@ This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a
 < tsl_cc_test(
 ---
 > zkx_cc_unittest(
-211,213d21
+211,213d30
 <         "compactptrset_test.cc",
 <         "flatmap_test.cc",
 <         "flatset_test.cc",
-215,216d22
-<         "iterator_range_test.cc",
+216d32
 <         "map_util_test.cc",
-219,221d24
+219,221d34
 <         ":compactptrset",
 <         ":flatmap",
 <         ":flatset",
-223,229d25
-<         ":iterator_range",
+224,229d36
 <         ":map_util",
 <         "//xla/tsl/platform:macros",
 <         "//xla/tsl/platform:test",
@@ -310,8 +309,21 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/int_type_test.cc xla/tsl/li
 <   EXPECT_EQ(static_cast<uint64>(i), int_type.template value<uint64>());
 ---
 >   EXPECT_EQ(static_cast<uint64_t>(i), int_type.template value<uint64_t>());
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: iterator_range.h
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: iterator_range_test.cc
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/iterator_range_test.cc xla/tsl/lib/gtl/iterator_range_test.cc
+20,22c20
+< #include "xla/tsl/platform/macros.h"
+< #include "xla/tsl/platform/test.h"
+< #include "xla/tsl/platform/types.h"
+---
+> #include "gtest/gtest.h"
+57c55
+<     ASSERT_LT(index, TF_ARRAYSIZE(v));
+---
+>     ASSERT_LT(index, std::size(v));
+69c67
+<     ASSERT_LT(index, TF_ARRAYSIZE(v));
+---
+>     ASSERT_LT(index, std::size(v));
 Only in /path/to/openxla/xla/xla/tsl/lib/gtl: map_util.h
 Only in /path/to/openxla/xla/xla/tsl/lib/gtl: map_util_test.cc
 Only in /path/to/openxla/xla/xla/tsl/lib/gtl: subtle
