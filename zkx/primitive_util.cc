@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <stddef.h>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/log/check.h"
 #include "absl/strings/ascii.h"
 
@@ -58,6 +59,36 @@ class PrimitiveTypeNameGenerator {
 std::string_view LowercasePrimitiveTypeName(PrimitiveType s) {
   static auto* gen = new PrimitiveTypeNameGenerator();
   return gen->LowercaseName(s);
+}
+
+namespace {
+
+// Returns a map from lower-case primitive type name to primitive type.
+//
+// Due to Postel's Law considerations, both "opaque" and "opaque_type" map to
+// the zkx::OPAQUE_TYPE enumerator.
+const absl::flat_hash_map<std::string, PrimitiveType>&
+GetPrimitiveTypeStringMap() {
+  static absl::flat_hash_map<std::string, PrimitiveType>* name_to_type = [] {
+    static auto* map = new absl::flat_hash_map<std::string, PrimitiveType>;
+    for (int i = 0; i < PrimitiveType_ARRAYSIZE; i++) {
+      if (PrimitiveType_IsValid(i) && i != PRIMITIVE_TYPE_INVALID) {
+        auto value = static_cast<PrimitiveType>(i);
+        (*map)[LowercasePrimitiveTypeName(value)] = value;
+      }
+    }
+    (*map)["opaque"] = OPAQUE_TYPE;
+    return map;
+  }();
+  return *name_to_type;
+}
+
+}  // namespace
+
+bool IsPrimitiveTypeName(std::string_view name) {
+  const auto& map = GetPrimitiveTypeStringMap();
+  auto found = map.find(name);
+  return found != map.end();
 }
 
 }  // namespace zkx::primitive_util

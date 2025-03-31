@@ -400,6 +400,9 @@ inline constexpr int ByteWidth(PrimitiveType type) {
 // Returns the lower-case name of the given primitive type.
 std::string_view LowercasePrimitiveTypeName(PrimitiveType s);
 
+// Returns true if the given name is a primitive type string (lower-case).
+bool IsPrimitiveTypeName(std::string_view name);
+
 constexpr bool IsSubByteNonPredType(PrimitiveType type) {
   return IsArrayType(type) && type != PRED && BitWidth(type) < 8;
 }
