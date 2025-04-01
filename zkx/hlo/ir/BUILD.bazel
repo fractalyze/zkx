@@ -3,6 +3,16 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "hlo_casting_utils",
+    hdrs = ["hlo_casting_utils.h"],
+    deps = [
+        ":hlo_instruction",
+        "//xla/tsl/platform:casts",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_clone_context",
     hdrs = ["hlo_clone_context.h"],
     deps = [
@@ -58,7 +68,11 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "ir_unittests",
-    srcs = ["ptr_vec_unittest.cc"],
+    srcs = [
+        # TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateParameter, HloCollectivePermuteInstruction, HloAllReduceInstruction
+        # "hlo_casting_utils_unittest.cc",
+        "ptr_vec_unittest.cc",
+    ],
     deps = [
         ":ptr_vec",
         "@com_google_absl//absl/strings:str_format",
