@@ -26,7 +26,7 @@ namespace {
 // the end.
 // Lazy getter for the interned scalar shape in static storage. We reuse this
 // shape pointer to when constructing scalar Literals, which can happen a lot
-// when we are evaluating reduce-like ops in HloEvalutator, and copying the
+// when we are evaluating reduce-like ops in HloEvaluator, and copying the
 // shape over and over again significantly slows down the evaluator.
 template <PrimitiveType kType>
 const Shape& ScalarShapeImpl() {
