@@ -3,6 +3,12 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "bits",
+    hdrs = ["bits.h"],
+    deps = ["@com_google_absl//absl/numeric:bits"],
+)
+
+zkx_cc_library(
     name = "vlog",
     hdrs = ["vlog.h"],
     deps = ["@com_google_absl//absl/log"],
