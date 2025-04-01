@@ -356,6 +356,31 @@ void ShapeUtil::PrintHumanStringWithLayout(Printer* printer,
 }
 
 // static
+void ShapeUtil::PrintHumanString(Printer* printer,
+                                 const ProgramShape& program_shape) {
+  printer->Append("(");
+  const auto& shape_parameters = program_shape.parameters();
+  if (!shape_parameters.empty()) {
+    auto print_one = [&](int i) {
+      if (i < program_shape.parameter_names_size()) {
+        printer->Append(program_shape.parameter_names(i));
+      } else {
+        printer->Append("(unknown)");
+      }
+      printer->Append(": ");
+      PrintHumanString(printer, shape_parameters[i]);
+    };
+    print_one(0);
+    for (int i = 1; i < shape_parameters.size(); ++i) {
+      printer->Append(", ");
+      print_one(i);
+    }
+  }
+  printer->Append(") -> ");
+  PrintHumanString(printer, program_shape.result());
+}
+
+// static
 std::string ShapeUtil::HumanString(const Shape& shape) {
   StringPrinter printer;
   PrintHumanString(&printer, shape);
@@ -366,6 +391,13 @@ std::string ShapeUtil::HumanString(const Shape& shape) {
 std::string ShapeUtil::HumanStringWithLayout(const Shape& shape) {
   StringPrinter printer;
   PrintHumanStringWithLayout(&printer, shape);
+  return std::move(printer).ToString();
+}
+
+// static
+std::string ShapeUtil::HumanString(const ProgramShape& program_shape) {
+  StringPrinter printer;
+  PrintHumanString(&printer, program_shape);
   return std::move(printer).ToString();
 }
 

@@ -279,4 +279,46 @@ std::ostream& operator<<(std::ostream& out, const Shape& shape) {
   return out;
 }
 
+ProgramShape::ProgramShape() = default;
+ProgramShape::~ProgramShape() = default;
+ProgramShape::ProgramShape(const ProgramShape&) = default;
+ProgramShape::ProgramShape(ProgramShape&&) = default;
+ProgramShape& ProgramShape::operator=(const ProgramShape&) = default;
+ProgramShape& ProgramShape::operator=(ProgramShape&&) = default;
+
+ProgramShape::ProgramShape(const ProgramShapeProto& program_shape_proto) {
+  for (const ShapeProto& shape_proto : program_shape_proto.parameters()) {
+    *add_parameters() = Shape(shape_proto);
+  }
+  *mutable_result() = Shape(program_shape_proto.result());
+  for (const std::string& name : program_shape_proto.parameter_names()) {
+    add_parameter_names(name);
+  }
+}
+
+ProgramShapeProto ProgramShape::ToProto() const {
+  ProgramShapeProto proto;
+  for (const Shape& shape : parameters()) {
+    *proto.add_parameters() = shape.ToProto();
+  }
+  *proto.mutable_result() = result().ToProto();
+  for (const std::string& name : parameter_names()) {
+    proto.add_parameter_names(name);
+  }
+  return proto;
+}
+
+void ProgramShape::Print(Printer* printer) const {
+  ShapeUtil::PrintHumanString(printer, *this);
+}
+
+std::string ProgramShape::ToString() const {
+  return ShapeUtil::HumanString(*this);
+}
+
+std::ostream& operator<<(std::ostream& out, const ProgramShape& program_shape) {
+  out << program_shape.ToString() << "\n";
+  return out;
+}
+
 }  // namespace zkx

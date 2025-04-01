@@ -148,10 +148,21 @@ class ShapeUtil {
   static void PrintHumanString(Printer* printer, const Shape& shape);
   static void PrintHumanStringWithLayout(Printer* printer, const Shape& shape);
 
+  // As above, but for program shapes, prints a string for the form:
+  //
+  // (param_name: u32[42x12], ...) -> u32[24x42]
+  static void PrintHumanString(Printer* printer,
+                               const ProgramShape& program_shape);
+
   // Returns a human-readable string that represents the given shape, with or
   // without layout. e.g. "u32[42x12] {0, 1}" or "u32[64]".
   static std::string HumanString(const Shape& shape);
   static std::string HumanStringWithLayout(const Shape& shape);
+
+  // As above, but for program shapes, returns a string for the form:
+  //
+  // (param_name: u32[42x12], ...) -> u32[24x42]
+  static std::string HumanString(const ProgramShape& program_shape);
 
   // Returns whether the LHS and RHS shapes have the same rank; note: does
   // not check element type.

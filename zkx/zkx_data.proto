@@ -229,6 +229,14 @@ message ShapeProto {
   // the new field.
 }
 
+// Shape of the parameters and output of a computation (like a traditional
+// function signature).
+message ProgramShapeProto {
+  repeated ShapeProto parameters = 1;
+  ShapeProto result = 2;
+  repeated string parameter_names = 3;
+}
+
 // The type optimization profiles in use for Op-level optimizations.
 enum ProfileType {
   INVALID = 0;
