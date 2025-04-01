@@ -50,6 +50,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "iterator_util",
+    hdrs = ["iterator_util.h"],
+    deps = ["//xla/tsl/lib/gtl:iterator_range"],
+)
+
+zkx_cc_library(
     name = "literal",
     srcs = ["literal.cc"],
     hdrs = ["literal.h"],
@@ -220,6 +226,7 @@ zkx_cc_unittest(
         "array3d_unittest.cc",
         "array_unittest.cc",
         "index_util_unittest.cc",
+        "iterator_util_unittest.cc",
         "layout_unittest.cc",
         "layout_util_unittest.cc",
         "status_macros_unittest.cc",
@@ -228,6 +235,7 @@ zkx_cc_unittest(
         ":array",
         ":array2d",
         ":array3d",
+        ":iterator_util",
         ":shape_util",
         ":status_macros",
         "//xla/tsl/platform:errors",
