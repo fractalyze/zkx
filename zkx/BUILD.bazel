@@ -65,7 +65,20 @@ zkx_cc_library(
         ":shape_util",
         ":util",
         "//xla/tsl/platform:mem",
+        "//xla/tsl/platform:status",
         "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "literal_pool",
+    srcs = ["literal_pool.cc"],
+    hdrs = ["literal_pool.h"],
+    deps = [
+        ":literal",
+        "//zkx/base:vlog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/synchronization",
     ],
 )
 

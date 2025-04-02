@@ -118,6 +118,9 @@ class ShapeUtil {
     return product;
   }
 
+  // Returns true if 'shape' is an array with zero elements.
+  static bool IsZeroElementArray(const Shape& shape);
+
   // Returns the number of bytes required for an allocation of shape. The
   // |pointer_size| parameter is used for calculating the size of tuple
   // shapes. This includes only the size of the top-level buffer. For example, a
@@ -311,6 +314,15 @@ class ShapeUtil {
     ShapeIndex index;
     return ForEachMutableSubshapeWithStatusHelper(shape, fn, &index);
   }
+
+  // Returns true if `dynamic_shape` has dimensions that are less-equal to the
+  // "bounded_shape". Shapes must be arrays.
+  static bool DynamicArrayShapeIsCompatible(const Shape& dynamic_shape,
+                                            const Shape& bounded_shape);
+
+  // Same as DynamicArrayShapeIsCompatible() but supports tuples.
+  static bool DynamicShapeIsCompatible(const Shape& dynamic_shape,
+                                       const Shape& bounded_shape);
 
  private:
   // Fills *shape ignoring dynamic dimensions. Returns true on success.

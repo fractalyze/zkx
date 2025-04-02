@@ -19,6 +19,7 @@ limitations under the License.
 #include <stddef.h>
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -35,6 +36,11 @@ limitations under the License.
 #include "zkx/util.h"
 
 namespace zkx {
+
+// Forward declare Literal and LiteralSlice class to be used by the creation
+// methods in the base class.
+class Literal;
+class LiteralSlice;
 
 class LiteralBase {
  public:
@@ -86,6 +92,10 @@ class LiteralBase {
     }
     return ShapeUtil::ElementsIn(ShapeUtil::GetSubshape(shape(), index));
   }
+
+  // Clones the underlying buffers into a new Literal.
+  Literal Clone() const;
+  std::unique_ptr<Literal> CloneToUnique() const;
 
   // Array literals could be in one of the following three states:
   //   1) Known: we have evaluated and known the value of the array literal.
@@ -287,6 +297,11 @@ class LiteralBase {
     // shape, comparison is done only for the valid elements.
     bool EqualElements(const Piece& other) const;
 
+    // Copy the data from 'src' into this piece's buffer. Shapes of this piece
+    // and src must be compatible. If only_dynamic_bound is true, only elements
+    // within dynamic bounds will be copied.
+    absl::Status CopyFrom(const Piece& src, bool only_dynamic_bound);
+
    private:
     // Uninitialized state representation.
     struct Uninitialized {};
@@ -381,6 +396,10 @@ class LiteralBase {
     bool EqualElementsInternal(const Piece& other,
                                std::vector<int64_t>* multi_index) const;
 
+    // Internal helper to copy elements from another given piece
+    template <typename NativeT>
+    void CopyElementsWithDynamicBound(const LiteralBase::Piece& src);
+
     // Storage representation of this piece.
     std::variant<Uninitialized, DenseInlinedRep, DenseRep, TupleRep> rep_;
 
@@ -425,6 +444,16 @@ class MutableLiteralBase : public LiteralBase {
   void* untyped_data(const ShapeIndex& shape_index = {});
   // Unhide const method from parent class.
   using LiteralBase::untyped_data;
+
+  // Copy values from 'src_literal' rooted at 'src_shape_index' into this
+  // literal rooted at 'dest_shape_index'. The subshape of this literal rooted
+  // at 'dest_shape_index' must be compatible with the subshape of 'src_literal'
+  // rooted at 'src_shape_index', but need not be arrays. If only_dynamic_bound
+  // is true, only elements within dynamic bounds will be copied.
+  absl::Status CopyFrom(const LiteralSlice& src_literal,
+                        const ShapeIndex& dest_shape_index = {},
+                        const ShapeIndex& src_shape_index = {},
+                        bool only_dynamic_bound = false);
 
   template <typename NativeT>
   void PopulateR1(absl::Span<const NativeT> values);
@@ -492,6 +521,25 @@ class Literal : public MutableLiteralBase {
       ArrayValueState leaf_array_value_state = ArrayValueState::kKnown);
 
   Piece root_piece_;
+};
+
+// A read-only view of a Literal. A LiteralSlice contains pointers to shape and
+// literal buffers always owned by others.
+class LiteralSlice : public LiteralBase {
+ public:
+  LiteralSlice() : LiteralBase() {}
+
+  // Implicit conversion constructors.
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  LiteralSlice(const LiteralBase& literal)
+      : root_piece_(&literal.root_piece()) {}
+  LiteralSlice(const LiteralBase& literal, const ShapeIndex& view_root)
+      : root_piece_(&literal.piece(view_root)) {}
+
+ private:
+  const Piece& root_piece() const override { return *root_piece_; };
+
+  const Piece* root_piece_;  // Not owned.
 };
 
 template <typename NativeT>

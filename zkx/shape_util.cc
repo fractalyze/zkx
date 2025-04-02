@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/shape_util.h"
 
+#include "absl/algorithm/container.h"
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
@@ -304,6 +305,11 @@ int64_t ShapeUtil::SubshapeCount(const Shape& shape) {
 }
 
 // static
+bool ShapeUtil::IsZeroElementArray(const Shape& shape) {
+  return shape.IsArray() && absl::c_linear_search(shape.dimensions(), 0);
+}
+
+// static
 void ShapeUtil::PrintHumanString(Printer* printer, const Shape& shape) {
   if (shape.IsTuple()) {
     PrintTupleShapes</*kPrintLayout=*/false>(printer, shape.tuple_shapes());
@@ -533,6 +539,51 @@ Shape* ShapeUtil::GetMutableSubshape(Shape* shape, ShapeIndexView index) {
     return_shape = return_shape->mutable_tuple_shapes(i);
   }
   return return_shape;
+}
+
+// static
+bool ShapeUtil::DynamicArrayShapeIsCompatible(const Shape& dynamic_shape,
+                                              const Shape& bounded_shape) {
+  if (dynamic_shape.rank() != bounded_shape.rank()) {
+    return false;
+  }
+  for (int64_t i = 0; i < dynamic_shape.rank(); ++i) {
+    if (dynamic_shape.dimensions(i) > bounded_shape.dimensions(i)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// static
+bool ShapeUtil::DynamicShapeIsCompatible(const Shape& dynamic_shape,
+                                         const Shape& bounded_shape) {
+  bool compatible = true;
+  ShapeUtil::ForEachSubshape(
+      dynamic_shape, [&](const Shape& sub_shape, const ShapeIndex& index) {
+        if (compatible) {
+          auto subshape_result = TryGetSubshape(bounded_shape, index);
+          if (subshape_result.ok()) {
+            const Shape* bounded_sub_shape = std::move(subshape_result).value();
+            if (sub_shape.IsTuple()) {
+              if (!bounded_sub_shape->IsTuple()) {
+                compatible = false;
+              }
+            } else {
+              if (bounded_sub_shape->IsTuple()) {
+                compatible = false;
+              } else if (!sub_shape.is_static() &&
+                         !DynamicArrayShapeIsCompatible(sub_shape,
+                                                        *bounded_sub_shape)) {
+                compatible = false;
+              }
+            }
+          } else {
+            compatible = false;
+          }
+        }
+      });
+  return compatible;
 }
 
 }  // namespace zkx
