@@ -95,6 +95,23 @@ zkx_cc_library(
     deps = ["//zkx:shape_util"],
 )
 
+zkx_cc_library(
+    name = "tile_assignment",
+    srcs = ["tile_assignment.cc"],
+    hdrs = ["tile_assignment.h"],
+    deps = [
+        "//zkx:array",
+        "//zkx:printer",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
 zkx_cc_unittest(
     name = "ir_unittests",
     srcs = [
