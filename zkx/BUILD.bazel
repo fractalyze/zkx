@@ -39,6 +39,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "comparison_util",
+    srcs = ["comparison_util.cc"],
+    hdrs = ["comparison_util.h"],
+    deps = [
+        ":primitive_util",
+        ":zkx_data_proto",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "executable_run_options",
     srcs = ["executable_run_options.cc"],
     hdrs = ["executable_run_options.h"],
@@ -240,6 +256,7 @@ zkx_cc_unittest(
         "array2d_unittest.cc",
         "array3d_unittest.cc",
         "array_unittest.cc",
+        "comparison_util_unittest.cc",
         "index_util_unittest.cc",
         "iterator_util_unittest.cc",
         "layout_unittest.cc",
@@ -250,6 +267,7 @@ zkx_cc_unittest(
         ":array",
         ":array2d",
         ":array3d",
+        ":comparison_util",
         ":iterator_util",
         ":shape_util",
         ":status_macros",
