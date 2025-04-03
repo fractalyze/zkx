@@ -211,53 +211,46 @@ TEST_F(LayoutUtilTest, CopyLayoutBogusLayout) {
                                     "elements, but shape is rank"));
 }
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTokenShape
-// TEST_F(LayoutUtilTest, CopyTokenLayout) {
-//   Shape src = ShapeUtil::MakeTokenShape();
-//   Shape dst = ShapeUtil::MakeTokenShape();
+TEST_F(LayoutUtilTest, CopyTokenLayout) {
+  Shape src = ShapeUtil::MakeTokenShape();
+  Shape dst = ShapeUtil::MakeTokenShape();
 
-//   // Layouts are trivially the same for token types and copying layouts
-//   should
-//   // be a nop.
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_IS_OK(LayoutUtil::CopyLayoutBetweenShapes(src, &dst));
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-// }
+  // Layouts are trivially the same for token types and copying layouts should
+  // be a nop.
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+}
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeOpaqueShape
-// TEST_F(LayoutUtilTest, CopyOpaqueLayout) {
-//   Shape src = ShapeUtil::MakeOpaqueShape();
-//   Shape dst = ShapeUtil::MakeOpaqueShape();
+TEST_F(LayoutUtilTest, CopyOpaqueLayout) {
+  Shape src = ShapeUtil::MakeOpaqueShape();
+  Shape dst = ShapeUtil::MakeOpaqueShape();
 
-//   // Layouts are trivially the same for opaque types and copying layouts
-//   should
-//   // be a nop.
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_IS_OK(LayoutUtil::CopyLayoutBetweenShapes(src, &dst));
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-// }
+  // Layouts are trivially the same for token types and copying layouts should
+  // be a nop.
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+}
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeOpaqueShape,
-// ShapeUtil::MakeTokenShape, ShapeUtil::MakeTupleShape
+TEST_F(LayoutUtilTest, CopyTupleLayoutWithTokenAndOpaque) {
+  Shape src = ShapeUtil::MakeTupleShape(
+      {MakeShapeWithLayout(U32, {2, 3}, {0, 1}),
+       MakeShapeWithLayout(U32, {42, 123}, {1, 0}), ShapeUtil::MakeTokenShape(),
+       ShapeUtil::MakeTupleShape(
+           {ShapeUtil::MakeOpaqueShape(), MakeShapeWithLayout(U32, {}, {}),
+            MakeShapeWithLayout(U32, {1, 2, 3}, {0, 2, 1})})});
+  Shape dst = ShapeUtil::MakeTupleShape(
+      {MakeShapeWithLayout(U32, {2, 3}, {1, 0}),
+       MakeShapeWithLayout(U32, {42, 123}, {1, 0}), ShapeUtil::MakeTokenShape(),
+       ShapeUtil::MakeTupleShape(
+           {ShapeUtil::MakeOpaqueShape(), MakeShapeWithLayout(U32, {}, {}),
+            MakeShapeWithLayout(U32, {1, 2, 3}, {1, 2, 0})})});
 
-// TEST_F(LayoutUtilTest, CopyTupleLayoutWithTokenAndOpaque) {
-//   Shape src = ShapeUtil::MakeTupleShape(
-//       {MakeShapeWithLayout(U32, {2, 3}, {0, 1}),
-//        MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
-//        ShapeUtil::MakeTokenShape(), ShapeUtil::MakeTupleShape(
-//            {ShapeUtil::MakeOpaqueShape(), MakeShapeWithLayout(U32, {}, {}),
-//             MakeShapeWithLayout(U32, {1, 2, 3}, {0, 2, 1})})});
-//   Shape dst = ShapeUtil::MakeTupleShape(
-//       {MakeShapeWithLayout(U32, {2, 3}, {1, 0}),
-//        MakeShapeWithLayout(U32, {42, 123}, {1, 0}),
-//        ShapeUtil::MakeTokenShape(), ShapeUtil::MakeTupleShape(
-//            {ShapeUtil::MakeOpaqueShape(), MakeShapeWithLayout(U32, {}, {}),
-//             MakeShapeWithLayout(U32, {1, 2, 3}, {1, 2, 0})})});
-
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_IS_OK(LayoutUtil::CopyLayoutBetweenShapes(src, &dst));
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-// }
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+}
 
 TEST_F(LayoutUtilTest, ClearLayoutTuple) {
   Shape shape = ShapeUtil::MakeTupleShape(
@@ -277,18 +270,15 @@ TEST_F(LayoutUtilTest, ClearLayoutTuple) {
   EXPECT_FALSE(shape.tuple_shapes(2).tuple_shapes(1).has_layout());
 }
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTokenShape,
-// ShapeUtil::MakeOpaqueShape
-// TEST_F(LayoutUtilTest, ClearLayoutOpaqueAndToken)
-// {
-//   // Opaque and token types trivially have layouts.
-//   for (Shape shape :
-//        {ShapeUtil::MakeOpaqueShape(), ShapeUtil::MakeTokenShape()}) {
-//     EXPECT_TRUE(LayoutUtil::HasLayout(shape));
-//     LayoutUtil::ClearLayout(&shape);
-//     EXPECT_TRUE(LayoutUtil::HasLayout(shape));
-//   }
-// }
+TEST_F(LayoutUtilTest, ClearLayoutOpaqueAndToken) {
+  // Opaque and token types trivially have layouts.
+  for (Shape shape :
+       {ShapeUtil::MakeOpaqueShape(), ShapeUtil::MakeTokenShape()}) {
+    EXPECT_TRUE(LayoutUtil::HasLayout(shape));
+    LayoutUtil::ClearLayout(&shape);
+    EXPECT_TRUE(LayoutUtil::HasLayout(shape));
+  }
+}
 
 TEST_F(LayoutUtilTest, SetToDefaultLayoutTuple) {
   Shape shape = ShapeUtil::MakeTupleShape(

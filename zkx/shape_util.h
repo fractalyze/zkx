@@ -199,6 +199,14 @@ class ShapeUtil {
   static Shape MakeTupleShape(absl::Span<const Shape> shapes);
   static Shape MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes);
 
+  // Creates an opaque shape. These are generally used for threading a context
+  // into a custom operation.
+  static Shape MakeOpaqueShape();
+
+  // Creates a token shape. Values of this shape are used for ordering
+  // side-effecting operations.
+  static Shape MakeTokenShape();
+
   // Appends a shape to the given tuple.
   static void AppendShapeToTuple(const Shape& shape, Shape* tuple_shape);
 

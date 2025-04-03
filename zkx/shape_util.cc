@@ -269,6 +269,22 @@ Shape ShapeUtil::MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes) {
 }
 
 // static
+Shape ShapeUtil::MakeOpaqueShape() {
+  Shape result;
+  result.set_element_type(OPAQUE_TYPE);
+  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(result));
+  return result;
+}
+
+// static
+Shape ShapeUtil::MakeTokenShape() {
+  Shape result;
+  result.set_element_type(TOKEN);
+  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(result));
+  return result;
+}
+
+// static
 void ShapeUtil::AppendShapeToTuple(const Shape& shape, Shape* tuple_shape) {
   TF_DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
   *tuple_shape->add_tuple_shapes() = shape;
