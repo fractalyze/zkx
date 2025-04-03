@@ -17,8 +17,10 @@ limitations under the License.
 #define ZKX_LITERAL_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <utility>
 #include <variant>
@@ -92,6 +94,80 @@ class LiteralBase {
     }
     return ShapeUtil::ElementsIn(ShapeUtil::GetSubshape(shape(), index));
   }
+
+  // This definition is here to ensure that nobody accidentally implements this
+  // function which would lead to inconsistencies. Use Hash instead.
+  //
+  // Note: code below should really be static_assert(false, ...), but that is
+  // unfortunately not possible, as some compilers consider it invalid code,
+  // see https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2593r0.html.
+  template <typename H>
+  friend H AbslHashValue(H state, const LiteralBase& value) {
+    static_assert(sizeof(H) == 0,
+                  "Do not use Literal directly as a hash key, because it has "
+                  "multiple definitions of equality - layout sensitive or "
+                  "insensitive. Instead, use AbslHashable<...>() to create a "
+                  "wrapper with layout sensitivity specified suitable for "
+                  "passing to Absl::Hash");
+  }
+
+  // Always use this together with the Equal method and not operator== in order
+  // to handle layout sensitivity properly.
+  template <typename H, bool kIsLayoutSensitive = true,
+            int64_t kByteLimit = std::numeric_limits<int64_t>::max()>
+  static H Hash(H state, const LiteralBase& literal) {
+    state =
+        Shape::Hash<H, kIsLayoutSensitive>(std::move(state), literal.shape());
+
+    ShapeUtil::ForEachSubshape(literal.shape(), [&](const Shape& subshape,
+                                                    const ShapeIndex& index) {
+      if (!subshape.IsArray()) {
+        return;
+      }
+
+      CHECK(LayoutUtil::IsDenseArray(subshape));
+      const int64_t size_bytes = literal.size_bytes(index);
+      const int64_t bytes_to_hash = std::min(size_bytes, kByteLimit);
+      // When layout insensitive, we need to hash the data bytes in logical
+      // order rather than physical order.
+      const bool use_physical_order =
+          kIsLayoutSensitive || !subshape.has_layout();
+      auto data = absl::MakeConstSpan(
+          static_cast<const char*>(literal.untyped_data(index)), size_bytes);
+      if (use_physical_order) {
+        state = H::combine(std::move(state), data.first(bytes_to_hash));
+        return;
+      }
+      const int64_t elem_size =
+          ShapeUtil::ByteSizeOfPrimitiveType(subshape.element_type());
+      absl::Span<const int64_t> minor_to_major =
+          subshape.layout().minor_to_major();
+      DimensionVector elem_index(subshape.dimensions_size());
+      absl::Span<int64_t> elem_index_span(elem_index.data(), elem_index.size());
+      int64_t bytes_hashed = 0;
+      while (bytes_hashed < bytes_to_hash) {
+        int64_t offset =
+            elem_size * IndexUtil::MultidimensionalIndexToLinearIndex(
+                            subshape, minor_to_major, elem_index);
+        state = H::combine(std::move(state), data.subspan(offset, elem_size));
+        if (!IndexUtil::BumpIndices(subshape, elem_index_span)) return;
+        bytes_hashed += elem_size;
+      }
+    });
+
+    return std::move(state);
+  }
+
+  // Templated wrapper struct to control layout sensitivity during Absl::Hash.
+  template <bool layout_sensitive>
+  struct AbslHashable {
+    const LiteralBase& literal;
+    explicit AbslHashable(const LiteralBase& l) : literal(l) {}
+    template <typename H>
+    friend H AbslHashValue(H h, const AbslHashable& w) {
+      return LiteralBase::Hash<H, layout_sensitive>(std::move(h), w.literal);
+    }
+  };
 
   // Clones the underlying buffers into a new Literal.
   Literal Clone() const;
