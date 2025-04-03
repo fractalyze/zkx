@@ -3,6 +3,24 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "backend_config",
+    srcs = ["backend_config.cc"],
+    hdrs = ["backend_config.h"],
+    deps = [
+        ":tile_assignment",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:human_readable_json",
+        "//zkx:array",
+        "//zkx:zkx_data_proto",
+        "//zkx/base:vlog",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+zkx_cc_library(
     name = "collective_device_list",
     srcs = ["collective_device_list.cc"],
     hdrs = ["collective_device_list.h"],
@@ -130,14 +148,17 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "ir_unittests",
     srcs = [
+        "backend_config_unittest.cc",
         "collective_device_list_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateParameter, HloCollectivePermuteInstruction, HloAllReduceInstruction
         # "hlo_casting_utils_unittest.cc",
         "ptr_vec_unittest.cc",
     ],
     deps = [
+        ":backend_config",
         ":collective_device_list",
         ":ptr_vec",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
     ],
 )
