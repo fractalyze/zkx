@@ -32,6 +32,8 @@ limitations under the License.
 #include "absl/base/attributes.h"
 #include "absl/log/check.h"
 
+#include "zkx/stream_executor/namespace_alias.h"
+
 namespace stream_executor {
 
 // void*-analogous device memory allocation. For the typed variation, see

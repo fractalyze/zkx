@@ -22,6 +22,8 @@ limitations under the License.
 
 #include "absl/strings/str_cat.h"
 
+#include "zkx/stream_executor/namespace_alias.h"
+
 namespace stream_executor {
 namespace internal {
 

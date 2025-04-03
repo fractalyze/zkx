@@ -18,19 +18,89 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/hash/hash.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "absl/types/span.h"
 
 #include "zkx/executable_run_options.h"
+#include "zkx/service/computation_placer.h"
 #include "zkx/service/global_device_id.h"
+#include "zkx/zkx_data.pb.h"
 
 namespace zkx {
 
 enum class ReductionKind { kSum, kProduct, kMin, kMax };
+
+std::string_view ReductionKindToString(ReductionKind reduction_kind);
+
+// There are broadly 4 modes that collective communication ops use to describe
+// which sets of devices are participating with a given device in the operation.
+// These modes are determined by the values of channel_id (optional) and
+// use_global_device_ids (optional). The modes are as follows:
+//
+// kCrossReplica:
+//    implied by: no channel id, use_global_device_ids = false, or
+//                no channel_id, no use_global_device_ids:
+//    replica_groups contain replica_id, group contains all replicas for the
+//    current partition
+//
+// kCrossPartition:
+//    implied by: channel_id is set, no use_global_device_ids:
+//    replica_groups contain partition_id, group contains all partitions for the
+//    current replica.
+//
+// kCrossReplicaAndPartition:
+//    implied by: channel_id is set, use_global_device_ids = false:
+//    replica_groups contain replica_id, group contains all replicas for all
+//    partitions (as opposed to just current partition).
+//
+// kFlattenedID:
+//    implied by: channel_id is set, use_global_device_ids = true:
+//    replica_groups contain flattened-ids, group contains devices that are
+//    listed in the flattened-id list.
+//
+// Rest of the combinations are invalid.
+//
+// Since the actual value of channel_id does not matter, we use a bool argument
+// `has_channel_id`, and optional<bool> for use_global_device_ids.
+// Note that use_global_device_ids true requires channel_id to be set as well.
+// Additionally, if use_global_device_ids = true, replica groups cannot be
+// empty (verified in the HLO verifier).
+enum class CollectiveOpGroupMode {
+  kCrossReplica,
+  kCrossPartition,
+  kCrossReplicaAndPartition,
+  kFlattenedID,
+};
+
+std::string_view CollectiveOpGroupModeToString(
+    CollectiveOpGroupMode group_mode);
+
+// Figures out which IDs are participating in the collective subgroup.
+// An empty `groups` indicates that all [0, total_participant_count) IDs
+// are participating. Note that for CollectiveOpGroupMode::kFlattenedID,
+// groups cannot be empty, so `total_participant_count` is an optional.
+absl::StatusOr<std::vector<int>> GetParticipatingIDs(
+    CollectiveOpGroupMode group_mode, int current_id,
+    std::optional<int> total_participant_count,
+    absl::Span<const ReplicaGroup> groups);
+
+// Returns the group formation mode implied by (a) whether the operation has
+// channel_id and (b) if it has use_global_device_ids and if yes, its value.
+absl::StatusOr<CollectiveOpGroupMode> GetCollectiveOpGroupMode(
+    bool has_channel_id, std::optional<bool> use_global_device_ids);
+
+// Figures out which devices are participating in the collective subgroup.
+absl::StatusOr<std::vector<GlobalDeviceId>> GetParticipatingDevices(
+    GlobalDeviceId device_id, const DeviceAssignment& device_assignment,
+    absl::Span<const ReplicaGroup> replica_groups,
+    CollectiveOpGroupMode group_mode);
 
 // Key that identifies a particular Rendezvous object in our global hashtable.
 // This determines which calls to ExecuteOnStream communicate with each other.

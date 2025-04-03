@@ -26,7 +26,7 @@ namespace stream_executor {
 
 namespace {
 
-absl::StatusOr<unsigned> ParseUnsignedNumber(absl::string_view component) {
+absl::StatusOr<unsigned> ParseUnsignedNumber(std::string_view component) {
   unsigned number;
   if (!absl::SimpleAtoi(component, &number)) {
     return absl::InvalidArgumentError(
@@ -42,8 +42,8 @@ std::string SemanticVersion::ToString() const {
 }
 
 absl::StatusOr<SemanticVersion> SemanticVersion::ParseFromString(
-    absl::string_view str) {
-  std::vector<absl::string_view> components = absl::StrSplit(str, '.');
+    std::string_view str) {
+  std::vector<std::string_view> components = absl::StrSplit(str, '.');
 
   if (components.size() != 3) {
     return absl::InvalidArgumentError(

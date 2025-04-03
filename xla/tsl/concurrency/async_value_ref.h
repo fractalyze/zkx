@@ -348,10 +348,10 @@ class AsyncValueRef {
   }
 
   ABSL_DEPRECATED("Use SetError with absl::Status argument")
-  void SetError(absl::string_view message) const {
-    // Converting to `absl::string_view` because implicit conversion is not
+  void SetError(std::string_view message) const {
+    // Converting to `std::string_view` because implicit conversion is not
     // supported in android builds.
-    absl::string_view message_view(message.data(), message.size());
+    std::string_view message_view(message.data(), message.size());
     SetError(absl::InternalError(message_view));
   }
 

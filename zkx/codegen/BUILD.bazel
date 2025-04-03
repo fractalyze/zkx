@@ -1,0 +1,13 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "kernel_spec",
+    hdrs = ["kernel_spec.h"],
+    deps = [
+        "//zkx/runtime:buffer_use",
+        "//zkx/stream_executor:launch_dim",
+        "@com_google_absl//absl/container:inlined_vector",
+    ],
+)

@@ -15,6 +15,9 @@ limitations under the License.
 
 #include "zkx/backends/cpu/runtime/thunk.h"
 
+#include "zkx/backends/cpu/collectives/in_process_collectives.h"
+#include "zkx/service/cpu/cpu_executable_run_options.h"
+
 namespace zkx::cpu {
 
 std::string_view Thunk::KindToString(Kind kind) {
@@ -40,6 +43,36 @@ Thunk::Thunk(Kind kind, Info info)
     : kind_(kind),
       info_(std::move(info)),
       ok_event_(OkExecuteEventSingleton()) {}
+
+absl::StatusOr<Thunk::CollectiveExecuteParams>
+Thunk::CollectiveExecuteParams::Create(
+    const ExecutableRunOptions* run_options) {
+  // Device ordinal must be set by caller and passed in run options, if not,
+  // we use the device ordinal from the parent StreamExecutor.
+  int32_t device_ordinal = -1;
+  // TODO(chokobole): Uncomment this. Dependency: Stream
+  // run_options->device_ordinal() >= 0
+  //     ? run_options->device_ordinal()
+  //     : run_options->stream()->parent()->device_ordinal();
+
+  // Default implementation of a collectives interface that can execute
+  // collective operations within the same process.
+  static CpuCollectives* in_process_collectives = new InProcessCollectives();
+
+  // If CPU executable run options are set, use the collectives interface
+  // provided by the executable run options if it is set. Otherwise, use the
+  // in-process collectives interface.
+  const CpuExecutableRunOptions* cpu_run_options =
+      run_options->cpu_executable_run_options();
+  CpuCollectives* collectives =
+      cpu_run_options && cpu_run_options->collectives()
+          ? cpu_run_options->collectives()
+          : in_process_collectives;
+
+  return CollectiveExecuteParams{run_options->run_id(), device_ordinal,
+                                 GlobalDeviceId(run_options->device_ordinal()),
+                                 run_options->device_assignment(), collectives};
+}
 
 tsl::AsyncValueRef<Thunk::ExecuteEvent> Thunk::OkExecuteEventSingleton() {
   static tsl::AsyncValueOwningRef<ExecuteEvent>* singleton = [] {

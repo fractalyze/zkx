@@ -22,6 +22,7 @@ limitations under the License.
 #include <stdint.h>
 
 #include <limits>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
@@ -83,6 +84,13 @@ constexpr inline T LsbMask(int width) {
 template <typename Container>
 int64_t PositionInContainer(const Container& container, int64_t value) {
   return std::distance(container.begin(), absl::c_find(container, value));
+}
+
+int64_t Product(absl::Span<const int64_t> xs);
+
+template <typename T>
+std::vector<T> SpanToVector(absl::Span<const T> slice) {
+  return std::vector<T>(slice.begin(), slice.end());
 }
 
 // Returns a container with `sorted_ids_to_remove` elements removed.

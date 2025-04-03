@@ -26,6 +26,8 @@ limitations under the License.
 #include "absl/hash/hash.h"
 #include "absl/status/statusor.h"
 
+#include "zkx/stream_executor/namespace_alias.h"
+
 namespace stream_executor {
 
 // `SemanticVersion` represents a version number of the form X.Y.Z with
@@ -41,7 +43,7 @@ class SemanticVersion {
   explicit SemanticVersion(std::array<uint32_t, 3> other)
       : major_(other[0]), minor_(other[1]), patch_(other[2]) {}
 
-  static absl::StatusOr<SemanticVersion> ParseFromString(absl::string_view str);
+  static absl::StatusOr<SemanticVersion> ParseFromString(std::string_view str);
 
   uint32_t major() const { return major_; }
 

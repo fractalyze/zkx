@@ -9,10 +9,44 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "array",
+    hdrs = ["array.h"],
+    deps = [
+        "//zkx:types",
+        "//zkx:util",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "array2d",
+    hdrs = ["array2d.h"],
+    deps = [
+        ":array",
+        "//zkx/base:bits",
+        "@com_google_absl//absl/functional:function_ref",
+    ],
+)
+
+zkx_cc_library(
+    name = "array3d",
+    hdrs = ["array3d.h"],
+    deps = [":array"],
+)
+
+zkx_cc_library(
     name = "executable_run_options",
     srcs = ["executable_run_options.cc"],
     hdrs = ["executable_run_options.h"],
-    deps = ["@com_google_absl//absl/hash"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+    ],
 )
 
 zkx_cc_library(
@@ -134,6 +168,7 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "util",
+    srcs = ["util.cc"],
     hdrs = ["util.h"],
     deps = [
         "//xla/tsl/lib/math:math_util",
@@ -152,12 +187,18 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "zkx_unittests",
     srcs = [
+        "array2d_unittest.cc",
+        "array3d_unittest.cc",
+        "array_unittest.cc",
         "index_util_unittest.cc",
         "layout_unittest.cc",
         "layout_util_unittest.cc",
         "status_macros_unittest.cc",
     ],
     deps = [
+        ":array",
+        ":array2d",
+        ":array3d",
         ":shape_util",
         ":status_macros",
         "//xla/tsl/platform:errors",

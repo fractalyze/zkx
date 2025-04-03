@@ -229,6 +229,21 @@ message ShapeProto {
   // the new field.
 }
 
+// DeviceAssignmentProto is a serialized form of DeviceAssignment class, which
+// represents the device ids assigned to a set of replicated computations.
+// See zkx::DeviceAssignment class comment for more details.
+message DeviceAssignmentProto {
+  int32 replica_count = 1;
+  int32 computation_count = 2;
+
+  // Each logical computation runs on replica_count physical devices.
+  // ComputationDevice represents the device ids assigned to the replicas.
+  message ComputationDevice {
+    repeated int64 replica_device_ids = 1;
+  }
+  repeated ComputationDevice computation_devices = 3;
+}
+
 // Literals are used when the server and client need to exchange materialized
 // data / results. Literals are also used to describe constants used in
 // computations.
@@ -255,4 +270,12 @@ message LiteralProto {
   repeated uint64 u64s = 16;
   repeated LiteralProto tuple_literals = 17;
   repeated int64 sparse_indices = 18;
+}
+
+// Describes the replica groups in a cross replica op (e.g., all-reduce and
+// all-to-all).
+message ReplicaGroup {
+  // The ids of the replicas that belongs to the same group. The ordering of the
+  // ids matters in some ops (e.g., all-to-all).
+  repeated int64 replica_ids = 1;
 }

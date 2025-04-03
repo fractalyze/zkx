@@ -3,6 +3,61 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_test", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "all_gather_thunk",
+    srcs = ["all_gather_thunk.cc"],
+    hdrs = ["all_gather_thunk.h"],
+    deps = [
+        ":collective_thunk",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/base:vlog",
+        "//zkx/core/collectives:communicator",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "all_reduce_thunk",
+    srcs = ["all_reduce_thunk.cc"],
+    hdrs = ["all_reduce_thunk.h"],
+    deps = [
+        ":collective_thunk",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/base:vlog",
+        "//zkx/core/collectives:communicator",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "all_to_all_thunk",
+    srcs = ["all_to_all_thunk.cc"],
+    hdrs = ["all_to_all_thunk.h"],
+    deps = [
+        ":collective_thunk",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/base:vlog",
+        "//zkx/core/collectives:communicator",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "buffer_allocations",
     hdrs = ["buffer_allocations.h"],
     deps = [
@@ -14,6 +69,118 @@ zkx_cc_library(
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "collective_thunk",
+    srcs = ["collective_thunk.cc"],
+    hdrs = ["collective_thunk.h"],
+    deps = [
+        ":thunk",
+        "//xla/tsl/concurrency:async_value",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:zkx_data_proto",
+        "//zkx/backends/cpu/collectives:cpu_clique_key",
+        "//zkx/backends/cpu/collectives:cpu_cliques",
+        "//zkx/base:vlog",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:collective_ops_utils",
+        "//zkx/stream_executor:device_memory",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "collective_permute_thunk",
+    srcs = ["collective_permute_thunk.cc"],
+    hdrs = ["collective_permute_thunk.h"],
+    deps = [
+        ":collective_thunk",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/base:vlog",
+        "//zkx/core/collectives:communicator",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "kernel_c_api",
+    hdrs = ["kernel_c_api.h"],
+)
+
+zkx_cc_library(
+    name = "kernel",
+    srcs = ["kernel.cc"],
+    hdrs = ["kernel.h"],
+    deps = [
+        ":kernel_c_api",
+        ":work_queue",
+        "//xla/tsl/concurrency:async_value",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:launch_dim",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
+zkx_cc_library(
+    name = "kernel_thunk",
+    srcs = ["kernel_thunk.cc"],
+    hdrs = ["kernel_thunk.h"],
+    deps = [
+        ":buffer_allocations",
+        ":kernel",
+        ":kernel_c_api",
+        ":thunk",
+        "//xla/tsl/platform:errors",
+        "//zkx/base:vlog",
+        "//zkx/codegen:kernel_spec",
+        "//zkx/stream_executor:launch_dim",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
+zkx_cc_library(
+    name = "reduce_scatter_thunk",
+    srcs = ["reduce_scatter_thunk.cc"],
+    hdrs = ["reduce_scatter_thunk.h"],
+    deps = [
+        ":collective_thunk",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/base:vlog",
+        "//zkx/core/collectives:communicator",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )
 
@@ -47,7 +214,12 @@ zkx_cc_library(
         ":resource_use",
         "//xla/tsl/concurrency:async_value",
         "//xla/tsl/platform:statusor",
+        "//zkx:executable_run_options",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/backends/cpu/collectives:in_process_collectives",
         "//zkx/runtime:buffer_use",
+        "//zkx/service:global_device_id",
+        "//zkx/service/cpu:cpu_executable_run_options",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -101,20 +273,38 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "work_queue",
+    hdrs = ["work_queue.h"],
+    deps = [
+        "//xla/tsl/concurrency:async_value",
+        "//xla/tsl/lib/math:math_util",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:fixed_array",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
 zkx_cc_unittest(
     name = "runtime_unittests",
     srcs = [
         "resource_use_unittest.cc",
         "thunk_executor_unittest.cc",
         "thunk_unittest.cc",
+        "work_queue_unittest.cc",
     ],
     deps = [
         ":resource_use",
         ":thunk",
         ":thunk_executor",
         ":thunk_testlib",
+        ":work_queue",
         "//xla/tsl/platform:thread_pool",
         "//zkx:literal_util",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/synchronization",
         "@eigen_archive//:eigen3",
     ],
 )
