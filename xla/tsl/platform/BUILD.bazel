@@ -38,6 +38,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "human_readable_json",
+    srcs = ["human_readable_json.cc"],
+    hdrs = ["human_readable_json.h"],
+    deps = [
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+zkx_cc_library(
     name = "mem",
     srcs = if_posix(["mem_posix.cc"]),
     hdrs = ["mem.h"],
