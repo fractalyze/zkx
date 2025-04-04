@@ -162,6 +162,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "shape_layout",
+    srcs = ["shape_layout.cc"],
+    hdrs = ["shape_layout.h"],
+    deps = [
+        ":printer",
+        ":shape_util",
+        "//xla/tsl/platform:status",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "shape_util",
     srcs = [
         "index_util.cc",
