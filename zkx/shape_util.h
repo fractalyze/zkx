@@ -267,6 +267,14 @@ class ShapeUtil {
                                                      ShapeIndexView index);
   static Shape* GetMutableSubshape(Shape* shape, ShapeIndexView index);
 
+  // Returns whether the given index in the given shape is a leaf element of the
+  // shape.
+  static bool IsLeafIndex(const Shape& shape, const ShapeIndex& index);
+
+  // Returns the number of leaves in the shape.
+  static int64_t GetLeafCount(const Shape& shape);
+  static int64_t GetLeafCountTuple(const Shape& shape);
+
   // Calls the given visitor function for each subshape of the given shape.
   // Subshapes are visited in DFS pre-order starting with the entire shape
   // (index {}).

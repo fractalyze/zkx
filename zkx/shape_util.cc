@@ -542,6 +542,33 @@ Shape* ShapeUtil::GetMutableSubshape(Shape* shape, ShapeIndexView index) {
 }
 
 // static
+bool ShapeUtil::IsLeafIndex(const Shape& shape, const ShapeIndex& index) {
+  return !GetSubshape(shape, index).IsTuple();
+}
+
+// static
+int64_t ShapeUtil::GetLeafCountTuple(const Shape& shape) {
+  DCHECK(shape.IsTuple());
+  int64_t count = 0;
+  for (const Shape& subshape : shape.tuple_shapes()) {
+    if (subshape.IsTuple()) {
+      count += GetLeafCount(subshape);
+    } else {
+      ++count;
+    }
+  }
+  return count;
+}
+
+// static
+int64_t ShapeUtil::GetLeafCount(const Shape& shape) {
+  if (!shape.IsTuple()) {
+    return 1;
+  }
+  return GetLeafCountTuple(shape);
+}
+
+// static
 bool ShapeUtil::DynamicArrayShapeIsCompatible(const Shape& dynamic_shape,
                                               const Shape& bounded_shape) {
   if (dynamic_shape.rank() != bounded_shape.rank()) {
