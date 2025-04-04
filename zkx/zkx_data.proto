@@ -383,6 +383,92 @@ message FrontendAttributes {
   map<string, string> map = 1;
 }
 
+message OpSharding {
+  enum Type {
+    // This sharding is replicated across all devices (implies maximal,
+    // all other fields are unused).
+    REPLICATED = 0;
+    // This sharding is maximal - one device runs the entire operation.
+    MAXIMAL = 1;
+    // This sharding is a tuple - only the tuple_shardings field is valid.
+    TUPLE = 2;
+    // None of the above; tile_shape and tile_assignment are both used.
+    OTHER = 3;
+    // This op is manually sharded: the shapes are already partitioned and the
+    // partitioner should not change this op.
+    MANUAL = 4;
+    // This sharding is a placeholder sharding with lowest precedence, it can be
+    // overwritten by any other shardings.
+    UNKNOWN = 5;
+  }
+  Type type = 1;
+  // The shape of the sharded tile.
+  ShapeProto tile_shape = 2;
+  // The shape of the tile assignment tensor - this must be the same rank as
+  // tile_shape and the product of its dimensions must equal
+  // tile_assignment_devices.size().
+  repeated int64 tile_assignment_dimensions = 3;
+  // Flattened list of device IDs. The order of flattening is the same as used
+  // by IndexUtil::MultiToLinearIndex(tile_assignment_shape).
+  // Only one of tile_assignment_devices and iota_dimensions shall be non-empty.
+  repeated int64 tile_assignment_devices = 4;
+  // If type == TUPLE, the sub-shardings, one per leaf node in the tuple shape,
+  // in pre-order. The tuple shape could be nested; here we store just a
+  // flattened list of all leaves in the tuple shape. Note that the tuple shape
+  // is not stored here; shardings do not store the shapes to which they are
+  // applied, this is inferred from the instruction this sharding gets attached
+  // to.
+  repeated OpSharding tuple_shardings = 5;
+
+  // Only used for OTHER type. If true, data is sharded according to other
+  // dimensions of tile_assignment(), but replicated across devices along the
+  // last dimension. (Experimental)
+  bool replicate_on_last_tile_dim = 6;
+  // This field is used to track the source of this sharding, usually derived
+  // from instructions. Multiple metadata may be populated if sharding is
+  // combined with other shardings.  Metadata are to not be populated when
+  // type == TUPLE and instead metadata should be set on individual tuple
+  // elements.
+  repeated OpMetadata metadata = 7;
+
+  // This field is used to represented the sharding type of each subgroup.
+  // For example, sharding={devices=[2,2,2,2]0,1,2,...,15 last_tile_dims={
+  // replicate, manual, unreduced}} means that each of the last 3 dimensions
+  // in [2,2,2,2] represents a subgrouping in replicate, manual,
+  // unreduced sharding type respectively.
+  repeated Type last_tile_dims = 8;
+
+  // Dimensions used to reshape the 1D iota array of device IDs.
+  // Only one of tile_assignment_devices and iota_reshape_dims shall be
+  // non-empty.
+  repeated int64 iota_reshape_dims = 9;
+
+  // Dimension permutations to transposed the iota array reshaped to
+  // iota_reshape_dims. This must have the same size as iota_reshape_dims.
+  repeated int32 iota_transpose_perm = 10;
+
+  // This field decides whether this op is in a shard group.
+  bool is_shard_group = 11;
+
+  // This field is used to store the unique id of the shard group.
+  int64 shard_group_id = 12;
+
+  // Used to decide whether this op is to be sharded like some other ops, or to
+  // which other ops will be sharded like.
+  enum ShardGroupType {
+    // This op will be sharded exactly the same as the other op. (hard
+    // restriction)
+    AS = 0;
+    // This op will try to allow sharding propagation within the same group even
+    // there is no data dependencies among them, but there is no guarantee that
+    // the final shardings within the same group will be exactly the same. (soft
+    // restriction)
+    LIKE = 1;
+  }
+
+  ShardGroupType shard_group_type = 13;
+}
+
 // Describes the replica groups in a cross replica op (e.g., all-reduce and
 // all-to-all).
 message ReplicaGroup {
