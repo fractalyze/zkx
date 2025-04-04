@@ -18,8 +18,8 @@ zkx_cc_library(
     name = "array",
     hdrs = ["array.h"],
     deps = [
-        "//zkx:types",
-        "//zkx:util",
+        ":types",
+        ":util",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
