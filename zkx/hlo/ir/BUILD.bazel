@@ -90,6 +90,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_op_metadata",
+    srcs = ["hlo_op_metadata.cc"],
+    hdrs = ["hlo_op_metadata.h"],
+    deps = [
+        "//zkx:zkx_data_proto",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_opcode",
     srcs = ["hlo_opcode.cc"],
     hdrs = ["hlo_opcode.h"],
