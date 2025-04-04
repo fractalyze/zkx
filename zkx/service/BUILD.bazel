@@ -1,6 +1,13 @@
+load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+cc_proto_library(
+    name = "test_compilation_environment_proto",
+    testonly = True,
+    srcs = ["test_compilation_environment.proto"],
+)
 
 zkx_cc_library(
     name = "buffer_assignment",
@@ -41,6 +48,28 @@ zkx_cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "compilation_environments",
+    srcs = ["compilation_environments.cc"],
+    hdrs = ["compilation_environments.h"],
+    deps = [
+        "//xla/tsl/platform:casts",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:zkx_proto",
+        "//zkx/base:vlog",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
     ],
 )
 
@@ -155,14 +184,18 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "service_unittests",
     srcs = [
+        "compilation_environments_unittest.cc",
         "mapped_ptr_container_sorter_unittest.cc",
         "name_uniquer_unittest.cc",
         "rendezvous_unittest.cc",
     ],
     deps = [
+        ":compilation_environments",
         ":mapped_ptr_container_sorter",
         ":name_uniquer",
         ":rendezvous",
+        ":test_compilation_environment_proto",
+        "//xla/tsl/platform:statusor",
         "//xla/tsl/platform:thread_pool",
         "@com_google_absl//absl/synchronization",
     ],

@@ -4,6 +4,12 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 cc_proto_library(
+    name = "zkx_proto",
+    srcs = ["zkx.proto"],
+    deps = ["@com_google_protobuf//:cc_wkt_protos"],
+)
+
+cc_proto_library(
     name = "zkx_data_proto",
     srcs = ["zkx_data.proto"],
 )
