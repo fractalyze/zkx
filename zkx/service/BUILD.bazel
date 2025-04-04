@@ -34,6 +34,21 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "computation_layout",
+    srcs = ["computation_layout.cc"],
+    hdrs = ["computation_layout.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//zkx:shape_layout",
+        "//zkx:shape_util",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "collective_ops_utils",
     srcs = ["collective_ops_utils.cc"],
     hdrs = ["collective_ops_utils.h"],
