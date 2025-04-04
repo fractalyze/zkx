@@ -68,6 +68,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_domain_metadata",
+    hdrs = ["hlo_domain_metadata.h"],
+    deps = ["@com_google_absl//absl/container:flat_hash_set"],
+)
+
+zkx_cc_library(
     name = "hlo_instruction",
     srcs = ["hlo_instruction.cc"],
     hdrs = ["hlo_instruction.h"],
