@@ -30,10 +30,12 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "errors",
+    srcs = ["errors.cc"],
     hdrs = ["errors.h"],
     deps = [
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
     ],
 )
 
