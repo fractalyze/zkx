@@ -4,6 +4,20 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 cc_proto_library(
+    name = "hlo_proto",
+    srcs = ["hlo.proto"],
+    deps = [
+        ":metrics_proto",
+        "@com_google_protobuf//:cc_wkt_protos",
+    ],
+)
+
+cc_proto_library(
+    name = "metrics_proto",
+    srcs = ["metrics.proto"],
+)
+
+cc_proto_library(
     name = "test_compilation_environment_proto",
     testonly = True,
     srcs = ["test_compilation_environment.proto"],

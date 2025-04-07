@@ -1,0 +1,106 @@
+/* Copyright 2017 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+// This proto file defines messages which represent the HLO module. This is a
+// full fidelity serialization of the c++ HLO constructs.
+//
+// Many of the protos below are simple 1-to-1 serializations of the
+// corresponding C++ classes, e.g., HloModule, HloComputation, and
+// HloInstruction.
+//
+// FIELD NAMES ARE IMPORTANT
+//
+// Unlike most protos, you can't safely change the names of fields, even if you
+// keep the numeric ids the same. This is because we sometimes serialize these
+// protos as JSON, which includes the field names in the serialization.
+
+syntax = "proto3";
+
+package zkx;
+
+import "google/protobuf/any.proto";
+import "zkx/service/metrics.proto";
+
+option cc_enable_arenas = true;
+
+// Metadata for an HLO module. Dumped after HLO passes and before LLO lowering
+// with filename module_####.metadata.textproto, where #### is
+// canonical_module_id.
+message HloModuleMetadataProto {
+  // Uniquely identifies an HloModuleMetadata. Equal to the first unique_id
+  // of the module (a module may go through multiple unique_ids). If a module
+  // is partitioned into multiple modules, those modules will each have a new
+  // HloModuleMetadata with a different canonical_module_id.
+  int64 canonical_module_id = 1;
+
+  // Name of the module group that the module is part of.
+  string module_group_name = 2;
+
+  // The canonical module id of the module that this one is partitioned from,
+  // if applicable.
+  int64 original_module_id = 3;
+
+  // The canonical module ids of the modules that this one is partitioned into,
+  // if applicable.
+  repeated int64 partitioned_module_ids = 4;
+
+  // Metadata for the HLO passes that are run on the module.
+  repeated HloPassMetadata pass_metadata = 5;
+}
+
+// Metadata for one run of an HLO pass on a module. Provides more information
+// when processing debug dumps of HloProtos about the order of HLO passes and
+// various other stats like duration. `pass_id` may also be used to identify a
+// particular run of a pass in debug info that propagates through stages of
+// compilation.
+message HloPassMetadata {
+  // For a given module, pass_id uniquely identifies a run of an HLO pass on
+  // that module. Note that a pass_id may not always refer to the same pass
+  // because the order of passes during compilation may change. For finding
+  // metadata for a particular pass, pass_name and pipeline_name would be more
+  // reliable, although note that they may not be unique.
+  int64 pass_id = 1;
+  string pass_name = 2;
+  string pipeline_name = 3;
+
+  // Filenames of the dumps of the module after this pass ran. Module may be
+  // dumped in multiple formats, and the order of formats in this field will
+  // stay consistent across passes.
+  repeated string dump_filenames = 4;
+
+  // Return value of pass.Run(). True if this pass changed the module, or, in
+  // the case where the module was run through this pass as part of a module
+  // group, true if this pass changed any module in the same module group.
+  bool module_changed = 5;
+
+  // The unique_id of the module that this pass is run on. May be different from
+  // the canonical_module_id of the HloModuleMetadata that this HloPassMetadata
+  // is inside.
+  int64 module_id = 6;
+
+  // If the module went through this pass as part of a module group, this is
+  // set as the ids of all the modules in the module group. Empty otherwise.
+  repeated int64 module_group_module_ids = 7;
+
+  // Timestamp before and after the pass is run. Note they may be equal.
+  int64 start_timestamp_usec = 8;
+  int64 end_timestamp_usec = 9;
+
+  // Custom metadata for the pass.
+  google.protobuf.Any custom_metadata = 10;
+
+  // Used to log any number of key, value pair stats per pass.
+  repeated KeyValueMetric kv_metrics = 11;
+}
