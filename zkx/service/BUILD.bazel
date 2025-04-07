@@ -120,6 +120,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_module_config",
+    srcs = ["hlo_module_config.cc"],
+    hdrs = ["hlo_module_config.h"],
+    deps = [
+        ":computation_layout",
+        ":computation_placer",
+        ":sharding_config",
+        "//zkx:shape_util",
+        "//zkx:zkx_proto",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "logical_buffer",
     srcs = ["logical_buffer.cc"],
     hdrs = ["logical_buffer.h"],
@@ -210,6 +230,7 @@ zkx_cc_unittest(
     name = "service_unittests",
     srcs = [
         "compilation_environments_unittest.cc",
+        "hlo_module_config_unittest.cc",
         "mapped_ptr_container_sorter_unittest.cc",
         "name_uniquer_unittest.cc",
         "rendezvous_unittest.cc",
@@ -217,6 +238,7 @@ zkx_cc_unittest(
     ],
     deps = [
         ":compilation_environments",
+        ":hlo_module_config",
         ":mapped_ptr_container_sorter",
         ":name_uniquer",
         ":rendezvous",
@@ -224,6 +246,7 @@ zkx_cc_unittest(
         ":test_compilation_environment_proto",
         "//xla/tsl/platform:statusor",
         "//xla/tsl/platform:thread_pool",
+        "//zkx/tests:test_utils",
         "@com_google_absl//absl/synchronization",
     ],
 )
