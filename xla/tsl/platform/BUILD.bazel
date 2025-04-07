@@ -1,5 +1,5 @@
 load("//bazel:zkx.bzl", "if_posix")
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -36,6 +36,15 @@ zkx_cc_library(
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "fingerprint",
+    hdrs = ["fingerprint.h"],
+    deps = [
+        "@com_google_absl//absl/numeric:int128",
+        "@farmhash_archive//:farmhash",
     ],
 )
 
@@ -86,4 +95,10 @@ zkx_cc_library(
         "@com_google_absl//absl/synchronization",
         "@eigen_archive//:eigen3",
     ],
+)
+
+zkx_cc_unittest(
+    name = "platform_unittests",
+    srcs = ["fingerprint_unittest.cc"],
+    deps = [":fingerprint"],
 )
