@@ -102,21 +102,18 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 ---
 >         "@com_google_absl//absl/base:core_headers",
 >         "@com_google_absl//absl/hash",
-101,107c22,24
-< )
-<
-< cc_library(
-<     name = "map_util",
-<     srcs = [
-<         "map_util.h",
-<         "//xla/tsl/lib/gtl/subtle:map_traits",
----
+100a22,25
 >     deps = [
 >         "@com_google_absl//absl/base:core_headers",
 >         "@com_google_absl//absl/hash",
-109d25
+>     ],
+105c30
+<     srcs = [
+---
+>     hdrs = [
+109d33
 <     hdrs = ["map_util.h"],
-112,208c28
+112,208c36
 < filegroup(
 <     name = "legacy_lib_gtl_headers",
 <     srcs = [
@@ -216,18 +213,15 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 < tsl_cc_test(
 ---
 > zkx_cc_unittest(
-211,213d30
+211,213d38
 <         "compactptrset_test.cc",
 <         "flatmap_test.cc",
 <         "flatset_test.cc",
-216d32
-<         "map_util_test.cc",
-219,221d34
+219,221d43
 <         ":compactptrset",
 <         ":flatmap",
 <         ":flatset",
-224,229d36
-<         ":map_util",
+225,229d46
 <         "//xla/tsl/platform:macros",
 <         "//xla/tsl/platform:test",
 <         "//xla/tsl/platform:types",
@@ -324,7 +318,30 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/iterator_range_test.cc xla/
 <     ASSERT_LT(index, TF_ARRAYSIZE(v));
 ---
 >     ASSERT_LT(index, std::size(v));
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: map_util.h
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: map_util_test.cc
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: subtle
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/map_util_test.cc xla/tsl/lib/gtl/map_util_test.cc
+22,23c22
+< #include "xla/tsl/platform/test.h"
+< #include "xla/tsl/platform/types.h"
+---
+> #include "gtest/gtest.h"
+28c27
+<   typedef std::map<string, string> Map;
+---
+>   typedef std::map<std::string, std::string> Map;
+42c41
+<   typedef std::map<string, string> Map;
+---
+>   typedef std::map<std::string, std::string> Map;
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/subtle/BUILD xla/tsl/lib/gtl/subtle/BUILD
+4,6d3
+< load("//xla/tsl:tsl.bzl", "internal_visibility")
+< load("//xla/tsl:tsl.default.bzl", "filegroup")
+<
+8a6
+>     default_visibility = ["//visibility:public"],
+17,20d14
+<     visibility = internal_visibility([
+<         "//tensorflow/core/lib/gtl/subtle:__pkg__",
+<         "//xla/tsl/lib/gtl:__pkg__",
+<     ]),
 ```
