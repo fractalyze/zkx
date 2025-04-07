@@ -196,6 +196,16 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "sharding_config",
+    srcs = ["sharding_config.cc"],
+    hdrs = ["sharding_config.h"],
+    deps = [
+        "//zkx:zkx_proto",
+        "//zkx/hlo/ir:hlo_sharding",
+    ],
+)
+
 zkx_cc_unittest(
     name = "service_unittests",
     srcs = [
@@ -203,12 +213,14 @@ zkx_cc_unittest(
         "mapped_ptr_container_sorter_unittest.cc",
         "name_uniquer_unittest.cc",
         "rendezvous_unittest.cc",
+        "sharding_config_unittest.cc",
     ],
     deps = [
         ":compilation_environments",
         ":mapped_ptr_container_sorter",
         ":name_uniquer",
         ":rendezvous",
+        ":sharding_config",
         ":test_compilation_environment_proto",
         "//xla/tsl/platform:statusor",
         "//xla/tsl/platform:thread_pool",

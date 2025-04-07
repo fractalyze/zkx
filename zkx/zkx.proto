@@ -18,8 +18,21 @@ syntax = "proto3";
 package zkx;
 
 import "google/protobuf/any.proto";
+import "zkx/zkx_data.proto";
 
 // Proto version of `zkx::CompilationEnvironments`.
 message CompilationEnvironmentsProto {
   repeated google.protobuf.Any environments = 1;
+}
+
+// Message that captures sharding configuration of an HLO op.
+message NodeShardingConfigProto {
+  OpSharding sharding = 1;                     // For non-tuples.
+  repeated NodeShardingConfigProto nodes = 2;  // For tuples.
+}
+
+// Message that captures sharding configuration of an HLO module.
+message ShardingConfigProto {
+  // Configuration for each HLO instruction.
+  repeated NodeShardingConfigProto nodes = 1;
 }
