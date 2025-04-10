@@ -283,6 +283,7 @@ zkx_cc_unittest(
         "iterator_util_unittest.cc",
         "layout_unittest.cc",
         "layout_util_unittest.cc",
+        "maybe_owning_unittest.cc",
         "status_macros_unittest.cc",
     ],
     deps = [
@@ -291,6 +292,7 @@ zkx_cc_unittest(
         ":array3d",
         ":comparison_util",
         ":iterator_util",
+        ":maybe_owning",
         ":shape_util",
         ":status_macros",
         "//xla/tsl/platform:errors",
