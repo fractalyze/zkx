@@ -17,12 +17,82 @@ limitations under the License.
 
 #include <functional>
 #include <numeric>
+#include <tuple>
+
+#include "absl/log/check.h"
 
 namespace zkx {
 
 int64_t Product(absl::Span<const int64_t> xs) {
   return std::accumulate(xs.begin(), xs.end(), int64_t{1},
                          std::multiplies<int64_t>());
+}
+
+absl::InlinedVector<std::pair<int64_t, int64_t>, 8> CommonFactors(
+    absl::Span<const int64_t> a, absl::Span<const int64_t> b) {
+  CHECK_EQ(Product(a), Product(b));
+  absl::InlinedVector<std::pair<int64_t, int64_t>, 8> bounds;
+  if (absl::c_equal(a, b)) {
+    bounds.reserve(a.size() + 1);
+    for (int64_t i = 0; i <= a.size(); ++i) {
+      bounds.emplace_back(i, i);
+    }
+    return bounds;
+  }
+  int64_t i = 0, j = 0, prior_i = -1, prior_j = -1;
+  while (i < a.size() && j < b.size() && a[i] == b[j]) {
+    std::tie(prior_i, prior_j) = std::make_pair(i, j);
+    bounds.emplace_back(i, j);
+    ++i;
+    ++j;
+  }
+  // If the product is different after filtering out zeros, return full group.
+  // E.g.,:
+  // a={0, 10 ,3}
+  //       ^
+  //      i=1
+  //
+  // b={0, 3}
+  //       ^
+  //      j=1
+  if (Product(a.subspan(i)) != Product(b.subspan(j))) {
+    return {std::make_pair(0, 0), std::make_pair(a.size(), b.size())};
+  }
+  if (0 == Product(a.subspan(i))) {
+    bounds.push_back(std::make_pair(i, j));
+    bounds.push_back(std::make_pair(a.size(), b.size()));
+    return bounds;
+  }
+
+  for (int64_t partial_size_a = 1, partial_size_b = 1;;) {
+    if (partial_size_a == partial_size_b && (i > prior_i || j > prior_j)) {
+      std::tie(prior_i, prior_j) = std::make_pair(i, j);
+      bounds.emplace_back(i, j);
+      continue;
+    }
+    bool in_bounds_i = i < a.size();
+    bool in_bounds_j = j < b.size();
+    if (!(in_bounds_i || in_bounds_j)) {
+      break;
+    }
+    bool next_a =
+        partial_size_a < partial_size_b ||
+        (in_bounds_i &&
+         (!in_bounds_j || (partial_size_a == partial_size_b && a[i] <= b[j])));
+    bool next_b =
+        partial_size_b < partial_size_a ||
+        (in_bounds_j &&
+         (!in_bounds_i || (partial_size_b == partial_size_a && b[j] <= a[i])));
+    if (next_a) {
+      partial_size_a *= a[i];
+      ++i;
+    }
+    if (next_b) {
+      partial_size_b *= b[j];
+      ++j;
+    }
+  }
+  return bounds;
 }
 
 std::string SanitizeFileName(std::string file_name) {
