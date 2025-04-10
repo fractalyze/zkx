@@ -143,6 +143,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "permutation_util",
+    srcs = ["permutation_util.cc"],
+    hdrs = ["permutation_util.h"],
+    deps = [
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "primitive_util",
     srcs = ["primitive_util.cc"],
     hdrs = ["primitive_util.h"],
@@ -284,6 +295,7 @@ zkx_cc_unittest(
         "layout_unittest.cc",
         "layout_util_unittest.cc",
         "maybe_owning_unittest.cc",
+        "permutation_util_unittest.cc",
         "status_macros_unittest.cc",
         "util_unittest.cc",
     ],
@@ -294,6 +306,7 @@ zkx_cc_unittest(
         ":comparison_util",
         ":iterator_util",
         ":maybe_owning",
+        ":permutation_util",
         ":shape_util",
         ":status_macros",
         ":util",
