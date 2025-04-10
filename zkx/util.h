@@ -19,6 +19,7 @@ limitations under the License.
 #ifndef ZKX_UTIL_H_
 #define ZKX_UTIL_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <limits>
@@ -31,6 +32,7 @@ limitations under the License.
 #include "absl/types/span.h"
 
 #include "xla/tsl/lib/math/math_util.h"
+#include "zkx/base/logging.h"
 #include "zkx/status_macros.h"
 
 namespace zkx {
@@ -122,6 +124,83 @@ absl::Status EraseElementFromVector(std::vector<T>* container, const T& value) {
   TF_RET_CHECK(it != container->end());
   container->erase(it);
   return absl::OkStatus();
+}
+
+// Takes a sequence of unpacked n-bit values, such that every byte stores one
+// value in the low-order bits, and packs them so every byte stores as many
+// which will fit. `output` should have ceil((input.size()*kBitsPerElement)/8)
+// bytes. The high-order bits of each byte in `input` are ignored.
+template <size_t kBitsPerElement>
+void PackIntN(absl::Span<const char> input, absl::Span<char> output) {
+  constexpr auto kElementsPerByte = 8 / kBitsPerElement;
+  const size_t aligned_inputs = input.size() / kElementsPerByte;
+  for (size_t i = 0; i < aligned_inputs; ++i) {
+    char byte = 0;
+    for (size_t j = 0; j < kElementsPerByte; ++j) {
+      byte |=
+          (input[i * kElementsPerByte + j] & LsbMask<uint8_t>(kBitsPerElement))
+          << (kBitsPerElement * (kElementsPerByte - j - 1));
+    }
+    output[i] = byte;
+  }
+  if (size_t remainder = input.size() % kElementsPerByte; remainder != 0) {
+    char byte = 0;
+    for (size_t j = 0; j < remainder; ++j) {
+      byte |= (input[aligned_inputs * kElementsPerByte + j] &
+               LsbMask<uint8_t>(kBitsPerElement))
+              << (kBitsPerElement * (kElementsPerByte - j - 1));
+    }
+    output[aligned_inputs] = byte;
+  }
+}
+
+inline void PackIntN(int bits_per_element, absl::Span<const char> input,
+                     absl::Span<char> output) {
+  if (bits_per_element == 2) {
+    PackIntN<2>(input, output);
+  } else if (bits_per_element == 4) {
+    PackIntN<4>(input, output);
+  } else {
+    LOG(FATAL) << "Invalid bits_per_element: " << bits_per_element;
+  }
+}
+
+// Takes a sequence of packed values, such that every byte stores multiple
+// values, and unpacks them so every byte stores one value in the low-order
+// bits. `input` should have
+// ceil(output.size()*8/kBitsPerElement) bytes. The high-order bits in each
+// output are zero.
+template <size_t kBitsPerElement>
+void UnpackIntN(absl::Span<const char> input, absl::Span<char> output) {
+  constexpr auto kElementsPerByte = 8 / kBitsPerElement;
+  const size_t aligned_outputs = output.size() / kElementsPerByte;
+  for (size_t i = 0; i < aligned_outputs; ++i) {
+    const char byte = input[i];
+    for (int j = 0; j < kElementsPerByte; ++j) {
+      output[i * kElementsPerByte + j] =
+          (byte >> (kBitsPerElement * (kElementsPerByte - j - 1))) &
+          LsbMask<uint8_t>(kBitsPerElement);
+    }
+  }
+  if (size_t remainder = output.size() % kElementsPerByte; remainder != 0) {
+    const char byte = input[aligned_outputs];
+    for (size_t j = 0; j < remainder; ++j) {
+      output[aligned_outputs * kElementsPerByte + j] =
+          (byte >> (kBitsPerElement * (kElementsPerByte - j - 1))) &
+          LsbMask<uint8_t>(kBitsPerElement);
+    }
+  }
+}
+
+inline void UnpackIntN(int bits_per_element, absl::Span<const char> input,
+                       absl::Span<char> output) {
+  if (bits_per_element == 2) {
+    UnpackIntN<2>(input, output);
+  } else if (bits_per_element == 4) {
+    UnpackIntN<4>(input, output);
+  } else {
+    LOG(FATAL) << "Invalid bits_per_element: " << bits_per_element;
+  }
 }
 
 // Returns a container with `sorted_ids_to_remove` elements removed.

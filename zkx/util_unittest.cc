@@ -82,7 +82,41 @@ TEST(UtilTest, SanitizeFileName) {
 // TODO(chokobole): Add test. Dependency: RoundTripFpToString
 // TEST(UtilTest, RoundTripFpToString) {
 
-// TODO(chokobole): Add test. Dependency: UnpackIntN
-// TEST(UtilTest, PackInt4) {
+namespace {
+
+void PackInt4(absl::Span<const char> input, absl::Span<char> output) {
+  ASSERT_EQ(output.size(), CeilOfRatio(input.size(), size_t{2}));
+  for (size_t i = 0; i < input.size(); ++i) {
+    // Mask out the high-order 4 bits in case they have extraneous data.
+    char val = input[i] & 0xf;
+    if (i % 2 == 0) {
+      output[i / 2] = val << 4;
+    } else {
+      output[i / 2] |= val;
+    }
+  }
+}
+
+}  // namespace
+
+TEST(UtilTest, PackInt4) {
+  std::vector<char> input(7);
+  std::iota(input.begin(), input.end(), 0);
+
+  std::vector<char> output_ref(CeilOfRatio<int64_t>(input.size(), 2));
+  PackInt4(input, absl::MakeSpan(output_ref));
+
+  std::vector<char> output_dut(CeilOfRatio<int64_t>(input.size(), 2));
+  PackIntN(4, input, absl::MakeSpan(output_dut));
+  for (size_t i = 0; i < output_dut.size(); ++i) {
+    EXPECT_EQ(output_ref[i], output_dut[i]) << i;
+  }
+
+  std::vector<char> unpacked(input.size());
+  UnpackIntN(4, output_ref, absl::MakeSpan(unpacked));
+  for (size_t i = 0; i < input.size(); ++i) {
+    EXPECT_EQ(unpacked[i], input[i]) << i;
+  }
+}
 
 }  // namespace zkx
