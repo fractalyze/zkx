@@ -29,7 +29,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 
 namespace zkx {
 namespace {

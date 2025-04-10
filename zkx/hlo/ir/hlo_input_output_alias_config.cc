@@ -18,7 +18,7 @@ limitations under the License.
 #include "absl/log/check.h"
 #include "absl/strings/str_join.h"
 
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/layout_util.h"
 #include "zkx/status_macros.h"

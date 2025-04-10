@@ -23,7 +23,7 @@ limitations under the License.
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/errors.h"
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 
 #define EIGEN_USE_THREADS
 

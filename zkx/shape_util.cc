@@ -23,7 +23,7 @@ limitations under the License.
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/status.h"
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 #include "zkx/layout_util.h"
 #include "zkx/printer.h"
 

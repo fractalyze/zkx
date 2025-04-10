@@ -18,7 +18,8 @@ limitations under the License.
 #include <algorithm>
 
 #include "absl/container/flat_hash_set.h"
-#include "absl/log/log.h"
+
+#include "zkx/base/logging.h"
 
 namespace zkx {
 

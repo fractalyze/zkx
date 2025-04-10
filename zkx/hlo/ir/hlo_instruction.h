@@ -16,9 +16,9 @@
 #include "absl/functional/function_ref.h"
 #include "absl/hash/hash.h"
 #include "absl/log/check.h"
-#include "absl/log/log.h"
 #include "absl/types/span.h"
 
+#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/backend_config.h"
 #include "zkx/hlo/ir/hlo_clone_context.h"
 #include "zkx/hlo/ir/hlo_opcode.h"

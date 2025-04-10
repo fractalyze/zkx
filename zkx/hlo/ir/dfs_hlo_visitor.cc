@@ -17,7 +17,7 @@ limitations under the License.
 
 #include "absl/log/check.h"
 
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/hlo_instruction.h"
 
 namespace zkx {

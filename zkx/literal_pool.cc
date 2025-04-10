@@ -17,7 +17,7 @@ limitations under the License.
 
 #include <algorithm>
 
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 
 namespace zkx {
 

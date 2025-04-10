@@ -18,7 +18,7 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 
 namespace zkx {
 
