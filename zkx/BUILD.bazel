@@ -137,6 +137,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "overflow_util",
+    hdrs = ["overflow_util.h"],
+    deps = ["@com_google_absl//absl/base:core_headers"],
+)
+
+zkx_cc_library(
     name = "primitive_util",
     srcs = ["primitive_util.cc"],
     hdrs = ["primitive_util.h"],
@@ -234,11 +240,6 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
-    name = "types",
-    hdrs = ["types.h"],
-)
-
-zkx_cc_library(
     name = "status_macros",
     srcs = ["status_macros.cc"],
     hdrs = ["status_macros.h"],
@@ -253,6 +254,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "types",
+    hdrs = ["types.h"],
+)
+
+zkx_cc_library(
     name = "util",
     srcs = ["util.cc"],
     hdrs = ["util.h"],
@@ -264,12 +270,6 @@ zkx_cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/types:span",
     ],
-)
-
-zkx_cc_library(
-    name = "overflow_util",
-    hdrs = ["overflow_util.h"],
-    deps = ["@com_google_absl//absl/base:core_headers"],
 )
 
 zkx_cc_unittest(
