@@ -169,6 +169,64 @@ bool LiteralBase::Equal(const LiteralBase& other, bool layout_sensitive) const {
   });
 }
 
+namespace {
+
+template <typename NativeT>
+bool AllElementsEqualValue(absl::Span<const NativeT> data, NativeT value) {
+  for (int64_t i = 0; i < data.size(); ++i) {
+    if (memcmp(&data[i], &value, sizeof value)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+bool Literal::Piece::IsAll(const Literal& scalar) const {
+  CHECK(ShapeUtil::IsScalar(scalar.shape())) << scalar.shape().ToString();
+  if (!subshape().IsArray()) {
+    return false;
+  }
+
+  CHECK(LayoutUtil::IsDenseArray(subshape()))
+      << __func__ << " is only supported for dense arrays: " << subshape();
+  CHECK_EQ(subshape().element_type(), scalar.shape().element_type());
+  return primitive_util::ArrayTypeSwitch<bool>(
+      [&](auto primitive_type_constant) -> bool {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        return AllElementsEqualValue(this->data<NativeT>(),
+                                     scalar.GetFirstElement<NativeT>());
+      },
+      subshape().element_type());
+}
+
+bool LiteralBase::IsAll(const Literal& scalar) const {
+  return root_piece().IsAll(scalar);
+}
+
+bool LiteralBase::IsAll(int8_t value) const {
+  if (!shape().IsArray()) {
+    return false;
+  }
+  PrimitiveType ty = shape().element_type();
+  if (primitive_util::IsUnsignedIntegralType(ty) && value < 0) {
+    return false;
+  }
+  Literal scalar(ShapeUtil::MakeScalarShape(ty));
+  return primitive_util::ArrayTypeSwitch<bool>(
+      [&](auto primitive_type_constant) -> bool {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        NativeT converted(value);
+        if (static_cast<int8_t>(converted) != value) {
+          return false;
+        }
+        scalar.Set<NativeT>({}, converted);
+        return root_piece().IsAll(scalar);
+      },
+      ty);
+}
+
 const Shape& LiteralBase::shape() const { return root_piece().subshape(); }
 
 const char* LiteralBase::Piece::buffer() const {
