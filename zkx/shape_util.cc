@@ -359,6 +359,15 @@ bool ShapeUtil::Compatible(const Shape& lhs, const Shape& rhs) {
 }
 
 // static
+bool ShapeUtil::CompatibleKind(const Shape& lhs, const Shape& rhs) {
+  return Shape::Equal()
+      .IgnoreElementType()
+      .IgnoreLayout()
+      .IgnoreDimensions()
+      .IgnoreDynamicDimension()(lhs, rhs);
+}
+
+// static
 int64_t ShapeUtil::ByteSizeOfPrimitiveType(PrimitiveType primitive_type) {
   return primitive_util::ByteWidth(primitive_type);
 }
