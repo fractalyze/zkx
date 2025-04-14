@@ -205,6 +205,9 @@ class ShapeUtil {
   static Shape MakeShape(PrimitiveType element_type,
                          absl::Span<const int64_t> dimensions);
 
+  // Make a scalar shape with given primitive type.
+  static Shape MakeScalarShape(PrimitiveType element_type);
+
   // Validates that the provided shape satisfies invariants.
   static absl::Status ValidateShape(const Shape& shape);
 

@@ -254,6 +254,11 @@ Shape ShapeUtil::MakeShape(PrimitiveType element_type,
 }
 
 // static
+Shape ShapeUtil::MakeScalarShape(PrimitiveType element_type) {
+  return MakeShape(element_type, {});
+}
+
+// static
 Shape ShapeUtil::MakeTupleShape(absl::Span<const Shape> shapes) {
   return MakeTupleShapeImpl(shapes);
 }
