@@ -363,6 +363,25 @@ int32_t LiteralBase::GetDynamicSize(int64_t dim_index,
   return piece(shape_index).GetDynamicSize(dim_index);
 }
 
+std::optional<int64_t> LiteralBase::GetFirstInteger() const {
+  if (!primitive_util::IsIntegralType(shape().element_type())) {
+    return std::nullopt;
+  }
+  return primitive_util::IntegralTypeSwitch<std::optional<int64_t>>(
+      [&](auto primitive_type_constant) -> std::optional<int64_t> {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        auto first_element = GetFirstElement<NativeT>();
+        if constexpr (std::is_same_v<NativeT, uint64_t>) {
+          int64_t v = static_cast<int64_t>(first_element);
+          if (v < 0) {
+            return std::nullopt;
+          }
+        }
+        return first_element;
+      },
+      shape().element_type());
+}
+
 namespace {
 
 // Copies the elements in 'src' to 'dest'. The shape and layout of the data in

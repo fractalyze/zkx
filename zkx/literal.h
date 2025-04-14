@@ -22,6 +22,7 @@ limitations under the License.
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -80,10 +81,28 @@ class LiteralBase {
   const void* untyped_data(const ShapeIndex& shape_index = {}) const;
   int64_t size_bytes(const ShapeIndex& shape_index = {}) const;
 
+  // Gets an element in the literal at the given index. The multi_index is
+  // CHECKed against the dimension sizes.
+  template <typename NativeT>
+  NativeT Get(absl::Span<const int64_t> multi_index,
+              const ShapeIndex& shape_index) const;
+  // Overloads of Get for array literals. CHECKs if the literal is not
+  // array-shaped and dense.
+  template <typename NativeT>
+  NativeT Get(absl::Span<const int64_t> multi_index) const;
+
   // Get the dynamic size on dim_index in the literal at the given shape_index.
   DynamicSizeType GetDynamicSize(int64_t dim_index,
                                  const ShapeIndex& shape_index) const;
   DynamicSizeType GetDynamicSize(int64_t dim_index) const;
+
+  // Returns the element value at index (0, ..., 0), however many zeroes are
+  // required for that index.
+  template <typename NativeT>
+  NativeT GetFirstElement() const;
+
+  // As above but returns any integer type casted to an int64_t.
+  std::optional<int64_t> GetFirstInteger() const;
 
   // Checks whether all of this literal's values are equal to the given scalar
   // literal.
@@ -565,6 +584,16 @@ class MutableLiteralBase : public LiteralBase {
                         const ShapeIndex& src_shape_index = {},
                         bool only_dynamic_bound = false);
 
+  // Sets an element in the literal at the given index. The multi_index is
+  // CHECKed against the dimension sizes.
+  template <typename NativeT>
+  void Set(absl::Span<const int64_t> multi_index, const ShapeIndex& shape_index,
+           NativeT value);
+  // Overloads of Set for array literals. CHECKs if the literal is not
+  // array-shaped and dense.
+  template <typename NativeT>
+  void Set(absl::Span<const int64_t> multi_index, NativeT value);
+
   template <typename NativeT>
   void PopulateR1(absl::Span<const NativeT> values);
 
@@ -714,6 +743,37 @@ absl::Span<const NativeT> LiteralBase::data(
 template <typename NativeT>
 absl::Span<NativeT> MutableLiteralBase::data(const ShapeIndex& shape_index) {
   return piece(shape_index).data<NativeT>();
+}
+
+template <typename NativeT>
+inline NativeT LiteralBase::Get(absl::Span<const int64_t> multi_index,
+                                const ShapeIndex& shape_index) const {
+  return piece(shape_index).Get<NativeT>(multi_index);
+}
+
+template <typename NativeT>
+inline NativeT LiteralBase::Get(absl::Span<const int64_t> multi_index) const {
+  return root_piece().Get<NativeT>(multi_index);
+}
+
+template <typename NativeT>
+inline void MutableLiteralBase::Set(absl::Span<const int64_t> multi_index,
+                                    const ShapeIndex& shape_index,
+                                    NativeT value) {
+  return piece(shape_index).Set<NativeT>(multi_index, value);
+}
+
+template <typename NativeT>
+inline void MutableLiteralBase::Set(absl::Span<const int64_t> multi_index,
+                                    NativeT value) {
+  return mutable_root_piece().Set<NativeT>(multi_index, value);
+}
+
+template <typename NativeT>
+NativeT LiteralBase::GetFirstElement() const {
+  CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  return data<NativeT>().at(0);
 }
 
 template <typename NativeT>
