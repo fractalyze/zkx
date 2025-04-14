@@ -41,7 +41,7 @@ zkx_cc_library(
     hdrs = ["buffer_value.h"],
     deps = [
         "//zkx:shape_util",
-        "//zkx/hlo/ir:hlo_instruction",
+        "//zkx/hlo/ir:hlo",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/log:check",
     ],
@@ -160,7 +160,7 @@ zkx_cc_library(
     deps = [
         ":buffer_value",
         "//zkx:shape_util",
-        "//zkx/hlo/ir:hlo_instruction",
+        "//zkx/hlo/ir:hlo",
         "@com_google_absl//absl/strings",
     ],
 )

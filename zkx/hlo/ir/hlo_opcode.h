@@ -45,6 +45,16 @@ namespace zkx {
 //
 // If you change one of these opcodes, please make the corresponding change to
 // the MHLO opset to keep both opsets synchronized.
+
+// NOTE(chokobole): If you add a new opcode, please update the followings:
+// - HloInstruction::IsOpElementwise
+// - HloInstruction::IdenticalSlowPath
+// - HloInstruction::MightHaveCalledComputations
+// - HloInstruction::HasSideEffectNoRecurse
+// - HloInstruction::CloneWithNewOperands
+// - HloInstruction::CreateUnary
+// - HloInstruction::CreateBinary
+// - HloInstruction::has_to_apply
 #define HLO_OPCODE_LIST(V)                                                     \
   /* go/keep-sorted start */                                                   \
   V(kAdd, "add", 2)                                                            \

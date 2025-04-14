@@ -36,25 +36,70 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
-    name = "dfs_hlo_visitor",
-    srcs = ["dfs_hlo_visitor.cc"],
-    hdrs = ["dfs_hlo_visitor.h"],
-    deps = [
-        ":hlo_instruction",
-        "//zkx/base:vlog",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/status",
+    name = "hlo",
+    srcs = [
+        "dfs_hlo_visitor.cc",
+        "hlo_computation.cc",
+        "hlo_input_output_alias_config.cc",
+        "hlo_instruction.cc",
+        "hlo_instructions.cc",
+        "hlo_module.cc",
+        "hlo_schedule.cc",
     ],
-)
-
-zkx_cc_library(
-    name = "hlo_casting_utils",
-    hdrs = ["hlo_casting_utils.h"],
+    hdrs = [
+        "dfs_hlo_visitor.h",
+        "hlo_casting_utils.h",
+        "hlo_computation.h",
+        "hlo_input_output_alias_config.h",
+        "hlo_instruction.h",
+        "hlo_instructions.h",
+        "hlo_module.h",
+        "hlo_schedule.h",
+    ],
     deps = [
-        ":hlo_instruction",
+        ":backend_config",
+        ":collective_device_list",
+        ":hlo_clone_context",
+        ":hlo_module_metadata",
+        ":hlo_opcode",
+        ":hlo_original_value",
+        ":hlo_print_options",
+        ":hlo_sharding",
+        ":ptr_vec",
+        "//xla/tsl/lib/gtl:iterator_range",
+        "//xla/tsl/lib/gtl:map_util",
         "//xla/tsl/platform:casts",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:fingerprint",
+        "//zkx:comparison_util",
+        "//zkx:iterator_util",
+        "//zkx:literal_pool",
+        "//zkx:printer",
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx/base:vlog",
+        "//zkx/service:compilation_environments",
+        "//zkx/service:computation_layout",
+        "//zkx/service:hlo_module_config",
+        "//zkx/service:hlo_proto",
+        "//zkx/service:mapped_ptr_container_sorter",
+        "//zkx/service:name_uniquer",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
@@ -71,28 +116,6 @@ zkx_cc_library(
     name = "hlo_domain_metadata",
     hdrs = ["hlo_domain_metadata.h"],
     deps = ["@com_google_absl//absl/container:flat_hash_set"],
-)
-
-zkx_cc_library(
-    name = "hlo_instruction",
-    srcs = ["hlo_instruction.cc"],
-    hdrs = ["hlo_instruction.h"],
-    deps = [
-        ":hlo_opcode",
-        ":hlo_original_value",
-        ":hlo_print_options",
-        ":ptr_vec",
-        "//zkx:printer",
-        "//zkx:shape_util",
-        "//zkx/service:mapped_ptr_container_sorter",
-        "//zkx/service:name_uniquer",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/container:inlined_vector",
-        "@com_google_absl//absl/functional:function_ref",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/log:check",
-    ],
 )
 
 zkx_cc_library(
@@ -174,6 +197,25 @@ zkx_cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "hlo_sharding_metadata",
+    srcs = ["hlo_sharding_metadata.cc"],
+    hdrs = ["hlo_sharding_metadata.h"],
+    deps = [
+        ":hlo",
+        ":hlo_domain_metadata",
+        ":hlo_sharding",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:status_macros",
+        "//zkx/base:vlog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
