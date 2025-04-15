@@ -66,6 +66,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "path",
+    srcs = ["path.cc"],
+    hdrs = ["path.h"],
+)
+
+zkx_cc_library(
     name = "status",
     srcs = ["status.cc"],
     hdrs = ["status.h"],
@@ -99,6 +105,13 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "platform_unittests",
-    srcs = ["fingerprint_unittest.cc"],
-    deps = [":fingerprint"],
+    srcs = [
+        "fingerprint_unittest.cc",
+        "path_unittest.cc",
+    ],
+    deps = [
+        ":env",
+        ":fingerprint",
+        ":path",
+    ],
 )
