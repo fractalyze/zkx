@@ -86,6 +86,15 @@ class Thread {
   void operator=(const Thread&) = delete;
 };
 
+/// \brief Cross-platform setenv.
+///
+/// Since setenv() is not available on windows, we provide an
+/// alternative with platform specific implementations here.
+int setenv(const char* name, const char* value, int overwrite);
+
+/// Cross-platform unsetenv.
+int unsetenv(const char* name);
+
 // NOTE(chokobole): It is planned to be replaced with Chromium's implementation
 // in the future.
 /// \brief Options to configure a Thread.

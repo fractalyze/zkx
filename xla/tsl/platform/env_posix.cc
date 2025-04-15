@@ -13,6 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include <stdlib.h>
+
 #include <map>
 #include <string>
 #include <thread>
@@ -119,5 +121,11 @@ Env* Env::Default() {
   static Env* default_env = new PosixEnv;
   return default_env;
 }
+
+int setenv(const char* name, const char* value, int overwrite) {
+  return ::setenv(name, value, overwrite);
+}
+
+int unsetenv(const char* name) { return ::unsetenv(name); }
 
 }  // namespace tsl
