@@ -69,6 +69,7 @@ zkx_cc_library(
     name = "path",
     srcs = ["path.cc"],
     hdrs = ["path.h"],
+    deps = ["@com_google_absl//absl/strings"],
 )
 
 zkx_cc_library(

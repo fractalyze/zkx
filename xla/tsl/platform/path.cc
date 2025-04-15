@@ -17,7 +17,44 @@ limitations under the License.
 
 #include <stdlib.h>
 
+#include "absl/strings/str_cat.h"
+
 namespace tsl::io {
+namespace internal {
+namespace {
+
+const char kPathSep[] = "/";
+
+}  // namespace
+
+std::string JoinPathImpl(std::initializer_list<std::string_view> paths) {
+  std::string result;
+
+  for (std::string_view path : paths) {
+    if (path.empty()) continue;
+
+    if (result.empty()) {
+      result = std::string(path);
+      continue;
+    }
+
+    if (IsAbsolutePath(path)) path = path.substr(1);
+
+    if (result[result.size() - 1] == kPathSep[0]) {
+      absl::StrAppend(&result, path);
+    } else {
+      absl::StrAppend(&result, kPathSep, path);
+    }
+  }
+
+  return result;
+}
+
+}  // namespace internal
+
+bool IsAbsolutePath(std::string_view path) {
+  return !path.empty() && path[0] == '/';
+}
 
 bool GetTestUndeclaredOutputsDir(std::string* dir) {
   const char* outputs_dir = getenv("TEST_UNDECLARED_OUTPUTS_DIR");

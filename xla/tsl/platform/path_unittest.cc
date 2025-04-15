@@ -23,11 +23,30 @@ limitations under the License.
 
 namespace tsl::io {
 
-// TODO(chokobole): Uncomment this. Dependency: JoinPath
-// TEST(PathTest, JoinPath) {
+TEST(PathTest, JoinPath) {
+  EXPECT_EQ("/foo/bar", JoinPath("/foo", "bar"));
+  EXPECT_EQ("foo/bar", JoinPath("foo", "bar"));
+  EXPECT_EQ("foo/bar", JoinPath("foo", "/bar"));
+  EXPECT_EQ("/foo/bar", JoinPath("/foo", "/bar"));
 
-// TODO(chokobole): Uncomment this. Dependency: IsAbsolutePath
-// TEST(PathTest, IsAbsolutePath) {
+  EXPECT_EQ("/bar", JoinPath("", "/bar"));
+  EXPECT_EQ("bar", JoinPath("", "bar"));
+  EXPECT_EQ("/foo", JoinPath("/foo", ""));
+
+  EXPECT_EQ("/foo/bar/baz/blah/blink/biz",
+            JoinPath("/foo/bar/baz/", "/blah/blink/biz"));
+  EXPECT_EQ("/foo/bar/baz/blah", JoinPath("/foo", "bar", "baz", "blah"));
+}
+
+TEST(PathTest, IsAbsolutePath) {
+  EXPECT_FALSE(IsAbsolutePath(""));
+  EXPECT_FALSE(IsAbsolutePath("../foo"));
+  EXPECT_FALSE(IsAbsolutePath("foo"));
+  EXPECT_FALSE(IsAbsolutePath("./foo"));
+  EXPECT_FALSE(IsAbsolutePath("foo/bar/baz/"));
+  EXPECT_TRUE(IsAbsolutePath("/foo"));
+  EXPECT_TRUE(IsAbsolutePath("/foo/bar/../baz"));
+}
 
 // TODO(chokobole): Uncomment this. Dependency: Dirname
 // TEST(PathTest, Dirname) {
