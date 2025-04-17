@@ -19,6 +19,8 @@ limitations under the License.
 #include <initializer_list>
 #include <string>
 
+#include "absl/types/span.h"
+
 namespace tsl::io {
 namespace internal {
 std::string JoinPathImpl(std::initializer_list<std::string_view> paths);
@@ -49,6 +51,41 @@ std::string JoinPath(const T&... args) {
 
 // Return true if path is absolute.
 bool IsAbsolutePath(std::string_view path);
+
+// Returns the part of the path before the final "/".  If there is a single
+// leading "/" in the path, the result will be the leading "/".  If there is
+// no "/" in the path, the result is the empty prefix of the input.
+std::string_view Dirname(std::string_view path);
+
+// Returns the part of the path after the final "/".  If there is no
+// "/" in the path, the result is the same as the input.
+std::string_view Basename(std::string_view path);
+
+// Returns the part of the basename of path after the final ".".  If
+// there is no "." in the basename, the result is empty.
+std::string_view Extension(std::string_view path);
+
+// Returns the part of the basename of path before the final ".".  If
+// there is no "." in the basename, the result is empty.
+std::string_view BasenamePrefix(std::string_view path);
+
+// Returns the largest common subpath of `paths`.
+//
+// For example, for "/alpha/beta/gamma" and "/alpha/beta/ga" returns
+// "/alpha/beta/". For "/alpha/beta/gamma" and "/alpha/beta/gamma" returns
+// "/alpha/beta/".
+//
+// Does not perform any path normalization.
+std::string CommonPathPrefix(absl::Span<std::string const> paths);
+
+// Collapse duplicate "/"s, resolve ".." and "." path elements, remove
+// trailing "/".
+//
+// NOTE: This respects relative vs. absolute paths, but does not
+// invoke any system calls (getcwd(2)) in order to resolve relative
+// paths with respect to the actual working directory.  That is, this is purely
+// string manipulation, completely independent of process state.
+std::string CleanPath(std::string_view path);
 
 // Populates the scheme, host, and path from a URI. scheme, host, and path are
 // guaranteed by this function to point into the contents of uri, even if
