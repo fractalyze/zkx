@@ -78,6 +78,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "platform",
+    hdrs = ["platform.h"],
+)
+
+zkx_cc_library(
     name = "status",
     srcs = ["status.cc"],
     hdrs = ["status.h"],
