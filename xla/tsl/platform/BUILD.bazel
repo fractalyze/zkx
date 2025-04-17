@@ -9,6 +9,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cpu_info",
+    srcs = ["cpu_info.cc"],
+    hdrs = ["cpu_info.h"],
+    deps = [
+        ":platform",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base",
+    ],
+)
+
+zkx_cc_library(
     name = "env",
     srcs = ["env.cc"] + if_posix(["env_posix.cc"]),
     hdrs = ["env.h"],
@@ -127,11 +138,13 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "platform_unittests",
     srcs = [
+        "cpu_info_unittest.cc",
         "fingerprint_unittest.cc",
         "path_unittest.cc",
         "scanner_unittest.cc",
     ],
     deps = [
+        ":cpu_info",
         ":env",
         ":fingerprint",
         ":path",
