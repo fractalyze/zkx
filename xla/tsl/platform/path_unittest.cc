@@ -60,8 +60,51 @@ TEST(PathTest, IsAbsolutePath) {
 // TODO(chokobole): Uncomment this. Dependency: CleanPath
 // TEST(PathTest, CleanPath) {
 
-// TODO(chokobole): Uncomment this. Dependency: CreateParseURI
-// TEST(PathTest, CreateParseURI) {
+#define EXPECT_PARSE_URI(uri, scheme, host, path)  \
+  do {                                             \
+    std::string_view u(uri);                       \
+    std::string_view s, h, p;                      \
+    ParseURI(u, &s, &h, &p);                       \
+    EXPECT_EQ(scheme, s);                          \
+    EXPECT_EQ(host, h);                            \
+    EXPECT_EQ(path, p);                            \
+    EXPECT_EQ(uri, CreateURI(scheme, host, path)); \
+    EXPECT_LE(u.begin(), s.begin());               \
+    EXPECT_GE(u.end(), s.begin());                 \
+    EXPECT_LE(u.begin(), s.end());                 \
+    EXPECT_GE(u.end(), s.end());                   \
+    EXPECT_LE(u.begin(), h.begin());               \
+    EXPECT_GE(u.end(), h.begin());                 \
+    EXPECT_LE(u.begin(), h.end());                 \
+    EXPECT_GE(u.end(), h.end());                   \
+    if (p.empty()) {                               \
+      EXPECT_EQ(path, "");                         \
+    } else {                                       \
+      EXPECT_LE(u.begin(), p.begin());             \
+      EXPECT_GE(u.end(), p.begin());               \
+      EXPECT_LE(u.begin(), p.end());               \
+      EXPECT_GE(u.end(), p.end());                 \
+    }                                              \
+  } while (0)
+
+TEST(PathTest, CreateParseURI) {
+  EXPECT_PARSE_URI("http://foo", "http", "foo", "");
+  EXPECT_PARSE_URI("/encrypted/://foo", "", "", "/encrypted/://foo");
+  EXPECT_PARSE_URI("/usr/local/foo", "", "", "/usr/local/foo");
+  EXPECT_PARSE_URI("file:///usr/local/foo", "file", "", "/usr/local/foo");
+  EXPECT_PARSE_URI("local.file:///usr/local/foo", "local.file", "",
+                   "/usr/local/foo");
+  EXPECT_PARSE_URI("a-b:///foo", "", "", "a-b:///foo");
+  EXPECT_PARSE_URI(":///foo", "", "", ":///foo");
+  EXPECT_PARSE_URI("9dfd:///foo", "", "", "9dfd:///foo");
+  EXPECT_PARSE_URI("file:", "", "", "file:");
+  EXPECT_PARSE_URI("file:/", "", "", "file:/");
+  EXPECT_PARSE_URI("hdfs://localhost:8020/path/to/file", "hdfs",
+                   "localhost:8020", "/path/to/file");
+  EXPECT_PARSE_URI("hdfs://localhost:8020", "hdfs", "localhost:8020", "");
+  EXPECT_PARSE_URI("hdfs://localhost:8020/", "hdfs", "localhost:8020", "/");
+}
+#undef EXPECT_PARSE_URI
 
 // TODO(chokobole): Uncomment this. Dependency: CommonPathPrefix
 // TEST(PathTest, CommonPathPrefix) {

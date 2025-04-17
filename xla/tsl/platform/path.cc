@@ -19,6 +19,8 @@ limitations under the License.
 
 #include "absl/strings/str_cat.h"
 
+#include "xla/tsl/platform/scanner.h"
+
 namespace tsl::io {
 namespace internal {
 namespace {
@@ -54,6 +56,46 @@ std::string JoinPathImpl(std::initializer_list<std::string_view> paths) {
 
 bool IsAbsolutePath(std::string_view path) {
   return !path.empty() && path[0] == '/';
+}
+
+void ParseURI(std::string_view uri, std::string_view* scheme,
+              std::string_view* host, std::string_view* path) {
+  // 0. Parse scheme
+  // Make sure scheme matches [a-zA-Z][0-9a-zA-Z.]*
+  // TODO(keveman): Allow "+" and "-" in the scheme.
+  // Keep URI pattern in TensorBoard's `_parse_event_files_spec` updated
+  // accordingly
+  if (!strings::Scanner(uri)
+           .One(strings::Scanner::LETTER)
+           .Many(strings::Scanner::LETTER_DIGIT_DOT)
+           .StopCapture()
+           .OneLiteral("://")
+           .GetResult(&uri, scheme)) {
+    // If there's no scheme, assume the entire string is a path.
+    *scheme = std::string_view(uri.data(), 0);
+    *host = std::string_view(uri.data(), 0);
+    *path = uri;
+    return;
+  }
+
+  // 1. Parse host
+  if (!strings::Scanner(uri).ScanUntil('/').GetResult(&uri, host)) {
+    // No path, so the rest of the URI is the host.
+    *host = uri;
+    *path = std::string_view();  // empty path
+    return;
+  }
+
+  // 2. The rest is the path
+  *path = uri;
+}
+
+std::string CreateURI(std::string_view scheme, std::string_view host,
+                      std::string_view path) {
+  if (scheme.empty()) {
+    return std::string(path);
+  }
+  return absl::StrCat(scheme, "://", host, path);
 }
 
 bool GetTestUndeclaredOutputsDir(std::string* dir) {

@@ -50,6 +50,22 @@ std::string JoinPath(const T&... args) {
 // Return true if path is absolute.
 bool IsAbsolutePath(std::string_view path);
 
+// Populates the scheme, host, and path from a URI. scheme, host, and path are
+// guaranteed by this function to point into the contents of uri, even if
+// empty.
+//
+// Corner cases:
+// - If the URI is invalid, scheme and host are set to empty strings and the
+//   passed string is assumed to be a path
+// - If the URI omits the path (e.g. file://host), then the path is left empty.
+void ParseURI(std::string_view uri, std::string_view* scheme,
+              std::string_view* host, std::string_view* path);
+
+// Creates a URI from a scheme, host, and path. If the scheme is empty, we just
+// return the path.
+std::string CreateURI(std::string_view scheme, std::string_view host,
+                      std::string_view path);
+
 // Returns whether the TEST_UNDECLARED_OUTPUTS_DIR environment variable is set.
 // If it's set and dir != nullptr then sets *dir to that.
 bool GetTestUndeclaredOutputsDir(std::string* dir);
