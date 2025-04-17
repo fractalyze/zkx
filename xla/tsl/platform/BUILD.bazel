@@ -83,6 +83,13 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "scanner",
+    srcs = ["scanner.cc"],
+    hdrs = ["scanner.h"],
+    deps = ["@com_google_absl//absl/strings"],
+)
+
+zkx_cc_library(
     name = "status",
     srcs = ["status.cc"],
     hdrs = ["status.h"],
@@ -119,10 +126,12 @@ zkx_cc_unittest(
     srcs = [
         "fingerprint_unittest.cc",
         "path_unittest.cc",
+        "scanner_unittest.cc",
     ],
     deps = [
         ":env",
         ":fingerprint",
         ":path",
+        ":scanner",
     ],
 )
