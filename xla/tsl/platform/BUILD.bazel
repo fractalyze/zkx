@@ -40,6 +40,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "file_statistics",
+    hdrs = ["file_statistics.h"],
+)
+
+zkx_cc_library(
     name = "fingerprint",
     hdrs = ["fingerprint.h"],
     deps = [
