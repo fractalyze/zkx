@@ -18,6 +18,7 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <optional>
 #include <ostream>
 #include <string>
 #include <tuple>
@@ -31,6 +32,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/errors.h"
 #include "zkx/overflow_util.h"
+#include "zkx/primitive_util.h"
 #include "zkx/shape.h"
 
 namespace zkx {
@@ -209,6 +211,11 @@ class ShapeUtil {
     return shape.IsArray() && shape.rank() == 0;
   }
 
+  // Returns a shape with same dimensions but with all dimensions set to static.
+  // If the shape has a layout, its dynamic_shape_metadata_prefix_bytes will be
+  // set to zero.
+  static Shape MakeStaticShape(const Shape& original);
+
   // Creates a tuple shape from a slice of element shapes within the tuple.
   static Shape MakeTupleShape(absl::Span<const Shape> shapes);
   static Shape MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes);
@@ -234,6 +241,74 @@ class ShapeUtil {
 
   // Make a scalar shape with given primitive type.
   static Shape MakeScalarShape(PrimitiveType element_type);
+
+  // Constructs a new shape with the given element type and sequence of
+  // potentially dynamic dimensions. The argument 'dynamic_dimensions' indicates
+  // with a true value that the respective dimension is dynamic. If the
+  // dimension is dynamic then the respective value in 'dimension' is an upper
+  // bound on the dimension size. 'dimensions' and 'dynamic_dimensions' must be
+  // the same size.
+  static Shape MakeShape(PrimitiveType element_type,
+                         absl::Span<const int64_t> dimensions,
+                         const std::vector<bool>& dynamic_dimensions);
+
+  // Constructs a new shape with the given element type and sequence of
+  // dimensions. Method checks if the element type is valid, the shape's
+  // size fits in std::numeric_limits<int64_t>::max(), and dynamic size is not
+  // marked static.
+  static absl::StatusOr<Shape> MakeValidatedShape(
+      PrimitiveType element_type, absl::Span<const int64_t> dimensions);
+  static absl::StatusOr<Shape> MakeValidatedShape(
+      PrimitiveType element_type, absl::Span<const int64_t> dimensions,
+      const std::vector<bool>& dynamic_dimensions);
+
+  // Creates a Shape with element type corresponding to T and the given
+  // dimensions
+  template <typename T>
+  static Shape MakeShapeWithType(absl::Span<const int64_t> dimensions) {
+    return ShapeUtil::MakeShape(primitive_util::NativeToPrimitiveType<T>(),
+                                dimensions);
+  }
+
+  // Constructs a new dense array shape with the given minor_to_major order in
+  // its Layout. Returns a value shape such that shape.has_layout().
+  static Shape MakeShapeWithDenseLayout(
+      PrimitiveType element_type, absl::Span<const int64_t> dimensions,
+      absl::Span<const int64_t> minor_to_major,
+      absl::Span<const Tile> tiles = {},
+      int64_t tail_padding_alignment_in_elements = 1,
+      int64_t element_size_in_bits = 0, int64_t memory_space = 0,
+      absl::Span<const SplitConfig> split_configs = {});
+
+  // Constructs a new sparse array shape with the given minor_to_major order and
+  // dim_level_types in its Layout. Returns a value shape such that
+  // shape.has_layout().
+  static Shape MakeShapeWithSparseLayout(
+      PrimitiveType element_type, absl::Span<const int64_t> dimensions,
+      absl::Span<const int64_t> minor_to_major,
+      absl::Span<const DimLevelType> dim_level_types,
+      absl::Span<const bool> dim_unique = {},
+      absl::Span<const bool> dim_ordered = {},
+      PrimitiveType index_primitive_type = PRIMITIVE_TYPE_INVALID,
+      PrimitiveType pointer_primitive_type = PRIMITIVE_TYPE_INVALID,
+      int64_t tail_padding_alignment_in_elements = 1,
+      int64_t element_size_in_bits = 0, int64_t memory_space = 0,
+      std::optional<Shape> physical_shape = std::nullopt);
+
+  // Returns the same shape except with all dimensions set to be static.
+  static Shape MakeShapeWithStaticDimensions(const Shape& shape);
+
+  // Constructs a new shape with major-first layout (i.e. {n, n-1, ..., 0}).
+  static Shape MakeShapeWithDescendingLayout(
+      PrimitiveType element_type, absl::Span<const int64_t> dimensions);
+
+  // Returns a new Shape based on the given Shape with low-dimension-major
+  // layout (i.e. {n, n-1, ..., 0}, like Fortran), and with the dimensions
+  // rearranged so that it has the same in-memory layout as the given shape.
+  //
+  // For example, transforms f32[B,H,W,C]{0,3,2,1} to f32[H,W,C,B]{3,2,1,0}.
+  static Shape MakeShapeWithDescendingLayoutAndSamePhysicalLayout(
+      const Shape& shape);
 
   // Validates that the provided shape satisfies invariants.
   static absl::Status ValidateShape(const Shape& shape);

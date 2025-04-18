@@ -23,6 +23,7 @@ limitations under the License.
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/status.h"
+#include "xla/tsl/platform/statusor.h"
 #include "zkx/base/logging.h"
 #include "zkx/layout_util.h"
 #include "zkx/printer.h"
@@ -149,6 +150,44 @@ absl::Status ValidateNonLayoutProperties(const Shape& shape) {
   return absl::OkStatus();
 }
 
+// Constructs and returns the new shape with the given minor_to_major order in
+// its Layout.
+absl::StatusOr<Shape> MakeShapeWithLayoutInternal(
+    PrimitiveType element_type, absl::Span<const int64_t> dimensions,
+    absl::Span<const int64_t> minor_to_major,
+    absl::Span<const DimLevelType> dim_level_types,
+    absl::Span<const bool> dim_unique, absl::Span<const bool> dim_ordered,
+    absl::Span<const Tile> tiles, int64_t tail_padding_alignment_in_elements,
+    PrimitiveType index_primitive_type, PrimitiveType pointer_primitive_type,
+    int64_t element_size_in_bits, int64_t memory_space,
+    absl::Span<const SplitConfig> split_configs,
+    std::optional<Shape> physical_shape) {
+  if (dimensions.size() != minor_to_major.size()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Dimensions size is %ld, but layout size is %ld.",
+                        dimensions.size(), minor_to_major.size()));
+  }
+  if (element_type == OPAQUE_TYPE || element_type == TUPLE ||
+      element_type == TOKEN) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Unsupported element type: %s", PrimitiveType_Name(element_type)));
+  }
+  TF_ASSIGN_OR_RETURN(Shape shape,
+                      ShapeUtil::MakeValidatedShape(element_type, dimensions));
+  if (element_size_in_bits ==
+      ShapeUtil::ByteSizeOfPrimitiveType(element_type) * 8) {
+    // Only set element_size_in_bits if it's different from the default value.
+    element_size_in_bits = 0;
+  }
+  *shape.mutable_layout() = LayoutUtil::MakeLayout(
+      minor_to_major, dim_level_types, dim_unique, dim_ordered, tiles,
+      tail_padding_alignment_in_elements, index_primitive_type,
+      pointer_primitive_type, element_size_in_bits, memory_space, split_configs,
+      std::move(physical_shape));
+  TF_RETURN_IF_ERROR(ShapeUtil::ValidateShape(shape));
+  return std::move(shape);
+}
+
 template <typename T>
 const T& Deref(const T* ptr) {
   DCHECK(ptr != nullptr);
@@ -257,6 +296,147 @@ Shape ShapeUtil::MakeShape(PrimitiveType element_type,
 // static
 Shape ShapeUtil::MakeScalarShape(PrimitiveType element_type) {
   return MakeShape(element_type, {});
+}
+
+// static
+Shape ShapeUtil::MakeShape(PrimitiveType element_type,
+                           absl::Span<const int64_t> dimensions,
+                           const std::vector<bool>& dynamic_dimensions) {
+  return MakeValidatedShape(element_type, dimensions, dynamic_dimensions)
+      .value();
+}
+
+// static
+absl::StatusOr<Shape> ShapeUtil::MakeValidatedShape(
+    PrimitiveType element_type, absl::Span<const int64_t> dimensions) {
+  Shape shape;
+  if (!FillNewShape(element_type, dimensions, &shape)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "invalid shape type=%d, dims=[%s]", static_cast<int>(element_type),
+        absl::StrJoin(dimensions, ",")));
+  }
+  return std::move(shape);
+}
+
+// static
+absl::StatusOr<Shape> ShapeUtil::MakeValidatedShape(
+    PrimitiveType element_type, absl::Span<const int64_t> dimensions,
+    const std::vector<bool>& dynamic_dimensions) {
+  if (dynamic_dimensions.size() != dimensions.size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "dynamic dimensions size %d did not match number of dimensions %d",
+        dynamic_dimensions.size(), dimensions.size()));
+  }
+
+  Shape shape;
+  if (!FillNewShape(element_type, dimensions, &shape)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "invalid shape type=%d, dims=[%s]", static_cast<int>(element_type),
+        absl::StrJoin(dimensions, ",")));
+  }
+  for (int i = 0, n = dimensions.size(); i < n; i++) {
+    shape.set_dynamic_dimension(i, dynamic_dimensions[i]);
+    if (shape.dimensions(i) == Shape::kUnboundedSize &&
+        !dynamic_dimensions[i]) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Cannot mark a dynamic dimension at dim=%d as static", i));
+    }
+  }
+  return std::move(shape);
+}
+
+// static
+Shape ShapeUtil::MakeShapeWithDenseLayout(
+    PrimitiveType element_type, absl::Span<const int64_t> dimensions,
+    absl::Span<const int64_t> minor_to_major, absl::Span<const Tile> tiles,
+    int64_t tail_padding_alignment_in_elements, int64_t element_size_in_bits,
+    int64_t memory_space, absl::Span<const SplitConfig> split_configs) {
+  absl::StatusOr<Shape> ret = MakeShapeWithLayoutInternal(
+      element_type, dimensions, minor_to_major, /*dim_level_types=*/{},
+      /*dim_unique=*/{}, /*dim_ordered=*/{}, tiles,
+      tail_padding_alignment_in_elements,
+      /*index_primitive_type=*/PRIMITIVE_TYPE_INVALID,
+      /*pointer_primitive_type=*/PRIMITIVE_TYPE_INVALID, element_size_in_bits,
+      memory_space, split_configs,
+      /*physical_shape=*/std::nullopt);
+  TF_CHECK_OK(ret.status());
+  return *ret;
+}
+
+// static
+Shape ShapeUtil::MakeShapeWithSparseLayout(
+    PrimitiveType element_type, absl::Span<const int64_t> dimensions,
+    absl::Span<const int64_t> minor_to_major,
+    absl::Span<const DimLevelType> dim_level_types,
+    absl::Span<const bool> dim_unique, absl::Span<const bool> dim_ordered,
+    PrimitiveType index_primitive_type, PrimitiveType pointer_primitive_type,
+    int64_t tail_padding_alignment_in_elements, int64_t element_size_in_bits,
+    int64_t memory_space, std::optional<Shape> physical_shape) {
+  absl::StatusOr<Shape> ret = MakeShapeWithLayoutInternal(
+      element_type, dimensions, minor_to_major, dim_level_types, dim_unique,
+      dim_ordered, /*tiles=*/{}, tail_padding_alignment_in_elements,
+      index_primitive_type, pointer_primitive_type, element_size_in_bits,
+      memory_space, /*split_configs=*/{}, std::move(physical_shape));
+  TF_CHECK_OK(ret.status());
+  return *ret;
+}
+
+// static
+Shape ShapeUtil::MakeShapeWithStaticDimensions(const Shape& shape) {
+  Shape output = shape;
+  output.clear_dynamic_dimensions();
+  return output;
+}
+
+// static
+Shape ShapeUtil::MakeShapeWithDescendingLayout(
+    PrimitiveType element_type, absl::Span<const int64_t> dimensions) {
+  std::vector<int64_t> layout(dimensions.size());
+  std::iota(layout.rbegin(), layout.rend(), static_cast<int64_t>(0));
+  return MakeShapeWithDenseLayout(element_type, dimensions, layout);
+}
+
+// static
+Shape ShapeUtil::MakeShapeWithDescendingLayoutAndSamePhysicalLayout(
+    const Shape& shape) {
+  std::vector<int64_t> dims(shape.dimensions_size());
+  for (int i = 0; i < shape.dimensions_size(); ++i) {
+    int dim = i;
+    if (shape.has_layout()) {
+      dim = LayoutUtil::Major(shape.layout(), dim);
+    }
+    dims[i] = shape.dimensions(dim);
+  }
+  Shape new_shape = MakeShapeWithDescendingLayout(shape.element_type(), dims);
+  // Since the physical layout is kept the same, the tiles and element size are
+  // the same also.
+  if (shape.has_layout()) {
+    new_shape.mutable_layout()->mutable_tiles()->assign(
+        shape.layout().tiles().begin(), shape.layout().tiles().end());
+    new_shape.mutable_layout()->set_element_size_in_bits(
+        shape.layout().element_size_in_bits());
+    new_shape.mutable_layout()->set_tail_padding_alignment_in_elements(
+        shape.layout().tail_padding_alignment_in_elements());
+  }
+  for (int i = 0; i < shape.dimensions_size(); ++i) {
+    int dim = i;
+    if (shape.has_layout()) {
+      dim = LayoutUtil::Major(shape.layout(), dim);
+    }
+    new_shape.set_dynamic_dimension(i, shape.is_dynamic_dimension(dim));
+  }
+  new_shape.mutable_layout()->set_memory_space(shape.layout().memory_space());
+  return new_shape;
+}
+
+// static
+Shape ShapeUtil::MakeStaticShape(const Shape& original) {
+  Shape result = original;
+  result.clear_dynamic_dimensions();
+  if (result.has_layout()) {
+    result.mutable_layout()->set_dynamic_shape_metadata_prefix_bytes(0);
+  }
+  return result;
 }
 
 // static
