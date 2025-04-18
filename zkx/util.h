@@ -90,6 +90,9 @@ int64_t PositionInContainer(const Container& container, int64_t value) {
 
 int64_t Product(absl::Span<const int64_t> xs);
 
+// Removes illegal characters from filenames.
+std::string SanitizeFileName(std::string file_name);
+
 template <typename T>
 std::vector<T> SpanToVector(absl::Span<const T> slice) {
   return std::vector<T>(slice.begin(), slice.end());
