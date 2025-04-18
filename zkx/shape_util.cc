@@ -237,6 +237,19 @@ bool ShapeUtil::Equal(const Shape& lhs, const Shape& rhs) {
 }
 
 // static
+bool ShapeUtil::EqualIgnoringElementType(const Shape& lhs, const Shape& rhs) {
+  bool equal = Shape::Equal().IgnoreElementType()(lhs, rhs);
+  // TODO(chokobole): Uncomment this. Dependency: VLOG_IS_ON
+  // if (!equal && VLOG_IS_ON(3)) {
+  if (!equal) {
+    VLOG(3) << "ShapeUtil::EqualIgnoringElementType differ: lhs = "
+            << lhs.ShortDebugString() << ", rhs = " << rhs.ShortDebugString();
+  }
+
+  return equal;
+}
+
+// static
 bool ShapeUtil::EqualStructure(const Shape& lhs, const Shape& rhs) {
   bool equal = true;
   ForEachSubshape(lhs, [&](const Shape& /*subshape*/, const ShapeIndex& index) {

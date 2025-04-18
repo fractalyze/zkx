@@ -194,6 +194,9 @@ class ShapeUtil {
   // Returns whether the lhs and rhs shapes are identical.
   static bool Equal(const Shape& lhs, const Shape& rhs);
 
+  // As Equal, but does not compare the element type.
+  static bool EqualIgnoringElementType(const Shape& lhs, const Shape& rhs);
+
   // Two shapes have same structure if all subshape indices of lhs are presented
   // on rhs and vice versa.
   // A nested tuple shape of (U32, (S32[2], U32[2, 2])) is structurally equal to
