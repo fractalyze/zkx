@@ -25,7 +25,9 @@ limitations under the License.
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/logging.h"
+#include "zkx/index_util.h"
 #include "zkx/layout_util.h"
+#include "zkx/permutation_util.h"
 #include "zkx/printer.h"
 
 namespace zkx {
@@ -209,6 +211,16 @@ Shape MakeTupleShapeImpl(absl::Span<ShapePtrOrRef> shapes) {
   }
   TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(result));
   return result;
+}
+
+absl::Span<const int64_t> LayoutPerm(const Shape& s) {
+  return s.layout().minor_to_major();
+}
+
+absl::InlinedVector<int64_t, 8> ReverseIota(int64_t n) {
+  absl::InlinedVector<int64_t, 8> ret(n);
+  absl::c_generate(ret, [n = ret.size()]() mutable { return --n; });
+  return ret;
 }
 
 }  // namespace
@@ -677,6 +689,25 @@ absl::Status ShapeUtil::ValidateShape(const Shape& shape) {
 }
 
 // static
+Shape ShapeUtil::ChangeElementType(const Shape& original, PrimitiveType type) {
+  if (original.IsTuple()) {
+    std::vector<Shape> new_operands;
+    new_operands.reserve(original.tuple_shapes_size());
+    for (const Shape& operand : original.tuple_shapes()) {
+      new_operands.push_back(ChangeElementType(operand, type));
+    }
+    return MakeTupleShape(new_operands);
+  } else {
+    Shape new_shape = original;
+    new_shape.set_element_type(type);
+    if (new_shape.has_layout() && !primitive_util::IsSubByteNonPredType(type)) {
+      new_shape.mutable_layout()->set_element_size_in_bits(0);
+    }
+    return new_shape;
+  }
+}
+
+// static
 bool ShapeUtil::IndexIsValid(const Shape& shape, ShapeIndexView index) {
   const Shape* subshape = &shape;
   for (auto i : index) {
@@ -759,6 +790,397 @@ int64_t ShapeUtil::GetLeafCount(const Shape& shape) {
     return 1;
   }
   return GetLeafCountTuple(shape);
+}
+
+// static
+std::optional<ShapeUtil::ShapeEqualityDescriptor>
+ShapeUtil::InsertedOrDeleted1SizedDimensions(const Shape& shape_pre,
+                                             const Shape& shape_post) {
+  CHECK(shape_pre.IsArray());
+  CHECK(shape_post.IsArray());
+
+  std::vector<int64_t> deleted_indices;
+  std::vector<int64_t> inserted_indices;
+  // Returns false if any input/output index between prior_unmodified_dim_pair
+  // and unmodified_dim_pair have size >1. Otherwise, returns true and appends
+  // the degenerate input/output dimensions in the gap to
+  // deleted_indices/inserted_indices respectively.
+  auto check_modified_dims =
+      [&shape_pre, &shape_post, &deleted_indices, &inserted_indices](
+          std::pair<int64_t, int64_t> prior_unmodified_dim_pair,
+          std::pair<int64_t, int64_t> unmodified_dim_pair) {
+        for (int64_t modified_input_dim = prior_unmodified_dim_pair.first + 1;
+             modified_input_dim < unmodified_dim_pair.first;
+             ++modified_input_dim) {
+          if (shape_pre.dimensions(modified_input_dim) > 1) {
+            return false;
+          }
+          deleted_indices.push_back(modified_input_dim);
+        }
+        for (int64_t modified_output_dim = prior_unmodified_dim_pair.second + 1;
+             modified_output_dim < unmodified_dim_pair.second;
+             ++modified_output_dim) {
+          if (shape_post.dimensions(modified_output_dim) > 1) {
+            return false;
+          }
+          inserted_indices.push_back(modified_output_dim);
+        }
+        return true;
+      };
+
+  std::vector<std::pair<int64_t, int64_t>> unmodified_dims =
+      DimensionsUnmodifiedByReshape(shape_pre, shape_post);
+  // Returns nil if the reshape modifies any non-degenerate input/output
+  // dimension. DimensionsUnmodifiedByReshape gives us all unmodified
+  // dimensions, so we only need to check whether dimensions in the gaps (thus
+  // modified) have size >1.
+  for (size_t i = 0; i <= unmodified_dims.size(); ++i) {
+    // Check (modified) dimensions between unmodified_dims[i-1] and
+    // unmodified_dims[i].
+    auto prior_unmodified_dim_pair =
+        i > 0 ? unmodified_dims[i - 1] : std::pair<int64_t, int64_t>(-1, -1);
+    auto unmodified_dim_pair =
+        i < unmodified_dims.size()
+            ? unmodified_dims[i]
+            : std::make_pair(shape_pre.rank(), shape_post.rank());
+    if (!check_modified_dims(prior_unmodified_dim_pair, unmodified_dim_pair)) {
+      return std::nullopt;
+    }
+  }
+
+  return ShapeEqualityDescriptor{deleted_indices, inserted_indices};
+}
+
+// static
+std::vector<std::pair<int64_t, int64_t>>
+ShapeUtil::DimensionsUnmodifiedByReshape(const Shape& input_shape,
+                                         const Shape& output_shape) {
+  CHECK(input_shape.IsArray());
+  CHECK(output_shape.IsArray());
+
+  // Unmodified dimensions are merely common factors of rank 1.
+  auto common_factors =
+      CommonFactors(input_shape.dimensions(), output_shape.dimensions());
+  for (size_t i = 0; i < common_factors.size() - 1;) {
+    if (1 != common_factors[i + 1].first - common_factors[i].first ||
+        1 != common_factors[i + 1].second - common_factors[i].second) {
+      common_factors.erase(common_factors.begin() + i);
+    } else {
+      ++i;
+    }
+  }
+  // `CommonFactors(a, b).back() == (a.rank, b.rank)` so we must pop it.
+  common_factors.pop_back();
+  return std::vector<std::pair<int64_t, int64_t>>(common_factors.begin(),
+                                                  common_factors.end());
+}
+
+// static
+bool ShapeUtil::TransposeIsBitcast(const Shape& input_shape,
+                                   const Shape& output_shape,
+                                   absl::Span<const int64_t> dimension_mapping,
+                                   bool ignore_element_type) {
+  CHECK(LayoutUtil::IsDenseArray(input_shape)) << input_shape.ToString(true);
+  CHECK(LayoutUtil::IsDenseArray(output_shape)) << output_shape.ToString(true);
+  CHECK(input_shape.has_layout()) << input_shape.ToString(true);
+  CHECK(output_shape.has_layout()) << output_shape.ToString(true);
+
+  if (!ignore_element_type && !SameElementType(input_shape, output_shape)) {
+    return false;
+  }
+
+  // Check the reshape permutes the positions of each dimension in the
+  // minor-to-major order. positions[i]=k means dimension `i` is k-th minor.
+  //   input_positions = apply(dimension_mapping, output_positions)
+  //
+  // Because the positions of each dimension are the inverse permutation of the
+  // minor-to-major order, the above check is equivalent to
+  //   inverse(input_dimensions) =
+  //       apply(dimension_mapping, inverse(output_dimensions))
+  //   # `I` indicates identity permutation.
+  //   apply(input_dimensions, I) =
+  //       apply(dimension_mapping, apply(output_dimensions, I))
+  //   apply(input_dimensions, I) =
+  //       apply((dimension_mapping * output_dimensions), I)
+  //   input_dimensions = dimension_mapping * output_dimensions
+  return absl::c_equal(
+      ComposePermutations(dimension_mapping,
+                          output_shape.layout().minor_to_major()),
+      input_shape.layout().minor_to_major());
+}
+
+// static
+bool ShapeUtil::ReshapeIsBitcast(const Shape& input_shape,
+                                 const Shape& output_shape,
+                                 bool ignore_element_type) {
+  CHECK(LayoutUtil::IsDenseArray(input_shape)) << input_shape.ToString(true);
+  CHECK(LayoutUtil::IsDenseArray(output_shape)) << output_shape.ToString(true);
+  CHECK(input_shape.has_layout()) << input_shape.ToString(true);
+  CHECK(output_shape.has_layout()) << output_shape.ToString(true);
+
+  if (!ignore_element_type && !SameElementType(input_shape, output_shape)) {
+    return false;
+  }
+
+  if (ElementsIn(input_shape) != ElementsIn(output_shape)) {
+    VLOG(3) << "input_shape=" << input_shape.ShortDebugString()
+            << ", output_shape=" << output_shape.ShortDebugString();
+    return false;
+  }
+  if (ElementsIn(input_shape) == 0) {
+    return true;
+  }
+
+  // TL;DR: The rest of the method checks that the reshape does not change the
+  // physical location of any unit input or output index. Unit indices have
+  // exactly one dimension that equals 1 and other dimensions 0. This condition
+  // is necessary for the reshape to be a bitcast, because a bitcast-equivalent
+  // reshape shouldn't change the physical location of any element. It is also a
+  // sufficient condition as is proved below (note: many details are omitted for
+  // space).
+  //
+  // Definitions:
+  //
+  // * Denote the input shape by IS and output shape by OS. IS[i] or OS[i] means
+  // the size of i-th least significant dimension of IS or OS (this is opposite
+  // to how we define the index of Shape::dimensions()).
+  //
+  // * Given an input or output index I, denote by p(I) I's physical linear
+  // index (or physical index for short) and l(I) I's logical linear index (or
+  // logical index for short).
+  //
+  // * Given a logical index k, denote by II(k) the input index whose linear
+  // index is k, and OI(k) the corresponding output index.
+  //
+  // * Denote by IT[i] the increment of physical index if i-th dimension of the
+  // input index is increased by 1. Similarly, OT[i] means the increment if i-th
+  // dimension of the output index is increased by 1. Note that IT[i] or OT[i]
+  // is a function of IS or OS and the layout, and not dependent on the specific
+  // input or output index.
+  //
+  // To prove the reshape from IS to OS is a bitcast, it is sufficient to prove
+  // that, for any linear index k, p(II(k))=p(OI(k)). We prove this by
+  // induction. We know p(II(0))=p(OI(0)) is trivially true, so what's left is
+  // to prove, with every increment on k, the above formula still holds.
+  //
+  // First, suppose reshaping from IS to OS is non-factorizable (we discuss
+  // refactorizable reshapes later). A reshape from IS to OS is factorizable, if
+  // there exists (i,j) such that
+  //
+  //   0<=i<=|IS|
+  //   0<=j<=|OS|
+  //   |IS|-i+|OS|-j > 0 (i.e., i,j mustn't both point to the end)
+  //   product(IS[i], IS[i+1], ..., IS[|IS|-1])
+  //     = product(OS[j], OS[j+1], ..., OS[|OS|-1])
+  //
+  // p(II(k))=p(OI(k)) is trivially true for k=0 because p(II(0)) and p(OI(0))
+  // are both 0. It's also trivially true for k=1, because II(1) and OI(1) are
+  // unit indices which are already tested. This also means IT[0]=OT[0]
+  // because p(II(1))=IT[0] and p(OI(1))=OT[0].
+  //
+  // Furthermore, p(II(k))=p(OI(k)) for k<min(IS[0],OS[0]), because each
+  // increment of k adds IT[0] to the input physical and OT[0] (same as IT[0])
+  // to the output physical.
+  //
+  // When k=min(IS[0],OS[0]), the first wrap happens. Without losing generality,
+  // suppose IS[0]<OS[0] and thus k=IS[0]. Similar proof applies to IS[0]>OS[0].
+  // Note that IS[0]!=OS[0] because the reshape is non-factorizable. From
+  // logical index k-1 to logical index k, dimension 1 of the input index
+  // is increased by 1 and dimension 0 is reset to 0 thus decreased by
+  // IS[0]-1. Therefore, the physical input index is increased by
+  //
+  //   p(II(k)) - p(II(k-1)) = IT[1] - (IS[0]-1) * IT[0]
+  //
+  // Because IS[0]<OS[0], the only change to the output index is that its
+  // dimension 0 is increased by one. Therefore,
+  //
+  //   p(OI(k)) - p(OI(k-1)) = OT[0] = IT[0]
+  //
+  // Because II(k) is an unit index -- (0,..,0,1,0), we already tested that
+  // p(II(k))=p(OI(k)). Therefore,
+  //   IT[1] - (IS[0]-1) * IT[0] = IT[0]
+  //   IT[1] = IS[0] * IT[0]
+  // In other words, input dimension 1 is immediately more major than input
+  // dimension 0. We can now conceptually collapse these two dimensions because
+  // an increment in the logical index affecting only these two dimensions maps
+  // to IT[0] in the physical index.
+  //
+  // By induction (omitted here), we can prove IT[i]=IS[i-1]*IT[i-1] and
+  // OT[i]=OS[i-1]*OT[i-1]. Therefore, both IS and OS are row-major and bitwise
+  // identical.
+  //
+  // A factorizable reshape can be factorized into a list of non-factorizable
+  // sub-reshapes, each of which can be handled similarly to the proof above.
+  // For example,
+  //
+  //   [7x9x2x15] -> [63x6x5]
+  //
+  // can be factorized into
+  //
+  //   [7x9] -> [63] and [2x15] -> [6x5].
+  //
+  // Suppose input index I=(x3,x2,x1,x0) and output index O=(y2,y1,y0) have the
+  // same logical linear index. According to the factorization, we know
+  // l(x3,x2,0,0)=l(y2,0,0) and l(0,0,x1,x0)=l(0,y1,y0). Using the proof for
+  // non-factorizable reshapes, we can prove p(0,0,x1,x0)=p(0,y1,y0). Using a
+  // similar proof, with the increment of the logical index set to
+  // IS[1]*IS[0]=OS[1]*OS[0]=30 instead of 1, we can prove
+  // p(x3,x2,0,0)=p(y2,0,0) too. Therefore,
+  //
+  //   p(x3,x2,x1,x0) = p(x3,x2,0,0) + p(0,0,x1,x0)
+  //                  = p(y2,0,0) + p(0,0,y1,y0)
+  //                  = p(y2,y1,y0)
+  //
+  // check_input_unit_indices checks one way of the condition: each input unit
+  // index is mapped to an output index with the same physical location. This
+  // lambda will be called again with input_shape and output_shape reversed to
+  // check the other way.
+  auto check_input_unit_indices = [](const Shape& input_shape,
+                                     const Shape& output_shape) {
+    // input_shape_dim0_major/output_shape_dim0_major has the same "dimensions"
+    // as input_shape/output_shape and the dimension-0-major layout. These two
+    // shapes are used for conversion between logical linear indices and
+    // multi-dimensional indices.
+    Shape input_shape_dim0_major = MakeShapeWithDescendingLayout(
+        input_shape.element_type(), input_shape.dimensions());
+    Shape output_shape_dim0_major = MakeShapeWithDescendingLayout(
+        output_shape.element_type(), output_shape.dimensions());
+
+    for (int64_t input_dim = 0; input_dim < input_shape.rank(); ++input_dim) {
+      if (input_shape.dimensions(input_dim) <= 1) {
+        continue;
+      }
+
+      std::vector<int64_t> input_unit_index(input_shape.rank(), 0);
+      input_unit_index[input_dim] = 1;
+      int64_t logical_linear_index =
+          IndexUtil::MultidimensionalIndexToLinearIndex(input_shape_dim0_major,
+                                                        input_unit_index);
+      // output_index has the same logical linear index as input_unit_index.
+      DimensionVector output_index =
+          IndexUtil::LinearIndexToMultidimensionalIndex(output_shape_dim0_major,
+                                                        logical_linear_index);
+      // Check input_unit_index and output_index have the same physical linear
+      // index.
+      if (IndexUtil::MultidimensionalIndexToLinearIndex(input_shape,
+                                                        input_unit_index) !=
+          IndexUtil::MultidimensionalIndexToLinearIndex(output_shape,
+                                                        output_index)) {
+        return false;
+      }
+    }
+    return true;
+  };
+  return check_input_unit_indices(input_shape, output_shape) &&
+         check_input_unit_indices(output_shape, input_shape);
+}
+
+// static
+bool ShapeUtil::IsReshapeOrTransposeBitcast(const Shape& a, const Shape& b,
+                                            bool ignore_element_type) {
+  if (!ignore_element_type && !SameElementType(a, b)) {
+    return false;
+  }
+  if (ShapeUtil::EqualIgnoringElementType(a, b)) {
+    return true;
+  }
+  if (ReshapeIsBitcast(a, b, /*ignore_element_type=*/true)) {
+    return true;
+  }
+  if (std::optional<std::vector<int64_t>> dimensions =
+          ShapeUtil::DeduceTransposeDimensionsForBitcast(a, b)) {
+    return TransposeIsBitcast(b, a, *dimensions,
+                              /*ignore_element_type=*/true);
+  }
+  return false;
+}
+
+// static
+std::optional<std::vector<int64_t>>
+ShapeUtil::DeduceTransposeDimensionsForBitcast(const Shape& input_shape,
+                                               const Shape& output_shape) {
+  if (output_shape.rank() != input_shape.rank()) {
+    return std::nullopt;
+  }
+
+  std::vector<int64_t> transpose_perm = ComposePermutations(
+      LayoutPerm(input_shape), InversePermutation(LayoutPerm(output_shape)));
+
+  std::vector<int64_t> new_dims =
+      ComposePermutations(input_shape.dimensions(), transpose_perm);
+  if (!absl::c_equal(output_shape.dimensions(), new_dims)) {
+    return std::nullopt;
+  }
+  CHECK(TransposeIsBitcast(
+      input_shape, ChangeElementType(output_shape, input_shape.element_type()),
+      transpose_perm));
+  return transpose_perm;
+}
+
+bool ShapeUtil::BitcastDecompositionTrt::IsTranspose1Identity() const {
+  return absl::c_is_sorted(transpose1_dims);
+}
+
+bool ShapeUtil::BitcastDecompositionTrt::IsTranspose2Identity() const {
+  return absl::c_is_sorted(transpose2_dims);
+}
+
+// static
+ShapeUtil::BitcastDecompositionTrt ShapeUtil::DecomposeBitcastToTrt(
+    const Shape& input_shape, const Shape& output_shape) {
+  CHECK(input_shape.has_layout()) << input_shape.ToString();
+  CHECK(output_shape.has_layout()) << output_shape.ToString();
+
+  BitcastDecompositionTrt decomposition;
+  decomposition.transpose1_shape =
+      MakeShapeWithDescendingLayoutAndSamePhysicalLayout(input_shape);
+  decomposition.reshape_shape =
+      MakeShapeWithDescendingLayoutAndSamePhysicalLayout(output_shape);
+  CHECK(ReshapeIsBitcast(decomposition.transpose1_shape,
+                         decomposition.reshape_shape,
+                         /*ignore_element_type=*/true));
+
+  // Let a * b denote Permute(a, perm=b).
+  //
+  // (input_dims * transpose1_dims) * R = input_dims * input_layout
+  // transpose1_dims * R = input_layout  | * R, knowing R * R = I
+  // transpose1_dims = input_layout * R
+  decomposition.transpose1_dims = ComposePermutations(
+      LayoutPerm(input_shape), ReverseIota(input_shape.rank()));
+  CHECK(TransposeIsBitcast(input_shape, decomposition.transpose1_shape,
+                           decomposition.transpose1_dims,
+                           /*ignore_element_type=*/false));
+
+  // (reshape_dims * transpose2_dims) * output_layout = reshape_dims * R
+  // transpose2_dims * output_layout = R  | * inv(output_layout)
+  // transpose2_dims = R * inv(output_layout)
+  decomposition.transpose2_dims =
+      ComposePermutations(ReverseIota(output_shape.rank()),
+                          InversePermutation(LayoutPerm(output_shape)));
+  CHECK(TransposeIsBitcast(decomposition.reshape_shape, output_shape,
+                           decomposition.transpose2_dims,
+                           /*ignore_element_type=*/false));
+
+  return decomposition;
+}
+
+// static
+ShapeUtil::BitcastDecomposition ShapeUtil::DecomposeBitcast(
+    const Shape& input_shape, const Shape& output_shape) {
+  CHECK(input_shape.has_layout()) << input_shape.ToString();
+  CHECK(output_shape.has_layout()) << output_shape.ToString();
+
+  if (ShapeUtil::ReshapeIsBitcast(input_shape, output_shape,
+                                  /*ignore_element_type=*/true)) {
+    return BitcastDecompositionReshape{};
+  }
+
+  if (std::optional<std::vector<int64_t>> transpose_dims =
+          DeduceTransposeDimensionsForBitcast(input_shape, output_shape)) {
+    return BitcastDecompositionTranspose{transpose_dims.value()};
+  }
+
+  return DecomposeBitcastToTrt(input_shape, output_shape);
 }
 
 // static

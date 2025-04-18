@@ -22,6 +22,7 @@ limitations under the License.
 #include <ostream>
 #include <string>
 #include <tuple>
+#include <variant>
 
 #include "absl/base/attributes.h"
 #include "absl/container/inlined_vector.h"
@@ -214,6 +215,10 @@ class ShapeUtil {
     return shape.IsArray() && shape.rank() == 0;
   }
 
+  // Returns a shape with the same dimensions as the original, but with the
+  // element type changed to type.
+  static Shape ChangeElementType(const Shape& original, PrimitiveType type);
+
   // Returns a shape with same dimensions but with all dimensions set to static.
   // If the shape has a layout, its dynamic_shape_metadata_prefix_bytes will be
   // set to zero.
@@ -400,6 +405,124 @@ class ShapeUtil {
     ShapeIndex index;
     return ForEachMutableSubshapeWithStatusHelper(shape, fn, &index);
   }
+
+  // Describes how we can go from shape A to shape B by inserting degenerate
+  // 1-sized dimensions in `added_dimensions` and removing degenerate 1-sized
+  // dimensions from B in `removed_dimensions`.
+  //
+  // Only exists if shapes A and B only differ by degenerate dimensions.
+  struct ShapeEqualityDescriptor {
+    std::vector<int64_t> deleted_dimensions;
+    std::vector<int64_t> inserted_dimensions;
+  };
+
+  // If we can go from `shape_pre` to `shape_post` by merely inserting or
+  // deleting 1-sized dimensions, return the indices in `shape_pre` of the
+  // deleted dimensions and the indices in `dims_post` of the inserted
+  // dimensions.
+  // For example, if `shape_pre = {a_1, a_2, ..., a_m}` and
+  // `shape_post = {b_1, b_2, ..., b_n}` where we can find some sequence of `i`s
+  // and some sequence of `j`s so `a_i = 1` for each `i` and `b_j = 1` for each
+  // `j` and `a_(k-s) = b_(k-t)` where `s` and `t` are the number of `i`s and
+  // `j`s less than `k` for all other `k`, we return the `i`s and `j`s.
+  // For another example, if `shape_pre = shape_post = {}`, we return `{}`.
+  static std::optional<ShapeEqualityDescriptor>
+  InsertedOrDeleted1SizedDimensions(const Shape& shape_pre,
+                                    const Shape& shape_post);
+
+  // Suppose a reshape transforms input_shape to output shape. Returns a vector
+  // of pairs that indicate the input and output dimensions that this reshape
+  // doesn't logically (i.e. ignoring the layout) modify. For each pair (I,O) in
+  // the returned vector, the reshape transforms any input index whose I-th
+  // dimension is x to an output index whose O-th dimension is x too.
+  //
+  // Post-condition: the returned vector is sorted (by both input and output
+  // dimensions because input and output dimensions have the same order).
+  //
+  // Example:
+  //   input  shape = T[a, b, x, y, cd]
+  //   output shape = T[ab, x, 1, y, c, d]
+  //   return value = {{2, 1}, {3, 3}}
+  //
+  //   The two pairs represent the input and output dimension of size x and
+  //   those of size y.
+  static std::vector<std::pair<int64_t, int64_t>> DimensionsUnmodifiedByReshape(
+      const Shape& input_shape, const Shape& output_shape);
+
+  // Returns whether a transpose from input_shape to output_shape with dimension
+  // mapping `dimension_mapping` produces a result which is bit-wise identical
+  // to its input and thus may be replaced with a bitcast.
+  //
+  // Precondition: Both input_shape and output_shape have explicit layouts.
+  static bool TransposeIsBitcast(const Shape& input_shape,
+                                 const Shape& output_shape,
+                                 absl::Span<const int64_t> dimension_mapping,
+                                 bool ignore_element_type = false);
+
+  // Returns whether a reshape from `input_shape` to `output_shape` is a
+  // bitcast, when minor_to_major in layout is considered.
+  //
+  // Precondition: Both input_shape and output_shape have explicit layouts.
+  static bool ReshapeIsBitcast(const Shape& input_shape,
+                               const Shape& output_shape,
+                               bool ignore_element_type = false);
+
+  // Returns whether there is a bitcasting reshape or transpose from `a` to `b`.
+  //
+  // Precondition: Both input_shape and output_shape have explicit layouts.
+  static bool IsReshapeOrTransposeBitcast(const Shape& a, const Shape& b,
+                                          bool ignore_element_type = false);
+
+  // If the given bitcast is a transpose, deduce and return `dimensions`
+  // attribute of such a transpose. Otherwise, return std::nullopt.
+  static std::optional<std::vector<int64_t>>
+  DeduceTransposeDimensionsForBitcast(const Shape& input_shape,
+                                      const Shape& output_shape);
+
+  // This means that the bitcast can be decomposed to a single reshape.
+  struct BitcastDecompositionReshape {};
+
+  // This means that the bitcast can be decomposed to a single transpose.
+  struct BitcastDecompositionTranspose {
+    std::vector<int64_t> transpose_dims;
+  };
+
+  // Every bitcast from A to B can be represented as a sequence of:
+  // 1) Transpose to a normalized layout of A
+  // 2) Reshape to a normalized layout of B
+  // 3) Transpose from (2) to B
+  //
+  // All members are always set, even if they correspond to an identity
+  // operation.
+  //
+  // Note: Some bitcasts can be converted to a single transpose or reshape,
+  // using other methods.
+  struct BitcastDecompositionTrt {
+    std::vector<int64_t> transpose1_dims;
+    // Has a normalized layout.
+    Shape transpose1_shape;
+    // Has a normalized layout.
+    Shape reshape_shape;
+    std::vector<int64_t> transpose2_dims;
+
+    bool IsTranspose1Identity() const;
+    bool IsTranspose2Identity() const;
+  };
+
+  // A variant type holding one of the possible bitcast decompositions.
+  using BitcastDecomposition =
+      std::variant<BitcastDecompositionReshape, BitcastDecompositionTranspose,
+                   BitcastDecompositionTrt>;
+
+  // Decomposes a bitcast to a sequence of transpose, reshape, transpose.
+  //
+  // See the comment on BitcastDecompositionTrt.
+  static BitcastDecompositionTrt DecomposeBitcastToTrt(
+      const Shape& input_shape, const Shape& output_shape);
+
+  // Decomposes a bitcast to one of the possible decompositions.
+  static BitcastDecomposition DecomposeBitcast(const Shape& input_shape,
+                                               const Shape& output_shape);
 
   // Returns true if `dynamic_shape` has dimensions that are less-equal to the
   // "bounded_shape". Shapes must be arrays.

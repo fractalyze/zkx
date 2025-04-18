@@ -212,6 +212,7 @@ zkx_cc_library(
     ],
     deps = [
         ":overflow_util",
+        ":permutation_util",
         ":primitive_util",
         ":printer",
         ":util",
