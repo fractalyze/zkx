@@ -16,6 +16,7 @@ limitations under the License.
 #include "zkx/literal.h"
 
 #include "xla/tsl/platform/mem.h"
+#include "xla/tsl/platform/status.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx {
@@ -26,7 +27,7 @@ namespace {
 // the end.
 // Lazy getter for the interned scalar shape in static storage. We reuse this
 // shape pointer to when constructing scalar Literals, which can happen a lot
-// when we are evaluating reduce-like ops in HloEvalutator, and copying the
+// when we are evaluating reduce-like ops in HloEvaluator, and copying the
 // shape over and over again significantly slows down the evaluator.
 template <PrimitiveType kType>
 const Shape& ScalarShapeImpl() {
@@ -71,6 +72,18 @@ const Shape* TryInternShape(const Shape& shape) {
 }  // namespace
 
 LiteralBase::~LiteralBase() = default;
+
+Literal LiteralBase::Clone() const {
+  Literal result(shape());
+  TF_CHECK_OK(result.CopyFrom(*this));
+  return result;
+}
+
+std::unique_ptr<Literal> LiteralBase::CloneToUnique() const {
+  auto result = std::make_unique<Literal>(shape());
+  TF_CHECK_OK(result->CopyFrom(*this));
+  return result;
+}
 
 template <typename NativeT>
 bool LiteralBase::Piece::EqualElementsInternal(
@@ -154,6 +167,64 @@ bool LiteralBase::Equal(const LiteralBase& other, bool layout_sensitive) const {
     }
     return true;
   });
+}
+
+namespace {
+
+template <typename NativeT>
+bool AllElementsEqualValue(absl::Span<const NativeT> data, NativeT value) {
+  for (int64_t i = 0; i < data.size(); ++i) {
+    if (memcmp(&data[i], &value, sizeof value)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+bool Literal::Piece::IsAll(const Literal& scalar) const {
+  CHECK(ShapeUtil::IsScalar(scalar.shape())) << scalar.shape().ToString();
+  if (!subshape().IsArray()) {
+    return false;
+  }
+
+  CHECK(LayoutUtil::IsDenseArray(subshape()))
+      << __func__ << " is only supported for dense arrays: " << subshape();
+  CHECK_EQ(subshape().element_type(), scalar.shape().element_type());
+  return primitive_util::ArrayTypeSwitch<bool>(
+      [&](auto primitive_type_constant) -> bool {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        return AllElementsEqualValue(this->data<NativeT>(),
+                                     scalar.GetFirstElement<NativeT>());
+      },
+      subshape().element_type());
+}
+
+bool LiteralBase::IsAll(const Literal& scalar) const {
+  return root_piece().IsAll(scalar);
+}
+
+bool LiteralBase::IsAll(int8_t value) const {
+  if (!shape().IsArray()) {
+    return false;
+  }
+  PrimitiveType ty = shape().element_type();
+  if (primitive_util::IsUnsignedIntegralType(ty) && value < 0) {
+    return false;
+  }
+  Literal scalar(ShapeUtil::MakeScalarShape(ty));
+  return primitive_util::ArrayTypeSwitch<bool>(
+      [&](auto primitive_type_constant) -> bool {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        NativeT converted(value);
+        if (static_cast<int8_t>(converted) != value) {
+          return false;
+        }
+        scalar.Set<NativeT>({}, converted);
+        return root_piece().IsAll(scalar);
+      },
+      ty);
 }
 
 const Shape& LiteralBase::shape() const { return root_piece().subshape(); }
@@ -292,6 +363,48 @@ int32_t LiteralBase::GetDynamicSize(int64_t dim_index,
   return piece(shape_index).GetDynamicSize(dim_index);
 }
 
+std::optional<int64_t> LiteralBase::GetFirstInteger() const {
+  if (!primitive_util::IsIntegralType(shape().element_type())) {
+    return std::nullopt;
+  }
+  return primitive_util::IntegralTypeSwitch<std::optional<int64_t>>(
+      [&](auto primitive_type_constant) -> std::optional<int64_t> {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        auto first_element = GetFirstElement<NativeT>();
+        if constexpr (std::is_same_v<NativeT, uint64_t>) {
+          int64_t v = static_cast<int64_t>(first_element);
+          if (v < 0) {
+            return std::nullopt;
+          }
+        }
+        return first_element;
+      },
+      shape().element_type());
+}
+
+namespace {
+
+// Copies the elements in 'src' to 'dest'. The shape and layout of the data in
+// the array slices are indicated by dest_shape and src_shape respectively.
+template <typename NativeT>
+void CopyElementsBetween(absl::Span<NativeT> dest,
+                         absl::Span<const NativeT> src, const Shape& dest_shape,
+                         const Shape& src_shape) {
+  DCHECK(LayoutUtil::IsDenseArray(dest_shape));
+  DCHECK(LayoutUtil::IsDenseArray(src_shape));
+  DCHECK(ShapeUtil::Compatible(dest_shape, src_shape));
+  if (ShapeUtil::IsZeroElementArray(dest_shape)) {
+    return;
+  }
+  std::vector<int64_t> index(dest_shape.rank());
+  do {
+    dest[IndexUtil::MultidimensionalIndexToLinearIndex(dest_shape, index)] =
+        src[IndexUtil::MultidimensionalIndexToLinearIndex(src_shape, index)];
+  } while (IndexUtil::BumpIndices(dest_shape, absl::MakeSpan(index)));
+}
+
+}  // namespace
+
 int32_t LiteralBase::Piece::GetDynamicSize(int64_t dim_index) const {
   CHECK(LayoutUtil::IsDenseArray(subshape()));
   if (!subshape_->is_dynamic_dimension(dim_index)) {
@@ -326,6 +439,96 @@ void LiteralBase::Piece::DeallocateBuffers() {
     tsl::port::AlignedFree(array_rep->data);
     rep_.emplace<Uninitialized>();
   }
+}
+
+template <typename NativeT>
+void LiteralBase::Piece::CopyElementsWithDynamicBound(
+    const LiteralBase::Piece& src) {
+  auto& dest_shape = subshape();
+  auto& src_shape = src.subshape();
+
+  // At least one shape has to be static as bound.
+  CHECK(dest_shape.is_static() || src_shape.is_static());
+  auto& bound_shape = dest_shape.is_static() ? src_shape : dest_shape;
+  if (ShapeUtil::IsZeroElementArray(dest_shape)) {
+    return;
+  }
+  if (dest_shape.rank() == 1) {
+    // Fast path for rank 1 arrays.
+    int64_t count = std::min(GetDynamicSize(0), src.GetDynamicSize(0));
+    std::copy_n(src.data<NativeT>().begin(), count, data<NativeT>().begin());
+    return;
+  }
+  std::vector<int64_t> index(dest_shape.rank());
+  do {
+    bool out_of_bound = false;
+    for (int64_t i = 0; i < index.size(); ++i) {
+      // Do not copy elements beyond dynamic bound.
+      if (index[i] >= GetDynamicSize(i) || index[i] >= src.GetDynamicSize(i)) {
+        out_of_bound = true;
+      }
+    }
+    if (out_of_bound) {
+      continue;
+    }
+    data<NativeT>()[IndexUtil::MultidimensionalIndexToLinearIndex(dest_shape,
+                                                                  index)] =
+        src.data<NativeT>()[IndexUtil::MultidimensionalIndexToLinearIndex(
+            src_shape, index)];
+  } while (IndexUtil::BumpIndices(bound_shape, absl::MakeSpan(index)));
+}
+
+absl::Status LiteralBase::Piece::CopyFrom(const LiteralBase::Piece& src,
+                                          bool only_dynamic_bound) {
+  CHECK(subshape_ != nullptr);
+  CHECK(src.subshape_ != nullptr);
+  CHECK(LayoutUtil::IsDenseArray(subshape()))
+      << __func__ << " is only supported for dense arrays: " << subshape();
+  CHECK(LayoutUtil::IsDenseArray(src.subshape()))
+      << __func__ << " is only supported for dense arrays: " << src.subshape();
+  if (!only_dynamic_bound) {
+    CHECK(ShapeUtil::Compatible(subshape(), src.subshape()));
+  }
+  if (src.array_value_state_ == ArrayValueState::kUnknown ||
+      src.array_value_state_ == ArrayValueState::kUndetermined) {
+    if (array_value_state_ == ArrayValueState::kKnown) {
+      DeallocateBuffers();
+    }
+    array_value_state_ = src.array_value_state_;
+    return absl::OkStatus();
+  } else {
+    CHECK(src.array_value_state_ == ArrayValueState::kKnown);
+    if (array_value_state_ == ArrayValueState::kUndetermined ||
+        array_value_state_ == ArrayValueState::kUnknown) {
+      AllocateBuffers();
+    }
+    array_value_state_ = src.array_value_state_;
+  }
+
+  if (ShapeUtil::Equal(subshape(), src.subshape())) {
+    // If the layouts are equal it's faster just to memcpy.
+    memcpy(buffer(), src.buffer(), src.size_bytes_dense());
+  } else {
+    std::vector<int64_t> origin(subshape().rank(), 0);
+    primitive_util::ArrayTypeSwitch<void>(
+        [&](auto primitive_type_constant) {
+          using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+          if (only_dynamic_bound) {
+            CopyElementsWithDynamicBound<NativeT>(src);
+          } else {
+            CopyElementsBetween<NativeT>(this->data<NativeT>(),
+                                         src.data<NativeT>(), subshape(),
+                                         src.subshape());
+          }
+        },
+        subshape().element_type());
+  }
+  DCHECK_EQ(dynamic_size_buffer_bytes(), src.dynamic_size_buffer_bytes());
+  if (subshape().is_dynamic() && src.subshape().is_dynamic()) {
+    memcpy(dynamic_size_buffer(), src.dynamic_size_buffer(),
+           src.dynamic_size_buffer_bytes());
+  }
+  return absl::OkStatus();
 }
 
 const void* LiteralBase::Piece::untyped_data() const {
@@ -370,6 +573,60 @@ void MutableLiteralBase::SetDynamicSize(int64_t dim_index,
   CHECK_EQ(&piece(shape_index).subshape(), subshape);
 
   piece(shape_index).SetDynamicSize(dim_index, size);
+}
+
+absl::Status MutableLiteralBase::CopyFrom(const LiteralSlice& src_literal,
+                                          const ShapeIndex& dest_shape_index,
+                                          const ShapeIndex& src_shape_index,
+                                          bool only_dynamic_bound) {
+  const Shape& dest_subshape =
+      ShapeUtil::GetSubshape(shape(), dest_shape_index);
+  const Shape& src_subshape =
+      ShapeUtil::GetSubshape(src_literal.shape(), src_shape_index);
+  if (only_dynamic_bound) {
+    auto& bound_shape =
+        dest_subshape.is_static() ? src_subshape : dest_subshape;
+    auto& compact_shape =
+        dest_subshape.is_static() ? dest_subshape : src_subshape;
+    CHECK(ShapeUtil::DynamicShapeIsCompatible(compact_shape, bound_shape))
+        << compact_shape.ToString() << " vs " << bound_shape.ToString();
+  } else {
+    if (!ShapeUtil::Compatible(dest_subshape, src_subshape)) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Destination subshape incompatible with source subshape: %s vs %s",
+          ShapeUtil::HumanString(dest_subshape),
+          ShapeUtil::HumanString(src_subshape)));
+    }
+  }
+  return mutable_root_piece().ForEachMutableSubpieceWithStatus(
+      [&](const ShapeIndex& index, Piece* piece) {
+        if (!piece->subshape().IsArray()) {
+          return absl::OkStatus();
+        }
+
+        // Determine if this index is in the part of this literal that we want
+        // to copy over from src_literal.
+        bool in_subtree_to_copy = true;
+        for (int i = 0; i < dest_shape_index.size(); ++i) {
+          if (index[i] != dest_shape_index[i]) {
+            in_subtree_to_copy = false;
+            break;
+          }
+        }
+        if (!in_subtree_to_copy) {
+          return absl::OkStatus();
+        }
+        // Construct the index of the corresponding piece in the source literal.
+        ShapeIndex src_piece_index = src_shape_index;
+        for (int64_t i = dest_shape_index.size(), end = index.size(); i < end;
+             ++i) {
+          src_piece_index.push_back(index[i]);
+        }
+        TF_RETURN_IF_ERROR(
+            piece->CopyFrom(src_literal.piece(src_piece_index),
+                            /*only_dynamic_bound=*/only_dynamic_bound));
+        return absl::OkStatus();
+      });
 }
 
 }  // namespace zkx

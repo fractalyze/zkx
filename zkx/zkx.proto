@@ -1,0 +1,124 @@
+/* Copyright 2017 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+syntax = "proto3";
+
+package zkx;
+
+import "google/protobuf/any.proto";
+import "zkx/zkx_data.proto";
+
+// Proto version of `zkx::CompilationEnvironments`.
+message CompilationEnvironmentsProto {
+  repeated google.protobuf.Any environments = 1;
+}
+
+// Debugging options for ZKX. These options may change at any time - there are
+// no guarantees about backward or forward compatibility for these fields.
+//
+// Debug options naming and organization:
+//
+// 1. Backend-agnostic options: `zkx_$flag_name` - go first, and sorted
+//    alphabetically by the flag name.
+//
+// 2. Backend-specific options: `zkx_$backend_$flag_name` - must be in the
+//    corresponding backend section, and sorted alphabetically by the flag name.
+//
+message DebugOptions {
+
+}
+
+message ShardableValueUpdatePairProto {
+  int64 input_parameter_number = 1;
+  repeated int64 parameter_shape_index = 2;
+  repeated int64 output_shape_index = 3;
+}
+
+// Serialization of HloModuleConfig. See the C++ class definition for
+// descriptions of each field.
+// There are no guarantees of backwards or forwards compatibility.
+// Next id: 37.
+message HloModuleConfigProto {
+  enum FusionConfigCollection {
+    OFF = 0;       // Do not collect configuration.
+    PER_EDGE = 1;  // Collect per-edge configuration.
+    PER_NODE = 2;  // Collect per-node configuration.
+  }
+
+  message BoolList {
+    repeated bool vals = 1;
+  }
+  message Int64List {
+    repeated int64 vals = 1;
+  }
+  message Int64ListList {
+    repeated Int64List lists = 1;
+  }
+
+  ProgramShapeProto entry_computation_layout = 1;
+  uint64 seed = 2;
+  int32 launch_id = 3;
+  int64 replica_count = 4;
+  int64 num_partitions = 5;
+  repeated bool param_requires_broadcast_via_collectives = 6;
+  bool use_spmd_partitioning = 7;
+  bool use_auto_spmd_partitioning = 8;
+  repeated int64 auto_spmd_partitioning_mesh_shape = 9;
+  repeated int64 auto_spmd_partitioning_mesh_ids = 10;
+  float exec_time_optimization_effort = 11;
+  float memory_fitting_effort = 12;
+  bool deduplicate_hlo = 13;
+  int64 intra_op_parallelism_threads = 14;
+  string device_type = 15;
+
+  DebugOptions debug_options = 16;
+  DeviceAssignmentProto static_device_assignment = 17;
+  // The original device assignment before being changed by a simulator.
+  // Simulators, like HybridSim, may change the device assignment to a smaller
+  // topology, to make simulation easier.
+  DeviceAssignmentProto pre_simulation_device_assignment = 18;
+  bool allow_separate_sharding_programs = 19;
+  repeated ShardableValueUpdatePairProto shardable_value_update_pairs = 20;
+  bool alias_passthrough_params = 21;
+  bool content_aware_computation_sorting = 22;
+  FusionConfigCollection fusion_config_collection = 23;
+
+  repeated BoolList fusion_config = 24;
+  map<string, Int64List> dot_config = 25;
+  repeated Int64ListList layout_config = 26;
+
+  repeated uint64 memory_space_assignment_config = 27;
+  repeated BoolList phase_ordering_config = 28;
+  int32 phase_index = 29;
+  repeated bool allow_spmd_sharding_propagation_to_parameters = 30;
+  repeated bool allow_spmd_sharding_propagation_to_output = 31;
+  map<string, int64> analysis_allowance_map = 32;
+  bytes fdo_profile = 33;
+  int64 device_memory_size = 34;
+  bool use_shardy_partitioner = 35;
+  ShardingConfigProto sharding_config = 36;
+}
+
+// Message that captures sharding configuration of an HLO op.
+message NodeShardingConfigProto {
+  OpSharding sharding = 1;                     // For non-tuples.
+  repeated NodeShardingConfigProto nodes = 2;  // For tuples.
+}
+
+// Message that captures sharding configuration of an HLO module.
+message ShardingConfigProto {
+  // Configuration for each HLO instruction.
+  repeated NodeShardingConfigProto nodes = 1;
+}

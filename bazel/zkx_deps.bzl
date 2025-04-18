@@ -1,6 +1,7 @@
 load("@zkx//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 load("@zkx//third_party/absl:workspace.bzl", absl = "repo")
 load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
+load("@zkx//third_party/farmhash:workspace.bzl", farmhash = "repo")
 load("@zkx//third_party/gloo:workspace.bzl", gloo = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
@@ -8,6 +9,7 @@ load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 def zkx_deps():
     absl()
     eigen3()
+    farmhash()
     gloo()
     uv()
 

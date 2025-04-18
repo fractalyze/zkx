@@ -4,6 +4,15 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 cc_proto_library(
+    name = "zkx_proto",
+    srcs = ["zkx.proto"],
+    deps = [
+        ":zkx_data_proto",
+        "@com_google_protobuf//:cc_wkt_protos",
+    ],
+)
+
+cc_proto_library(
     name = "zkx_data_proto",
     srcs = ["zkx_data.proto"],
 )
@@ -12,8 +21,8 @@ zkx_cc_library(
     name = "array",
     hdrs = ["array.h"],
     deps = [
-        "//zkx:types",
-        "//zkx:util",
+        ":types",
+        ":util",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
@@ -39,6 +48,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "comparison_util",
+    srcs = ["comparison_util.cc"],
+    hdrs = ["comparison_util.h"],
+    deps = [
+        ":primitive_util",
+        ":zkx_data_proto",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "executable_run_options",
     srcs = ["executable_run_options.cc"],
     hdrs = ["executable_run_options.h"],
@@ -47,6 +72,12 @@ zkx_cc_library(
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/status:statusor",
     ],
+)
+
+zkx_cc_library(
+    name = "iterator_util",
+    hdrs = ["iterator_util.h"],
+    deps = ["//xla/tsl/lib/gtl:iterator_range"],
 )
 
 zkx_cc_library(
@@ -59,7 +90,20 @@ zkx_cc_library(
         ":shape_util",
         ":util",
         "//xla/tsl/platform:mem",
+        "//xla/tsl/platform:status",
         "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "literal_pool",
+    srcs = ["literal_pool.cc"],
+    hdrs = ["literal_pool.h"],
+    deps = [
+        ":literal",
+        "//zkx/base:vlog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/synchronization",
     ],
 )
 
@@ -71,6 +115,18 @@ zkx_cc_library(
         ":primitive_util",
         ":shape_util",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "map_util",
+    hdrs = ["map_util.h"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )
 
@@ -89,6 +145,7 @@ zkx_cc_library(
         ":zkx_data_proto",
         "//xla/tsl/lib/math:math_util",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
@@ -104,6 +161,19 @@ zkx_cc_library(
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:cord",
+    ],
+)
+
+zkx_cc_library(
+    name = "shape_layout",
+    srcs = ["shape_layout.cc"],
+    hdrs = ["shape_layout.h"],
+    deps = [
+        ":printer",
+        ":shape_util",
+        "//xla/tsl/platform:status",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -148,6 +218,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "shape_tree",
+    srcs = ["shape_tree.cc"],
+    hdrs = ["shape_tree.h"],
+    deps = [
+        ":shape_util",
+        "//xla/tsl/lib/gtl:iterator_range",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "types",
     hdrs = ["types.h"],
 )
@@ -171,9 +257,11 @@ zkx_cc_library(
     srcs = ["util.cc"],
     hdrs = ["util.h"],
     deps = [
+        ":status_macros",
         "//xla/tsl/lib/math:math_util",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -190,7 +278,9 @@ zkx_cc_unittest(
         "array2d_unittest.cc",
         "array3d_unittest.cc",
         "array_unittest.cc",
+        "comparison_util_unittest.cc",
         "index_util_unittest.cc",
+        "iterator_util_unittest.cc",
         "layout_unittest.cc",
         "layout_util_unittest.cc",
         "status_macros_unittest.cc",
@@ -199,6 +289,8 @@ zkx_cc_unittest(
         ":array",
         ":array2d",
         ":array3d",
+        ":comparison_util",
+        ":iterator_util",
         ":shape_util",
         ":status_macros",
         "//xla/tsl/platform:errors",

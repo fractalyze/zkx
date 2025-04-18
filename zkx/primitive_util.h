@@ -400,6 +400,34 @@ inline constexpr int ByteWidth(PrimitiveType type) {
 // Returns the lower-case name of the given primitive type.
 std::string_view LowercasePrimitiveTypeName(PrimitiveType s);
 
+// Returns true if the given name is a primitive type string (lower-case).
+bool IsPrimitiveTypeName(std::string_view name);
+
+// Returns whether `type` can be expressed as an instance of T.
+// For example,
+//  IsCanonicalRepresentation<int32_t>(S8)         // true, 8 <= 32
+//  IsCanonicalRepresentation<uint16_t>(S16)       // false, unsigned.
+template <typename T>
+bool IsCanonicalRepresentation(PrimitiveType type) {
+  return PrimitiveTypeSwitch<bool>(
+      [](auto primitive_type) -> bool {
+        if constexpr (primitive_util::IsSignedIntegralType(primitive_type)) {
+          return std::numeric_limits<T>::is_integer &&
+                 std::numeric_limits<T>::is_signed &&
+                 BitWidth(primitive_type) <=
+                     (std::numeric_limits<T>::digits + 1);
+        }
+        if constexpr (primitive_util::IsUnsignedIntegralType(primitive_type) ||
+                      primitive_type == PRED) {
+          return std::numeric_limits<T>::is_integer &&
+                 !std::numeric_limits<T>::is_signed &&
+                 BitWidth(primitive_type) <= std::numeric_limits<T>::digits;
+        }
+        return false;
+      },
+      type);
+}
+
 constexpr bool IsSubByteNonPredType(PrimitiveType type) {
   return IsArrayType(type) && type != PRED && BitWidth(type) < 8;
 }

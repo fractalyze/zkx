@@ -17,8 +17,12 @@ limitations under the License.
 #define ZKX_LITERAL_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include <algorithm>
+#include <limits>
+#include <memory>
+#include <optional>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -35,6 +39,11 @@ limitations under the License.
 #include "zkx/util.h"
 
 namespace zkx {
+
+// Forward declare Literal and LiteralSlice class to be used by the creation
+// methods in the base class.
+class Literal;
+class LiteralSlice;
 
 class LiteralBase {
  public:
@@ -72,10 +81,53 @@ class LiteralBase {
   const void* untyped_data(const ShapeIndex& shape_index = {}) const;
   int64_t size_bytes(const ShapeIndex& shape_index = {}) const;
 
+  // Gets an element in the literal at the given index. The multi_index is
+  // CHECKed against the dimension sizes.
+  template <typename NativeT>
+  NativeT Get(absl::Span<const int64_t> multi_index,
+              const ShapeIndex& shape_index) const;
+  // Overloads of Get for array literals. CHECKs if the literal is not
+  // array-shaped and dense.
+  template <typename NativeT>
+  NativeT Get(absl::Span<const int64_t> multi_index) const;
+
   // Get the dynamic size on dim_index in the literal at the given shape_index.
   DynamicSizeType GetDynamicSize(int64_t dim_index,
                                  const ShapeIndex& shape_index) const;
   DynamicSizeType GetDynamicSize(int64_t dim_index) const;
+
+  // Returns the element value at index (0, ..., 0), however many zeroes are
+  // required for that index.
+  template <typename NativeT>
+  NativeT GetFirstElement() const;
+
+  // As above but returns any integer type casted to an int64_t.
+  std::optional<int64_t> GetFirstInteger() const;
+
+  // Checks whether all of this literal's values are equal to the given scalar
+  // literal.
+  //
+  // If `this` is not an array (e.g. it's a tuple), returns false.  This is
+  // simpler than trying to handle subshapes here, and it's almost always what
+  // you want.
+  //
+  // Preconditions:
+  //  - `scalar` is a scalar.
+  //  - `scalar` has the same element-type as `this`.
+  bool IsAll(const Literal& scalar) const;
+
+  // Returns whether every element in this literal is equal to value.
+  //
+  // value is an int8_t because we expect this to be called with small
+  // compile-time constants (0, -1, etc.) and so that whatever value you pass
+  // can be represented exactly by floating-point types as small as 16 bits.
+  //
+  // If value doesn't fit in this literal's type, returns false.  Values of 1/0
+  // are considered equal to true/false; other values are not considered equal
+  // to true.
+  //
+  // Returns false if this literal is not array-shaped.
+  bool IsAll(int8_t value) const;
 
   // Returns the count of the elements in the array at the given shape index in
   // this literal.
@@ -86,6 +138,84 @@ class LiteralBase {
     }
     return ShapeUtil::ElementsIn(ShapeUtil::GetSubshape(shape(), index));
   }
+
+  // This definition is here to ensure that nobody accidentally implements this
+  // function which would lead to inconsistencies. Use Hash instead.
+  //
+  // Note: code below should really be static_assert(false, ...), but that is
+  // unfortunately not possible, as some compilers consider it invalid code,
+  // see https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2593r0.html.
+  template <typename H>
+  friend H AbslHashValue(H state, const LiteralBase& value) {
+    static_assert(sizeof(H) == 0,
+                  "Do not use Literal directly as a hash key, because it has "
+                  "multiple definitions of equality - layout sensitive or "
+                  "insensitive. Instead, use AbslHashable<...>() to create a "
+                  "wrapper with layout sensitivity specified suitable for "
+                  "passing to Absl::Hash");
+  }
+
+  // Always use this together with the Equal method and not operator== in order
+  // to handle layout sensitivity properly.
+  template <typename H, bool kIsLayoutSensitive = true,
+            int64_t kByteLimit = std::numeric_limits<int64_t>::max()>
+  static H Hash(H state, const LiteralBase& literal) {
+    state =
+        Shape::Hash<H, kIsLayoutSensitive>(std::move(state), literal.shape());
+
+    ShapeUtil::ForEachSubshape(literal.shape(), [&](const Shape& subshape,
+                                                    const ShapeIndex& index) {
+      if (!subshape.IsArray()) {
+        return;
+      }
+
+      CHECK(LayoutUtil::IsDenseArray(subshape));
+      const int64_t size_bytes = literal.size_bytes(index);
+      const int64_t bytes_to_hash = std::min(size_bytes, kByteLimit);
+      // When layout insensitive, we need to hash the data bytes in logical
+      // order rather than physical order.
+      const bool use_physical_order =
+          kIsLayoutSensitive || !subshape.has_layout();
+      auto data = absl::MakeConstSpan(
+          static_cast<const char*>(literal.untyped_data(index)), size_bytes);
+      if (use_physical_order) {
+        state = H::combine(std::move(state), data.first(bytes_to_hash));
+        return;
+      }
+      const int64_t elem_size =
+          ShapeUtil::ByteSizeOfPrimitiveType(subshape.element_type());
+      absl::Span<const int64_t> minor_to_major =
+          subshape.layout().minor_to_major();
+      DimensionVector elem_index(subshape.dimensions_size());
+      absl::Span<int64_t> elem_index_span(elem_index.data(), elem_index.size());
+      int64_t bytes_hashed = 0;
+      while (bytes_hashed < bytes_to_hash) {
+        int64_t offset =
+            elem_size * IndexUtil::MultidimensionalIndexToLinearIndex(
+                            subshape, minor_to_major, elem_index);
+        state = H::combine(std::move(state), data.subspan(offset, elem_size));
+        if (!IndexUtil::BumpIndices(subshape, elem_index_span)) return;
+        bytes_hashed += elem_size;
+      }
+    });
+
+    return std::move(state);
+  }
+
+  // Templated wrapper struct to control layout sensitivity during Absl::Hash.
+  template <bool layout_sensitive>
+  struct AbslHashable {
+    const LiteralBase& literal;
+    explicit AbslHashable(const LiteralBase& l) : literal(l) {}
+    template <typename H>
+    friend H AbslHashValue(H h, const AbslHashable& w) {
+      return LiteralBase::Hash<H, layout_sensitive>(std::move(h), w.literal);
+    }
+  };
+
+  // Clones the underlying buffers into a new Literal.
+  Literal Clone() const;
+  std::unique_ptr<Literal> CloneToUnique() const;
 
   // Array literals could be in one of the following three states:
   //   1) Known: we have evaluated and known the value of the array literal.
@@ -282,10 +412,24 @@ class LiteralBase {
                                   &index);
     }
 
+    // Checks whether all elements of this Piece are equal to the given literal.
+    //
+    // Returns false if this Piece is not an array.
+    //
+    // Preconditions:
+    //  - `scalar` is a scalar.
+    //  - `scalar`'s type matches that of `this`.
+    bool IsAll(const Literal& scalar) const;
+
     // Returns true if this piece and 'other' contain the same data. This piece
     // and 'other' must be array-shaped and compatible. If a literal has dynamic
     // shape, comparison is done only for the valid elements.
     bool EqualElements(const Piece& other) const;
+
+    // Copy the data from 'src' into this piece's buffer. Shapes of this piece
+    // and src must be compatible. If only_dynamic_bound is true, only elements
+    // within dynamic bounds will be copied.
+    absl::Status CopyFrom(const Piece& src, bool only_dynamic_bound);
 
    private:
     // Uninitialized state representation.
@@ -381,6 +525,10 @@ class LiteralBase {
     bool EqualElementsInternal(const Piece& other,
                                std::vector<int64_t>* multi_index) const;
 
+    // Internal helper to copy elements from another given piece
+    template <typename NativeT>
+    void CopyElementsWithDynamicBound(const LiteralBase::Piece& src);
+
     // Storage representation of this piece.
     std::variant<Uninitialized, DenseInlinedRep, DenseRep, TupleRep> rep_;
 
@@ -425,6 +573,26 @@ class MutableLiteralBase : public LiteralBase {
   void* untyped_data(const ShapeIndex& shape_index = {});
   // Unhide const method from parent class.
   using LiteralBase::untyped_data;
+
+  // Copy values from 'src_literal' rooted at 'src_shape_index' into this
+  // literal rooted at 'dest_shape_index'. The subshape of this literal rooted
+  // at 'dest_shape_index' must be compatible with the subshape of 'src_literal'
+  // rooted at 'src_shape_index', but need not be arrays. If only_dynamic_bound
+  // is true, only elements within dynamic bounds will be copied.
+  absl::Status CopyFrom(const LiteralSlice& src_literal,
+                        const ShapeIndex& dest_shape_index = {},
+                        const ShapeIndex& src_shape_index = {},
+                        bool only_dynamic_bound = false);
+
+  // Sets an element in the literal at the given index. The multi_index is
+  // CHECKed against the dimension sizes.
+  template <typename NativeT>
+  void Set(absl::Span<const int64_t> multi_index, const ShapeIndex& shape_index,
+           NativeT value);
+  // Overloads of Set for array literals. CHECKs if the literal is not
+  // array-shaped and dense.
+  template <typename NativeT>
+  void Set(absl::Span<const int64_t> multi_index, NativeT value);
 
   template <typename NativeT>
   void PopulateR1(absl::Span<const NativeT> values);
@@ -494,6 +662,25 @@ class Literal : public MutableLiteralBase {
   Piece root_piece_;
 };
 
+// A read-only view of a Literal. A LiteralSlice contains pointers to shape and
+// literal buffers always owned by others.
+class LiteralSlice : public LiteralBase {
+ public:
+  LiteralSlice() : LiteralBase() {}
+
+  // Implicit conversion constructors.
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  LiteralSlice(const LiteralBase& literal)
+      : root_piece_(&literal.root_piece()) {}
+  LiteralSlice(const LiteralBase& literal, const ShapeIndex& view_root)
+      : root_piece_(&literal.piece(view_root)) {}
+
+ private:
+  const Piece& root_piece() const override { return *root_piece_; };
+
+  const Piece* root_piece_;  // Not owned.
+};
+
 template <typename NativeT>
 absl::Span<const NativeT> LiteralBase::Piece::data() const {
   DCHECK(LayoutUtil::IsDenseArray(subshape()))
@@ -556,6 +743,37 @@ absl::Span<const NativeT> LiteralBase::data(
 template <typename NativeT>
 absl::Span<NativeT> MutableLiteralBase::data(const ShapeIndex& shape_index) {
   return piece(shape_index).data<NativeT>();
+}
+
+template <typename NativeT>
+inline NativeT LiteralBase::Get(absl::Span<const int64_t> multi_index,
+                                const ShapeIndex& shape_index) const {
+  return piece(shape_index).Get<NativeT>(multi_index);
+}
+
+template <typename NativeT>
+inline NativeT LiteralBase::Get(absl::Span<const int64_t> multi_index) const {
+  return root_piece().Get<NativeT>(multi_index);
+}
+
+template <typename NativeT>
+inline void MutableLiteralBase::Set(absl::Span<const int64_t> multi_index,
+                                    const ShapeIndex& shape_index,
+                                    NativeT value) {
+  return piece(shape_index).Set<NativeT>(multi_index, value);
+}
+
+template <typename NativeT>
+inline void MutableLiteralBase::Set(absl::Span<const int64_t> multi_index,
+                                    NativeT value) {
+  return mutable_root_piece().Set<NativeT>(multi_index, value);
+}
+
+template <typename NativeT>
+NativeT LiteralBase::GetFirstElement() const {
+  CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  return data<NativeT>().at(0);
 }
 
 template <typename NativeT>

@@ -118,6 +118,9 @@ class ShapeUtil {
     return product;
   }
 
+  // Returns true if 'shape' is an array with zero elements.
+  static bool IsZeroElementArray(const Shape& shape);
+
   // Returns the number of bytes required for an allocation of shape. The
   // |pointer_size| parameter is used for calculating the size of tuple
   // shapes. This includes only the size of the top-level buffer. For example, a
@@ -148,10 +151,21 @@ class ShapeUtil {
   static void PrintHumanString(Printer* printer, const Shape& shape);
   static void PrintHumanStringWithLayout(Printer* printer, const Shape& shape);
 
+  // As above, but for program shapes, prints a string for the form:
+  //
+  // (param_name: u32[42x12], ...) -> u32[24x42]
+  static void PrintHumanString(Printer* printer,
+                               const ProgramShape& program_shape);
+
   // Returns a human-readable string that represents the given shape, with or
   // without layout. e.g. "u32[42x12] {0, 1}" or "u32[64]".
   static std::string HumanString(const Shape& shape);
   static std::string HumanStringWithLayout(const Shape& shape);
+
+  // As above, but for program shapes, returns a string for the form:
+  //
+  // (param_name: u32[42x12], ...) -> u32[24x42]
+  static std::string HumanString(const ProgramShape& program_shape);
 
   // Returns whether the LHS and RHS shapes have the same rank; note: does
   // not check element type.
@@ -164,6 +178,16 @@ class ShapeUtil {
   static bool SameElementType(const Shape& lhs, const Shape& rhs) {
     return lhs.element_type() == rhs.element_type();
   }
+
+  // Returns true if the rank, dimension sizes, and element type are
+  // identical. Layout is ignored. Tuple elements are compared recursively for
+  // compatibility.
+  static bool Compatible(const Shape& lhs, const Shape& rhs);
+
+  // Returns true if the tuple tree shapes and leaf ranks are identical.
+  // Leaf dimensions, element type, and layout are ignored. Tuple elements are
+  // compared recursively for compatibility.
+  static bool CompatibleKind(const Shape& lhs, const Shape& rhs);
 
   // Returns whether the lhs and rhs shapes are identical.
   static bool Equal(const Shape& lhs, const Shape& rhs);
@@ -185,10 +209,31 @@ class ShapeUtil {
     return shape.IsArray() && shape.rank() == 0;
   }
 
+  // Creates a tuple shape from a slice of element shapes within the tuple.
+  static Shape MakeTupleShape(absl::Span<const Shape> shapes);
+  static Shape MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes);
+
+  // Creates an opaque shape. These are generally used for threading a context
+  // into a custom operation.
+  static Shape MakeOpaqueShape();
+
+  // Creates a token shape. Values of this shape are used for ordering
+  // side-effecting operations.
+  static Shape MakeTokenShape();
+
+  // Appends a shape to the given tuple.
+  static void AppendShapeToTuple(const Shape& shape, Shape* tuple_shape);
+
+  // Returns an empty tuple shape. Can be used as a sentinel Shape value.
+  static Shape MakeNil() { return MakeTupleShape({}); }
+
   // Constructs a new shape with the given element type and sequence of
   // dimensions.
   static Shape MakeShape(PrimitiveType element_type,
                          absl::Span<const int64_t> dimensions);
+
+  // Make a scalar shape with given primitive type.
+  static Shape MakeScalarShape(PrimitiveType element_type);
 
   // Validates that the provided shape satisfies invariants.
   static absl::Status ValidateShape(const Shape& shape);
@@ -204,6 +249,9 @@ class ShapeUtil {
   // Precondition: IsTuple(shape)
   static int64_t TupleElementCount(const Shape& shape);
 
+  // Returns the number of elements, recursively, in the given shape.
+  static int64_t SubshapeCount(const Shape& shape);
+
   // Returns true if the given shape has a subshape at the given index.
   static bool IndexIsValid(const Shape& shape, ShapeIndexView index);
 
@@ -218,6 +266,14 @@ class ShapeUtil {
   static absl::StatusOr<const Shape*> TryGetSubshape(const Shape& shape,
                                                      ShapeIndexView index);
   static Shape* GetMutableSubshape(Shape* shape, ShapeIndexView index);
+
+  // Returns whether the given index in the given shape is a leaf element of the
+  // shape.
+  static bool IsLeafIndex(const Shape& shape, const ShapeIndex& index);
+
+  // Returns the number of leaves in the shape.
+  static int64_t GetLeafCount(const Shape& shape);
+  static int64_t GetLeafCountTuple(const Shape& shape);
 
   // Calls the given visitor function for each subshape of the given shape.
   // Subshapes are visited in DFS pre-order starting with the entire shape
@@ -266,6 +322,15 @@ class ShapeUtil {
     ShapeIndex index;
     return ForEachMutableSubshapeWithStatusHelper(shape, fn, &index);
   }
+
+  // Returns true if `dynamic_shape` has dimensions that are less-equal to the
+  // "bounded_shape". Shapes must be arrays.
+  static bool DynamicArrayShapeIsCompatible(const Shape& dynamic_shape,
+                                            const Shape& bounded_shape);
+
+  // Same as DynamicArrayShapeIsCompatible() but supports tuples.
+  static bool DynamicShapeIsCompatible(const Shape& dynamic_shape,
+                                       const Shape& bounded_shape);
 
  private:
   // Fills *shape ignoring dynamic dimensions. Returns true on success.

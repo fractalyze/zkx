@@ -3,7 +3,8 @@
 This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a2/xla/tsl/lib/gtl).
 
 ```shell
-> diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
+diff -r /path/to/openxla/xla/xla/tsl/lib/gtl xla/tsl/lib/gtl
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 1,10c1,2
 < load("//xla/tsl:tsl.bzl", "internal_visibility")
 < load("//xla/tsl:tsl.default.bzl", "filegroup")
@@ -101,21 +102,18 @@ This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a
 ---
 >         "@com_google_absl//absl/base:core_headers",
 >         "@com_google_absl//absl/hash",
-98,208c19
-< cc_library(
-<     name = "iterator_range",
-<     hdrs = ["iterator_range.h"],
-< )
-<
-< cc_library(
-<     name = "map_util",
+100a22,25
+>     deps = [
+>         "@com_google_absl//absl/base:core_headers",
+>         "@com_google_absl//absl/hash",
+>     ],
+105c30
 <     srcs = [
-<         "map_util.h",
-<         "//xla/tsl/lib/gtl/subtle:map_traits",
-<     ],
+---
+>     hdrs = [
+109d33
 <     hdrs = ["map_util.h"],
-< )
-<
+112,208c36
 < filegroup(
 <     name = "legacy_lib_gtl_headers",
 <     srcs = [
@@ -215,20 +213,15 @@ This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a
 < tsl_cc_test(
 ---
 > zkx_cc_unittest(
-211,213d21
+211,213d38
 <         "compactptrset_test.cc",
 <         "flatmap_test.cc",
 <         "flatset_test.cc",
-215,216d22
-<         "iterator_range_test.cc",
-<         "map_util_test.cc",
-219,221d24
+219,221d43
 <         ":compactptrset",
 <         ":flatmap",
 <         ":flatset",
-223,229d25
-<         ":iterator_range",
-<         ":map_util",
+225,229d46
 <         "//xla/tsl/platform:macros",
 <         "//xla/tsl/platform:test",
 <         "//xla/tsl/platform:types",
@@ -310,9 +303,45 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/int_type_test.cc xla/tsl/li
 <   EXPECT_EQ(static_cast<uint64>(i), int_type.template value<uint64>());
 ---
 >   EXPECT_EQ(static_cast<uint64_t>(i), int_type.template value<uint64_t>());
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: iterator_range.h
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: iterator_range_test.cc
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: map_util.h
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: map_util_test.cc
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: subtle
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/iterator_range_test.cc xla/tsl/lib/gtl/iterator_range_test.cc
+20,22c20
+< #include "xla/tsl/platform/macros.h"
+< #include "xla/tsl/platform/test.h"
+< #include "xla/tsl/platform/types.h"
+---
+> #include "gtest/gtest.h"
+57c55
+<     ASSERT_LT(index, TF_ARRAYSIZE(v));
+---
+>     ASSERT_LT(index, std::size(v));
+69c67
+<     ASSERT_LT(index, TF_ARRAYSIZE(v));
+---
+>     ASSERT_LT(index, std::size(v));
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/map_util_test.cc xla/tsl/lib/gtl/map_util_test.cc
+22,23c22
+< #include "xla/tsl/platform/test.h"
+< #include "xla/tsl/platform/types.h"
+---
+> #include "gtest/gtest.h"
+28c27
+<   typedef std::map<string, string> Map;
+---
+>   typedef std::map<std::string, std::string> Map;
+42c41
+<   typedef std::map<string, string> Map;
+---
+>   typedef std::map<std::string, std::string> Map;
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/subtle/BUILD xla/tsl/lib/gtl/subtle/BUILD
+4,6d3
+< load("//xla/tsl:tsl.bzl", "internal_visibility")
+< load("//xla/tsl:tsl.default.bzl", "filegroup")
+<
+8a6
+>     default_visibility = ["//visibility:public"],
+17,20d14
+<     visibility = internal_visibility([
+<         "//tensorflow/core/lib/gtl/subtle:__pkg__",
+<         "//xla/tsl/lib/gtl:__pkg__",
+<     ]),
 ```

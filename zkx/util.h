@@ -27,9 +27,11 @@ limitations under the License.
 #include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/status/status.h"
 #include "absl/types/span.h"
 
 #include "xla/tsl/lib/math/math_util.h"
+#include "zkx/status_macros.h"
 
 namespace zkx {
 
@@ -91,6 +93,16 @@ int64_t Product(absl::Span<const int64_t> xs);
 template <typename T>
 std::vector<T> SpanToVector(absl::Span<const T> slice) {
   return std::vector<T>(slice.begin(), slice.end());
+}
+
+template <typename T>
+absl::Status EraseElementFromVector(std::vector<T>* container, const T& value) {
+  // absl::c_find returns a const_iterator which does not seem to work on
+  // gcc 4.8.4, and this breaks the ubuntu/xla_gpu build bot.
+  auto it = std::find(container->begin(), container->end(), value);
+  TF_RET_CHECK(it != container->end());
+  container->erase(it);
+  return absl::OkStatus();
 }
 
 // Returns a container with `sorted_ids_to_remove` elements removed.

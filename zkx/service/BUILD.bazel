@@ -1,6 +1,27 @@
+load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+cc_proto_library(
+    name = "hlo_proto",
+    srcs = ["hlo.proto"],
+    deps = [
+        ":metrics_proto",
+        "@com_google_protobuf//:cc_wkt_protos",
+    ],
+)
+
+cc_proto_library(
+    name = "metrics_proto",
+    srcs = ["metrics.proto"],
+)
+
+cc_proto_library(
+    name = "test_compilation_environment_proto",
+    testonly = True,
+    srcs = ["test_compilation_environment.proto"],
+)
 
 zkx_cc_library(
     name = "buffer_assignment",
@@ -20,9 +41,24 @@ zkx_cc_library(
     hdrs = ["buffer_value.h"],
     deps = [
         "//zkx:shape_util",
-        "//zkx/hlo/ir:hlo_instruction",
+        "//zkx/hlo/ir:hlo",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "computation_layout",
+    srcs = ["computation_layout.cc"],
+    hdrs = ["computation_layout.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//zkx:shape_layout",
+        "//zkx:shape_util",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )
 
@@ -41,6 +77,28 @@ zkx_cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "compilation_environments",
+    srcs = ["compilation_environments.cc"],
+    hdrs = ["compilation_environments.h"],
+    deps = [
+        "//xla/tsl/platform:casts",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:zkx_proto",
+        "//zkx/base:vlog",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
     ],
 )
 
@@ -76,13 +134,50 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_module_config",
+    srcs = ["hlo_module_config.cc"],
+    hdrs = ["hlo_module_config.h"],
+    deps = [
+        ":computation_layout",
+        ":computation_placer",
+        ":sharding_config",
+        "//zkx:shape_util",
+        "//zkx:zkx_proto",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "logical_buffer",
     srcs = ["logical_buffer.cc"],
     hdrs = ["logical_buffer.h"],
     deps = [
         ":buffer_value",
         "//zkx:shape_util",
-        "//zkx/hlo/ir:hlo_instruction",
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "mapped_ptr_container_sorter",
+    hdrs = ["mapped_ptr_container_sorter.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:vlog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -95,6 +190,19 @@ zkx_cc_library(
         "//zkx/stream_executor:device_memory",
         "//zkx/stream_executor:device_memory_allocator",
         "//zkx/stream_executor:namespace_alias",
+    ],
+)
+
+zkx_cc_library(
+    name = "name_uniquer",
+    srcs = ["name_uniquer.cc"],
+    hdrs = ["name_uniquer.h"],
+    deps = [
+        "//zkx:primitive_util",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -122,12 +230,37 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "sharding_config",
+    srcs = ["sharding_config.cc"],
+    hdrs = ["sharding_config.h"],
+    deps = [
+        "//zkx:zkx_proto",
+        "//zkx/hlo/ir:hlo_sharding",
+    ],
+)
+
 zkx_cc_unittest(
     name = "service_unittests",
-    srcs = ["rendezvous_unittest.cc"],
+    srcs = [
+        "compilation_environments_unittest.cc",
+        "hlo_module_config_unittest.cc",
+        "mapped_ptr_container_sorter_unittest.cc",
+        "name_uniquer_unittest.cc",
+        "rendezvous_unittest.cc",
+        "sharding_config_unittest.cc",
+    ],
     deps = [
+        ":compilation_environments",
+        ":hlo_module_config",
+        ":mapped_ptr_container_sorter",
+        ":name_uniquer",
         ":rendezvous",
+        ":sharding_config",
+        ":test_compilation_environment_proto",
+        "//xla/tsl/platform:statusor",
         "//xla/tsl/platform:thread_pool",
+        "//zkx/tests:test_utils",
         "@com_google_absl//absl/synchronization",
     ],
 )

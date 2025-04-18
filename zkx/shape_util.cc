@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/shape_util.h"
 
+#include "absl/algorithm/container.h"
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
@@ -148,6 +149,29 @@ absl::Status ValidateNonLayoutProperties(const Shape& shape) {
   return absl::OkStatus();
 }
 
+template <typename T>
+const T& Deref(const T* ptr) {
+  DCHECK(ptr != nullptr);
+  return *ptr;
+}
+
+template <typename T>
+const T& Deref(const T& ref) {
+  return ref;
+}
+
+template <typename ShapePtrOrRef>
+Shape MakeTupleShapeImpl(absl::Span<ShapePtrOrRef> shapes) {
+  Shape result;
+  result.set_element_type(TUPLE);
+  result.mutable_tuple_shapes()->reserve(shapes.size());
+  for (const auto& shape : shapes) {
+    ShapeUtil::AppendShapeToTuple(Deref(shape), &result);
+  }
+  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(result));
+  return result;
+}
+
 }  // namespace
 
 std::string ShapeIndex::ToString() const {
@@ -231,8 +255,58 @@ Shape ShapeUtil::MakeShape(PrimitiveType element_type,
 }
 
 // static
+Shape ShapeUtil::MakeScalarShape(PrimitiveType element_type) {
+  return MakeShape(element_type, {});
+}
+
+// static
+Shape ShapeUtil::MakeTupleShape(absl::Span<const Shape> shapes) {
+  return MakeTupleShapeImpl(shapes);
+}
+
+// static
+Shape ShapeUtil::MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes) {
+  return MakeTupleShapeImpl(shapes);
+}
+
+// static
+Shape ShapeUtil::MakeOpaqueShape() {
+  Shape result;
+  result.set_element_type(OPAQUE_TYPE);
+  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(result));
+  return result;
+}
+
+// static
+Shape ShapeUtil::MakeTokenShape() {
+  Shape result;
+  result.set_element_type(TOKEN);
+  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(result));
+  return result;
+}
+
+// static
+void ShapeUtil::AppendShapeToTuple(const Shape& shape, Shape* tuple_shape) {
+  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
+  *tuple_shape->add_tuple_shapes() = shape;
+}
+
+// static
 int64_t ShapeUtil::TupleElementCount(const Shape& shape) {
   return shape.tuple_shapes_size();
+}
+
+// static
+int64_t ShapeUtil::SubshapeCount(const Shape& shape) {
+  int64_t n = 0;
+  ForEachSubshape(shape, [&](const Shape& literal_subshape,
+                             const ShapeIndex& index) { ++n; });
+  return n;
+}
+
+// static
+bool ShapeUtil::IsZeroElementArray(const Shape& shape) {
+  return shape.IsArray() && absl::c_linear_search(shape.dimensions(), 0);
 }
 
 // static
@@ -288,6 +362,31 @@ void ShapeUtil::PrintHumanStringWithLayout(Printer* printer,
 }
 
 // static
+void ShapeUtil::PrintHumanString(Printer* printer,
+                                 const ProgramShape& program_shape) {
+  printer->Append("(");
+  const auto& shape_parameters = program_shape.parameters();
+  if (!shape_parameters.empty()) {
+    auto print_one = [&](int i) {
+      if (i < program_shape.parameter_names_size()) {
+        printer->Append(program_shape.parameter_names(i));
+      } else {
+        printer->Append("(unknown)");
+      }
+      printer->Append(": ");
+      PrintHumanString(printer, shape_parameters[i]);
+    };
+    print_one(0);
+    for (int i = 1; i < shape_parameters.size(); ++i) {
+      printer->Append(", ");
+      print_one(i);
+    }
+  }
+  printer->Append(") -> ");
+  PrintHumanString(printer, program_shape.result());
+}
+
+// static
 std::string ShapeUtil::HumanString(const Shape& shape) {
   StringPrinter printer;
   PrintHumanString(&printer, shape);
@@ -299,6 +398,27 @@ std::string ShapeUtil::HumanStringWithLayout(const Shape& shape) {
   StringPrinter printer;
   PrintHumanStringWithLayout(&printer, shape);
   return std::move(printer).ToString();
+}
+
+// static
+std::string ShapeUtil::HumanString(const ProgramShape& program_shape) {
+  StringPrinter printer;
+  PrintHumanString(&printer, program_shape);
+  return std::move(printer).ToString();
+}
+
+// static
+bool ShapeUtil::Compatible(const Shape& lhs, const Shape& rhs) {
+  return Shape::Equal().IgnoreDynamicDimension().IgnoreLayout()(lhs, rhs);
+}
+
+// static
+bool ShapeUtil::CompatibleKind(const Shape& lhs, const Shape& rhs) {
+  return Shape::Equal()
+      .IgnoreElementType()
+      .IgnoreLayout()
+      .IgnoreDimensions()
+      .IgnoreDynamicDimension()(lhs, rhs);
 }
 
 // static
@@ -419,6 +539,78 @@ Shape* ShapeUtil::GetMutableSubshape(Shape* shape, ShapeIndexView index) {
     return_shape = return_shape->mutable_tuple_shapes(i);
   }
   return return_shape;
+}
+
+// static
+bool ShapeUtil::IsLeafIndex(const Shape& shape, const ShapeIndex& index) {
+  return !GetSubshape(shape, index).IsTuple();
+}
+
+// static
+int64_t ShapeUtil::GetLeafCountTuple(const Shape& shape) {
+  DCHECK(shape.IsTuple());
+  int64_t count = 0;
+  for (const Shape& subshape : shape.tuple_shapes()) {
+    if (subshape.IsTuple()) {
+      count += GetLeafCount(subshape);
+    } else {
+      ++count;
+    }
+  }
+  return count;
+}
+
+// static
+int64_t ShapeUtil::GetLeafCount(const Shape& shape) {
+  if (!shape.IsTuple()) {
+    return 1;
+  }
+  return GetLeafCountTuple(shape);
+}
+
+// static
+bool ShapeUtil::DynamicArrayShapeIsCompatible(const Shape& dynamic_shape,
+                                              const Shape& bounded_shape) {
+  if (dynamic_shape.rank() != bounded_shape.rank()) {
+    return false;
+  }
+  for (int64_t i = 0; i < dynamic_shape.rank(); ++i) {
+    if (dynamic_shape.dimensions(i) > bounded_shape.dimensions(i)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// static
+bool ShapeUtil::DynamicShapeIsCompatible(const Shape& dynamic_shape,
+                                         const Shape& bounded_shape) {
+  bool compatible = true;
+  ShapeUtil::ForEachSubshape(
+      dynamic_shape, [&](const Shape& sub_shape, const ShapeIndex& index) {
+        if (compatible) {
+          auto subshape_result = TryGetSubshape(bounded_shape, index);
+          if (subshape_result.ok()) {
+            const Shape* bounded_sub_shape = std::move(subshape_result).value();
+            if (sub_shape.IsTuple()) {
+              if (!bounded_sub_shape->IsTuple()) {
+                compatible = false;
+              }
+            } else {
+              if (bounded_sub_shape->IsTuple()) {
+                compatible = false;
+              } else if (!sub_shape.is_static() &&
+                         !DynamicArrayShapeIsCompatible(sub_shape,
+                                                        *bounded_sub_shape)) {
+                compatible = false;
+              }
+            }
+          } else {
+            compatible = false;
+          }
+        }
+      });
+  return compatible;
 }
 
 }  // namespace zkx

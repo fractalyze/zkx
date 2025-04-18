@@ -229,6 +229,111 @@ message ShapeProto {
   // the new field.
 }
 
+// Shape of the parameters and output of a computation (like a traditional
+// function signature).
+message ProgramShapeProto {
+  repeated ShapeProto parameters = 1;
+  ShapeProto result = 2;
+  repeated string parameter_names = 3;
+}
+
+// The type optimization profiles in use for Op-level optimizations.
+enum ProfileType {
+  INVALID = 0;
+  WINDOW = 1;
+  FLAG = 2;
+  INTEGER = 3;
+}
+
+// The source of the optimization profile.
+enum ProfileSource {
+  PROFILE_SOURCE_UNKNOWN_SOURCE = 0;
+  PROFILE_SOURCE_EMBEDDED = 1;
+  PROFILE_SOURCE_REMOTE = 2;
+}
+
+// The compilation event that triggered the use of the profile.
+enum CompilationEvent {
+  COMPILATION_EVENT_UNKNOWN_EVENT = 0;
+  COMPILATION_EVENT_FIRST_COMPILATION = 1;
+  COMPILATION_EVENT_RECOMPILATION = 2;
+}
+
+// Symbolization metadata for HLO Instructions.
+//
+// This metadata is used for debugging ZKX code generation, as well as
+// performance profiling of ZKX-generated executables.
+message OpMetadata {
+  // The framework op name that generated this ZKX op.
+  //
+  // TODO(chokobole): Replace SoftMax with the appropriate op_type.
+  // Frameworks that build on top of ZKX should mirror the names of their ops
+  // back to users by specifying the op_type. In this way, even if the
+  // framework's "ops" are implemented as multiple ZKX HLO Ops, they can be
+  // grouped appropriately. (e.g. if a SoftMax layer is emitted into ZKX as
+  // multiple ops, then each op should have the op_type be "SoftMax".)
+  string op_type = 1;
+  // The user-specified name of the op.
+  //
+  // This name is often unique within a computation. Note: some frameworks
+  // add auto-generated names if the user does not provide one.
+  string op_name = 2;
+  // Indicate a file and line that this op is associated to in a user's program.
+  //
+  // e.g. it could be the file and line of user code that generated the op.
+  string source_file = 3;
+  int32 source_line = 4;
+
+  reserved 5;
+  reserved "creation_pass_id";
+
+  reserved 6;
+  reserved "logical_creation_pass_id";
+
+  // The footprint of the generated code for the instruction.
+  int64 size_of_generated_code_in_bytes = 7;
+  // The size of the working set, i.e., the amount of memory, used by the
+  // instruction in a compiler-managed fast device memory.
+  int64 size_of_memory_working_set_in_bytes = 8;
+
+  // Information about the optimization profile that this operation contains.
+  message ProfileInfo {
+    // The type of optimization profiles that this operation contains.
+    repeated ProfileType profile_type = 1;
+    // Speedup of tuned config compared to default config.
+    // TODO(b/203817882) Set the relative_speedup.
+    double relative_speedup = 2;
+    // The source of the optimization profiles that this operation contains.
+    ProfileSource profile_source = 3;
+    // The compilation event that triggered the use of the profiles.
+    CompilationEvent compilation_event = 4;
+  }
+
+  // Profile information for the Op.
+  ProfileInfo profile_info = 9;
+
+  reserved 10;
+
+  // Deduplicated HLO name for this op. In some cases, we can have multiple
+  // instructions (e.g. fusions) that are considered duplicates. We want to
+  // group them together under the same name so that we can group them together
+  // during analysis (e.g. HLO Op Profile tool in Xprof).
+  // E.g. If we have fusion.1, fusion.2, and fusion.3 marked as duplicates,
+  // fusion.2 and fusion.3 will have deduplicated_name = fusion.1
+  string deduplicated_name = 11;
+
+  reserved 12;
+
+  reserved 13;
+
+  // 1-based position of the frame in frames flat array.
+  // Ids are 1-based to keep 0 value as representation of non-set property.
+  int32 stack_frame_id = 14;
+
+  // Instruction name available upon scheduling.
+  string scheduling_name = 15;
+}
+
 // DeviceAssignmentProto is a serialized form of DeviceAssignment class, which
 // represents the device ids assigned to a set of replicated computations.
 // See zkx::DeviceAssignment class comment for more details.
@@ -272,10 +377,129 @@ message LiteralProto {
   repeated int64 sparse_indices = 18;
 }
 
+// Generic map of attributes used to pass hints / configuration options from
+// the Python frontend to the XLA backend.
+message FrontendAttributes {
+  map<string, string> map = 1;
+}
+
+// Represents a single statistic to track.
+message Statistic {
+  // Must be a single word consisting of any alphanumeric characters
+  string stat_name = 1;
+  // Must be within a range of [0, 100], in order for the graph dumper to
+  // properly render the statistic onto the graph.
+  double stat_val = 2;
+}
+
+// Represents the information needed to visualize propagation statistics when
+// rendering an HLO graph. This includes an array of statistics as well as the
+// index of the statistic to render.
+message StatisticsViz {
+  int64 stat_index_to_visualize = 1;
+  repeated Statistic statistics = 2;
+}
+
+message OpSharding {
+  enum Type {
+    // This sharding is replicated across all devices (implies maximal,
+    // all other fields are unused).
+    REPLICATED = 0;
+    // This sharding is maximal - one device runs the entire operation.
+    MAXIMAL = 1;
+    // This sharding is a tuple - only the tuple_shardings field is valid.
+    TUPLE = 2;
+    // None of the above; tile_shape and tile_assignment are both used.
+    OTHER = 3;
+    // This op is manually sharded: the shapes are already partitioned and the
+    // partitioner should not change this op.
+    MANUAL = 4;
+    // This sharding is a placeholder sharding with lowest precedence, it can be
+    // overwritten by any other shardings.
+    UNKNOWN = 5;
+  }
+  Type type = 1;
+  // The shape of the sharded tile.
+  ShapeProto tile_shape = 2;
+  // The shape of the tile assignment tensor - this must be the same rank as
+  // tile_shape and the product of its dimensions must equal
+  // tile_assignment_devices.size().
+  repeated int64 tile_assignment_dimensions = 3;
+  // Flattened list of device IDs. The order of flattening is the same as used
+  // by IndexUtil::MultiToLinearIndex(tile_assignment_shape).
+  // Only one of tile_assignment_devices and iota_dimensions shall be non-empty.
+  repeated int64 tile_assignment_devices = 4;
+  // If type == TUPLE, the sub-shardings, one per leaf node in the tuple shape,
+  // in pre-order. The tuple shape could be nested; here we store just a
+  // flattened list of all leaves in the tuple shape. Note that the tuple shape
+  // is not stored here; shardings do not store the shapes to which they are
+  // applied, this is inferred from the instruction this sharding gets attached
+  // to.
+  repeated OpSharding tuple_shardings = 5;
+
+  // Only used for OTHER type. If true, data is sharded according to other
+  // dimensions of tile_assignment(), but replicated across devices along the
+  // last dimension. (Experimental)
+  bool replicate_on_last_tile_dim = 6;
+  // This field is used to track the source of this sharding, usually derived
+  // from instructions. Multiple metadata may be populated if sharding is
+  // combined with other shardings.  Metadata are to not be populated when
+  // type == TUPLE and instead metadata should be set on individual tuple
+  // elements.
+  repeated OpMetadata metadata = 7;
+
+  // This field is used to represented the sharding type of each subgroup.
+  // For example, sharding={devices=[2,2,2,2]0,1,2,...,15 last_tile_dims={
+  // replicate, manual, unreduced}} means that each of the last 3 dimensions
+  // in [2,2,2,2] represents a subgrouping in replicate, manual,
+  // unreduced sharding type respectively.
+  repeated Type last_tile_dims = 8;
+
+  // Dimensions used to reshape the 1D iota array of device IDs.
+  // Only one of tile_assignment_devices and iota_reshape_dims shall be
+  // non-empty.
+  repeated int64 iota_reshape_dims = 9;
+
+  // Dimension permutations to transposed the iota array reshaped to
+  // iota_reshape_dims. This must have the same size as iota_reshape_dims.
+  repeated int32 iota_transpose_perm = 10;
+
+  // This field decides whether this op is in a shard group.
+  bool is_shard_group = 11;
+
+  // This field is used to store the unique id of the shard group.
+  int64 shard_group_id = 12;
+
+  // Used to decide whether this op is to be sharded like some other ops, or to
+  // which other ops will be sharded like.
+  enum ShardGroupType {
+    // This op will be sharded exactly the same as the other op. (hard
+    // restriction)
+    AS = 0;
+    // This op will try to allow sharding propagation within the same group even
+    // there is no data dependencies among them, but there is no guarantee that
+    // the final shardings within the same group will be exactly the same. (soft
+    // restriction)
+    LIKE = 1;
+  }
+
+  ShardGroupType shard_group_type = 13;
+}
+
 // Describes the replica groups in a cross replica op (e.g., all-reduce and
 // all-to-all).
 message ReplicaGroup {
   // The ids of the replicas that belongs to the same group. The ordering of the
   // ids matters in some ops (e.g., all-to-all).
   repeated int64 replica_ids = 1;
+}
+
+message OriginalArrayProto {
+  repeated int64 leaf_shape_index = 1;
+  string instruction_name = 2;
+  repeated int64 shape_index = 3;
+}
+
+message OriginalValueProto {
+  repeated OriginalArrayProto leaves = 1;
 }
