@@ -20,6 +20,8 @@ limitations under the License.
 #include <thread>
 #include <utility>
 
+#include "absl/base/attributes.h"
+#include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -29,7 +31,7 @@ limitations under the License.
 
 namespace tsl {
 
-absl::Mutex g_name_mutex;
+ABSL_CONST_INIT absl::Mutex g_name_mutex(absl::kConstInit);
 
 std::map<std::thread::id, std::string>& GetThreadNameRegistry()
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(g_name_mutex) {
