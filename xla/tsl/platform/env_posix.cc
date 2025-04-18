@@ -85,11 +85,11 @@ class PThread : public Thread {
   pthread_t thread_;
 };
 
-class PosixEnv : public Env {
+class EnvPosix : public Env {
  public:
-  PosixEnv() {}
+  EnvPosix() {}
 
-  ~PosixEnv() override { LOG(FATAL) << "Env::Default() must not be destroyed"; }
+  ~EnvPosix() override { LOG(FATAL) << "Env::Default() must not be destroyed"; }
 
   Thread* StartThread(const ThreadOptions& thread_options,
                       std::string_view name,
@@ -120,7 +120,7 @@ class PosixEnv : public Env {
 };
 
 Env* Env::Default() {
-  static Env* default_env = new PosixEnv;
+  static Env* default_env = new EnvPosix;
   return default_env;
 }
 
