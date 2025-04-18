@@ -65,6 +65,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "host_info",
+    srcs = if_posix(["host_info_posix.cc"]),
+    hdrs = ["host_info.h"],
+)
+
+zkx_cc_library(
     name = "human_readable_json",
     srcs = ["human_readable_json.cc"],
     hdrs = ["human_readable_json.h"],
