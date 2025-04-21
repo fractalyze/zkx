@@ -127,6 +127,7 @@ zkx_cc_library(
     srcs = ["path.cc"],
     hdrs = ["path.h"],
     deps = [
+        ":platform",
         ":scanner",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
