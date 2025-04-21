@@ -58,7 +58,7 @@ std::string ZkxSrcRoot() {
 std::string TslSrcRoot() {
   std::string workspace = GetEnvVarOrDie("TEST_WORKSPACE");
   std::string srcdir = GetEnvVarOrDie("TEST_SRCDIR");
-  return io::JoinPath(srcdir, workspace, "tsl");
+  return io::JoinPath(srcdir, workspace, "xla", "tsl");
 }
 
 std::string GetDataDependencyFilepath(std::string_view relative_path) {
