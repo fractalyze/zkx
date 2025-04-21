@@ -1,0 +1,21 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "file_check",
+    testonly = True,
+    srcs = ["file_check.cc"],
+    hdrs = ["file_check.h"],
+    data = ["@llvm-project//llvm:FileCheck"],
+    deps = [
+        "//xla/tsl/platform",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:subprocess",
+        "//xla/tsl/platform:test_util",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
