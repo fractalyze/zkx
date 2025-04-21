@@ -170,6 +170,11 @@ class ShapeUtil {
   // (param_name: u32[42x12], ...) -> u32[24x42]
   static std::string HumanString(const ProgramShape& program_shape);
 
+  // Returns whether the LHS and RHS shapes have the same dimensions, ignoring
+  // the unbounded dimension sizes; note: does not check element type.
+  // Precondition: IsArray(lhs) && IsArray(rhs)
+  static bool SameDimensions(const Shape& lhs, const Shape& rhs);
+
   // Returns whether the LHS and RHS shapes have the same rank; note: does
   // not check element type.
   // Precondition: IsArray(lhs) && IsArray(rhs)

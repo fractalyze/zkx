@@ -613,6 +613,20 @@ std::string ShapeUtil::HumanString(const ProgramShape& program_shape) {
 }
 
 // static
+bool ShapeUtil::SameDimensions(const Shape& lhs, const Shape& rhs) {
+  if (!SameRank(lhs, rhs)) return false;
+  for (int i = 0; i < lhs.rank(); ++i) {
+    if (!lhs.is_unbounded_dynamic_dimension(i) &&
+        !rhs.is_unbounded_dynamic_dimension(i) &&
+        lhs.dimensions(i) != rhs.dimensions(i)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// static
 bool ShapeUtil::Compatible(const Shape& lhs, const Shape& rhs) {
   return Shape::Equal().IgnoreDynamicDimension().IgnoreLayout()(lhs, rhs);
 }
