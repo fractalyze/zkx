@@ -16,6 +16,8 @@ limitations under the License.
 #ifndef ZKX_LITERAL_UTIL_H_
 #define ZKX_LITERAL_UTIL_H_
 
+#include <initializer_list>
+
 #include "absl/types/span.h"
 
 #include "zkx/literal.h"
@@ -26,13 +28,65 @@ namespace zkx {
 
 class LiteralUtil {
  public:
+  // Creates a new literal of a given rank. To minimize ambiguity (for users
+  // and the compiler) these CreateR[0-2] methods should explicitly specify the
+  // native type. For example:
+  //
+  //  CreateR1<float>({1.0, 42.0});
+  //  CreateR2<uint32_t>({{1, 2}, {3, 4}});
+  //
+  // The variants not ending with WithLayout use the default ZKX layout for the
+  // literal's linear representation in memory.
+  template <typename NativeT>
+  static Literal CreateR0(NativeT value);
+  template <typename T>
+  static Literal CreateR0(PrimitiveType primitive_type, T value);
   template <typename NativeT>
   static Literal CreateR1(absl::Span<const NativeT> values);
+  // TODO(chokobole): Uncomment this. Dependency: Bitmap
+  // static Literal CreateR1(const tsl::core::Bitmap& values);
+  template <typename NativeT>
+  static Literal CreateR2(
+      std::initializer_list<std::initializer_list<NativeT>> values);
+  template <typename NativeT>
+  static Literal CreateR2WithLayout(
+      std::initializer_list<std::initializer_list<NativeT>> values,
+      const Layout& layout);
+  template <typename NativeT>
+  static Literal CreateR3(std::initializer_list<
+                          std::initializer_list<std::initializer_list<NativeT>>>
+                              values);
+  template <typename NativeT>
+  static Literal CreateR3WithLayout(
+      std::initializer_list<
+          std::initializer_list<std::initializer_list<NativeT>>>
+          values,
+      const Layout& layout);
 
   template <typename NativeT>
   static Literal CreateFull(absl::Span<const int64_t> dimensions,
                             NativeT value);
 };
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateR0(NativeT value) {
+  Literal literal(ShapeUtil::MakeShape(
+      primitive_util::NativeToPrimitiveType<NativeT>(), {}));
+  literal.Set({}, value);
+  return literal;
+}
+
+// static
+template <typename T>
+Literal LiteralUtil::CreateR0(PrimitiveType primitive_type, T value) {
+  return primitive_util::ArrayTypeSwitch<Literal>(
+      [&value](auto type) {
+        using NativeT = primitive_util::NativeTypeOf<type>;
+        return CreateR0(static_cast<NativeT>(value));
+      },
+      primitive_type);
+}
 
 // static
 template <typename NativeT>
@@ -42,6 +96,61 @@ Literal LiteralUtil::CreateR1(absl::Span<const NativeT> values) {
                            {static_cast<int64_t>(values.size())}));
   literal.PopulateR1(values);
   return literal;
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateR2WithLayout(
+    std::initializer_list<std::initializer_list<NativeT>> values,
+    const Layout& layout) {
+  Literal literal(ShapeUtil::MakeShapeWithDenseLayout(
+      primitive_util::NativeToPrimitiveType<NativeT>(),
+      {static_cast<int64_t>(values.size()),
+       static_cast<int64_t>(values.begin()->size())},
+      layout.minor_to_major()));
+  literal.PopulateR2(values);
+  return literal;
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateR2(
+    std::initializer_list<std::initializer_list<NativeT>> values) {
+  return CreateR2WithLayout(values, LayoutUtil::GetDefaultLayoutForR2());
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateR3WithLayout(
+    std::initializer_list<std::initializer_list<std::initializer_list<NativeT>>>
+        values,
+    const Layout& layout) {
+  const int64_t d0 = values.size();
+  const int64_t d1 = values.begin()->size();
+  const int64_t d2 = values.begin()->begin()->size();
+  Array3D<NativeT> tmp(d0, d1, d2);
+  int64_t i0 = 0;
+  for (auto d1_values : values) {
+    int64_t i1 = 0;
+    for (auto d2_values : d1_values) {
+      int64_t i2 = 0;
+      for (auto value : d2_values) {
+        tmp(i0, i1, i2) = value;
+        ++i2;
+      }
+      ++i1;
+    }
+    ++i0;
+  }
+  return CreateR3FromArray3DWithLayout(tmp, layout);
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateR3(
+    std::initializer_list<std::initializer_list<std::initializer_list<NativeT>>>
+        values) {
+  return CreateR3WithLayout(values, LayoutUtil::GetDefaultLayoutForR3());
 }
 
 // static
