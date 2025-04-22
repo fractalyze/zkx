@@ -152,6 +152,7 @@ void HloInstruction::AppendComputation(HloComputation* computation) {
   mutable_rare()->called_computations.push_back(computation);
 }
 
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateParameter(
     int64_t parameter_number, const Shape& shape, std::string_view name) {
   return std::make_unique<HloParameterInstruction>(parameter_number, shape,
