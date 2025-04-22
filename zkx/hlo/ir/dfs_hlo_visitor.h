@@ -112,6 +112,9 @@ class DfsHloVisitorBase {
     return HandleElementwiseUnary(hlo);
   }
 
+  virtual absl::Status HandleConstant(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleParameter(HloInstructionPtr hlo) = 0;
+
   // Invoked to inform the visitor that the traversal has completed, and that
   // the root was "root".
   virtual absl::Status FinishVisit(HloInstructionPtr root) = 0;
