@@ -81,6 +81,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "lazy",
+    hdrs = ["lazy.h"],
+    deps = ["@com_google_absl//absl/functional:any_invocable"],
+)
+
+zkx_cc_library(
     name = "literal",
     srcs = ["literal.cc"],
     hdrs = ["literal.h"],
