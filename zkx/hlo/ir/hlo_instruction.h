@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/functional/function_ref.h"
 #include "absl/hash/hash.h"
@@ -218,6 +219,12 @@ class HloInstruction {
   // TODO(b/110532604): Remove this capability of creating a token from nothing
   // when we plumb a primordial token from the entry computation.
   static std::unique_ptr<HloInstruction> CreateToken();
+
+  // Returns true if `execution_thread` is included in the
+  // `execution_threads_set`.
+  static bool IsThreadIncluded(
+      std::string_view execution_thread,
+      const absl::flat_hash_set<std::string_view>& execution_threads_set);
 
   // Returns the opcode for this instruction.
   HloOpcode opcode() const { return opcode_; }

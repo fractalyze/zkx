@@ -48,6 +48,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "call_graph",
+    srcs = ["call_graph.cc"],
+    hdrs = ["call_graph.h"],
+    deps = [
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "computation_layout",
     srcs = ["computation_layout.cc"],
     hdrs = ["computation_layout.h"],
@@ -243,6 +259,8 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "service_unittests",
     srcs = [
+        # TODO(chokobole): Add unittest. Dependency: HloTestBase
+        # "call_graph_unittest.cc",
         "compilation_environments_unittest.cc",
         "hlo_module_config_unittest.cc",
         "mapped_ptr_container_sorter_unittest.cc",

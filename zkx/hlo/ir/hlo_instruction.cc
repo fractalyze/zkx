@@ -322,6 +322,14 @@ bool HloInstruction::HasSideEffect() const {
   return false;
 }
 
+// static
+bool HloInstruction::IsThreadIncluded(
+    std::string_view execution_thread,
+    const absl::flat_hash_set<std::string_view>& execution_threads_set) {
+  return execution_threads_set.empty() ||
+         execution_threads_set.contains(execution_thread);
+}
+
 void HloInstruction::DetachFromOperandsAndUsers() {
   if (cleaned_up_) {
     return;
