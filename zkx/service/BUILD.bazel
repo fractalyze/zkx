@@ -150,6 +150,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_buffer",
+    srcs = ["hlo_buffer.cc"],
+    hdrs = ["hlo_buffer.h"],
+    deps = [
+        ":buffer_value",
+        ":hlo_value",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_module_config",
     srcs = ["hlo_module_config.cc"],
     hdrs = ["hlo_module_config.h"],
