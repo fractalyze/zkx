@@ -91,6 +91,9 @@ zkx_cc_library(
     srcs = ["literal.cc"],
     hdrs = ["literal.h"],
     deps = [
+        ":array",
+        ":array2d",
+        ":array3d",
         ":maybe_owning",
         ":primitive_util",
         ":shape_util",

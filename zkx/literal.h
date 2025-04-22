@@ -20,6 +20,7 @@ limitations under the License.
 #include <stdint.h>
 
 #include <algorithm>
+#include <initializer_list>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -30,6 +31,9 @@ limitations under the License.
 #include "absl/base/attributes.h"
 #include "absl/log/check.h"
 
+#include "zkx/array.h"
+#include "zkx/array2d.h"
+#include "zkx/array3d.h"
 #include "zkx/index_util.h"
 #include "zkx/layout_util.h"
 #include "zkx/maybe_owning.h"
@@ -594,8 +598,30 @@ class MutableLiteralBase : public LiteralBase {
   template <typename NativeT>
   void Set(absl::Span<const int64_t> multi_index, NativeT value);
 
+  // Populate this literal with the given values. Examples:
+  //
+  //   // Populate with floats.
+  //   Array2D<float> float_values = ...
+  //   literal.PopulateR2FromArray2D(values);
+  //
+  //   // Populate with int32s.
+  //   literal.PopulateR2<int32_t>({{1, 2}, {3, 4}});
+  //
+  // The shape and element type of this literal must match given values. For
+  // example, in the call above to literal.PopulateR2(), 'literal' must be a 2x2
+  // array of S32.
   template <typename NativeT>
   void PopulateR1(absl::Span<const NativeT> values);
+  // TODO(chokobole): Uncomment this. Dependency: Bitmap
+  // void PopulateR1(const tsl::core::Bitmap& values);
+  template <typename NativeT>
+  void PopulateR2(std::initializer_list<std::initializer_list<NativeT>> values);
+  template <typename NativeT>
+  void PopulateFromArray(const Array<NativeT>& values);
+  template <typename NativeT>
+  void PopulateR2FromArray2D(const Array2D<NativeT>& values);
+  template <typename NativeT>
+  void PopulateR3FromArray3D(const Array3D<NativeT>& values);
 
   // Fills this literal with the given value.
   template <typename NativeT>
@@ -791,6 +817,69 @@ ABSL_ATTRIBUTE_NOINLINE void MutableLiteralBase::PopulateR1(
            primitive_util::NativeToPrimitiveType<NativeT>());
   auto data_span = data<NativeT>();
   std::copy(values.begin(), values.end(), data_span.begin());
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE void MutableLiteralBase::PopulateR2(
+    std::initializer_list<std::initializer_list<NativeT>> values) {
+  CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  CHECK_EQ(shape().rank(), 2);
+  CHECK_EQ(shape().element_type(),
+           primitive_util::NativeToPrimitiveType<NativeT>());
+
+  const int64_t values_dim0_size = values.size();
+  const int64_t values_dim1_size = values.begin()->size();
+  const int64_t literal_dim0_size = shape().is_dynamic_dimension(0)
+                                        ? GetDynamicSize(0)
+                                        : shape().dimensions(0);
+  const int64_t literal_dim1_size = shape().is_dynamic_dimension(1)
+                                        ? GetDynamicSize(1)
+                                        : shape().dimensions(1);
+
+  CHECK_EQ(values_dim0_size, literal_dim0_size);
+  CHECK_EQ(values_dim1_size, literal_dim1_size);
+
+  int64_t dim0 = 0;
+  for (auto inner_list : values) {
+    int64_t dim1 = 0;
+    for (auto value : inner_list) {
+      Set({dim0, dim1}, value);
+      ++dim1;
+    }
+    CHECK_EQ(values_dim1_size, dim1);
+    ++dim0;
+  }
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE void MutableLiteralBase::PopulateFromArray(
+    const Array<NativeT>& values) {
+  CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  CHECK(shape().IsArray());
+  CHECK_EQ(shape().element_type(),
+           primitive_util::NativeToPrimitiveType<NativeT>());
+  CHECK_EQ(shape().rank(), values.num_dimensions());
+  for (int dim = 0; dim < values.num_dimensions(); ++dim) {
+    int64_t shape_size = shape().is_dynamic_dimension(dim)
+                             ? GetDynamicSize(dim)
+                             : shape().dimensions(dim);
+    CHECK_EQ(values.dim(dim), shape_size);
+  }
+  values.Each([this](absl::Span<const int64_t> indices, NativeT value) {
+    this->Set(indices, value);
+  });
+}
+
+template <typename NativeT>
+void MutableLiteralBase::PopulateR2FromArray2D(const Array2D<NativeT>& values) {
+  PopulateFromArray(values);
+}
+
+template <typename NativeT>
+void MutableLiteralBase::PopulateR3FromArray3D(const Array3D<NativeT>& values) {
+  PopulateFromArray(values);
 }
 
 template <typename NativeT>
