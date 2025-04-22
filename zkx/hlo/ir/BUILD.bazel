@@ -85,6 +85,7 @@ zkx_cc_library(
         "//xla/tsl/platform:fingerprint",
         "//zkx:comparison_util",
         "//zkx:iterator_util",
+        "//zkx:literal",
         "//zkx:literal_pool",
         "//zkx:printer",
         "//zkx:shape_tree",

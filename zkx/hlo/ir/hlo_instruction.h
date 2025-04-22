@@ -27,6 +27,7 @@
 #include "zkx/hlo/ir/hlo_print_options.h"
 #include "zkx/hlo/ir/hlo_sharding.h"
 #include "zkx/hlo/ir/ptr_vec.h"
+#include "zkx/literal.h"
 #include "zkx/printer.h"
 #include "zkx/service/mapped_ptr_container_sorter.h"
 #include "zkx/service/name_uniquer.h"
@@ -193,6 +194,9 @@ class HloInstruction {
   // Creates a parameter-retrieving instruction.
   static std::unique_ptr<HloInstruction> CreateParameter(
       int64_t parameter_number, const Shape& shape, std::string_view name);
+
+  // Creates a literal constant instruction.
+  static std::unique_ptr<HloInstruction> CreateConstant(Literal literal);
 
   // Creates a unary instruction (one operand).
   // Precondition: opcode must be a legitimate unary operation.

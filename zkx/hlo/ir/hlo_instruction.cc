@@ -160,6 +160,12 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateParameter(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateConstant(
+    Literal literal) {
+  return std::make_unique<HloConstantInstruction>(std::move(literal));
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateNary(
     const Shape& shape, HloOpcode opcode,
     absl::Span<HloInstruction* const> operands) {
