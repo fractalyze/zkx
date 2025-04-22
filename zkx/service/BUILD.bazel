@@ -242,6 +242,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "phi_graph",
+    srcs = ["phi_graph.cc"],
+    hdrs = ["phi_graph.h"],
+    deps = [
+        ":hlo_value",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "platform_util",
     srcs = ["platform_util.cc"],
     hdrs = ["platform_util.h"],
@@ -284,6 +295,7 @@ zkx_cc_unittest(
         "hlo_module_config_unittest.cc",
         "mapped_ptr_container_sorter_unittest.cc",
         "name_uniquer_unittest.cc",
+        "phi_graph_unittest.cc",
         "rendezvous_unittest.cc",
         "sharding_config_unittest.cc",
     ],
@@ -292,11 +304,13 @@ zkx_cc_unittest(
         ":hlo_module_config",
         ":mapped_ptr_container_sorter",
         ":name_uniquer",
+        ":phi_graph",
         ":rendezvous",
         ":sharding_config",
         ":test_compilation_environment_proto",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
+        "//zkx:literal_util",
         "//zkx/tests:test_utils",
         "@com_google_absl//absl/synchronization",
     ],
