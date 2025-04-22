@@ -22,7 +22,11 @@ limitations under the License.
 
 #include "absl/hash/hash.h"
 #include "absl/log/check.h"
+#include "absl/status/statusor.h"
 
+#include "zkx/hlo/analysis/hlo_alias_analysis.h"
+#include "zkx/service/hlo_buffer.h"
+#include "zkx/service/hlo_value.h"
 #include "zkx/service/logical_buffer.h"
 
 namespace zkx {
@@ -58,6 +62,18 @@ class BufferAllocation {
   LogicalBuffer::Color color() const { return color_; }
 
   void set_color(LogicalBuffer::Color color) { color_ = color; }
+
+  struct OffsetSize {
+    int64_t offset = 0;
+    int64_t size = 0;
+  };
+
+  // Access to the logical buffers assigned to this allocation, and their
+  // associated logical offsets and sizes.
+  const absl::flat_hash_map<const HloValue*, OffsetSize>& assigned_buffers()
+      const {
+    return assigned_buffers_;
+  }
 
   // A Slice represents a contiguous portion of a memory allocation. It is used
   // to identify the memory range that a LogicalBuffer corresponds to.
@@ -105,6 +121,11 @@ class BufferAllocation {
     int64_t size_ = 0;
   };
 
+  // GetSlice returns the Slice of contiguous memory that holds the value
+  // described by the given 'buffer'.
+  // REQUIRES: 'buffer' must be assigned to this allocation.
+  Slice GetSlice(const HloValue& buffer) const;
+
  private:
   // The index of the allocation in the BufferAssignment.
   Index index_;
@@ -114,10 +135,80 @@ class BufferAllocation {
 
   // Color of the allocation.
   LogicalBuffer::Color color_;
+
+  // Mapping from the set of buffers assigned to this allocation to their
+  // logical offsets and sizes.
+  absl::flat_hash_map<const HloValue*, OffsetSize> assigned_buffers_;
 };
 
 // Add stream operators for nicer output of CHECK/RET_CHECK failures.
 std::ostream& operator<<(std::ostream& out, const BufferAllocation::Slice& s);
+
+// This class encapsulates an assignment of the LogicalBuffers in a ZKX
+// module to a set of BufferAllocations.
+class BufferAssignment {
+ public:
+  // Returns the vector containing all buffer allocations in this assignment.
+  const std::vector<BufferAllocation>& Allocations() const {
+    return allocations_;
+  }
+
+  // Returns whether the given buffer has been assigned an allocation.
+  bool HasAllocation(const HloValue& value) const;
+
+  // Returns whether the given (logical) buffer with the id has been assigned an
+  // allocation.
+  bool HasAllocation(HloValue::Id value_id) const;
+
+  bool HasAllocation(const HloBuffer& buffer) const;
+
+  // Returns the allocation that a particular LogicalBuffer has been assigned
+  // to. CHECKs if buffer has not been assigned an allocation.
+  const BufferAllocation& GetAssignedAllocation(const HloValue& value) const;
+
+  const BufferAllocation& GetAssignedAllocation(
+      const HloBuffer& hlo_buffer) const;
+
+  // Returns the allocation with the given index. CHECKs if no allocation exists
+  // with the given index.
+  const BufferAllocation& GetAllocation(BufferAllocation::Index index) const;
+
+  // Convenience function which returns the unique slice containing the buffer
+  // at the given index of the given instruction. If a slice is not assigned or
+  // the slice cannot be determined at compile time then an error is returned.
+  absl::StatusOr<BufferAllocation::Slice> GetUniqueSlice(
+      const HloInstruction* instruction, const ShapeIndex& index) const;
+  // Like GetUniqueSlice but fixes the index to the top-level of the shape
+  // (index = {}).
+  absl::StatusOr<BufferAllocation::Slice> GetUniqueTopLevelSlice(
+      const HloInstruction* instruction) const;
+
+  // Returns the set BufferValues which may be the source of the value at the
+  // given index and instruction.
+  const std::vector<const HloValue*>& GetSourceBuffers(
+      const HloInstruction* instruction, const ShapeIndex& index) const {
+    return dataflow_analysis().GetValueSet(instruction, index).values();
+  }
+
+  const HloDataflowAnalysis& dataflow_analysis() const {
+    return alias_analysis_->dataflow_analysis();
+  }
+
+  HloAliasAnalysis& alias_analysis() const { return *alias_analysis_; }
+
+ private:
+  // The vector of buffer allocations. Indexed by BufferAllocation::Index.
+  std::vector<BufferAllocation> allocations_;
+
+  // Maps Buffers to the index of the BufferAllocation which holds the buffer.
+  absl::flat_hash_map<const HloValue*, BufferAllocation::Index>
+      allocation_index_for_value_;
+
+  std::unique_ptr<HloAliasAnalysis> alias_analysis_;
+
+  BufferAssignment(const BufferAssignment&) = delete;
+  BufferAssignment& operator=(const BufferAssignment&) = delete;
+};
 
 }  // namespace zkx
 

@@ -28,10 +28,17 @@ zkx_cc_library(
     srcs = ["buffer_assignment.cc"],
     hdrs = ["buffer_assignment.h"],
     deps = [
+        ":hlo_buffer",
+        ":hlo_value",
         ":logical_buffer",
+        "//zkx:map_util",
+        "//zkx/base:logging",
+        "//zkx/hlo/analysis:hlo_alias_analysis",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )
 
