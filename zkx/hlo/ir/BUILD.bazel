@@ -36,6 +36,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "dfs_hlo_visitor_with_default",
+    srcs = ["dfs_hlo_visitor_with_default.h"],
+    deps = [
+        ":hlo",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo",
     srcs = [
         "dfs_hlo_visitor.cc",
