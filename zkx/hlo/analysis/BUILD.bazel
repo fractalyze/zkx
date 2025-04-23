@@ -1,0 +1,25 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "hlo_dataflow_analysis",
+    srcs = ["hlo_dataflow_analysis.cc"],
+    hdrs = ["hlo_dataflow_analysis.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:call_graph",
+        "//zkx/service:hlo_value",
+        "//zkx/service:phi_graph",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+# TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
