@@ -1082,6 +1082,13 @@ bool HloPredicateIsOp(const HloInstruction* instruction) {
 // static
 inline bool HloInstruction::MightHaveCalledComputations(HloOpcode opcode) {
   switch (opcode) {
+    // Control flow opcodes
+    case HloOpcode::kWhile:
+    case HloOpcode::kConditional:
+
+    // Fusion contains a sub-computation
+    case HloOpcode::kFusion:
+
     // Async
     case HloOpcode::kAsyncStart:
     case HloOpcode::kAsyncUpdate:
@@ -1090,7 +1097,12 @@ inline bool HloInstruction::MightHaveCalledComputations(HloOpcode opcode) {
     // Opcodes for which has_to_apply can return true
     case HloOpcode::kAllReduce:
     case HloOpcode::kAllReduceStart:
+    case HloOpcode::kCall:
+    case HloOpcode::kMap:
+    case HloOpcode::kReduce:
     case HloOpcode::kReduceScatter:
+    case HloOpcode::kScatter:
+    case HloOpcode::kCustomCall:
       return true;
     default:
       return false;

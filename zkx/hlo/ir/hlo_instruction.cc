@@ -162,11 +162,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateParameter(
 std::unique_ptr<HloInstruction> HloInstruction::CreateNary(
     const Shape& shape, HloOpcode opcode,
     absl::Span<HloInstruction* const> operands) {
-  // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kCopy
-  // if (opcode == HloOpcode::kCopy) {
-  //   // It is impossible to copy an opaque shape, we don't know how big it is.
-  //   CHECK(!shape.IsOpaque());
-  // }
+  if (opcode == HloOpcode::kCopy) {
+    // It is impossible to copy an opaque shape, we don't know how big it is.
+    CHECK(!shape.IsOpaque());
+  }
   auto instruction = absl::WrapUnique(new HloInstruction(opcode, shape));
   for (auto operand : operands) {
     instruction->AppendOperand(operand);
@@ -182,7 +181,11 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateUnary(
   switch (opcode) {
     case HloOpcode::kAllGatherDone:
     case HloOpcode::kAllReduceDone:
+    case HloOpcode::kBitcast:
     case HloOpcode::kCollectivePermuteDone:
+    case HloOpcode::kCopy:
+    case HloOpcode::kCopyDone:
+    case HloOpcode::kOptimizationBarrier:
     case HloOpcode::kNegate:
       return CreateNary(shape, opcode, {operand});
     default:
@@ -199,7 +202,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBinary(
   switch (opcode) {
     case HloOpcode::kAdd:
     case HloOpcode::kDivide:
+    case HloOpcode::kMaximum:
+    case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
+    case HloOpcode::kPower:
     case HloOpcode::kSubtract:
       break;
     default:
@@ -265,6 +271,12 @@ void HloInstruction::SetupDerivedInstruction(
 
 bool HloInstruction::HasSideEffectNoRecurse() const {
   switch (opcode_) {
+    case HloOpcode::kSend:
+    case HloOpcode::kSendDone:
+    case HloOpcode::kRecv:
+    case HloOpcode::kRecvDone:
+    case HloOpcode::kInfeed:
+    case HloOpcode::kOutfeed:
     case HloOpcode::kAllReduceStart:
     case HloOpcode::kAllReduceDone:
     case HloOpcode::kAllGatherStart:
@@ -287,7 +299,11 @@ bool HloInstruction::HasSideEffectNoRecurse() const {
       // they are used in non-spmd context.
       return Cast<HloChannelInstruction>(this)->channel_id().has_value() &&
              !GetModule()->config().use_spmd_partitioning();
-      return false;
+
+    // TODO(chokobole): Uncomment this. Dependency: HloCustomCallInstruction
+    // case HloOpcode::kCustomCall:
+    //   return Cast<HloCustomCallInstruction>(this)
+    //       ->custom_call_has_side_effect();
     default:
       return false;
   }
@@ -390,8 +406,24 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kAsyncStart:
     case HloOpcode::kAsyncUpdate:
     case HloOpcode::kAsyncDone:
+    case HloOpcode::kCopyStart:
+    case HloOpcode::kSend:
+    case HloOpcode::kSendDone:
+    case HloOpcode::kRecv:
+    case HloOpcode::kRecvDone:
+    case HloOpcode::kReverse:
+    case HloOpcode::kConcatenate:
+    case HloOpcode::kReduce:
+    case HloOpcode::kTranspose:
+    case HloOpcode::kBroadcast:
+    case HloOpcode::kReshape:
+    case HloOpcode::kDynamicReshape:
+    case HloOpcode::kMap:
+    case HloOpcode::kSlice:
     case HloOpcode::kConstant:
+    case HloOpcode::kFusion:
     case HloOpcode::kParameter:
+    case HloOpcode::kGetTupleElement:
     case HloOpcode::kAllGather:
     case HloOpcode::kAllGatherStart:
     case HloOpcode::kAllReduce:
@@ -402,12 +434,27 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kCollectiveBroadcast:
     case HloOpcode::kCollectivePermute:
     case HloOpcode::kCollectivePermuteStart:
+    case HloOpcode::kInfeed:
+    case HloOpcode::kOutfeed:
+    case HloOpcode::kCustomCall:
+    case HloOpcode::kDynamicSlice:
+    case HloOpcode::kGather:
+    case HloOpcode::kScatter:
+    case HloOpcode::kDot:
+    case HloOpcode::kRaggedDot:
+    case HloOpcode::kDomain:
+    case HloOpcode::kGetDimensionSize:
+    case HloOpcode::kSetDimensionSize:
       clone = CloneWithNewOperandsImpl(shape, new_operands, context);
       break;
     // Unary ops.
     case HloOpcode::kAllGatherDone:
     case HloOpcode::kAllReduceDone:
+    case HloOpcode::kBitcast:
     case HloOpcode::kCollectivePermuteDone:
+    case HloOpcode::kCopy:
+    case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kCopyDone:
     case HloOpcode::kNegate:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateUnary(shape, opcode_, new_operands[0]);
@@ -417,6 +464,9 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kDivide:
     case HloOpcode::kMultiply:
     case HloOpcode::kSubtract:
+    case HloOpcode::kMaximum:
+    case HloOpcode::kMinimum:
+    case HloOpcode::kPower:
       CHECK_EQ(new_operands.size(), 2);
       clone = CreateBinary(shape, opcode_, new_operands[0], new_operands[1]);
       break;
@@ -447,7 +497,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     //              ? context->module()->DeepCloneComputation(callee, context)
     //              : callee;
     // });
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kWhile
+    // TODO(chokobole): Uncomment this. Dependency: HloModule::while_body
     // if (opcode() == HloOpcode::kWhile) {
     //   clone->while_body()->SetWhileCallInstruction(clone.get());
     // }
@@ -654,15 +704,52 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kAllGatherDone:
     case HloOpcode::kAllReduceDone:
     case HloOpcode::kAdd:
+    case HloOpcode::kBitcast:
+    case HloOpcode::kBitcastConvert:
     case HloOpcode::kCollectivePermuteDone:
+    case HloOpcode::kCopy:
+    case HloOpcode::kCopyStart:
+    case HloOpcode::kCopyDone:
     case HloOpcode::kDivide:
+    case HloOpcode::kDynamicUpdateSlice:
+    case HloOpcode::kMaximum:
+    case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
     case HloOpcode::kNegate:
+    case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kPartitionId:
+    case HloOpcode::kPower:
+    case HloOpcode::kReshape:
+    case HloOpcode::kDynamicReshape:
+    case HloOpcode::kReplicaId:
+    case HloOpcode::kSelect:
     case HloOpcode::kSubtract:
+    case HloOpcode::kTuple:
       return true;
 
     // This opcode has complex or special behavior so just return false.
     case HloOpcode::kAfterAll:
+    case HloOpcode::kAddDependency:
+      return false;
+
+      // Remaining instructions with special values.
+    case HloOpcode::kCall:
+      return eq_computations(to_apply(), other.to_apply());
+    case HloOpcode::kConditional:
+      // TODO(chokobole): Uncomment this. Dependency: branch_count
+      //   for (int j = 0; j < branch_count(); ++j) {
+      //     if (!eq_computations(branch_computation(j),
+      //                          other.branch_computation(j))) {
+      //       return false;
+      //     }
+      //   }
+      //   return true;
+      return false;
+    case HloOpcode::kWhile:
+      // TODO(chokobole): Uncomment this. Dependency: while_body,
+      // while_condition
+      //   return (eq_computations(while_body(), other.while_body()) &&
+      //           eq_computations(while_condition(), other.while_condition()));
       return false;
 
     // Ops migrated to subclasses should never come to this line.
@@ -671,8 +758,23 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kAsyncUpdate:
     case HloOpcode::kAsyncDone:
     case HloOpcode::kCompare:
+    case HloOpcode::kSend:
+    case HloOpcode::kSendDone:
+    case HloOpcode::kRecv:
+    case HloOpcode::kRecvDone:
+    case HloOpcode::kReverse:
+    case HloOpcode::kConcatenate:
+    case HloOpcode::kReduce:
+    case HloOpcode::kTranspose:
+    case HloOpcode::kBroadcast:
+    case HloOpcode::kMap:
+    case HloOpcode::kSlice:
     case HloOpcode::kConstant:
+    case HloOpcode::kFusion:
     case HloOpcode::kParameter:
+    case HloOpcode::kGetTupleElement:
+    case HloOpcode::kInfeed:
+    case HloOpcode::kOutfeed:
     case HloOpcode::kAllGather:
     case HloOpcode::kAllGatherStart:
     case HloOpcode::kAllReduce:
@@ -682,7 +784,16 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kCollectiveBroadcast:
     case HloOpcode::kCollectivePermute:
     case HloOpcode::kCollectivePermuteStart:
+    case HloOpcode::kCustomCall:
+    case HloOpcode::kDynamicSlice:
+    case HloOpcode::kGather:
+    case HloOpcode::kScatter:
+    case HloOpcode::kDot:
+    case HloOpcode::kRaggedDot:
+    case HloOpcode::kDomain:
+    case HloOpcode::kGetDimensionSize:
     case HloOpcode::kRaggedAllToAll:
+    case HloOpcode::kSetDimensionSize:
       LOG(FATAL) << "Base class impl called for opcode with subclass: "
                  << opcode();
   }
@@ -710,7 +821,9 @@ absl::Status HloInstruction::ReplaceUseWithDifferentShape(
                new_producer);
   new_producer->AddUser(user);
   // Custom fusions may not be able to handle deduplicated operands.
-  // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kFusion
+  // clang-format off
+  // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kFusion, HloFusionInstruction
+  // clang-format on
   // if (user->opcode() == HloOpcode::kFusion) {
   //   TF_RETURN_IF_ERROR(
   //       Cast<HloFusionInstruction>(user)->DeduplicateFusionOperands());
@@ -849,6 +962,10 @@ bool HloInstruction::has_to_apply() const {
   switch (opcode_) {
     case HloOpcode::kAllReduce:
     case HloOpcode::kAllReduceStart:
+    case HloOpcode::kCall:
+    case HloOpcode::kMap:
+    case HloOpcode::kReduce:
+    case HloOpcode::kScatter:
       return true;
     default:
       return false;
@@ -1082,6 +1199,8 @@ std::string HloInstruction::ToString() const {
 bool HloInstruction::IsOpElementwise(HloOpcode opcode) {
   switch (opcode) {
     // Unary elementwise operations.
+    case HloOpcode::kBitcastConvert:
+    case HloOpcode::kCopy:
     case HloOpcode::kNegate:
       return true;
 
@@ -1089,8 +1208,15 @@ bool HloInstruction::IsOpElementwise(HloOpcode opcode) {
     case HloOpcode::kAdd:
     case HloOpcode::kCompare:
     case HloOpcode::kDivide:
+    case HloOpcode::kMaximum:
+    case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
+    case HloOpcode::kPower:
     case HloOpcode::kSubtract:
+      return true;
+
+    // Ternary elementwise operations.
+    case HloOpcode::kSelect:
       return true;
 
     default:
@@ -1100,16 +1226,14 @@ bool HloInstruction::IsOpElementwise(HloOpcode opcode) {
 
 bool HloInstruction::IsElementwiseImpl(
     const std::optional<int64_t>& operand_idx) const {
-  // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kDynamicUpdateSlice
-  // if (opcode_ == HloOpcode::kDynamicUpdateSlice) {
-  //   return operand_idx.has_value() && operand_idx.value() == 0;
-  // }
-  // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kBitcastConvert
-  // if (opcode_ == HloOpcode::kBitcastConvert &&
-  //     primitive_util::BitWidth(shape_.element_type()) !=
-  //         primitive_util::BitWidth(operands_[0]->shape().element_type())) {
-  //   return false;
-  // }
+  if (opcode_ == HloOpcode::kDynamicUpdateSlice) {
+    return operand_idx.has_value() && operand_idx.value() == 0;
+  }
+  if (opcode_ == HloOpcode::kBitcastConvert &&
+      primitive_util::BitWidth(shape_.element_type()) !=
+          primitive_util::BitWidth(operands_[0]->shape().element_type())) {
+    return false;
+  }
   return IsOpElementwise(opcode_);
 }
 

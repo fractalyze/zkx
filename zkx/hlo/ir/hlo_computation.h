@@ -546,13 +546,9 @@ class HloComputation {
   // Returns true if this computation only contains send/recv instructions.
   bool OnlyContainsSendRecv() {
     for (const HloInstruction* instruction : this->instructions()) {
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSend, HloOpcode::kRecv, HloOpcode::kBitcast, HloOpcode::kTuple.
-      // clang-format on
-      // if (!HloPredicateIsOp<HloOpcode::kSend, HloOpcode::kRecv,
-      //                       HloOpcode::kBitcast, HloOpcode::kParameter,
-      //                       HloOpcode::kTuple>(instruction)) {
-      if (!HloPredicateIsOp<HloOpcode::kParameter>(instruction)) {
+      if (!HloPredicateIsOp<HloOpcode::kSend, HloOpcode::kRecv,
+                            HloOpcode::kBitcast, HloOpcode::kParameter,
+                            HloOpcode::kTuple>(instruction)) {
         return false;
       }
     }
