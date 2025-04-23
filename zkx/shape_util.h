@@ -333,6 +333,11 @@ class ShapeUtil {
   // determine and assign an optimized layout.
   static absl::Status ValidateShapeWithOptionalLayout(const Shape& shape);
 
+  // Returns whether the element type of the shape is integral (signed or
+  // unsigned). Note that predicates are not considered integral here, since
+  // they are logical values.
+  static bool ElementIsIntegral(const Shape& shape);
+
   // Returns the number of elements in the given tuple shape.
   // Precondition: IsTuple(shape)
   static int64_t TupleElementCount(const Shape& shape);

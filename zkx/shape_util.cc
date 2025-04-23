@@ -497,6 +497,11 @@ void ShapeUtil::AppendShapeToTuple(const Shape& shape, Shape* tuple_shape) {
 }
 
 // static
+bool ShapeUtil::ElementIsIntegral(const Shape& shape) {
+  return primitive_util::IsIntegralType(shape.element_type());
+}
+
+// static
 int64_t ShapeUtil::TupleElementCount(const Shape& shape) {
   return shape.tuple_shapes_size();
 }
