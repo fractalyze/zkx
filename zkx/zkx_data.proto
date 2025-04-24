@@ -377,6 +377,36 @@ message LiteralProto {
   repeated int64 sparse_indices = 18;
 }
 
+enum SparsityType {
+  SPARSITY_INVALID = 0;
+
+  // Structured N:M sparsity.
+  SPARSITY_STRUCTURED_N_M = 1;
+
+  // Next: 2
+}
+
+// Contains sparsity metadata for a sparse dot operation.
+// The only supported type atm is structured 2:4 sparsity, which is natively
+// supported on NVidia GPUs.
+// Restrictions:
+// - only one operand of the dot operation may be sparse;
+// - only the contracting dimension may be sparse.
+message SparsityDescriptor {
+  SparsityType type = 1;
+
+  // Sparse operand index (0 or 1).
+  int32 index = 2;
+  // Sparse dimension number.
+  int32 dimension = 3;
+
+  // Structured N:M sparsity (N < M).
+  int32 n = 4;
+  int32 m = 5;
+
+  // Next: 6
+}
+
 // Generic map of attributes used to pass hints / configuration options from
 // the Python frontend to the XLA backend.
 message FrontendAttributes {
@@ -492,6 +522,18 @@ message ReplicaGroup {
   // The ids of the replicas that belongs to the same group. The ordering of the
   // ids matters in some ops (e.g., all-to-all).
   repeated int64 replica_ids = 1;
+}
+
+// Describes whether all data-parallelism replicas will receive the same
+// parameter data at each buffer.
+message ParameterReplication {
+  // A list of boolean values for the flattened leaf buffers. Each value
+  // indicates whether the corresponding leaf buffer is replicated.
+  //
+  // If this field is empty, it means no buffer is replicated. Otherwise, the
+  // number of elements in this field must match the number of leaf buffers in
+  // the HLO instruction's shape.
+  repeated bool replicated_at_leaf_buffers = 1;
 }
 
 message OriginalArrayProto {
