@@ -688,4 +688,41 @@ absl::Status MutableLiteralBase::CopyFrom(const LiteralSlice& src_literal,
       });
 }
 
+Literal LiteralBase::Relayout(const Layout& new_layout,
+                              const ShapeIndex& shape_index) const {
+  // Create new shape with 'new_layout' set at the given shape index.
+  Shape new_shape = shape();
+  Shape* subshape = ShapeUtil::GetMutableSubshape(&new_shape, shape_index);
+  TF_CHECK_OK(LayoutUtil::ValidateLayoutForShape(new_layout, *subshape));
+  *subshape->mutable_layout() = new_layout;
+  // LINT.IfChange
+  // s4 literals are stored in uint8_t/int8_t, therefore element_size_in_bits
+  // must be removed.
+  if (subshape->layout().element_size_in_bits() == 4) {
+    subshape->mutable_layout()->set_element_size_in_bits(0);
+  }
+  // LINT.ThenChange(//tensorflow/compiler/xla/types.h)
+  Literal result(new_shape);
+  TF_CHECK_OK(result.CopyFrom(*this));
+  return result;
+}
+
+Literal LiteralBase::Relayout(const Shape& shape_with_layout) const {
+  CHECK(ShapeUtil::Compatible(shape_with_layout, shape()))
+      << "Given shape_with_layout " << ShapeUtil::HumanString(shape_with_layout)
+      << " not compatible with literal shape "
+      << ShapeUtil::HumanString(shape());
+  Literal result = CreateFromShape(shape_with_layout);
+  ShapeUtil::ForEachSubshape(
+      result.shape(),
+      [this, &result](const Shape& subshape, const ShapeIndex& index) {
+        if (subshape.IsArray()) {
+          TF_CHECK_OK(result.CopyFrom(*this,
+                                      /*dest_shape_index=*/index,
+                                      /*src_shape_index=*/index));
+        }
+      });
+  return result;
+}
+
 }  // namespace zkx

@@ -221,6 +221,29 @@ class LiteralBase {
   Literal Clone() const;
   std::unique_ptr<Literal> CloneToUnique() const;
 
+  // TODO(b/67651157): The methods below which perform computation on Literals
+  // (Reshape, Slice, etc) should be moved elsewhere, and perhaps combined with
+  // evaluator code which operates on Literals.
+  //
+  // Creates a new value that has the equivalent value as this
+  // literal, but conforms to new_layout; e.g. a literal matrix that was in {0,
+  // 1} minor-to-major dimension layout can be re-layed-out as {1, 0}
+  // minor-to-major dimension layout and the value in the cell at any given
+  // logical index (i0, i1) will be the same.
+  //
+  // For tuple shaped literals, shape_index should be used to select the inner
+  // array that the new layout applies to.
+  //
+  // Note: this is useful when the client wants to ensure that a value placed in
+  // the ZKX allocation tracker has a particular layout; for efficiency
+  // purposes or avoiding unimplemented operation/layout combinations.
+  Literal Relayout(const Layout& new_layout,
+                   const ShapeIndex& shape_index = {}) const;
+
+  // An overload of Relayout which changes the layout of the entire shape rather
+  // than being limited to a single array within the shape.
+  Literal Relayout(const Shape& shape_with_layout) const;
+
   // Creates a new Literal object with the shape specified as parameter.
   // The content of the literal values is the default value of the primitive
   // type of literal itself (0 for numeric types, and false for predicates).
