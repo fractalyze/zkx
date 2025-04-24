@@ -131,6 +131,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_module_group",
+    srcs = ["hlo_module_group.cc"],
+    hdrs = ["hlo_module_group.h"],
+    deps = [
+        ":hlo",
+        "//zkx/service:hlo_module_config",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_module_metadata",
     srcs = ["hlo_module_metadata.cc"],
     hdrs = ["hlo_module_metadata.h"],
