@@ -298,6 +298,24 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "shape_inference",
+    srcs = ["shape_inference.cc"],
+    hdrs = ["shape_inference.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_proto",
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "sharding_config",
     srcs = ["sharding_config.cc"],
     hdrs = ["sharding_config.h"],
