@@ -360,6 +360,10 @@ class ShapeUtil {
   // Precondition: IsTuple(shape)
   static int64_t TupleElementCount(const Shape& shape);
 
+  // Returns the tuple element shape at given index.
+  // Precondition: IsTuple(shape) && TupleElementCount(shape) > index
+  static const Shape& GetTupleElementShape(const Shape& shape, int64_t index);
+
   // Returns the number of elements, recursively, in the given shape.
   static int64_t SubshapeCount(const Shape& shape);
 

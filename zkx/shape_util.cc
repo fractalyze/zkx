@@ -537,6 +537,14 @@ int64_t ShapeUtil::TupleElementCount(const Shape& shape) {
 }
 
 // static
+const Shape& ShapeUtil::GetTupleElementShape(const Shape& shape,
+                                             int64_t index) {
+  CHECK_GT(TupleElementCount(shape), index);
+  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(shape.tuple_shapes(index)));
+  return shape.tuple_shapes(index);
+}
+
+// static
 int64_t ShapeUtil::SubshapeCount(const Shape& shape) {
   int64_t n = 0;
   ForEachSubshape(shape, [&](const Shape& literal_subshape,
