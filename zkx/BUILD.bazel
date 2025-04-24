@@ -118,11 +118,13 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "literal_util",
+    srcs = ["literal_util.cc"],
     hdrs = ["literal_util.h"],
     deps = [
         ":literal",
         ":primitive_util",
         ":shape_util",
+        "//xla/tsl/platform:status",
         "@com_google_absl//absl/types:span",
     ],
 )

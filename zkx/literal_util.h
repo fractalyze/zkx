@@ -16,7 +16,10 @@ limitations under the License.
 #ifndef ZKX_LITERAL_UTIL_H_
 #define ZKX_LITERAL_UTIL_H_
 
+#include <array>
 #include <initializer_list>
+#include <iterator>
+#include <vector>
 
 #include "absl/types/span.h"
 
@@ -66,6 +69,39 @@ class LiteralUtil {
   template <typename NativeT>
   static Literal CreateFull(absl::Span<const int64_t> dimensions,
                             NativeT value);
+
+  // Returns a tuple literal composed of given literals. Data is copied from the
+  // given elements into the returned literal.
+  static Literal MakeTuple(absl::Span<const Literal* const> elements);
+
+  static Literal MakeTupleFromSlices(absl::Span<const LiteralSlice> elements);
+
+  // As above, but intended to be invoked with move semantics; i.e.
+  //
+  //  std::vector<Literal> elements = ...;
+  //  auto result = LiteralUtil::MakeTupleOwned(std::move(elements));
+  //
+  // This would have been declared as an overload, but there is ambiguity
+  // in invocation between the above signature and this one.
+  static Literal MakeTupleOwned(std::vector<Literal> elements);
+
+  // This overload lets you pass a list of Literals to MakeTupleOwned:
+  //
+  //   LiteralUtil::MakeTupleOwned(LiteralUtil::CreateR1(...), ...).
+  //
+  // Simply relying on the MakeTupleOwned(std::vector<Literal>)
+  // overload doesn't work because std::initializer_list's elements are always
+  // const.
+  //
+  // The arguments to this function must all be Literal.
+  template <typename... Ts>
+  static Literal MakeTupleOwned(Ts... elements) {
+    std::array<Literal, sizeof...(Ts)> arr{std::move(elements)...};
+    std::vector<Literal> v;
+    v.insert(v.begin(), std::make_move_iterator(arr.begin()),
+             std::make_move_iterator(arr.end()));
+    return MakeTupleOwned(std::move(v));
+  }
 };
 
 // static
