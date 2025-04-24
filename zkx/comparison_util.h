@@ -178,6 +178,8 @@ std::string_view ComparisonPrimitiveTypeToString(PrimitiveType type);
 
 absl::StatusOr<Comparison::Direction> StringToComparisonDirection(
     std::string_view direction);
+absl::StatusOr<Comparison::Order> StringToComparisonOrder(
+    std::string_view order);
 
 // Returns a comparison function using the provided key function on each value,
 // i.e. `key_fn(a) < key_fn(b)`.
