@@ -76,11 +76,9 @@ class IotaReplicaGroupList {
 
   std::string ToString() const { return iota_tile_assignment_.ToString(); }
 
-  // TODO(chokobole): Uncomment this. Dependency: IotaReplicaGroupListProto
-  // IotaReplicaGroupListProto ToProto() const;
+  IotaReplicaGroupListProto ToProto() const;
 
-  // static IotaReplicaGroupList FromProto(const IotaReplicaGroupListProto&
-  // proto);
+  static IotaReplicaGroupList FromProto(const IotaReplicaGroupListProto& proto);
 
  private:
   IotaTileAssignment iota_tile_assignment_;
@@ -119,14 +117,9 @@ class CollectiveDeviceList {
 
   std::string ToString(bool print_full_replica_group_list = false) const;
 
-  // TODO(chokobole): Uncomment this. Dependency: CollectiveDeviceListProto
-  // CollectiveDeviceListProto ToProto() const;
+  CollectiveDeviceListProto ToProto() const;
 
-  // static CollectiveDeviceList FromProto(const CollectiveDeviceListProto&
-  // proto);
-
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // static CollectiveDeviceList FromProto(const HloInstructionProto& proto);
+  static CollectiveDeviceList FromProto(const CollectiveDeviceListProto& proto);
 
  private:
   // Construct collective device list from protobuf replica group start and end
