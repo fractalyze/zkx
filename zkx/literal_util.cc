@@ -63,4 +63,11 @@ Literal LiteralUtil::MakeTupleOwned(std::vector<Literal> elements) {
   return literal;
 }
 
+// static
+Literal LiteralUtil::CreateFromDimensions(
+    PrimitiveType primitive_type, absl::Span<const int64_t> dimensions) {
+  return Literal::CreateFromShape(
+      ShapeUtil::MakeShape(primitive_type, dimensions));
+}
+
 }  // namespace zkx

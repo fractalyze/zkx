@@ -102,6 +102,13 @@ class LiteralUtil {
              std::make_move_iterator(arr.end()));
     return MakeTupleOwned(std::move(v));
   }
+
+  // Creates a new Literal object with its values having the primitive_type
+  // type, and with dimensions defined by the dimensions parameter.
+  // The content of the literal values is the default value of the primitive
+  // type of literal itself (0 for numeric types, and false for predicates).
+  static Literal CreateFromDimensions(PrimitiveType primitive_type,
+                                      absl::Span<const int64_t> dimensions);
 };
 
 // static
