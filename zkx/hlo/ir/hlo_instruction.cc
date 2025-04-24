@@ -1318,6 +1318,26 @@ int64_t HloInstruction::parameter_number() const {
   return Cast<HloParameterInstruction>(this)->parameter_number();
 }
 
+void HloInstruction::set_parameter_replicated_at_leaf_buffers(
+    absl::Span<const bool> parameter_replicated_at_leaf_buffers) {
+  return Cast<HloParameterInstruction>(this)
+      ->set_parameter_replicated_at_leaf_buffers(
+          parameter_replicated_at_leaf_buffers);
+}
+
+void HloInstruction::set_parameter_replicated_at_leaf_buffers(
+    const std::vector<bool>& parameter_replicated_at_leaf_buffers) {
+  return Cast<HloParameterInstruction>(this)
+      ->set_parameter_replicated_at_leaf_buffers(
+          parameter_replicated_at_leaf_buffers);
+}
+
+const std::optional<std::vector<bool>>&
+HloInstruction::parameter_replicated_at_leaf_buffers() const {
+  return Cast<HloParameterInstruction>(this)
+      ->parameter_replicated_at_leaf_buffers();
+}
+
 std::optional<int64_t> HloInstruction::channel_id() const {
   return Cast<HloChannelInstruction>(this)->channel_id();
 }
@@ -1358,6 +1378,37 @@ void HloInstruction::set_async_execution_thread(
     std::string_view async_execution_thread) {
   Cast<HloAsyncInstruction>(this)->set_async_execution_thread(
       async_execution_thread);
+}
+
+std::string_view ToString(HloInstruction::FusionKind kind) {
+  switch (kind) {
+    case HloInstruction::FusionKind::kLoop:
+      return "kLoop";
+    case HloInstruction::FusionKind::kInput:
+      return "kInput";
+    case HloInstruction::FusionKind::kOutput:
+      return "kOutput";
+    case HloInstruction::FusionKind::kCustom:
+      return "kCustom";
+  }
+}
+
+absl::StatusOr<HloInstruction::FusionKind> StringToFusionKind(
+    std::string_view kind_name) {
+  if (kind_name == "kLoop") {
+    return HloInstruction::FusionKind::kLoop;
+  }
+  if (kind_name == "kInput") {
+    return HloInstruction::FusionKind::kInput;
+  }
+  if (kind_name == "kOutput") {
+    return HloInstruction::FusionKind::kOutput;
+  }
+  if (kind_name == "kCustom") {
+    return HloInstruction::FusionKind::kCustom;
+  }
+  return absl::InvalidArgumentError(
+      absl::StrFormat("Unknown fusion kind: %s", kind_name));
 }
 
 }  // namespace zkx

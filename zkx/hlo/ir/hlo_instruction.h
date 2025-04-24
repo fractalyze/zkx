@@ -180,6 +180,77 @@ using HloInstructionUnwrappingConstIterator =
 // edges.
 class HloInstruction {
  public:
+  // A fusion node computes the same value a call to its fusion computation
+  // would compute.  However, the choice of fusion kind dictates codegen
+  // strategy for the backend.
+  //
+  // To generate code for a kFusion HloInstruction, most backends do something
+  // like the following:
+  //
+  // 1) Identify the "primary" HloInstruction of the fused computation.
+  // 2) Emit code that does the work of the primary node, creating its inputs
+  //    and transforming its outputs as specified by the fused computation.
+  //
+  // In step (2), the code emitted is usually similar to the code that would be
+  // emitted for an *unfused* version of the primary node, except that
+  //
+  //  - when the primary node reads an element of one of its operands, instead
+  //    of loading the value from memory, it *computes* the value based on the
+  //    contents of the fused computation.
+  //  - when the primary node outputs a value, instead of storing it to memory,
+  //    it forwards the value to its users, which then perform additional
+  //    computations before the value is finally stored to memory at the root of
+  //    the fusion node.
+  //
+  // An HloInstruction's FusionKind helps us find the kFusion instruction's
+  // primary node, and can also affect how we generate code in step (2).
+  //
+  //  - kInput: The primary node is the root of the fused instruction.
+  //
+  //  - kOutput: The primary node is not the root of the fused instruction.
+  //    This fusion kind requires that one operand buffer of the fusion
+  //    instruction be able to alias the output buffer.  This constraint is
+  //    usually enough to let backends find the primary node unambiguously.
+  //
+  //  - kLoop: The primary node is the root of the fused computation, but,
+  //    unlike in input fusion, we prescribe a specific implementation for
+  //    codegen.  Rather than generating code that looks like the code we'd emit
+  //    for an unfused version of the primary/root node, we emit code that
+  //    generates one element of the root at a time.
+  //
+  //  - kCustom: Custom category for backend-specific fusions that don't fit
+  //    into the above patterns.
+  //
+  // Not all backends support all fusion kinds, and given a particular fused
+  // computation, it's not in general safe to change its fusion kind.  Creation
+  // of fusion nodes is always backend-specific.
+  //
+  // For elementwise ops (e.g. kAdd), most backends would emit a
+  // one-element-at-a-time implementation for the unfused version, so loop
+  // fusion and input fusion are probably equivalent if the root node is
+  // elementwise.  They're not necessarily equivalent e.g. for kReduce, where an
+  // implementation might emit something more sophisticated for an unfused or
+  // input-fusion reduce, but will emit the naive code that reduces one element
+  // at a time for loop fusion with a reduce as the root.
+  //
+  // Another way to think of loop fusion is that it's equivalent to input
+  // fusion, but where the root node is an implicit identity node, whose
+  // unfused implementation is "read one element, write one element".
+  //
+  // TODO(b/79869434): This categorization scheme is not great.  For one thing,
+  // input and loop fusion are basically the same thing: There is no reason for
+  // the HLO to encode backend-specific decisions about how e.g. a reduce that's
+  // the root of a fusion should be lowered.  In addition, this scheme as
+  // written doesn't work for multi-output fusion, where the primary node is
+  // never actually the root (which is a kTuple instruction that gathers the
+  // multiple outputs of the fusion).
+  enum class FusionKind {
+    kLoop,
+    kInput,
+    kOutput,
+    kCustom,
+  };
+
   using InstructionVector = absl::InlinedVector<HloInstruction*, 2>;
 
   inline static constexpr char kMainExecutionThread[] = "main";
@@ -768,6 +839,20 @@ class HloInstruction {
 
   const StatisticsViz& statistics_viz() const { return rare()->statistics_viz; }
 
+  absl::Status set_backend_config(const google::protobuf::Message& proto) {
+    backend_config_ = BackendConfigWrapper(proto);
+    return absl::OkStatus();
+  }
+
+  // Getter/setter for raw JSON-encoded backend config.  Prefer the
+  // functions above that deal in proto Messages where possible.
+  const std::string& raw_backend_config_string() const {
+    return backend_config_.GetRawString();
+  }
+  void set_raw_backend_config_string(std::string config_str) {
+    backend_config_ = BackendConfigWrapper(std::move(config_str));
+  }
+
   // Sets the debug metadata for this instruction, excluding creation_pass_id,
   // which should never be copied anywhere.
   void set_metadata(const OpMetadata& metadata) { *metadata_ = metadata; }
@@ -812,6 +897,17 @@ class HloInstruction {
 
   // Delegates to HloParameterInstruction::parameter_number.
   int64_t parameter_number() const;
+
+  // Delegates to
+  // HloParameterInstruction::set_parameter_replicated_at_leaf_buffers.
+  void set_parameter_replicated_at_leaf_buffers(
+      absl::Span<const bool> parameter_replicated_at_leaf_buffers);
+  void set_parameter_replicated_at_leaf_buffers(
+      const std::vector<bool>& parameter_replicated_at_leaf_buffers);
+
+  // Delegates to HloParameterInstruction::parameter_replicated_at_leaf_buffers.
+  const std::optional<std::vector<bool>>& parameter_replicated_at_leaf_buffers()
+      const;
 
   // Appends operand(s) to the list of operands and adds this instruction as a
   // user of the operand.
@@ -1075,6 +1171,9 @@ class HloInstruction {
   // the memory footprint of HloInstruction.
   std::unique_ptr<OpMetadata> metadata_ = std::make_unique<OpMetadata>();
 };
+
+absl::StatusOr<HloInstruction::FusionKind> StringToFusionKind(
+    std::string_view kind_name);
 
 // Returns string representation of frontend attributes.
 // Frontend attribute is a list of attribute=<value> pairs where value is either
