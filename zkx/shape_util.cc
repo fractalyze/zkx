@@ -502,6 +502,36 @@ bool ShapeUtil::ElementIsIntegral(const Shape& shape) {
 }
 
 // static
+bool ShapeUtil::ElementHasBitWidth(const Shape& shape, int bits) {
+  if (!shape.IsArray()) {
+    return false;
+  }
+  return primitive_util::BitWidth(shape.element_type()) == bits;
+}
+
+// static
+bool ShapeUtil::ElementIsIntegralWithBits(const Shape& shape, int32_t bits) {
+  return ElementIsIntegral(shape) && ElementHasBitWidth(shape, bits);
+}
+
+// static
+bool ShapeUtil::ElementIsSigned(const Shape& shape) {
+  return primitive_util::IsSignedIntegralType(shape.element_type());
+}
+
+// static
+bool ShapeUtil::IsNestedTuple(const Shape& shape) {
+  return shape.IsTuple() &&
+         absl::c_any_of(shape.tuple_shapes(),
+                        [](const Shape& s) { return s.IsTuple(); });
+}
+
+// static
+bool ShapeUtil::IsEmptyTuple(const Shape& shape) {
+  return shape.IsTuple() && shape.tuple_shapes().empty();
+}
+
+// static
 int64_t ShapeUtil::TupleElementCount(const Shape& shape) {
   return shape.tuple_shapes_size();
 }

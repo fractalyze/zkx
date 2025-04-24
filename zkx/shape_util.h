@@ -338,6 +338,24 @@ class ShapeUtil {
   // they are logical values.
   static bool ElementIsIntegral(const Shape& shape);
 
+  // Returns whether the element type has the given bit width.
+  static bool ElementHasBitWidth(const Shape& shape, int bits);
+
+  // Returns whether the element type of the shape is integral and has
+  // the specified number of bits.
+  static bool ElementIsIntegralWithBits(const Shape& shape, int bits);
+
+  // Returns whether the element type of the shape is signed. Note
+  // that floating point numbers are signed.
+  static bool ElementIsSigned(const Shape& shape);
+
+  // Returns whether the shape is a tuple with at least one element which is
+  // also a tuple.
+  static bool IsNestedTuple(const Shape& shape);
+
+  // Returns true if shape is an empty tuple.
+  static bool IsEmptyTuple(const Shape& shape);
+
   // Returns the number of elements in the given tuple shape.
   // Precondition: IsTuple(shape)
   static int64_t TupleElementCount(const Shape& shape);
