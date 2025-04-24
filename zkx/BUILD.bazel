@@ -289,6 +289,7 @@ zkx_cc_library(
     deps = [
         ":status_macros",
         "//xla/tsl/lib/math:math_util",
+        "//zkx:zkx_data_proto",
         "//zkx/base:logging",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:inlined_vector",

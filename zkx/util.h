@@ -38,6 +38,7 @@ limitations under the License.
 #include "xla/tsl/lib/math/math_util.h"
 #include "zkx/base/logging.h"
 #include "zkx/status_macros.h"
+#include "zkx/zkx_data.pb.h"
 
 namespace zkx {
 
@@ -47,6 +48,7 @@ namespace zkx {
 // memory to store its values.
 inline constexpr int InlineRank() { return 6; }
 using DimensionVector = absl::InlinedVector<int64_t, InlineRank()>;
+using DimLevelTypeVector = absl::InlinedVector<DimLevelType, InlineRank()>;
 
 // Imports the templated FloorOfRatio math function from the TensorFlow
 // namespace, as it is very commonly used.
