@@ -27,6 +27,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/base/optimization.h"
+#include "absl/status/statusor.h"
 
 #include "xla/tsl/lib/math/math_util.h"
 #include "zkx/base/logging.h"
@@ -399,6 +400,10 @@ inline constexpr int ByteWidth(PrimitiveType type) {
 
 // Returns the lower-case name of the given primitive type.
 std::string_view LowercasePrimitiveTypeName(PrimitiveType s);
+
+// Returns the PrimitiveType matching the given name. The given name is expected
+// to be lower-case.
+absl::StatusOr<PrimitiveType> StringToPrimitiveType(std::string_view name);
 
 // Returns true if the given name is a primitive type string (lower-case).
 bool IsPrimitiveTypeName(std::string_view name);
