@@ -23,11 +23,15 @@ limitations under the License.
 #include <stdint.h>
 
 #include <limits>
+#include <type_traits>
 #include <vector>
 
+#include "Eigen/Core"
 #include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/log/check.h"
+#include "absl/numeric/bits.h"
 #include "absl/status/status.h"
 #include "absl/types/span.h"
 
@@ -83,6 +87,88 @@ constexpr inline T LsbMask(int width) {
   return width == 0
              ? 0
              : static_cast<T>(-1) >> (std::numeric_limits<T>::digits - width);
+}
+
+// UnsignedIntegerTypeForSize<N> gets an unsigned integer with the given size in
+// bytes.
+template <size_t>
+struct UnsignedIntegerTypeForSize;
+
+template <>
+struct UnsignedIntegerTypeForSize<1> {
+  using type = uint8_t;
+};
+
+template <>
+struct UnsignedIntegerTypeForSize<2> {
+  using type = uint16_t;
+};
+
+template <>
+struct UnsignedIntegerTypeForSize<4> {
+  using type = uint32_t;
+};
+
+template <>
+struct UnsignedIntegerTypeForSize<8> {
+  using type = uint64_t;
+};
+
+template <size_t kBytes>
+using UnsignedIntegerTypeForSizeType =
+    typename UnsignedIntegerTypeForSize<kBytes>::type;
+
+template <size_t kBytes>
+using SignedIntegerTypeForSizeType =
+    std::make_signed_t<UnsignedIntegerTypeForSizeType<kBytes>>;
+
+template <typename T>
+constexpr int NanPayloadBits() {
+  // Floating point types with signaling NaNs have payloads.
+  if constexpr (!std::numeric_limits<T>::has_signaling_NaN) {
+    return 0;
+  }
+  return std::numeric_limits<T>::digits - 1;
+}
+
+template <typename T>
+constexpr uint64_t QuietNanWithoutPayload() {
+  constexpr int bits = NanPayloadBits<T>();
+  if constexpr (bits > 0) {
+    return uint64_t{1} << (bits - 1);
+  }
+  return 0;
+}
+
+template <typename T>
+constexpr uint64_t NanPayloadBitMask() {
+  constexpr int bits = NanPayloadBits<T>();
+  if constexpr (bits > 0) {
+    return LsbMask<uint64_t>(bits);
+  }
+  return 0;
+}
+
+template <typename T>
+T NanWithSignAndPayload(bool sign, uint64_t nan_payload) {
+  static_assert(NanPayloadBits<T>() > 0);
+  using RepT = UnsignedIntegerTypeForSizeType<sizeof(T)>;
+  // Clear the sign bit.
+  T val = Eigen::numext::abs(std::numeric_limits<T>::quiet_NaN());
+  // Conditionally set the sign bit.
+  if (sign) {
+    val = -val;
+  }
+  auto rep = absl::bit_cast<RepT>(val);
+  rep |= uint64_t{sign} << (std::numeric_limits<RepT>::digits - 1);
+  constexpr int kPayloadBits = NanPayloadBits<T>();
+  if (kPayloadBits > 0) {
+    // Clear rep's NaN payload.
+    rep &= ~NanPayloadBitMask<T>();
+    CHECK_NE(nan_payload, 0);
+    rep |= nan_payload;
+  }
+  return absl::bit_cast<T>(rep);
 }
 
 template <typename Container>

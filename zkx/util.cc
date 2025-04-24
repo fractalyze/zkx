@@ -19,8 +19,6 @@ limitations under the License.
 #include <numeric>
 #include <tuple>
 
-#include "absl/log/check.h"
-
 namespace zkx {
 
 int64_t Product(absl::Span<const int64_t> xs) {
