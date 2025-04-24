@@ -354,6 +354,32 @@ Literal& Literal::operator=(Literal&& other) {
   return *this;
 }
 
+// static
+Literal LiteralBase::CreateFromShape(const Shape& shape) {
+  Literal literal(shape);
+  literal.root_piece_.ForEachMutableSubpiece(
+      [&](const ShapeIndex& index, Piece* piece) {
+        if (piece->subshape().IsArray()) {
+          memset(piece->untyped_data(), 0, piece->size_bytes_dense());
+        }
+      });
+  return literal;
+}
+
+// static
+Literal LiteralBase::CreateFromShapeWithUnknownLeafArrays(const Shape& shape) {
+  Literal literal(shape, /*allocate_arrays=*/false, ArrayValueState::kUnknown);
+  return literal;
+}
+
+// static
+Literal LiteralBase::CreateFromShapeWithUndeterminedLeafArrays(
+    const Shape& shape) {
+  Literal literal(shape, /*allocate_arrays=*/false,
+                  ArrayValueState::kUndetermined);
+  return literal;
+}
+
 int32_t LiteralBase::GetDynamicSize(int64_t dim_index) const {
   return GetDynamicSize(dim_index, {});
 }

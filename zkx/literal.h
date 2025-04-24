@@ -221,6 +221,24 @@ class LiteralBase {
   Literal Clone() const;
   std::unique_ptr<Literal> CloneToUnique() const;
 
+  // Creates a new Literal object with the shape specified as parameter.
+  // The content of the literal values is the default value of the primitive
+  // type of literal itself (0 for numeric types, and false for predicates).
+  //
+  // Note: It's an antipattern to use this method then immediately call
+  // MutableLiteralBase::Populate on the result (since that results in zero
+  // initialization, then reinitialization. Consider if a call to
+  // std::make_unique<Literal>(shape), followed by the call to
+  // MutableLiteralBase::Populate can be used instead.
+  static Literal CreateFromShape(const Shape& shape);
+
+  // WARNING: These two functions are only supposed to be used by
+  // HloEvaluator. The rest of ZKX assumes all literals are known. Similar to
+  // CreateFromShape() but marks all leaf arrays as unknown.
+  static Literal CreateFromShapeWithUnknownLeafArrays(const Shape& shape);
+  // Similar to CreateFromShape() but marks all leaf arrays as undetermined.
+  static Literal CreateFromShapeWithUndeterminedLeafArrays(const Shape& shape);
+
   // Array literals could be in one of the following three states:
   //   1) Known: we have evaluated and known the value of the array literal.
   //   2) Unknown: we have tried to evaluate the array literal, but its value
