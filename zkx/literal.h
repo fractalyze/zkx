@@ -277,6 +277,18 @@ class LiteralBase {
       dense_rep->data = buffer;
     }
 
+    void MoveDataFrom(Piece& from) {
+      DCHECK(!std::holds_alternative<DenseRep>(rep_));
+      DCHECK(!std::holds_alternative<TupleRep>(rep_));
+      if (auto* dense_rep = from.GetDenseRep()) {
+        rep_.emplace<DenseRep>().data = dense_rep->data;
+      } else if (auto* inlined_rep = from.GetDenseInlinedRep()) {
+        std::memcpy(rep_.emplace<DenseInlinedRep>().data, inlined_rep->data,
+                    from.total_bytes_dense());
+      }
+      from.rep_.emplace<Uninitialized>();
+    }
+
     // Gets/sets the buffer holding dynamic sizes.
     const DynamicSizeType* dynamic_size_buffer() const {
       DCHECK(LayoutUtil::IsDenseArray(*subshape_));
@@ -666,6 +678,18 @@ class Literal : public MutableLiteralBase {
   Literal(const Shape& shape, bool allocate_arrays,
           ArrayValueState leaf_array_value_state = ArrayValueState::kKnown);
   Literal& operator=(Literal&& other);
+
+  // Similar to CopyFrom, but with move semantics. The subshape of this literal
+  // rooted at 'dest_shape_index' must be *equal* to the shape 'src_literal'
+  // (layouts and shapes must match), but need not be arrays. The memory
+  // allocated in this literal for the subshape at dest_shape_index is
+  // deallocated, and the respective buffers are replaced with those in
+  // src_literal. Upon return, src_literal is set to a nil shape (empty tuple).
+  virtual absl::Status MoveFrom(Literal&& src_literal,
+                                const ShapeIndex& dest_shape_index);
+  absl::Status MoveFrom(Literal&& src_literal) {
+    return MoveFrom(std::move(src_literal), /*dest_shape_index=*/{});
+  }
 
  private:
   friend class LiteralBase;

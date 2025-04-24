@@ -575,6 +575,39 @@ void MutableLiteralBase::SetDynamicSize(int64_t dim_index,
   piece(shape_index).SetDynamicSize(dim_index, size);
 }
 
+absl::Status Literal::MoveFrom(Literal&& src_literal,
+                               const ShapeIndex& dest_shape_index) {
+  const Shape& dest_subshape =
+      ShapeUtil::GetSubshape(shape(), dest_shape_index);
+  if (!ShapeUtil::Equal(dest_subshape, src_literal.shape())) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Destination subshape not equal to source shape: %s vs %s",
+        ShapeUtil::HumanString(dest_subshape),
+        ShapeUtil::HumanString(src_literal.shape())));
+  }
+
+  src_literal.root_piece_.ForEachMutableSubpiece(
+      [&](const ShapeIndex& src_index, Piece* src_piece) {
+        if (!src_piece->subshape().IsArray()) {
+          return;
+        }
+
+        ShapeIndex dest_index = dest_shape_index;
+        for (int64_t i : src_index) {
+          dest_index.push_back(i);
+        }
+        Piece& dest_piece = piece(dest_index);
+        dest_piece.DeallocateBuffers();
+        dest_piece.MoveDataFrom(*src_piece);
+      });
+
+  src_literal.shape_ = MaybeOwningShapePtr(&NilShape());
+  src_literal.root_piece_ = Piece();
+  src_literal.root_piece_.set_subshape(src_literal.shape_.get());
+
+  return absl::OkStatus();
+}
+
 absl::Status MutableLiteralBase::CopyFrom(const LiteralSlice& src_literal,
                                           const ShapeIndex& dest_shape_index,
                                           const ShapeIndex& src_shape_index,
