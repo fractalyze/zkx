@@ -8,6 +8,7 @@ cc_proto_library(
     srcs = ["hlo.proto"],
     deps = [
         ":metrics_proto",
+        "//zkx:zkx_data_proto",
         "@com_google_protobuf//:cc_wkt_protos",
     ],
 )
