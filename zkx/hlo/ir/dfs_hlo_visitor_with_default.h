@@ -41,6 +41,8 @@ namespace zkx {
 // HandleElementwiseUnary/Binary in DfsHloVisitorBase. Adding such a handler
 // here will break passes which rely on the HandleElementwiseUnary/Binary
 // handling these opcodes.
+// NOTE(chokobole): If you add a new opcode, please update the followings:
+// - InstructionVerifier
 template <typename HloInstructionPtr>
 class DfsHloVisitorWithDefaultBase
     : public DfsHloVisitorBase<HloInstructionPtr> {
@@ -58,6 +60,21 @@ class DfsHloVisitorWithDefaultBase
     return DefaultAction(hlo);
   }
 
+  absl::Status HandleConcatenate(HloInstructionPtr concatenate) override {
+    return DefaultAction(concatenate);
+  }
+  absl::Status HandleSelect(HloInstructionPtr select) override {
+    return DefaultAction(select);
+  }
+  absl::Status HandleDot(HloInstructionPtr dot) override {
+    return DefaultAction(dot);
+  }
+  absl::Status HandleRaggedDot(HloInstructionPtr dot) override {
+    return DefaultAction(dot);
+  }
+  absl::Status HandleOptimizationBarrier(HloInstructionPtr hlo) override {
+    return DefaultAction(hlo);
+  }
   absl::Status HandleAllGather(HloInstructionPtr crs) override {
     return DefaultAction(crs);
   }
@@ -103,11 +120,119 @@ class DfsHloVisitorWithDefaultBase
   absl::Status HandlePartitionId(HloInstructionPtr hlo) override {
     return DefaultAction(hlo);
   }
+  absl::Status HandleInfeed(HloInstructionPtr infeed) override {
+    return DefaultAction(infeed);
+  }
+  absl::Status HandleOutfeed(HloInstructionPtr outfeed) override {
+    return DefaultAction(outfeed);
+  }
+  absl::Status HandleReverse(HloInstructionPtr reverse) override {
+    return DefaultAction(reverse);
+  }
   absl::Status HandleConstant(HloInstructionPtr constant) override {
     return DefaultAction(constant);
   }
+  absl::Status HandleGetTupleElement(
+      HloInstructionPtr get_tuple_element) override {
+    return DefaultAction(get_tuple_element);
+  }
   absl::Status HandleParameter(HloInstructionPtr parameter) override {
     return DefaultAction(parameter);
+  }
+  absl::Status HandleFusion(HloInstructionPtr fusion) override {
+    return DefaultAction(fusion);
+  }
+  absl::Status HandleCall(HloInstructionPtr call) override {
+    return DefaultAction(call);
+  }
+  absl::Status HandleCustomCall(HloInstructionPtr custom_call) override {
+    return DefaultAction(custom_call);
+  }
+  absl::Status HandleSlice(HloInstructionPtr slice) override {
+    return DefaultAction(slice);
+  }
+  absl::Status HandleDynamicSlice(HloInstructionPtr dynamic_slice) override {
+    return DefaultAction(dynamic_slice);
+  }
+  absl::Status HandleDynamicUpdateSlice(
+      HloInstructionPtr dynamic_update_slice) override {
+    return DefaultAction(dynamic_update_slice);
+  }
+  absl::Status HandleTuple(HloInstructionPtr tuple) override {
+    return DefaultAction(tuple);
+  }
+  absl::Status HandleMap(HloInstructionPtr map) override {
+    return DefaultAction(map);
+  }
+  absl::Status HandleReduce(HloInstructionPtr reduce) override {
+    return DefaultAction(reduce);
+  }
+  absl::Status HandleBitcast(HloInstructionPtr bitcast) override {
+    return DefaultAction(bitcast);
+  }
+  absl::Status HandleBroadcast(HloInstructionPtr broadcast) override {
+    return DefaultAction(broadcast);
+  }
+  absl::Status HandleDynamicReshape(
+      HloInstructionPtr dynamic_reshape) override {
+    return DefaultAction(dynamic_reshape);
+  }
+  absl::Status HandleReshape(HloInstructionPtr reshape) override {
+    return DefaultAction(reshape);
+  }
+  absl::Status HandleTranspose(HloInstructionPtr transpose) override {
+    return DefaultAction(transpose);
+  }
+  absl::Status HandleWhile(HloInstructionPtr zkx_while) override {
+    return DefaultAction(zkx_while);
+  }
+  absl::Status HandleConditional(HloInstructionPtr conditional) override {
+    return DefaultAction(conditional);
+  }
+  absl::Status HandleAsyncStart(HloInstructionPtr async_start) override {
+    return DefaultAction(async_start);
+  }
+  absl::Status HandleAsyncUpdate(HloInstructionPtr async_update) override {
+    return DefaultAction(async_update);
+  }
+  absl::Status HandleAsyncDone(HloInstructionPtr async_done) override {
+    return DefaultAction(async_done);
+  }
+  absl::Status HandleCopyStart(HloInstructionPtr copy_start) override {
+    return DefaultAction(copy_start);
+  }
+  absl::Status HandleCopyDone(HloInstructionPtr copy_done) override {
+    return DefaultAction(copy_done);
+  }
+  absl::Status HandleRecv(HloInstructionPtr recv) override {
+    return DefaultAction(recv);
+  }
+  absl::Status HandleRecvDone(HloInstructionPtr recv_done) override {
+    return DefaultAction(recv_done);
+  }
+  absl::Status HandleSend(HloInstructionPtr send) override {
+    return DefaultAction(send);
+  }
+  absl::Status HandleSendDone(HloInstructionPtr send_done) override {
+    return DefaultAction(send_done);
+  }
+  absl::Status HandleGather(HloInstructionPtr gather) override {
+    return DefaultAction(gather);
+  }
+  absl::Status HandleScatter(HloInstructionPtr scatter) override {
+    return DefaultAction(scatter);
+  }
+  absl::Status HandleAfterAll(HloInstructionPtr token) override {
+    return DefaultAction(token);
+  }
+  absl::Status HandleGetDimensionSize(HloInstructionPtr get_size) override {
+    return DefaultAction(get_size);
+  }
+  absl::Status HandleSetDimensionSize(HloInstructionPtr get_size) override {
+    return DefaultAction(get_size);
+  }
+  absl::Status HandleAddDependency(HloInstructionPtr add_dependency) override {
+    return DefaultAction(add_dependency);
   }
 
   // Invoked to inform the visitor that the traversal has completed, and that

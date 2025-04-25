@@ -73,7 +73,26 @@ class DfsHloVisitorBase {
   virtual absl::Status HandleElementwiseUnary(HloInstructionPtr hlo);
   virtual absl::Status HandleElementwiseBinary(HloInstructionPtr hlo);
 
+  virtual absl::Status HandleSelect(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleMaximum(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
+  }
+  virtual absl::Status HandleMinimum(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
+  }
+  virtual absl::Status HandleConcatenate(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleBitcastConvert(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
+  }
+  virtual absl::Status HandleCopy(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
+  }
   virtual absl::Status HandleMultiply(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
+  }
+  virtual absl::Status HandleDot(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleRaggedDot(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandlePower(HloInstructionPtr hlo) {
     return HandleElementwiseBinary(hlo);
   }
   /* go/keep-sorted start */
@@ -88,13 +107,15 @@ class DfsHloVisitorBase {
   virtual absl::Status HandleCollectivePermute(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleCollectivePermuteDone(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleCollectivePermuteStart(HloInstructionPtr hlo) = 0;
-  virtual absl::Status HandleConvolution(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleOptimizationBarrier(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandlePartitionId(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleRaggedAllToAll(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleReduceScatter(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleReplicaId(HloInstructionPtr hlo) = 0;
   /* go/keep-sorted end */
+
+  virtual absl::Status HandleGetDimensionSize(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleSetDimensionSize(HloInstructionPtr hlo) = 0;
 
   virtual absl::Status HandleCompare(HloInstructionPtr hlo) {
     return HandleElementwiseBinary(hlo);
@@ -112,8 +133,56 @@ class DfsHloVisitorBase {
     return HandleElementwiseUnary(hlo);
   }
 
+  virtual absl::Status HandleDomain(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
+  }
+
+  /* go/keep-sorted start */
+  virtual absl::Status HandleInfeed(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleOutfeed(HloInstructionPtr hlo) = 0;
+  /* go/keep-sorted end */
+
+  /* go/keep-sorted start */
+  virtual absl::Status HandleBitcast(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleBroadcast(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleCall(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleConditional(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleConstant(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleCustomCall(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleDynamicReshape(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleDynamicSlice(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleDynamicUpdateSlice(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleFusion(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleGather(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleGetTupleElement(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleMap(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleParameter(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleReduce(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleReshape(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleReverse(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleScatter(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleSlice(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleTranspose(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleTuple(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleWhile(HloInstructionPtr hlo) = 0;
+  /* go/keep-sorted end */
+
+  virtual absl::Status HandleAsyncStart(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleAsyncUpdate(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleAsyncDone(HloInstructionPtr hlo) = 0;
+
+  virtual absl::Status HandleCopyStart(HloInstructionPtr copy_start) = 0;
+  virtual absl::Status HandleCopyDone(HloInstructionPtr copy_done) = 0;
+
+  virtual absl::Status HandleSend(HloInstructionPtr send) = 0;
+  virtual absl::Status HandleSendDone(HloInstructionPtr send_done) = 0;
+
+  virtual absl::Status HandleRecv(HloInstructionPtr recv) = 0;
+  virtual absl::Status HandleRecvDone(HloInstructionPtr recv_done) = 0;
+
+  virtual absl::Status HandleAddDependency(
+      HloInstructionPtr add_dependency) = 0;
+  virtual absl::Status HandleAfterAll(HloInstructionPtr token) = 0;
 
   // Invoked to inform the visitor that the traversal has completed, and that
   // the root was "root".
