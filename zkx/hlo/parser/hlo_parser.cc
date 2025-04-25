@@ -31,6 +31,7 @@ limitations under the License.
 #include "zkx/comparison_util.h"
 #include "zkx/hlo/ir/collective_device_list.h"
 #include "zkx/hlo/ir/hlo_domain_metadata.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/hlo/ir/hlo_sharding_metadata.h"
 #include "zkx/hlo/parser/hlo_lexer.h"
 #include "zkx/literal.h"
@@ -1426,83 +1427,409 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
     }
     // Ternary ops.
     case HloOpcode::kSelect: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateTernary
-      // clang-format on
-      return nullptr;
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/3)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferTernaryOpShape(
+                opcode, operands[0], operands[1], operands[2]);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateTernary(
+          *shape, opcode, operands[0], operands[1], operands[2]));
     }
     // Other supported ops.
     case HloOpcode::kBitcastConvert: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateBitcastConvert
-      // clang-format on
-      return nullptr;
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateBitcastConvert(*shape, operands[0]));
     }
     case HloOpcode::kAllGather:
     case HloOpcode::kAllGatherStart: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateAllGather, HloInstruction::CreateAllGatherStart
-      // clang-format on
-      return nullptr;
+      CollectiveDeviceList device_list;
+      std::optional<int64_t> channel_id;
+      std::optional<std::vector<int64_t>> dimensions;
+      std::optional<bool> constrain_layout;
+      std::optional<bool> use_global_device_ids;
+      attrs["replica_groups"] = {/*required=*/false,
+                                 AttrTy::kCollectiveDeviceList, &device_list};
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      attrs["dimensions"] = {/*required=*/true, AttrTy::kBracedInt64List,
+                             &dimensions};
+      attrs["constrain_layout"] = {/*required=*/false, AttrTy::kBool,
+                                   &constrain_layout};
+      attrs["use_global_device_ids"] = {/*required=*/false, AttrTy::kBool,
+                                        &use_global_device_ids};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (opcode == HloOpcode::kAllGather) {
+        return builder->AddInstruction(HloInstruction::CreateAllGather(
+            *shape, operands, dimensions->at(0), device_list,
+            constrain_layout ? *constrain_layout : false, channel_id,
+            use_global_device_ids ? *use_global_device_ids : false));
+      }
+      return builder->AddInstruction(HloInstruction::CreateAllGatherStart(
+          *shape, operands, dimensions->at(0), device_list,
+          constrain_layout ? *constrain_layout : false, channel_id,
+          use_global_device_ids ? *use_global_device_ids : false));
     }
     case HloOpcode::kAllReduce:
     case HloOpcode::kAllReduceStart:
     case HloOpcode::kReduceScatter: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateAllReduce, HloInstruction::CreateAllReduceStart, HloInstruction::CreateReduceScatter
-      // clang-format on
-      return nullptr;
+      CollectiveDeviceList device_list;
+      std::optional<HloComputation*> to_apply;
+      std::optional<int64_t> channel_id;
+      std::optional<bool> constrain_layout;
+      std::optional<bool> use_global_device_ids;
+      std::optional<std::vector<int64_t>> dimensions;
+      attrs["to_apply"] = {/*required=*/true, AttrTy::kHloComputation,
+                           &to_apply};
+      attrs["replica_groups"] = {/*required=*/false,
+                                 AttrTy::kCollectiveDeviceList, &device_list};
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      attrs["constrain_layout"] = {/*required=*/false, AttrTy::kBool,
+                                   &constrain_layout};
+      attrs["use_global_device_ids"] = {/*required=*/false, AttrTy::kBool,
+                                        &use_global_device_ids};
+      if (opcode == HloOpcode::kReduceScatter) {
+        attrs["dimensions"] = {/*required=*/true, AttrTy::kBracedInt64List,
+                               &dimensions};
+      }
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (opcode == HloOpcode::kAllReduce) {
+        return builder->AddInstruction(HloInstruction::CreateAllReduce(
+            *shape, operands, *to_apply, device_list,
+            constrain_layout ? *constrain_layout : false, channel_id,
+            use_global_device_ids ? *use_global_device_ids : false));
+      } else if (opcode == HloOpcode::kReduceScatter) {
+        return builder->AddInstruction(HloInstruction::CreateReduceScatter(
+            *shape, operands, *to_apply, device_list,
+            constrain_layout ? *constrain_layout : false, channel_id,
+            use_global_device_ids ? *use_global_device_ids : false,
+            dimensions->at(0)));
+      }
+      return builder->AddInstruction(HloInstruction::CreateAllReduceStart(
+          *shape, operands, *to_apply, device_list,
+          constrain_layout ? *constrain_layout : false, channel_id,
+          use_global_device_ids ? *use_global_device_ids : false));
     }
     case HloOpcode::kAllToAll: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateAllToAll
-      // clang-format on
-      return nullptr;
+      CollectiveDeviceList device_list;
+      attrs["replica_groups"] = {/*required=*/false,
+                                 AttrTy::kCollectiveDeviceList, &device_list};
+      std::optional<int64_t> channel_id;
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      std::optional<std::vector<int64_t>> dimensions;
+      attrs["dimensions"] = {/*required=*/false, AttrTy::kBracedInt64List,
+                             &dimensions};
+      std::optional<bool> constrain_layout;
+      attrs["constrain_layout"] = {/*required=*/false, AttrTy::kBool,
+                                   &constrain_layout};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape) ||
+          (dimensions && dimensions->size() != 1)) {
+        return nullptr;
+      }
+      std::optional<int64_t> split_dimension;
+      if (dimensions) {
+        split_dimension = dimensions->at(0);
+      }
+      return builder->AddInstruction(HloInstruction::CreateAllToAll(
+          *shape, operands, device_list,
+          constrain_layout ? *constrain_layout : false, channel_id,
+          split_dimension));
     }
     case HloOpcode::kRaggedAllToAll: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateRaggedAllToAll
-      // clang-format on
-      return nullptr;
+      CollectiveDeviceList device_list;
+      attrs["replica_groups"] = {/*required=*/false,
+                                 AttrTy::kCollectiveDeviceList, &device_list};
+      std::optional<int64_t> channel_id;
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      std::optional<std::vector<int64_t>> dimensions;
+      attrs["dimensions"] = {/*required=*/false, AttrTy::kBracedInt64List,
+                             &dimensions};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape) ||
+          (dimensions && dimensions->size() != 1)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateRaggedAllToAll(
+          *shape, operands, device_list, channel_id));
     }
     case HloOpcode::kCollectiveBroadcast: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateCollectiveBroadcast
-      // clang-format on
-      return nullptr;
+      CollectiveDeviceList device_list;
+      attrs["replica_groups"] = {/*required=*/true,
+                                 AttrTy::kCollectiveDeviceList, &device_list};
+      std::optional<int64_t> channel_id;
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateCollectiveBroadcast(
+          *shape, operands, device_list, false, channel_id));
     }
     case HloOpcode::kCollectivePermute:
     case HloOpcode::kCollectivePermuteStart: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateCollectivePermute, HloInstruction::CreateCollectivePermuteStart
-      // clang-format on
-      return nullptr;
+      std::optional<std::vector<std::vector<int64_t>>> source_targets;
+      attrs["source_target_pairs"] = {
+          /*required=*/true, AttrTy::kBracedInt64ListList, &source_targets};
+      std::optional<int64_t> channel_id;
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      std::optional<std::vector<std::vector<int64_t>>> slice_sizes;
+      attrs["slice_sizes"] = {/*required=*/false, AttrTy::kBracedInt64ListList,
+                              &slice_sizes};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      std::vector<std::pair<int64_t, int64_t>> pairs(source_targets->size());
+      for (int i = 0; i < pairs.size(); i++) {
+        if ((*source_targets)[i].size() != 2) {
+          TokenError("expects 'source_target_pairs=' to be a list of pairs");
+          return nullptr;
+        }
+        pairs[i].first = (*source_targets)[i][0];
+        pairs[i].second = (*source_targets)[i][1];
+      }
+      if (!slice_sizes.has_value()) {
+        if (opcode == HloOpcode::kCollectivePermute) {
+          return builder->AddInstruction(
+              HloInstruction::CreateCollectivePermute(*shape, operands, pairs,
+                                                      channel_id));
+        }
+        if (opcode == HloOpcode::kCollectivePermuteStart) {
+          return builder->AddInstruction(
+              HloInstruction::CreateCollectivePermuteStart(*shape, operands,
+                                                           pairs, channel_id));
+        }
+        LOG(FATAL) << "Expect opcode to be CollectivePermute or "
+                      "CollectivePermuteStart, but got "
+                   << opcode;
+      }
+      // TODO update the interface and legalization below for combined
+      // collective permutes
+      if (operands.size() != 4) {
+        TokenError(
+            "CollectivePermute and CollectivePermuteStart must "
+            "have exactly four operands for dynamic-slice and "
+            "in-place update.");
+        return nullptr;
+      }
+      if (opcode == HloOpcode::kCollectivePermute) {
+        return builder->AddInstruction(HloInstruction::CreateCollectivePermute(
+            *shape, operands[0], operands[1], operands[2], operands[3], pairs,
+            *slice_sizes, channel_id));
+      }
+      if (opcode == HloOpcode::kCollectivePermuteStart) {
+        return builder->AddInstruction(
+            HloInstruction::CreateCollectivePermuteStart(
+                *shape, operands[0], operands[1], operands[2], operands[3],
+                pairs, *slice_sizes, channel_id));
+      }
+      LOG(FATAL) << "Expect opcode to be CollectivePermute or "
+                    "CollectivePermuteStart, but got "
+                 << opcode;
     }
     case HloOpcode::kAsyncStart:
     case HloOpcode::kAsyncUpdate:
     case HloOpcode::kAsyncDone: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateAsyncStart, HloInstruction::CreateAsyncUpdate, HloInstruction::CreateAsyncDone
-      // clang-format on
-      return nullptr;
+      std::optional<HloComputation*> async_computation;
+      if (!preset_operands && !ParseOperands(&operands, builder)) {
+        return nullptr;
+      }
+      auto is_async_shape_correct = [](const Shape& shape) {
+        return shape.IsTuple() && shape.tuple_shapes_size() >= 2 &&
+               shape.tuple_shapes(0).IsTuple();
+      };
+      // Verify operand/resulting shapes
+      if (opcode == HloOpcode::kAsyncUpdate ||
+          opcode == HloOpcode::kAsyncDone) {
+        if (operands.size() != 1 ||
+            !is_async_shape_correct(operands[0]->shape())) {
+          TokenError(
+              "AsyncUpdate and AsyncDone expect a single operand in the form "
+              "of ((async-operands), async-outputs, state).");
+          return nullptr;
+        }
+      }
+      if (opcode == HloOpcode::kAsyncStart ||
+          opcode == HloOpcode::kAsyncUpdate) {
+        if (!is_async_shape_correct(*shape)) {
+          TokenError(
+              "AsyncStart and AsyncUpdate expect the op shape to be in the "
+              "form of "
+              "((async-operands), async-outputs, state).");
+          return nullptr;
+        }
+      }
+      // async-{update,done} expect their one singular operand to be the
+      // previous async op.
+      if (opcode == HloOpcode::kAsyncUpdate ||
+          opcode == HloOpcode::kAsyncDone) {
+        if (operands.size() != 1 ||
+            !is_async_shape_correct(operands[0]->shape())) {
+          TokenError(
+              "AsyncUpdate and AsyncDone expect a single operand in the form "
+              "of ((async-operands), async-outputs, state).");
+          return nullptr;
+        }
+        if (!operands[0]->IsAsynchronous()) {
+          TokenError(
+              "AsyncUpdate and AsyncDone expect their operand to be the "
+              "previous async op.");
+          return nullptr;
+        }
+      }
+      std::optional<std::string> async_execution_thread;
+      attrs["async_execution_thread"] = {/*required=*/false, AttrTy::kString,
+                                         &async_execution_thread};
+      if (async_wrapped_opcode) {
+        // Only generate async-wrapper for async-start.
+        if (opcode == HloOpcode::kAsyncStart) {
+          std::vector<HloInstruction*> async_wrapped_operands;
+          std::vector<Shape> async_wrapped_operand_shapes;
+          Shape async_wrapped_root_shape;
+          async_wrapped_operand_shapes.reserve(operands.size());
+          for (const HloInstruction* operand : operands) {
+            async_wrapped_operand_shapes.push_back(operand->shape());
+          }
+          async_wrapped_root_shape = shape->tuple_shapes(1);
+          HloComputation::Builder async_wrapped_builder("async_wrapped");
+          async_wrapped_operands.reserve(async_wrapped_operand_shapes.size());
+          for (int i = 0; i < async_wrapped_operand_shapes.size(); ++i) {
+            async_wrapped_operands.push_back(
+                async_wrapped_builder.AddInstruction(
+                    HloInstruction::CreateParameter(
+                        i, async_wrapped_operand_shapes.at(i), "async_param")));
+          }
+          HloInstruction* root =
+              CreateInstruction(&async_wrapped_builder, "async_op",
+                                async_wrapped_root_shape, *async_wrapped_opcode,
+                                /*async_wrapped_opcode=*/std::nullopt, attrs,
+                                allow_attributes, &async_wrapped_operands);
+          if (!root) {
+            return nullptr;
+          }
+          computations_.emplace_back(async_wrapped_builder.Build(root));
+          async_computation = computations_.back().get();
+        } else {
+          // Since async-{update,done} will inherit the computation from
+          // async-start, we'll only need to make sure it matches what was
+          // specified explicitly.
+          if (operands[0]->async_wrapped_opcode() != *async_wrapped_opcode) {
+            TokenError(absl::StrFormat(
+                "Expect async wrapped opcode to be %s, but got %s",
+                HloOpcodeString(operands[0]->async_wrapped_opcode()),
+                HloOpcodeString(*async_wrapped_opcode)));
+            return nullptr;
+          }
+        }
+      } else {
+        attrs["calls"] = {/*required=*/opcode == HloOpcode::kAsyncStart,
+                          AttrTy::kHloComputation, &async_computation};
+      }
+      // Attributes would have already been consumed when constructing the
+      // async wrapped computation for async-start.
+      if (!(async_wrapped_opcode && opcode == HloOpcode::kAsyncStart)) {
+        if (!ParseAttributes(attrs, allow_attributes, shape)) {
+          return nullptr;
+        }
+      }
+      // Async attributes on async-{update,done} are allowed for backward
+      // compatibility reasons, but are ignored, since they are inherited
+      // from the async-start op. Simply check that whatever is explicitly
+      // specified matches what is inherited.
+      if (opcode == HloOpcode::kAsyncUpdate ||
+          opcode == HloOpcode::kAsyncDone) {
+        if (async_execution_thread &&
+            operands[0]->async_execution_thread() != *async_execution_thread) {
+          TokenError(absl::StrFormat(
+              "Expect async_execution_thread to be %s, but got %s",
+              operands[0]->async_execution_thread(), *async_execution_thread));
+          return nullptr;
+        }
+        if (async_computation &&
+            operands[0]->async_wrapped_computation() != *async_computation) {
+          TokenError(absl::StrFormat(
+              "Expect async_wrapped_computation to be %s, but got %s",
+              operands[0]->async_wrapped_computation()->name(),
+              (*async_computation)->name()));
+          return nullptr;
+        }
+      }
+      // There should be a 1:1 correspondence between async-start ops and
+      // async wrapped computations. At this stage, the computation should
+      // not be referenced by any other async op.
+      if (opcode == HloOpcode::kAsyncStart &&
+          (*async_computation)->IsAsyncComputation()) {
+        TokenError(absl::StrFormat(
+            "Computation %s is already referenced by another async op",
+            (*async_computation)->name()));
+        return nullptr;
+      }
+      if (opcode == HloOpcode::kAsyncStart) {
+        // async_execution_thread only needs to be populated for async-start,
+        // as the rest of the async chain will reference the root op.
+        if (!async_execution_thread) {
+          async_execution_thread = HloInstruction::kMainExecutionThread;
+        }
+        return builder->AddInstruction(HloInstruction::CreateAsyncStart(
+            *shape, operands, *async_computation, *async_execution_thread));
+      }
+      if (opcode == HloOpcode::kAsyncUpdate) {
+        return builder->AddInstruction(
+            HloInstruction::CreateAsyncUpdate(*shape, operands[0]));
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateAsyncDone(*shape, operands[0]));
     }
     case HloOpcode::kCopyStart: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateCopyStart
-      // clang-format on
-      return nullptr;
+      std::optional<int> cross_program_prefetch_index = std::nullopt;
+      attrs["cross_program_prefetch_index"] = {
+          /*required=*/false, AttrTy::kInt32, &cross_program_prefetch_index};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateCopyStart(
+          *shape, operands[0], cross_program_prefetch_index));
     }
     case HloOpcode::kReplicaId: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateReplicaId
-      // clang-format on
-      return nullptr;
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/0)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (shape.has_value()) {
+        return builder->AddInstruction(HloInstruction::CreateReplicaId(*shape));
+      }
+      return builder->AddInstruction(HloInstruction::CreateReplicaId());
     }
     case HloOpcode::kPartitionId: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreatePartitionId
-      // clang-format on
-      return nullptr;
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/0)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (shape.has_value()) {
+        return builder->AddInstruction(
+            HloInstruction::CreatePartitionId(*shape));
+      }
+      return builder->AddInstruction(HloInstruction::CreatePartitionId());
     }
     case HloOpcode::kDynamicReshape: {
       // clang-format off
@@ -1527,16 +1854,36 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return builder->AddInstruction(HloInstruction::CreateAfterAll(operands));
     }
     case HloOpcode::kAddDependency: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateAddDependency
-      // clang-format on
-      return nullptr;
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateAddDependency(operands[0], operands[1]));
     }
     case HloOpcode::kTuple: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateTuple
-      // clang-format on
-      return nullptr;
+      if ((!preset_operands &&
+           !(shape.has_value()
+                 ? ParseOperands(&operands, builder, shape->tuple_shapes_size())
+                 : ParseOperands(&operands, builder))) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            absl::InlinedVector<const Shape*, 2> arg_shapes;
+            arg_shapes.reserve(operands.size());
+            for (auto* operand : operands) {
+              arg_shapes.push_back(&operand->shape());
+            }
+            return ShapeInference::InferVariadicOpShape(opcode, arg_shapes);
+          })) {
+        return nullptr;
+      }
+      // HloInstruction::CreateTuple() infers the shape of the tuple from
+      // operands and should not be used here.
+      return builder->AddInstruction(
+          HloInstruction::CreateVariadic(*shape, HloOpcode::kTuple, operands));
     }
     case HloOpcode::kWhile: {
       // clang-format off
@@ -1545,28 +1892,79 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kRecv: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateRecv
-      // clang-format on
-      return nullptr;
+      std::optional<int64_t> channel_id;
+      // If the is_host_transfer attribute is not present then default to false.
+      std::optional<bool> is_host_transfer = false;
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      attrs["is_host_transfer"] = {/*required=*/false, AttrTy::kBool,
+                                   &is_host_transfer};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      // If the is_host_transfer attribute is not present then default to false.
+      return builder->AddInstruction(HloInstruction::CreateRecv(
+          shape->tuple_shapes(0), operands[0], channel_id, *is_host_transfer));
     }
     case HloOpcode::kRecvDone: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateRecvDone
-      // clang-format on
-      return nullptr;
+      std::optional<int64_t> channel_id;
+      // If the is_host_transfer attribute is not present then default to false.
+      std::optional<bool> is_host_transfer = false;
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      attrs["is_host_transfer"] = {/*required=*/false, AttrTy::kBool,
+                                   &is_host_transfer};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+
+      if (dynamic_cast<const HloChannelInstruction*>(operands[0]) != nullptr) {
+        if (channel_id != operands[0]->channel_id()) {
+          return nullptr;
+        }
+      }
+
+      return builder->AddInstruction(HloInstruction::CreateRecvDone(
+          operands[0], channel_id, *is_host_transfer));
     }
     case HloOpcode::kSend: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateSend
-      // clang-format on
-      return nullptr;
+      std::optional<int64_t> channel_id;
+      // If the is_host_transfer attribute is not present then default to false.
+      std::optional<bool> is_host_transfer = false;
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      attrs["is_host_transfer"] = {/*required=*/false, AttrTy::kBool,
+                                   &is_host_transfer};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateSend(
+          operands[0], operands[1], channel_id, *is_host_transfer));
     }
     case HloOpcode::kSendDone: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateSendDone
-      // clang-format on
-      return nullptr;
+      std::optional<int64_t> channel_id;
+      // If the is_host_transfer attribute is not present then default to false.
+      std::optional<bool> is_host_transfer = false;
+      attrs["channel_id"] = {/*required=*/false, AttrTy::kInt64, &channel_id};
+      attrs["is_host_transfer"] = {/*required=*/false, AttrTy::kBool,
+                                   &is_host_transfer};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+
+      if (dynamic_cast<const HloChannelInstruction*>(operands[0]) != nullptr) {
+        if (channel_id != operands[0]->channel_id()) {
+          return nullptr;
+        }
+      }
+
+      return builder->AddInstruction(HloInstruction::CreateSendDone(
+          operands[0], channel_id, *is_host_transfer));
     }
     case HloOpcode::kGetTupleElement: {
       // clang-format off
@@ -1581,10 +1979,24 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kCompare: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateCompare
-      // clang-format on
-      return nullptr;
+      std::optional<ComparisonDirection> direction;
+      std::optional<PrimitiveType> type;
+      attrs["direction"] = {/*required=*/true, AttrTy::kComparisonDirection,
+                            &direction};
+      attrs["type"] = {/*required=*/false, AttrTy::kPrimitiveType, &type};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferBinaryOpShape(opcode, operands[0],
+                                                      operands[1]);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateCompare(
+          *shape, operands[0], operands[1], *direction, type));
     }
     case HloOpcode::kBroadcast: {
       // clang-format off
@@ -1647,16 +2059,43 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kInfeed: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateInfeed
-      // clang-format on
-      return nullptr;
+      std::optional<std::string> config;
+      attrs["infeed_config"] = {/*required=*/false, AttrTy::kString, &config};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      // We need to know the infeed data shape to construct the infeed
+      // instruction. This is the zero-th element of the tuple-shaped output of
+      // the infeed instruction. ShapeUtil::GetTupleElementShape will check fail
+      // if the shape is not a non-empty tuple, so add guard so an error message
+      // can be emitted instead of a check fail
+      if (!shape->IsTuple() && !ShapeUtil::IsEmptyTuple(*shape)) {
+        TokenError("infeed must have a non-empty tuple shape");
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateInfeed(
+          ShapeUtil::GetTupleElementShape(*shape, 0), operands[0],
+          config ? *config : ""));
     }
     case HloOpcode::kOutfeed: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateOutfeed
-      // clang-format on
-      return nullptr;
+      std::optional<std::string> config;
+      std::optional<Shape> outfeed_shape;
+      attrs["outfeed_config"] = {/*required=*/false, AttrTy::kString, &config};
+      attrs["outfeed_shape"] = {/*required=*/false, AttrTy::kShape,
+                                &outfeed_shape};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      HloInstruction* const outfeed_input = operands[0];
+      HloInstruction* const outfeed_token = operands[1];
+      const Shape shape =
+          outfeed_shape.has_value() ? *outfeed_shape : outfeed_input->shape();
+      return builder->AddInstruction(HloInstruction::CreateOutfeed(
+          shape, outfeed_input, outfeed_token, config ? *config : ""));
     }
     case HloOpcode::kConditional: {
       // clang-format off
