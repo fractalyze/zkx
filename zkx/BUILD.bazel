@@ -285,6 +285,7 @@ zkx_cc_unittest(
         "layout_util_unittest.cc",
         "maybe_owning_unittest.cc",
         "status_macros_unittest.cc",
+        "util_unittest.cc",
     ],
     deps = [
         ":array",
@@ -295,6 +296,7 @@ zkx_cc_unittest(
         ":maybe_owning",
         ":shape_util",
         ":status_macros",
+        ":util",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
     ],
