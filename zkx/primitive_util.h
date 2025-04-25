@@ -27,6 +27,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/base/optimization.h"
+#include "absl/log/check.h"
 #include "absl/status/statusor.h"
 
 #include "xla/tsl/lib/math/math_util.h"
@@ -396,6 +397,31 @@ inline constexpr int BitWidth(PrimitiveType type) {
 // Returns the number of bytes in the representation for a given type.
 inline constexpr int ByteWidth(PrimitiveType type) {
   return internal::WidthForType<internal::kByteWidths>(type);
+}
+
+// Returns the higher-precision element type if a and b are both floating
+// point types; otherwise, checks that they have the same element type
+// and returns it.
+inline PrimitiveType HigherPrecisionType(PrimitiveType a, PrimitiveType b) {
+  // Returns a tuple where the elements are lexicographically ordered in terms
+  // of importance.
+  auto type_properties = [](PrimitiveType type) {
+    return std::make_tuple(
+        // Prefer wider types over narrower types.
+        BitWidth(type),
+        // Prefer signed integer types over unsigned integer types.
+        IsSignedIntegralType(type));
+  };
+  auto a_properties = type_properties(a);
+  auto b_properties = type_properties(b);
+  if (a_properties > b_properties) {
+    return a;
+  }
+  if (b_properties > a_properties) {
+    return b;
+  }
+  CHECK_EQ(a, b);
+  return a;
 }
 
 // Returns the lower-case name of the given primitive type.

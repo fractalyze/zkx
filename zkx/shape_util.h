@@ -187,6 +187,15 @@ class ShapeUtil {
     return lhs.element_type() == rhs.element_type();
   }
 
+  // Returns the higher-precision element type if a and b are both floating
+  // point types; otherwise, checks that they have the same element type
+  // and returns it.
+  static PrimitiveType HigherPrecisionElementType(const Shape& a,
+                                                  const Shape& b) {
+    return primitive_util::HigherPrecisionType(a.element_type(),
+                                               b.element_type());
+  }
+
   // Returns true if the rank, dimension sizes, and element type are
   // identical. Layout is ignored. Tuple elements are compared recursively for
   // compatibility.
