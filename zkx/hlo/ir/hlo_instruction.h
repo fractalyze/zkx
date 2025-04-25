@@ -20,7 +20,9 @@
 #include "absl/types/span.h"
 
 #include "zkx/base/logging.h"
+#include "zkx/comparison_util.h"
 #include "zkx/hlo/ir/backend_config.h"
+#include "zkx/hlo/ir/collective_device_list.h"
 #include "zkx/hlo/ir/hlo_clone_context.h"
 #include "zkx/hlo/ir/hlo_opcode.h"
 #include "zkx/hlo/ir/hlo_original_value.h"
@@ -563,6 +565,9 @@ class HloInstruction {
   std::string ToString() const;
   std::string ToString(const HloPrintOptions& options) const;
 
+  // As ToString, but returns a shorter string.
+  std::string ToShortString() const;
+
   // Prints an instruction to a string.
   //
   // The canonical string representation needs to name operands and instruction
@@ -895,6 +900,21 @@ class HloInstruction {
     LOG(FATAL) << "Unimplemented method.";
   }
 
+  int64_t dimensions(int64_t index) const { return dimensions()[index]; }
+
+  virtual std::vector<int64_t>* mutable_dimensions() {
+    LOG(FATAL) << "Unimplemented method.";
+  }
+
+  // Delegates to HloConcatenateInstruction::concatenate_dimension.
+  virtual int64_t concatenate_dimension() const;
+
+  // Returns the literal associated with this instruction.
+  const Literal& literal() const;
+
+  // Returns whether the instruction is a constant.
+  bool IsConstant() const;
+
   // Delegates to HloParameterInstruction::parameter_number.
   int64_t parameter_number() const;
 
@@ -908,6 +928,35 @@ class HloInstruction {
   // Delegates to HloParameterInstruction::parameter_replicated_at_leaf_buffers.
   const std::optional<std::vector<bool>>& parameter_replicated_at_leaf_buffers()
       const;
+
+  // Delegates to HloInfeedInstruction::infeed_config.
+  std::string infeed_config() const;
+
+  // Delegates to HloInfeedInstruction::set_infeed_config.
+  void set_infeed_config(const std::string& config);
+
+  // Returns the config for the Outfeed instruction.
+  const std::string& outfeed_config() const;
+
+  // Delegates to HloOutfeedInstruction::set_outfeed_config.
+  void set_outfeed_config(const std::string& config);
+
+  // Returns the shape for the Outfeed instruction.
+  const Shape& outfeed_shape() const;
+
+  // Returns the mutable shape for the Outfeed instruction.
+  Shape* mutable_outfeed_shape();
+
+  // Delegates to HloCollectiveInstruction::replica_groups.
+  // TODO(b/316622399): Remove usages of this method and replace with
+  // device_list()->replica_groups().
+  const std::vector<ReplicaGroup>& replica_groups() const;
+
+  // Delegates to HloCollectiveInstruction::device_list.
+  const CollectiveDeviceList& device_list() const;
+
+  // Delegates to HloCollectivePermuteInstruction::source_target_pairs.
+  const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs() const;
 
   // Appends operand(s) to the list of operands and adds this instruction as a
   // user of the operand.
@@ -950,6 +999,14 @@ class HloInstruction {
 
   // Delegates to HloAsyncInstruction::set_async_execution_thread().
   void set_async_execution_thread(std::string_view async_execution_thread);
+
+  // Delegates to HloCopyStartInstruction::is_cross_program_prefetch_index().
+  std::optional<int> cross_program_prefetch_index() const;
+
+  // Delegates to HloCompareInstruction::direction().
+  ComparisonDirection comparison_direction() const;
+  // Delegates to HloCompareInstruction::order().
+  ComparisonOrder comparison_order() const;
 
  protected:
   // Internal constructor for a given opcode/shape, other fields must be filled

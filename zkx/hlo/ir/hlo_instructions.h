@@ -26,6 +26,7 @@ limitations under the License.
 
 #include "absl/base/attributes.h"
 
+#include "xla/tsl/platform/status.h"
 #include "zkx/comparison_util.h"
 #include "zkx/hlo/ir/collective_device_list.h"
 #include "zkx/hlo/ir/hlo_clone_context.h"
@@ -36,6 +37,49 @@ limitations under the License.
 #include "zkx/shape.h"
 
 namespace zkx {
+
+// Base class for instructions with a dimensions vector.
+class HloDimensionsInstruction : public HloInstruction {
+ public:
+  absl::Span<const int64_t> dimensions() const override { return dimensions_; }
+
+  std::vector<int64_t>* mutable_dimensions() override { return &dimensions_; }
+
+  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
+  // HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    switch (hlo->opcode()) {
+      case HloOpcode::kBroadcast:
+      case HloOpcode::kConcatenate:
+      case HloOpcode::kReduce:
+      case HloOpcode::kReverse:
+      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
+      // case HloOpcode::kSort:
+      case HloOpcode::kTranspose:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+ protected:
+  HloDimensionsInstruction(HloOpcode opcode, const Shape& shape,
+                           absl::Span<const int64_t> dimensions)
+      : HloInstruction(opcode, shape),
+        dimensions_(dimensions.begin(), dimensions.end()) {}
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+
+  std::vector<int64_t> dimensions_;
+};
 
 class HloAsyncInstruction : public HloInstruction {
  public:
@@ -150,6 +194,45 @@ class HloAsyncStartInstruction : public HloAsyncInstruction {
   std::string async_execution_thread_ = kMainExecutionThread;
 };
 
+class HloCopyStartInstruction : public HloInstruction {
+ public:
+  explicit HloCopyStartInstruction(
+      const Shape& shape, HloInstruction* operand,
+      std::optional<int> cross_program_prefetch_index);
+
+  std::optional<int> cross_program_prefetch_index() const {
+    return cross_program_prefetch_index_;
+  }
+  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
+  // HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kCopyStart;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  // Each cross program prefetched buffer has a unique index. The indices are
+  // assigned contiguously starting from zero in
+  // MsaAlgorithm::AllocateCrossProgramPrefetchBuffer. This value is used during
+  // codegen to determine which buffer is being speculated at runtime. One
+  // possible implementation is to initialize an array with boolean values
+  // indicating whether the cross program prefetch succeeds or fails for each
+  // buffer.
+  std::optional<int> cross_program_prefetch_index_;
+};
+
 class HloCompareInstruction : public HloInstruction {
  public:
   explicit HloCompareInstruction(const Shape& shape, HloInstruction* lhs,
@@ -225,6 +308,116 @@ class HloChannelInstruction : public HloInstruction {
           eq_computations) const final;
 
   std::optional<int64_t> channel_id_;
+};
+
+class HloSendRecvInstruction : public HloChannelInstruction {
+ public:
+  // Returns whether this send/recv instruction sends data to/from the host.
+  bool is_host_transfer() const { return is_host_transfer_; }
+
+  // Returns a serialized representation of this instruction.
+  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
+  // HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    switch (hlo->opcode()) {
+      case HloOpcode::kSend:
+      case HloOpcode::kSendDone:
+      case HloOpcode::kRecv:
+      case HloOpcode::kRecvDone:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+ protected:
+  explicit HloSendRecvInstruction(HloOpcode opcode, const Shape& shape,
+                                  std::optional<int64_t> channel_id,
+                                  bool is_host_transfer);
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPathIgnoringChannelIdValues(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Whether this send/recv instruction sends data to/from the host.
+  bool is_host_transfer_;
+};
+
+class HloSendInstruction : public HloSendRecvInstruction {
+ public:
+  explicit HloSendInstruction(HloInstruction* operand, HloInstruction* token,
+                              std::optional<int64_t> channel_id,
+                              bool is_host_transfer);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kSend;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
+
+class HloSendDoneInstruction : public HloSendRecvInstruction {
+ public:
+  explicit HloSendDoneInstruction(HloSendInstruction* operand,
+                                  bool is_host_transfer);
+  explicit HloSendDoneInstruction(HloInstruction* operand,
+                                  std::optional<int64_t> channel_id,
+                                  bool is_host_transfer);
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kSendDone;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
+
+class HloRecvInstruction : public HloSendRecvInstruction {
+ public:
+  explicit HloRecvInstruction(const Shape& shape, HloInstruction* token,
+                              std::optional<int64_t> channel_id,
+                              bool is_host_transfer);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kRecv;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
+
+class HloRecvDoneInstruction : public HloSendRecvInstruction {
+ public:
+  explicit HloRecvDoneInstruction(HloRecvInstruction* operand,
+                                  bool is_host_transfer);
+  explicit HloRecvDoneInstruction(HloInstruction* operand,
+                                  std::optional<int64_t> channel_id,
+                                  bool is_host_transfer);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kRecvDone;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
 };
 
 class HloCollectiveInstruction : public HloChannelInstruction {
@@ -626,13 +819,47 @@ inline bool HloCollectiveInstruction::ClassOf(const HloInstruction* hlo) {
 }
 
 inline bool HloChannelInstruction::ClassOf(const HloInstruction* hlo) {
-  // TODO(chokobole): Uncomment this. Dependency: HloSendRecvInstruction
-  // return HloCollectiveInstruction::ClassOf(hlo) ||
-  //        HloCollectivePermuteInstruction::ClassOf(hlo) ||
-  //        HloSendRecvInstruction::ClassOf(hlo);
   return HloCollectiveInstruction::ClassOf(hlo) ||
-         HloCollectivePermuteInstruction::ClassOf(hlo);
+         HloCollectivePermuteInstruction::ClassOf(hlo) ||
+         HloSendRecvInstruction::ClassOf(hlo);
 }
+
+class HloReverseInstruction : public HloDimensionsInstruction {
+ public:
+  explicit HloReverseInstruction(const Shape& shape, HloInstruction* operand,
+                                 absl::Span<const int64_t> dimensions);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kReverse;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
+
+class HloConcatenateInstruction : public HloDimensionsInstruction {
+ public:
+  explicit HloConcatenateInstruction(const Shape& shape,
+                                     absl::Span<HloInstruction* const> operands,
+                                     int64_t dimension);
+  // Accessor for the dimension in which a concatenate HLO should occur.
+  int64_t concatenate_dimension() const override {
+    return HloInstruction::dimensions(0);
+  }
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kConcatenate;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
 
 class HloConstantInstruction : public HloInstruction {
  public:
@@ -761,6 +988,92 @@ class HloParameterInstruction : public HloInstruction {
   // Specifies whether each buffer has the same parameter value on all replicas
   // in data parallelism.
   std::optional<std::vector<bool>> parameter_replicated_at_leaf_buffers_;
+};
+
+class HloInfeedInstruction : public HloInstruction {
+ public:
+  explicit HloInfeedInstruction(const Shape& infeed_shape,
+                                HloInstruction* token_operand,
+                                const std::string& config);
+  // Returns the infeed configuration string. The infeed configuration includes
+  // any metadata needed for the backend compiler (e.g., infeed buffer address)
+  // and is target-dependent.
+  std::string infeed_config() const { return infeed_config_; }
+  void set_infeed_config(const std::string& config) { infeed_config_ = config; }
+  // Returns the shape of the data received by the infeed. This is not the same
+  // as the shape of the infeed instruction which produces a tuple containing
+  // the infeed data shape and a TOKEN.
+  const Shape& infeed_shape() const {
+    TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape()));
+    return ShapeUtil::GetSubshape(shape(), {0});
+  }
+  // Returns a serialized representation of this instruction.
+  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
+  // HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kInfeed;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  // The string representation of the infeed configuration.
+  std::string infeed_config_;
+};
+
+class HloOutfeedInstruction : public HloInstruction {
+ public:
+  explicit HloOutfeedInstruction(const Shape& outfeed_shape,
+                                 HloInstruction* operand,
+                                 HloInstruction* token_operand,
+                                 std::string_view outfeed_config);
+  // Returns the shape for the Outfeed instruction.
+  const Shape& outfeed_shape() const { return outfeed_shape_; }
+  // Returns the mutable shape for the Outfeed instruction.
+  Shape* mutable_outfeed_shape() { return &outfeed_shape_; }
+  // Returns the config for the Outfeed instruction.
+  const std::string& outfeed_config() const { return outfeed_config_; }
+  void set_outfeed_config(const std::string& config) {
+    outfeed_config_ = config;
+  }
+  // Returns a serialized representation of this instruction.
+  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
+  // HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kOutfeed;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  // Shape of outfeed request.
+  Shape outfeed_shape_;
+  // Outfeed configuration information, only present for kOutfeed.
+  std::string outfeed_config_;
 };
 
 }  // namespace zkx

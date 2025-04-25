@@ -1271,6 +1271,16 @@ std::string FrontendAttributesToString(
                          absl::StrJoin(sorted_attributes, ",", formatter));
 }
 
+std::string HloInstruction::ToShortString() const {
+  return absl::StrCat(
+      "%", name(), " = ", HloOpcodeString(opcode()), "(",
+      absl::StrJoin(operands_, ", ",
+                    [](std::string* out, HloInstruction* operand) {
+                      absl::StrAppend(out, "%", operand->name());
+                    }),
+      ")");
+}
+
 HloInstruction::HloInstruction(HloOpcode opcode, const Shape& shape)
     : unique_id_(-1),
       index_in_parent_(~0u),
@@ -1314,6 +1324,18 @@ void HloInstruction::UniquifyName(HloModule* module) {
   UniquifyName(&module->instruction_name_uniquer());
 }
 
+int64_t HloInstruction::concatenate_dimension() const {
+  return Cast<HloConcatenateInstruction>(this)->concatenate_dimension();
+}
+
+const Literal& HloInstruction::literal() const {
+  return Cast<HloConstantInstruction>(this)->literal();
+}
+
+bool HloInstruction::IsConstant() const {
+  return DynCast<HloConstantInstruction>(this) != nullptr;
+}
+
 int64_t HloInstruction::parameter_number() const {
   return Cast<HloParameterInstruction>(this)->parameter_number();
 }
@@ -1336,6 +1358,43 @@ const std::optional<std::vector<bool>>&
 HloInstruction::parameter_replicated_at_leaf_buffers() const {
   return Cast<HloParameterInstruction>(this)
       ->parameter_replicated_at_leaf_buffers();
+}
+
+std::string HloInstruction::infeed_config() const {
+  return Cast<HloInfeedInstruction>(this)->infeed_config();
+}
+
+void HloInstruction::set_infeed_config(const std::string& config) {
+  return Cast<HloInfeedInstruction>(this)->set_infeed_config(config);
+}
+
+const Shape& HloInstruction::outfeed_shape() const {
+  return Cast<HloOutfeedInstruction>(this)->outfeed_shape();
+}
+
+Shape* HloInstruction::mutable_outfeed_shape() {
+  return Cast<HloOutfeedInstruction>(this)->mutable_outfeed_shape();
+}
+
+const std::string& HloInstruction::outfeed_config() const {
+  return Cast<HloOutfeedInstruction>(this)->outfeed_config();
+}
+
+void HloInstruction::set_outfeed_config(const std::string& config) {
+  return Cast<HloOutfeedInstruction>(this)->set_outfeed_config(config);
+}
+
+const std::vector<ReplicaGroup>& HloInstruction::replica_groups() const {
+  return Cast<HloCollectiveInstruction>(this)->replica_groups();
+}
+
+const CollectiveDeviceList& HloInstruction::device_list() const {
+  return Cast<HloCollectiveInstruction>(this)->device_list();
+}
+
+const std::vector<std::pair<int64_t, int64_t>>&
+HloInstruction::source_target_pairs() const {
+  return Cast<HloCollectivePermuteInstruction>(this)->source_target_pairs();
 }
 
 std::optional<int64_t> HloInstruction::channel_id() const {
@@ -1378,6 +1437,18 @@ void HloInstruction::set_async_execution_thread(
     std::string_view async_execution_thread) {
   Cast<HloAsyncInstruction>(this)->set_async_execution_thread(
       async_execution_thread);
+}
+
+std::optional<int> HloInstruction::cross_program_prefetch_index() const {
+  return Cast<HloCopyStartInstruction>(this)->cross_program_prefetch_index();
+}
+
+ComparisonDirection HloInstruction::comparison_direction() const {
+  return Cast<HloCompareInstruction>(this)->direction();
+}
+
+ComparisonOrder HloInstruction::comparison_order() const {
+  return Cast<HloCompareInstruction>(this)->order();
 }
 
 std::string_view ToString(HloInstruction::FusionKind kind) {
