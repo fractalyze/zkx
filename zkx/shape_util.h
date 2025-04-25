@@ -201,6 +201,11 @@ class ShapeUtil {
   // compatibility.
   static bool Compatible(const Shape& lhs, const Shape& rhs);
 
+  // Returns true if the rank and dimension sizes are identical. Element type
+  // and layout are ignored. Tuple elements are compared recursively for
+  // compatibility.
+  static bool CompatibleIgnoringElementType(const Shape& lhs, const Shape& rhs);
+
   // Returns true if the tuple tree shapes and leaf ranks are identical.
   // Leaf dimensions, element type, and layout are ignored. Tuple elements are
   // compared recursively for compatibility.

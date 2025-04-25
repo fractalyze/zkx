@@ -675,6 +675,15 @@ bool ShapeUtil::Compatible(const Shape& lhs, const Shape& rhs) {
 }
 
 // static
+bool ShapeUtil::CompatibleIgnoringElementType(const Shape& lhs,
+                                              const Shape& rhs) {
+  return Shape::Equal()
+      .IgnoreDynamicDimension()
+      .IgnoreElementType()
+      .IgnoreLayout()(lhs, rhs);
+}
+
+// static
 bool ShapeUtil::CompatibleKind(const Shape& lhs, const Shape& rhs) {
   return Shape::Equal()
       .IgnoreElementType()
