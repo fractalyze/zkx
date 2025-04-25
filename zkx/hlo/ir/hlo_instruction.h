@@ -284,6 +284,356 @@ class HloInstruction {
                                                       HloInstruction* lhs,
                                                       HloInstruction* rhs);
 
+  // Creates a ternary instruction (three operands).
+  // Precondition: opcode must be a legitimate ternary operation.
+  static std::unique_ptr<HloInstruction> CreateTernary(const Shape& shape,
+                                                       HloOpcode opcode,
+                                                       HloInstruction* lhs,
+                                                       HloInstruction* rhs,
+                                                       HloInstruction* ehs);
+
+  // Creates a variadic instruction (variable number of operands).
+  // Precondition: opcode must be a legitimate variadic operation.
+  static std::unique_ptr<HloInstruction> CreateVariadic(
+      const Shape& shape, HloOpcode opcode,
+      absl::Span<HloInstruction* const> operands);
+
+  // Creates an asynchronous start, update, and done op.
+  static std::unique_ptr<HloInstruction> CreateAsyncStart(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* async_computation,
+      std::string_view async_execution_thread = kMainExecutionThread);
+  static std::unique_ptr<HloInstruction> CreateAsyncUpdate(
+      const Shape& shape, HloInstruction* operand);
+  static std::unique_ptr<HloInstruction> CreateAsyncDone(
+      const Shape& shape, HloInstruction* operand);
+
+  // Creates a copy-start op, indicating whether this is a cross-program
+  // prefetch or not.
+  static std::unique_ptr<HloInstruction> CreateCopyStart(
+      const Shape& shape, HloInstruction* operand,
+      std::optional<int> cross_program_prefetch_index = std::nullopt);
+
+  // Creates a compare op, performing the comparison specified in direction.
+  static std::unique_ptr<HloInstruction> CreateCompare(
+      const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
+      Comparison::Direction direction,
+      std::optional<PrimitiveType> type = std::nullopt);
+
+  // Creates an all-gather op, which concats the operands of all participants
+  // along all_gather_dimension. The replica_groups, channel_id, and
+  // use_global_device_ids arguments are identical to those in all-reduce,
+  // except that the order of the group members determines the concatenation
+  // order of inputs from different participants.
+  static std::unique_ptr<HloInstruction> CreateAllGather(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      int64_t all_gather_dimension, const CollectiveDeviceList& device_list,
+      bool constrain_layout, const std::optional<int64_t>& channel_id,
+      bool use_global_device_ids);
+
+  // Creates an all-gather-start op, which concats the operands of all
+  // participants
+  // along all_gather_dimension. The replica_groups, channel_id, and
+  // use_global_device_ids arguments are identical to those in all-reduce,
+  // except that the order of the group members determines the concatenation
+  // order of inputs from different participants. Needs to be used in
+  // conjunction of a AllGatherDone op that synchronizes and returns the result.
+  static std::unique_ptr<HloInstruction> CreateAllGatherStart(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      int64_t all_gather_dimension, const CollectiveDeviceList& device_list,
+      bool constrain_layout, const std::optional<int64_t>& channel_id,
+      bool use_global_device_ids);
+
+  // Creates a cross replica reduction op.
+  //
+  // `reduction_computation`: the reduction function.
+  //
+  // `replica_groups`: each ReplicaGroup contains a list of replica id. If
+  // empty, all replicas belong to one group in the order of 0 - (n-1).
+  // Allreduce will be applied within subgroups.
+  // For example, we have 4 replicas, then replica_groups={{0,2},{1,3}} means,
+  // replica 0 and 2 are in subgroup 0, replica 1 and 3 are in subgroup 1.
+  //
+  // `channel_id`: for Allreduce nodes from different modules, if
+  // they have the same channel_id, they will be 'Allreduce'd. If
+  // empty, Allreduce will not be applied cross modules.
+  static std::unique_ptr<HloInstruction> CreateAllReduce(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* reduce_computation,
+      const CollectiveDeviceList& device_list, bool constrain_layout,
+      const std::optional<int64_t>& channel_id, bool use_global_device_ids);
+
+  // Creates a reduce-scatter operation which reduces its inputs across the
+  // given replica groups and then scatters the reduced data across the N
+  // participants.
+  static std::unique_ptr<HloInstruction> CreateReduceScatter(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* reduce_computation,
+      const CollectiveDeviceList& device_list, bool constrain_layout,
+      const std::optional<int64_t>& channel_id, bool use_global_device_ids,
+      int64_t scatter_dimension);
+
+  // Creates an asynchronous cross replica reduction op.
+  //
+  // `reduction_computation`: the reduction function.
+  //
+  // `replica_groups`: each ReplicaGroup contains a list of replica id. If
+  // empty, all replicas belong to one group in the order of 0 - (n-1).
+  // Allreduce will be applied within subgroups.
+  // For example, we have 4 replicas, then replica_groups={{0,2},{1,3}} means,
+  // replica 0 and 2 are in subgroup 0, replica 1 and 3 are in subgroup 1.
+  //
+  // `channel_id`: for Allreduce nodes from different modules, if
+  // they have the same channel_id, they will be 'Allreduce'd. If
+  // empty, Allreduce will not be applied cross modules.
+  static std::unique_ptr<HloInstruction> CreateAllReduceStart(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* reduce_computation,
+      const CollectiveDeviceList& device_list, bool constrain_layout,
+      const std::optional<int64_t>& channel_id, bool use_global_device_ids);
+
+  // An all-to-all op takes N array operands of the same shape and scatters them
+  // to N replicas.  Each replica gathers the results into a tuple.
+  //
+  // For example, suppose we have 3 replicas, with replica i passing inputs
+  // [a_i, b_i, c_i] to its all-to-all op.  Then the resulting tuples are
+  //
+  //   replica 0: (a_0, a_1, a_2)
+  //   replica 1: (b_0, b_1, b_2)
+  //   replica 2: (c_0, c_1, c_2).
+  //
+  // If replica_groups is set, the op is sharded and the replicas are permuted.
+  // To explain by way of example, suppose we have replica_groups={{1,2},{3,0}}.
+  // Then each replica passes two operands, say [a_i, b_i], and the result is
+  //
+  //   replica 0: (b_3, b_0)
+  //   replica 1: (a_1, a_2)
+  //   replica 2: (b_1, b_2)
+  //   replica 3: (a_3, a_0).
+  //
+  // All replica groups must have the same number of elements, and the number of
+  // operands must be equal to the size of one replica group.  Each replica must
+  // appear in exactly one group.
+  //
+  // Note that in addition to supporting this instruction, XlaBuilder also
+  // supports a higher-level instruction which takes one input and slices it,
+  // performs AllToAll and then concatenates the results into a single array.
+  static std::unique_ptr<HloInstruction> CreateAllToAll(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      const CollectiveDeviceList& device_list, bool constrain_layout,
+      const std::optional<int64_t>& channel_id,
+      const std::optional<int64_t>& split_dimension = std::nullopt);
+
+  // The RaggedAllToAll instruction performs a collective all-to-all operation,
+  // where the input and output are ragged tensors.
+  //
+  // Ragged tensors are defined by a set of three tensors:
+  // *) ‘data’: the ‘data’ tensor is “ragged” along its outermost dimension,
+  //   along which each indexed element has variable size.
+  // *) ‘offsets’: the ‘offsets’ tensor indexes the outermost dimension of the
+  //  ‘data’ tensor, and represents the starting offset of each ragged element
+  //  of the ‘data’ tensor.
+  // *) ‘sizes’: the ‘sizes’ tensor represents the size of each ragged element
+  //  of the ‘data’ tensor, where the size is specified in units of
+  //  sub-elements. A sub-element is defined as the suffix of the ‘data’ tensor
+  //  shape obtained by removing the outermost “ragged” dimension.
+  // *) The ‘offsets’ and ‘sizes’ tensors must have the same size.
+  //
+  // An example ragged tensor
+  // data: [8,3] =
+  //  {{a,b,c},{d,e,f},{g,h,i},{j,k,l},{m,n,o},{p,q,r},{s,t,u},{v,w,x}}
+  // offsets: [3] = {0, 1, 4}
+  // sizes: [3] = {1, 3, 4}
+  //
+  // Index 'data' at 'offsets'[0], 'sizes'[0]'
+  // {a,b,c}
+  //
+  // Index 'data' at 'offsets'[1], 'sizes'[1]'
+  // {d,e,f},{g,h,i},{j,k,l}
+  //
+  // Index 'data' at 'offsets'[2], 'sizes'[2]'
+  // {m,n,o},{p,q,r},{s,t,u},{v,w,x}
+  //
+  //
+  // ``output_offsets`` must be sharded in a way that each replica has offsets
+  // in the target replica output perspective.
+  //
+  // For i-th output offset, the current replica will send
+  // `input[input_offsets[i]:input_offsets[i]+input_sizes[i]]` update to
+  // `i`-th replica that will be written to
+  // `output_i[output_offsets[i]:output_offsets[i]+send_sizes[i]]` in `i`-th
+  // replica ``output``.
+  //
+  // For example, if we have 2 replicas:
+  //
+  // replica 0:
+  //   input: [1, 2, 2]
+  //   output: [0, 0, 0, 0]
+  //   input_offsets: [0, 1]
+  //   send_sizes: [1, 2]
+  //   output_offsets: [0, 0]
+  //   recv_sizes: [1, 1]
+  //
+  // replica 1:
+  //   input: [3, 4, 0]
+  //   output: [0, 0, 0, 0]
+  //   input_offsets: [0, 1]
+  //   send_sizes: [1, 1]
+  //   output_offsets: [1, 2]
+  //   recv_sizes: [2, 1]
+  //
+  // replica 0's result will be: [1, 3, 0, 0]
+  // replica 1's result will be: [2, 2, 4, 0]
+  //
+  // The ragged all-to-all HLO has the following arguments:
+  //   input: ragged input data tensor.
+  //   output: ragged output data tensor.
+  //   input_offsets: ragged input offsets tensor.
+  //   send_sizes: ragged send sizes tensor.
+  //   output_offsets: array of ragged offsets in the target replica output.
+  //   recv_sizes: ragged recv sizes tensor.
+  //
+  // The '*_offsets' and '*_sizes' tensors must all have the same shape.
+  // Two shapes are supported for the '*_offsets' and '*_sizes' tensors:
+  //   *) [num_devices] where ragged-all-to-all may send at most one update to
+  //      each remote device in the replica group. For example:
+  //
+  //      for (remote_device_id : replica_group) {
+  //        SEND input[input_offsets[remote_device_id]],
+  //             output[output_offsets[remote_device_id]],
+  //             send_sizes[remote_device_id]
+  //      }
+  //
+  //   *) [num_devices, num_updates] where ragged-all-to-all may send up to
+  //      'num_updates' updates the same remote device (each at different
+  //      offsets), for each remote device in the replica group. For example:
+  //
+  //      for (remote_device_id : replica_group) {
+  //        for (update_idx : num_updates) {
+  //          SEND input[input_offsets[remote_device_id][update_idx]],
+  //               output[output_offsets[remote_device_id][update_idx]]],
+  //               send_sizes[remote_device_id][update_idx]
+  //        }
+  //      }
+  //
+  // The output buffer is passed in as an input (and aliased in the output),
+  // to support incremental updates to the same buffer.
+  //
+  static std::unique_ptr<HloInstruction> CreateRaggedAllToAll(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      const CollectiveDeviceList& device_list,
+      const std::optional<int64_t>& channel_id);
+
+  // Creates a communication instruction that broadcasts data cross replicas.
+  // Data is sent from to the first replica id in each group to the other ids in
+  // the same group. If a replica id is not a in any replica group, the output
+  // on that replica is a tensor consists of 0(s) in `shape`.
+  static std::unique_ptr<HloInstruction> CreateCollectiveBroadcast(
+      const Shape& shape, absl::Span<HloInstruction* const> operand,
+      const CollectiveDeviceList& device_list, bool constrain_layout,
+      const std::optional<int64_t>& channel_id);
+
+  // Creates a communication instruction that permutes data cross replicas.
+  // Data is sent/received according to the (source_replica_id,
+  // target_replica_id) pairs in `source_target_pairs`. If a replica id is not a
+  // target_replica_id in any pair, the output on that replica is a tensor
+  // consists of 0(s) in `shape`.
+  static std::unique_ptr<HloInstruction> CreateCollectivePermute(
+      const Shape& shape, HloInstruction* operand,
+      const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs,
+      const std::optional<int64_t>& channel_id);
+  static std::unique_ptr<HloInstruction> CreateCollectivePermute(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs,
+      const std::optional<int64_t>& channel_id);
+
+  static std::unique_ptr<HloInstruction> CreateCollectivePermute(
+      const Shape& shape, HloInstruction* input, HloInstruction* output,
+      HloInstruction* input_start_indices, HloInstruction* output_start_indices,
+      absl::Span<const std::pair<int64_t, int64_t>> source_target_pairs,
+      absl::Span<const std::vector<int64_t>> slice_sizes,
+      const std::optional<int64_t>& channel_id);
+
+  // Creates a communication instruction that initiates the start of
+  // CollectivePermute.
+  static std::unique_ptr<HloInstruction> CreateCollectivePermuteStart(
+      const Shape& shape, HloInstruction* operand,
+      const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs,
+      const std::optional<int64_t>& channel_id);
+  static std::unique_ptr<HloInstruction> CreateCollectivePermuteStart(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs,
+      const std::optional<int64_t>& channel_id);
+
+  static std::unique_ptr<HloInstruction> CreateCollectivePermuteStart(
+      const Shape& shape, HloInstruction* input, HloInstruction* output,
+      HloInstruction* input_start_indices, HloInstruction* output_start_indices,
+      absl::Span<const std::pair<int64_t, int64_t>> source_target_pairs,
+      absl::Span<const std::vector<int64_t>> slice_sizes,
+      const std::optional<int64_t>& channel_id);
+
+  // Creates an instruction that returns a U32 replica ID.
+  static std::unique_ptr<HloInstruction> CreateReplicaId(
+      const Shape& shape = ShapeUtil::MakeShape(U32, {}));
+
+  // Creates an instruction that returns a U32 partition ID.
+  static std::unique_ptr<HloInstruction> CreatePartitionId(
+      const Shape& shape = ShapeUtil::MakeShape(U32, {}));
+
+  // Creates a bitcast instruction, where operand is the data to
+  // convert and shape is the target shape for the conversion.
+  static std::unique_ptr<HloInstruction> CreateBitcast(const Shape& shape,
+                                                       HloInstruction* operand);
+
+  // Creates a bitcast conversion instruction, where operand is the data to
+  // convert and shape is the target shape for the conversion.
+  static std::unique_ptr<HloInstruction> CreateBitcastConvert(
+      const Shape& shape, HloInstruction* operand);
+
+  // Creates an infeed instruction, which reads data of the given shape from the
+  // Infeed interface of the device. infeed_shape is the shape of the data
+  // received from the infeed *not* the shape of the infeed instruction which
+  // is a tuple containing the infeed_shape and the TOKEN.
+  static std::unique_ptr<HloInstruction> CreateInfeed(
+      const Shape& infeed_shape, HloInstruction* token_operand,
+      const std::string& config);
+
+  // Creates an outfeed instruction, which outputs data. outfeed_shape is the
+  // shape of the data being outfed *not* the shape of the outfeed instruction
+  // which is a TOKEN.
+  static std::unique_ptr<HloInstruction> CreateOutfeed(
+      const Shape& outfeed_shape, HloInstruction* operand,
+      HloInstruction* token_operand, std::string_view outfeed_config);
+
+  // Creates an asynchronous send instruction with the given channel id, which
+  // initiates sending the operand data to a unique receive instruction in
+  // another computation that has the same channel id. If is_host_transfer is
+  // true, then this Send operation transfers data to the host.
+  static std::unique_ptr<HloInstruction> CreateSend(
+      HloInstruction* operand, HloInstruction* token,
+      std::optional<int64_t> channel_id, bool is_host_transfer);
+
+  // Blocks until data transfer for the Send instruction (operand) is complete.
+  // The operand must be kSend.
+  static std::unique_ptr<HloInstruction> CreateSendDone(
+      HloInstruction* operand, std::optional<int64_t> channel_id,
+      bool is_host_transfer);
+
+  // Creates an asynchronous receive instruction with the given channel id,
+  // which allocates resources to receive data of the given shape from a unique
+  // send instruction in another computation that has the same channel id.  If
+  // is_host_transfer is true, then this Recv operation transfers data from the
+  // host.
+  static std::unique_ptr<HloInstruction> CreateRecv(
+      const Shape& shape, HloInstruction* token,
+      std::optional<int64_t> channel_id, bool is_host_transfer);
+
+  // Blocks until data transfer for the Recv instruction (operand) is complete
+  // and returns the receive buffer. The operand must be kRecv.
+  static std::unique_ptr<HloInstruction> CreateRecvDone(
+      HloInstruction* operand, std::optional<int64_t> channel_id,
+      bool is_host_transfer);
+
   // Creates a Afterall instruction used for joining or creating new values of
   // token type which thread through side-effecting operations. Operands must
   // all be tokens, calls without operands generates a token.
@@ -296,6 +646,9 @@ class HloInstruction {
   // TODO(b/110532604): Remove this capability of creating a token from nothing
   // when we plumb a primordial token from the entry computation.
   static std::unique_ptr<HloInstruction> CreateToken();
+
+  static std::unique_ptr<HloInstruction> CreateAddDependency(
+      HloInstruction* data_operand, HloInstruction* token_operand);
 
   // Returns true if `execution_thread` is included in the
   // `execution_threads_set`.

@@ -222,6 +222,311 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBinary(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateTernary(
+    const Shape& shape, HloOpcode opcode, HloInstruction* lhs,
+    HloInstruction* rhs, HloInstruction* ehs) {
+  // Only certain opcodes are supported with CreateTernary: opcodes of ternary
+  // instructions with no auxiliary fields.
+  switch (opcode) {
+    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kClamp
+    // case HloOpcode::kClamp:
+    case HloOpcode::kSelect:
+      break;
+    default:
+      LOG(FATAL) << "Invalid ternary instruction opcode " << opcode;
+  }
+  return CreateNary(shape, opcode, {lhs, rhs, ehs});
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateVariadic(
+    const Shape& shape, HloOpcode opcode,
+    absl::Span<HloInstruction* const> operands) {
+  std::optional<int> arity = HloOpcodeArity(opcode);
+  CHECK(!arity.has_value() || arity.value() == operands.size());
+  return CreateNary(shape, opcode, operands);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateAsyncStart(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* async_computation,
+    absl::string_view async_execution_thread) {
+  return std::make_unique<HloAsyncStartInstruction>(
+      HloOpcode::kAsyncStart, shape, operands, async_computation,
+      async_execution_thread);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateAsyncUpdate(
+    const Shape& shape, HloInstruction* operand) {
+  return std::make_unique<HloAsyncInstruction>(HloOpcode::kAsyncUpdate, shape,
+                                               operand);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateAsyncDone(
+    const Shape& shape, HloInstruction* operand) {
+  return std::make_unique<HloAsyncInstruction>(HloOpcode::kAsyncDone, shape,
+                                               operand);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCopyStart(
+    const Shape& shape, HloInstruction* operand,
+    std::optional<int> cross_program_prefetch) {
+  return std::make_unique<HloCopyStartInstruction>(shape, operand,
+                                                   cross_program_prefetch);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCompare(
+    const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
+    ComparisonDirection direction, std::optional<PrimitiveType> type) {
+  return std::make_unique<HloCompareInstruction>(shape, lhs, rhs, direction,
+                                                 type);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateAllGather(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    int64_t all_gather_dimension, const CollectiveDeviceList& device_list,
+    bool constrain_layout, const std::optional<int64_t>& channel_id,
+    bool use_global_device_ids) {
+  return std::make_unique<HloAllGatherInstruction>(
+      HloOpcode::kAllGather, shape, operands, all_gather_dimension, device_list,
+      constrain_layout, channel_id, use_global_device_ids);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateAllGatherStart(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    int64_t all_gather_dimension, const CollectiveDeviceList& device_list,
+    bool constrain_layout, const std::optional<int64_t>& channel_id,
+    bool use_global_device_ids) {
+  return std::make_unique<HloAllGatherInstruction>(
+      HloOpcode::kAllGatherStart, shape, operands, all_gather_dimension,
+      device_list, constrain_layout, channel_id, use_global_device_ids);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateAllReduce(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* reduce_computation, const CollectiveDeviceList& device_list,
+    bool constrain_layout, const std::optional<int64_t>& channel_id,
+    bool use_global_device_ids) {
+  return std::make_unique<HloAllReduceInstruction>(
+      HloOpcode::kAllReduce, shape, operands, reduce_computation, device_list,
+      constrain_layout, channel_id, use_global_device_ids);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateReduceScatter(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* reduce_computation, const CollectiveDeviceList& device_list,
+    bool constrain_layout, const std::optional<int64_t>& channel_id,
+    bool use_global_device_ids, int64_t scatter_dimension) {
+  return std::make_unique<HloReduceScatterInstruction>(
+      shape, operands, reduce_computation, device_list, constrain_layout,
+      channel_id, use_global_device_ids, scatter_dimension);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateAllReduceStart(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* reduce_computation, const CollectiveDeviceList& device_list,
+    bool constrain_layout, const std::optional<int64_t>& channel_id,
+    bool use_global_device_ids) {
+  return std::make_unique<HloAllReduceInstruction>(
+      HloOpcode::kAllReduceStart, shape, operands, reduce_computation,
+      device_list, constrain_layout, channel_id, use_global_device_ids);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateAllToAll(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    const CollectiveDeviceList& device_list, bool constrain_layout,
+    const std::optional<int64_t>& channel_id,
+    const std::optional<int64_t>& split_dimension) {
+  return std::make_unique<HloAllToAllInstruction>(shape, operands, device_list,
+                                                  constrain_layout, channel_id,
+                                                  split_dimension);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateRaggedAllToAll(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    const CollectiveDeviceList& device_list,
+    const std::optional<int64_t>& channel_id) {
+  return std::make_unique<HloRaggedAllToAllInstruction>(
+      shape, operands, device_list, channel_id);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCollectiveBroadcast(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    const CollectiveDeviceList& device_list, bool constrain_layout,
+    const std::optional<int64_t>& channel_id) {
+  return std::make_unique<HloCollectiveBroadcastInstruction>(
+      HloOpcode::kCollectiveBroadcast, shape, operands, device_list,
+      constrain_layout, channel_id);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCollectivePermute(
+    const Shape& shape, HloInstruction* operand,
+    const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs,
+    const std::optional<int64_t>& channel_id) {
+  return std::make_unique<HloCollectivePermuteInstruction>(
+      HloOpcode::kCollectivePermute, shape,
+      absl::Span<HloInstruction* const>(&operand, 1), source_target_pairs,
+      channel_id);
+}
+
+// overloaded function of above CreateCollectivePermute for multiple operands
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCollectivePermute(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs,
+    const std::optional<int64_t>& channel_id) {
+  return std::make_unique<HloCollectivePermuteInstruction>(
+      HloOpcode::kCollectivePermute, shape, operands, source_target_pairs,
+      channel_id);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCollectivePermute(
+    const Shape& shape, HloInstruction* input, HloInstruction* output,
+    HloInstruction* input_start_indices, HloInstruction* output_start_indices,
+    absl::Span<const std::pair<int64_t, int64_t>> source_target_pairs,
+    absl::Span<const std::vector<int64_t>> slice_sizes,
+    const std::optional<int64_t>& channel_id) {
+  return std::make_unique<HloCollectivePermuteInstruction>(
+      HloOpcode::kCollectivePermute, shape, input, output, input_start_indices,
+      output_start_indices, source_target_pairs, slice_sizes, channel_id);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCollectivePermuteStart(
+    const Shape& shape, HloInstruction* operand,
+    const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs,
+    const std::optional<int64_t>& channel_id) {
+  return std::make_unique<HloCollectivePermuteInstruction>(
+      HloOpcode::kCollectivePermuteStart, shape,
+      absl::Span<HloInstruction* const>(&operand, 1), source_target_pairs,
+      channel_id);
+}
+
+// overloaded function of above CreateCollectivePermuteStart for multiple
+// operands
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCollectivePermuteStart(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs,
+    const std::optional<int64_t>& channel_id) {
+  return std::make_unique<HloCollectivePermuteInstruction>(
+      HloOpcode::kCollectivePermuteStart, shape, operands, source_target_pairs,
+      channel_id);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCollectivePermuteStart(
+    const Shape& shape, HloInstruction* input, HloInstruction* output,
+    HloInstruction* input_start_indices, HloInstruction* output_start_indices,
+    absl::Span<const std::pair<int64_t, int64_t>> source_target_pairs,
+    absl::Span<const std::vector<int64_t>> slice_sizes,
+    const std::optional<int64_t>& channel_id) {
+  return std::make_unique<HloCollectivePermuteInstruction>(
+      HloOpcode::kCollectivePermuteStart, shape, input, output,
+      input_start_indices, output_start_indices, source_target_pairs,
+      slice_sizes, channel_id);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateReplicaId(
+    const Shape& shape) {
+  CHECK(Shape::Equal().IgnoreLayout()(shape, ShapeUtil::MakeShape(U32, {})))
+      << "HloInstruction replica-id must have a shape of u32[], but "
+      << shape.ToString() << " is specified";
+  return absl::WrapUnique(new HloInstruction(HloOpcode::kReplicaId, shape));
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreatePartitionId(
+    const Shape& shape) {
+  CHECK(Shape::Equal().IgnoreLayout()(shape, ShapeUtil::MakeShape(U32, {})))
+      << "HloInstruction partition-id must have a shape of u32[], but "
+      << shape.ToString() << " is specified";
+  return absl::WrapUnique(new HloInstruction(HloOpcode::kPartitionId, shape));
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateBitcast(
+    const Shape& shape, HloInstruction* operand) {
+  auto instruction =
+      absl::WrapUnique(new HloInstruction(HloOpcode::kBitcast, shape));
+  instruction->AppendOperand(operand);
+  return instruction;
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateBitcastConvert(
+    const Shape& shape, HloInstruction* operand) {
+  auto instruction =
+      absl::WrapUnique(new HloInstruction(HloOpcode::kBitcastConvert, shape));
+  instruction->AppendOperand(operand);
+  return instruction;
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateInfeed(
+    const Shape& infeed_shape, HloInstruction* token_operand,
+    const std::string& config) {
+  return std::make_unique<HloInfeedInstruction>(infeed_shape, token_operand,
+                                                config);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateOutfeed(
+    const Shape& outfeed_shape, HloInstruction* operand,
+    HloInstruction* token_operand, absl::string_view outfeed_config) {
+  return std::make_unique<HloOutfeedInstruction>(outfeed_shape, operand,
+                                                 token_operand, outfeed_config);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateSend(
+    HloInstruction* operand, HloInstruction* token,
+    std::optional<int64_t> channel_id, bool is_host_transfer) {
+  return std::make_unique<HloSendInstruction>(operand, token, channel_id,
+                                              is_host_transfer);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateSendDone(
+    HloInstruction* operand, std::optional<int64_t> channel_id,
+    bool is_host_transfer) {
+  return std::make_unique<HloSendDoneInstruction>(operand, channel_id,
+                                                  is_host_transfer);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateRecv(
+    const Shape& shape, HloInstruction* token,
+    std::optional<int64_t> channel_id, bool is_host_transfer) {
+  return std::make_unique<HloRecvInstruction>(shape, token, channel_id,
+                                              is_host_transfer);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateRecvDone(
+    HloInstruction* operand, std::optional<int64_t> channel_id,
+    bool is_host_transfer) {
+  return std::make_unique<HloRecvDoneInstruction>(operand, channel_id,
+                                                  is_host_transfer);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateAfterAll(
     absl::Span<HloInstruction* const> operands) {
   CHECK(!operands.empty());
@@ -237,6 +542,16 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateAfterAll(
 std::unique_ptr<HloInstruction> HloInstruction::CreateToken() {
   return absl::WrapUnique(
       new HloInstruction(HloOpcode::kAfterAll, ShapeUtil::MakeTokenShape()));
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateAddDependency(
+    HloInstruction* data_operand, HloInstruction* token_operand) {
+  auto instruction = absl::WrapUnique(
+      new HloInstruction(HloOpcode::kAddDependency, data_operand->shape()));
+  instruction->AppendOperand(data_operand);
+  instruction->AppendOperand(token_operand);
+  return instruction;
 }
 
 void HloInstruction::set_single_sharding(const HloSharding& sharding) {
