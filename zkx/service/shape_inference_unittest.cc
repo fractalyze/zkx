@@ -109,8 +109,82 @@ TEST_F(ShapeInferenceTest, UnaryNegateMatrix) {
   ASSERT_TRUE(ShapeUtil::Equal(matrix_shape, *inferred_shape));
 }
 
+TEST_F(ShapeInferenceTest, SelectScalarPredBetweenTuples) {
+  const Shape tuple = ShapeUtil::MakeTupleShape({s32_, u32_});
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kSelect, pred_, tuple,
+                                          tuple);
+  ASSERT_FALSE(inferred_shape.ok());
+  ASSERT_THAT(inferred_shape.status().message(),
+              HasSubstr("Expected array argument for select"));
+}
+
+TEST_F(ShapeInferenceTest, SelectScalarPredBetweenArrays) {
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kSelect, pred_,
+                                          matrix_64_48_, matrix_64_48_);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(matrix_64_48_, *inferred_shape));
+}
+
+TEST_F(ShapeInferenceTest, SelectArrayPredBetweenArrays) {
+  const Shape predarray = ShapeUtil::MakeShape(PRED, {64, 48});
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kSelect, predarray,
+                                          matrix_64_48_, matrix_64_48_);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(matrix_64_48_, *inferred_shape));
+}
+
+TEST_F(ShapeInferenceTest, SelectBadShapes) {
+  const absl::StatusOr<Shape> inferred_shape_error1 =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kSelect, pred_,
+                                          matrix_64_48_, matrix_32_64_);
+  ASSERT_FALSE(inferred_shape_error1.ok());
+  ASSERT_THAT(inferred_shape_error1.status().message(),
+              HasSubstr("Operands to select must be the same shape"));
+
+  const absl::StatusOr<Shape> inferred_shape_error2 =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kSelect, s32_,
+                                          matrix_64_48_, matrix_64_48_);
+  ASSERT_FALSE(inferred_shape_error2.ok());
+  ASSERT_THAT(inferred_shape_error2.status().message(),
+              HasSubstr("pred operand must have PRED"));
+
+  const absl::StatusOr<Shape> inferred_shape_error3 =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kSelect,
+                                          ShapeUtil::MakeShape(PRED, {64}),
+                                          matrix_64_48_, matrix_64_48_);
+  ASSERT_FALSE(inferred_shape_error3.ok());
+  ASSERT_THAT(
+      inferred_shape_error3.status().message(),
+      HasSubstr("Operands to select and predicate must be the same shape"));
+
+  // Tuples have a TUPLE element type and cannot be the pred of a select.
+  const absl::StatusOr<Shape> inferred_shape_error4 =
+      ShapeInference::InferTernaryOpShape(
+          HloOpcode::kSelect, ShapeUtil::MakeTupleShape({pred_, pred_}),
+          ShapeUtil::MakeTupleShape({u32_, u32_}),
+          ShapeUtil::MakeTupleShape({u32_, u32_}));
+  ASSERT_FALSE(inferred_shape_error4.ok());
+  ASSERT_THAT(inferred_shape_error4.status().message(),
+              HasSubstr("Expected array argument for select pred"));
+}
+
+TEST_F(ShapeInferenceTest, SelectPreservesElementSize) {
+  Shape pred_shape = ShapeUtil::MakeShape(PRED, {10});
+  Shape int4_shape = ShapeUtil::MakeShape(S4, {10});
+  int4_shape.mutable_layout()->set_element_size_in_bits(4);
+
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kSelect, pred_shape,
+                                          int4_shape, int4_shape);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(*inferred_shape, int4_shape));
+}
+
 // clang-format off
-// TODO(chokobole): Add tests. Dependency: ShapeInference::InferTernaryOpShape
+// TODO(chokobole): Add tests. Dependency: HloOpcode::kClamp
 // clang-format on
 
 TEST_F(ShapeInferenceTest, VariadicOpTuplify) {
@@ -511,7 +585,7 @@ TEST_F(ShapeInferenceTest, UnboundedAllToAllTupleUnsupported) {
 // clang-format on
 
 // clang-format off
-// TODO(chokobole): Add tests. Dependency: ShapeInference::InferTernaryOpShape
+// TODO(chokobole): Add tests. Dependency: HloOpcode::kClamp
 // clang-format on
 
 TEST_F(ShapeInferenceTest, UnboundedCollectiveBroadcast) {
@@ -800,15 +874,33 @@ TEST_F(ShapeInferenceTest, UnboundedReduceScatter) {
 // clang-format on
 // TEST_F(ShapeInferenceTest, UnboundedScatter) {
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferTernaryOpShape
-// clang-format on
-// TEST_P(UnboundedSelectOpShapeInferenceTest, UnboundedSelect) {
+TEST_P(UnboundedSelectOpShapeInferenceTest, UnboundedSelect) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam()[0]));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape(GetParam()[1]));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape ehs, ParseShape(GetParam()[2]));
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kSelect, lhs, rhs, ehs);
+  if (inferred_shape.ok()) {
+    TF_ASSERT_OK_AND_ASSIGN(const Shape expected, ParseShape(GetParam()[3]));
+    EXPECT_TRUE(ShapeUtil::Equal(*inferred_shape, expected))
+        << "inferred: " << ShapeUtil::HumanString(*inferred_shape)
+        << " expected: " << ShapeUtil::HumanString(expected);
+  } else {
+    EXPECT_EQ(inferred_shape.status().message(), GetParam()[4]);
+  }
+}
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferTernaryOpShape
-// clang-format on
-// TEST_F(ShapeInferenceTest, UnboundedSelectWithTupleUnsupported) {
+TEST_F(ShapeInferenceTest, UnboundedSelectWithTupleUnsupported) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape("(pred[2], pred[?])"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape("(u32[?], u32[2])"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape ehs, ParseShape("(u32[2], u32[?])"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape expected, ParseShape("(u32[?], u32[2])"));
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kSelect, lhs, rhs, ehs);
+  EXPECT_THAT(inferred_shape.status().message(),
+              HasSubstr("Expected array argument for select pred, but got "
+                        "(pred[2], pred[?])."));
+}
 
 // clang-format off
 // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferSelectAndScatterShape
@@ -949,6 +1041,55 @@ INSTANTIATE_TEST_SUITE_P(UnboundedDynamism,
                                {},
                                "",
                                kIncompatibleBinaryOpShapeErrorMessage}}));
+
+INSTANTIATE_TEST_SUITE_P(
+    UnboundedDynamism, UnboundedSelectOpShapeInferenceTest,
+    ::testing::Values(
+        // PRED shape | ON_TRUE shape | ON_FALSE shape  | Result
+        // []         | [?]           | [X]             | [X]
+        std::vector<std::string>({"pred[]", "u32[?]", "u32[2]", "u32[2]", ""}),
+        // []         | [?]           | [<=B]           | [<=B]
+        std::vector<std::string>({"pred[]", "u32[?]", "u32[<=2]", "u32[<=2]",
+                                  ""}),
+        // [X]        | [?]           | [X]             | [X]
+        std::vector<std::string>({"pred[2]", "u32[?]", "u32[2]", "u32[2]", ""}),
+        // [?]        | [X]           | [X]             | [X]
+        std::vector<std::string>({"pred[?]", "u32[2]", "u32[?]", "u32[2]", ""}),
+        // [?]        | [<=B]         | [?]             | [<=B]
+        std::vector<std::string>({"pred[?]", "u32[<=2]", "u32[?]", "u32[<=2]",
+                                  ""}),
+        // [<=B]      | [?]           | [<=B]           | [<=B]
+        std::vector<std::string>({"pred[<=2]", "u32[?]", "u32[<=2]", "u32[<=2]",
+                                  ""}),
+        // [?]        | [?]           | [?]             | [?]
+        std::vector<std::string>({"pred[?]", "u32[?]", "u32[?]", "u32[?]", ""}),
+        // [X]        | A[X]          | B[X]            | error
+        std::vector<std::string>({"pred[3]", "s32[3]", "u32[3]", "",
+                                  "Operands to select must be the same shape; "
+                                  "got s32[3] and u32[3]."}),
+        // [X]        | [?]           | [<=B]           | error
+        std::vector<std::string>(
+            {"pred[3]", "u32[?]", "u32[<=2]", "",
+             "Operands to select and predicate must be the same shape; got "
+             "u32[?] and u32[<=2] and pred[3]."}),
+        // [X]        | [<=B]         | [X]             | error
+        std::vector<std::string>({"pred[3]", "u32[<=2]", "u32[3]", "",
+                                  "Operands to select must be the same shape; "
+                                  "got u32[<=2] and u32[3]."}),
+        // [X]        | [?]           | [Y]             | error
+        std::vector<std::string>(
+            {"pred[2]", "u32[?]", "u32[3]", "u32[3]",
+             "Operands to select and predicate must be the same shape; got "
+             "u32[?] and u32[3] and pred[2]."}),
+        // [?]        | []            | []              | error
+        std::vector<std::string>(
+            {"pred[?]", "u32[]", "u32[]", "",
+             "Operands to select and predicate must be the same shape; got "
+             "u32[] and u32[] and pred[?]."}),
+        // []         | [?]           | []              | error
+        std::vector<std::string>({"pred[]", "u32[?]", "u32[]", "",
+                                  "Operands to select must be the same shape; "
+                                  "got u32[?] and u32[]."})));
 
 INSTANTIATE_TEST_SUITE_P(
     UnboundedDynamism, UnboundedUnaryOpShapeInferenceTest,

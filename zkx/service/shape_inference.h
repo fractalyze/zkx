@@ -60,6 +60,17 @@ class ShapeInference {
                                                   const HloInstruction* lhs,
                                                   const HloInstruction* rhs);
 
+  // Infers the shape produced by applying the given ternary operation to the
+  // given input shapes.
+  static absl::StatusOr<Shape> InferTernaryOpShape(HloOpcode opcode,
+                                                   const Shape& lhs,
+                                                   const Shape& rhs,
+                                                   const Shape& ehs);
+  static absl::StatusOr<Shape> InferTernaryOpShape(HloOpcode opcode,
+                                                   const HloInstruction* lhs,
+                                                   const HloInstruction* rhs,
+                                                   const HloInstruction* ehs);
+
   // Infers the shape produced by applying the given variadic operation to the
   // given input operand shapes.
   static absl::StatusOr<Shape> InferVariadicOpShape(
@@ -144,6 +155,11 @@ class ShapeInference {
   static absl::StatusOr<Shape> InferElementwiseBinaryOpShape(
       HloOpcode operation, const Shape& lhs, const Shape& rhs,
       absl::Span<const int64_t> broadcast_dimensions);
+
+  // Helper for inferring the shape of Select ops.
+  static absl::StatusOr<Shape> InferSelectShape(const Shape& pred,
+                                                const Shape& on_true,
+                                                const Shape& on_false);
 
   // Helper for inferring shapes of binary operations which use degenerate
   // dimension broadcasting (a dimension of size 1 in one operand is broadcast
