@@ -1295,6 +1295,64 @@ bool ShapeUtil::DynamicShapeIsCompatible(const Shape& dynamic_shape,
 }
 
 // static
+int64_t ShapeUtil::ArraySize(const Shape& shape) {
+  CHECK(LayoutUtil::IsDenseArray(shape));
+  if (shape.layout().tiles().empty()) {
+    return ByteSizeOfElements(shape);
+  }
+
+  auto tile_dimensions = shape.layout().tiles(0).dimensions();
+  auto minor_to_major = shape.layout().minor_to_major();
+  int64_t shape_dim_size = shape.dimensions().size();
+  int64_t tile_dim_size = tile_dimensions.size();
+
+  // Use the top-level tile for shape size calculation. We assume the
+  // sub-tiles won't cause additional padding.
+  int64_t num_of_elements = 1;
+  int64_t dim = 0;
+  for (dim = 0; dim < tile_dim_size; dim++) {
+    int64_t dim_size = dim < shape_dim_size ? LayoutUtil::MaxSplitSize(
+                                                  shape, minor_to_major[dim])
+                                            : 1;
+    num_of_elements *=
+        RoundUpTo(dim_size, tile_dimensions[tile_dim_size - dim - 1]);
+  }
+  for (; dim < shape_dim_size; dim++) {
+    int64_t dim_size = LayoutUtil::MaxSplitSize(shape, minor_to_major[dim]);
+    num_of_elements *= dim_size;
+  }
+
+  if (shape.layout().tail_padding_alignment_in_elements() != 1) {
+    num_of_elements = RoundUpTo(
+        num_of_elements, shape.layout().tail_padding_alignment_in_elements());
+  }
+
+  if (shape.layout().element_size_in_bits() != 0) {
+    const int64_t num_bits =
+        num_of_elements * shape.layout().element_size_in_bits();
+    return CeilOfRatio<int64_t>(num_bits, CHAR_BIT);
+  }
+
+  return num_of_elements * ByteSizeOfPrimitiveType(shape.element_type());
+}
+
+// static
+int64_t ShapeUtil::ArrayDataSize(const Shape& shape) {
+  CHECK(LayoutUtil::IsDenseArray(shape));
+  absl::InlinedVector<int64_t, 4> indices;
+  for (int64_t dim : shape.dimensions()) {
+    indices.push_back(dim - 1);
+  }
+  int64_t size = LayoutUtil::LinearIndex(shape, indices) + 1;
+
+  if (shape.layout().element_size_in_bits() != 0) {
+    const int64_t num_bits = size * shape.layout().element_size_in_bits();
+    return CeilOfRatio<int64_t>(num_bits, CHAR_BIT);
+  }
+  return size * ByteSizeOfPrimitiveType(shape.element_type());
+}
+
+// static
 void ShapeUtil::UpdateElementSizeInBits(Shape* s, bool pack_subbyte_types) {
   ForEachMutableSubshape(s, [pack_subbyte_types](Shape* subshape,
                                                  const ShapeIndex& index) {
