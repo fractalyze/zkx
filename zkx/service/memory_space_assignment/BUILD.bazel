@@ -1,0 +1,35 @@
+load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_proto_library(
+    name = "memory_space_assignment_proto",
+    srcs = ["memory_space_assignment.proto"],
+)
+
+zkx_cc_library(
+    name = "slice",
+    srcs = ["slice.cc"],
+    hdrs = ["slice.h"],
+    deps = [
+        ":memory_space_assignment_proto",
+        "//zkx:shape_util",
+        "//zkx/base:logging",
+        "//zkx/service:time_utils",
+        "//zkx/service/heap_simulator",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "memory_space_assignment_unittests",
+    srcs = ["slice_unittest.cc"],
+    deps = [
+        ":slice",
+        "//zkx/service:time_utils",
+    ],
+)

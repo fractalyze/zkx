@@ -1,0 +1,47 @@
+/* Copyright 2023 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+syntax = "proto3";
+
+package zkx.memory_space_assignment;
+
+// Memory space assignment options for slicing prefetches into smaller
+// asynchronous copies, reducing prefetch memory allocation pressure.
+//
+// No prefetch slicing is performed if max_slices == 0.
+//
+// TODO(b/275905276): Consider adding another option that indicates that we want
+// slices of a certain size, rather than just always creating max_slices.
+message SlicedPrefetchOptions {
+  // The maximum number of slices into which to slice a prefetch.
+  uint32 max_slices = 1;
+
+  // The minimum tensor size in bytes that we will attempt to slice.
+  uint64 min_bytes = 2;
+
+  // This option should never be set to true in production. When this is true,
+  // we will crash if we propose a slice (other than the final slice) with a
+  // size that is not a multiple of the required hardware alignment. Otherwise,
+  // we will choose not to slice such situations, which is always safe.
+  bool fail_on_non_alignment_boundary_slice_proposal = 3;
+
+  // The threshold for max_slices after which we limit the permutations of slice
+  // times that we try when placing a sliced allocation.
+  uint32 all_slice_time_permutations_threshold = 4;
+
+  // The preferred slice size for MSA sliced prefetches. 0 means there is no
+  // preferred slice size, in which case, we'll try to slice into max_slices.
+  uint64 preferred_slice_size = 5;
+}
