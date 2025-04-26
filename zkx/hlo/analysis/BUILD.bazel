@@ -42,6 +42,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_reachability",
+    srcs = ["hlo_reachability.cc"],
+    hdrs = ["hlo_reachability.h"],
+    deps = [
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "logical_buffer_analysis",
     srcs = ["logical_buffer_analysis.cc"],
     hdrs = ["logical_buffer_analysis.h"],
@@ -77,4 +91,5 @@ zkx_cc_library(
 
 # TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
 # TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
+# TODO(chokobole): Add hlo_reachability_unittest.cc. Dependency: HloHardwareIndependentTestBase
 # TODO(chokobole): Add tuple_points_to_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
