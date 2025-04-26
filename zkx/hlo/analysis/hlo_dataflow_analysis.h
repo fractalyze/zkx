@@ -100,6 +100,31 @@ class HloDataflowAnalysis {
   using ForwardsValue = std::function<std::optional<ForwardedOperand>(
       const HloInstruction* instr, const ShapeIndex& index)>;
 
+  // Runs dataflow analysis on the given module. Parameters:
+  //
+  //   ssa_form : If true then new values are defined at the merge points of
+  //     kWhile instructions. Abusing nomenclature somewhat, we call these "phi
+  //     values".  The merge is formed by the init value and loop backedge. The
+  //     SSA form is minimal in that a new phi value is defined only if the
+  //     merge point is reachable by multiple different values. The SSA form is
+  //     also in loop-closed form in that no values defined inside of a loop
+  //     (while body) is used outside of the loop. Example use of this ssa_form
+  //     mode is to reason about live range interference of buffers.
+  //
+  //     If ssa_form is false, then merge points do not define new
+  //     values. Rather, the HloValueSet for the merge point contains the union
+  //     of the merged HloValues.
+  //
+  //   bitcast_defines_value : If true then the Bitcast HLO instruction defines
+  //     a new HLO value in the analysis. If false then Bitcast forwards the
+  //     value of its operand.
+  static absl::StatusOr<std::unique_ptr<HloDataflowAnalysis>> Run(
+      const HloModule& module, bool ssa_form = false,
+      bool bitcast_defines_value = false,
+      const CanShareBuffer& can_share_buffer = nullptr,
+      const ForwardsValue& forwards_value = nullptr,
+      absl::flat_hash_set<std::string_view> execution_threads = {});
+
   // Returns true if 'instruction' defines an HLO value at the given shape index
   // of its output.
   bool ValueIsDefinedAt(const HloInstruction* instruction,
@@ -159,6 +184,24 @@ class HloDataflowAnalysis {
 
   std::string ToString() const;
 
+  // Returns true if `user` cannot possibly use the buffer at `index` in
+  // `operand`. Returns false otherwise.
+  //
+  // `operand` does not have to be an operand of `user`. This can be the
+  // case with indirect uses.
+  bool DoesNotUseOperandBuffer(const HloInstruction* operand,
+                               const ShapeIndex& index,
+                               const HloInstruction* user) const;
+
+  // Returns true if `user` (at `user_index`) can share a buffer with its
+  // operand `operand` (at `operand_index`). Returns false otherwise.
+  //
+  // REQUIRES: `operand` is an operand of `user`.
+  bool CanShareOperandBufferWithUser(HloInstruction* operand,
+                                     const ShapeIndex& operand_index,
+                                     HloInstruction* user,
+                                     const ShapeIndex& user_index) const;
+
   const HloModule& module() const { return module_; }
 
   // Returns true if the operation is an in-place operation and its operand 0
@@ -171,19 +214,132 @@ class HloDataflowAnalysis {
   static bool IsAsynchronousOperationStart(HloOpcode opcode);
   static bool IsAsynchronousOperationDone(HloOpcode opcode);
 
+  // Returns the pairs of inputs and outputs that must share the same buffer,
+  // according to the aliasing rules for that instruction.
+  //
+  // This function only considers array values as inputs and outputs, so
+  // when tuples are present it "sees through" to the array values inside. The
+  // HloUse describing the input parameter contains not only the operand number
+  // but also a shape index describing its position inside a nested tuple shape
+  // (if any). Similarly, the output parameter is described by a shape index
+  // into the nested tuple shape (if any) of the output value.
+  //
+  // For example, for this hypothetical op:
+  //   %foo = (u32[1], (u32[2], u32[3]))
+  //              op((u32[4], u32[5]) %arg0, u32[6] %arg1)
+  //
+  // ... the results can include any of the 3 * 3 = 9 possible pairs of
+  // input and output arrays.
+  static std::vector<std::pair<HloOperandIndex, ShapeIndex>>
+  GetInPlaceInputOutputPairs(const HloInstruction* instruction);
+
+  // Verifies various invariants of the dataflow analysis.
+  absl::Status Verify() const;
+
  private:
+  static bool AreTransitiveUsesElementwiseOrTuple(const HloInstruction* inst);
+
   HloDataflowAnalysis(const HloModule& module, bool ssa_form,
                       bool bitcast_defines_value,
                       const CanShareBuffer& can_share_buffer,
                       const ForwardsValue& forwards_value,
                       absl::flat_hash_set<std::string_view> execution_threads);
 
+  // 1. During value propagation (Propagate function), always create phi
+  // values once it see multiple inputs merging at the same point. It then
+  // records those phi values as well as their inputs in a phi graph.
+  //
+  // 2. Post value propagation, Dataflow analysis can then do certain
+  // optimization(OptimizePhiValues) on the phi graph to prune unecessary phi
+  // nodes.
+  //
+  // Note that this applies in SSA form, and Both of the functions are
+  // guaranteed to exit.
+  //
+  void OptimizePhiValues();
+
   // Returns a new HloValue defined at the given instruction and shape index.
   HloValue* NewHloValue(HloInstruction* instruction, const ShapeIndex& index,
                         bool is_phi);
 
+  // Marks the HloValue with the given ID for deletion.
+  void MarkValueForDeletion(HloValue::Id value_id);
+
+  // Deletes all HloValues marked for deletion. Should be called after
+  // propagation is complete.
+  void DeleteMarkedValues();
+
+  // Constructs and initializes the InstructionValueSets of all instructions to
+  // contain exactly the HloValues defined by each instruction. These values can
+  // then propagated throughout the HLO graph by calling Propagate.
+  absl::Status InitializeInstructionValueSets();
+
+  // Updates the value set of the given instruction based on the values flowing
+  // into the instruction (operands and cross-computation dataflow).
+  bool UpdateInstructionValueSet(HloInstruction* instruction);
+
+  // Updates the value set for a particular instruction type. Returns whether
+  // the instruction value set changed.
+  bool UpdateBitcastValueSet(HloInstruction* bitcast);
+  bool UpdateCallValueSet(HloInstruction* call);
+  bool UpdateCopyValueSet(HloInstruction* copy);
+  bool UpdateCustomCallValueSet(HloInstruction* custom_call);
+  bool UpdateDomainValueSet(HloInstruction* domain);
+  bool UpdateParameterValueSet(HloInstruction* parameter);
+  // Async op propagation rules:
+  //  - Operand of async-start to parameter of async wrapped computation and at
+  //    index {0, operand_number} of async-start and async-update outputs.
+  //  - Root of async wrapped computation to index {1} of async-start and
+  //    async-update and index {} of async-done.
+  //  - The contexts in indices {2+} of async-start to the same indices of
+  //    async-update.
+  //
+  // As a result of this, the operands/outputs of async-start and async-done
+  // instructions share the same values as the parameters/roots of the async
+  // wrapped computation.
+  bool UpdateAsyncStartValueSet(HloInstruction* async_start);
+  bool UpdateAsyncUpdateValueSet(HloInstruction* async_update);
+  bool UpdateAsyncDoneValueSet(HloInstruction* async_done);
+  bool UpdateCopyStartValueSet(HloInstruction* copy_start);
+  bool UpdateCopyDoneValueSet(HloInstruction* copy_done);
+  bool UpdateOptimizationBarrierValueSet(HloInstruction* barrier);
+  bool UpdateRecvDoneValueSet(HloInstruction* recv_done);
+  bool UpdateSendValueSet(HloInstruction* send);
+  bool UpdateTupleValueSet(HloInstruction* tuple);
+  bool UpdateAddDependencyValueSet(HloInstruction* add_dependency);
+  bool UpdateAllGatherStartValueSet(HloInstruction* all_gather_start);
+  bool UpdateAllGatherDoneValueSet(HloInstruction* all_gather_done);
+  bool UpdateAllReduceDoneValueSet(HloInstruction* all_reduce_done);
+  bool UpdateCollectivePermuteStartValueSet(
+      HloInstruction* collective_permute_start);
+  bool UpdateCollectivePermuteDoneValueSet(
+      HloInstruction* collective_permute_done);
+
+  // Propagates the dataflow through the module. In particular, it propagates
+  // the HloValueSet from its defining instruction to the users of the
+  // instructions.
+  void Propagate();
+
+  // Returns the result of the SSA Phi function applied to the given inputs at
+  // the given instruction.
+  bool Phi(HloInstruction* instruction,
+           absl::Span<const InstructionValueSet* const> inputs);
+
+  // Updates the positions of the HloValues in the output of the given
+  // instruction. This should be called after the instruction value set of
+  // 'instruction' has been changed. 'prev_value_set' must point to the previous
+  // state of the value set prior to the change. 'prev_value_set' may be null if
+  // this is the first time positions are being computed. The previous state is
+  // necessary to efficiently remove positions which have been eliminated due to
+  // changes in the instructions' InstructionValueSet.
+  void UpdatePositionsOfValuesAt(
+      HloInstruction* instruction, const InstructionValueSet& new_value_set,
+      const InstructionValueSet* prev_value_set = nullptr);
+
   const HloModule& module_;
   const absl::flat_hash_set<std::string_view> execution_threads_;
+  const bool ssa_form_;
+  const bool bitcast_defines_value_;
 
   std::unique_ptr<CallGraph> call_graph_;
 
@@ -217,6 +373,26 @@ class HloDataflowAnalysis {
 
   ForwardsValue forwards_value_ = nullptr;
 };
+
+// Removes layers of tuple indirection introduced via 'tuple' and
+// 'get-tuple-element' instructions to more directly identify the source of the
+// given HLO value (identified by the given `ShapeIndex` into the output of the
+// given `HloInstruction`).
+//
+// e.g. for the following:
+//    %x = some-op(...)
+//    %foo = get-tuple-element(%x), index=0
+//    %bar = tuple(%y, %foo)
+//
+// ... FollowTupleIndirection(%bar, {1}) == {%x, {0}} (output 1 of 'bar' comes
+// from output 0 of %x).
+//
+// Note that all 'tuple' instructions are followed before all
+// 'get-tuple-element' instructions are followed. This is because it is assumed
+// that tupling a value and then extracting it from the tuple again will not
+// occur in properly-optimized IR.
+std::pair<const HloInstruction*, ShapeIndex> FollowTupleIndirection(
+    const HloInstruction* instruction, ShapeIndex operand_index);
 
 }  // namespace zkx
 
