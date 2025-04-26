@@ -285,6 +285,7 @@ class HloDataflowAnalysis {
   bool UpdateCopyValueSet(HloInstruction* copy);
   bool UpdateCustomCallValueSet(HloInstruction* custom_call);
   bool UpdateDomainValueSet(HloInstruction* domain);
+  bool UpdateGetTupleElementValueSet(HloInstruction* gte);
   bool UpdateParameterValueSet(HloInstruction* parameter);
   // Async op propagation rules:
   //  - Operand of async-start to parameter of async wrapped computation and at

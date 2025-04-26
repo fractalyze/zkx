@@ -682,6 +682,32 @@ bool HloDataflowAnalysis::UpdateAddDependencyValueSet(
   return false;
 }
 
+bool HloDataflowAnalysis::UpdateGetTupleElementValueSet(HloInstruction* gte) {
+  CHECK_EQ(gte->opcode(), HloOpcode::kGetTupleElement);
+  bool changed = false;
+  // The GetTupleElement instruction forwards the values from the specified
+  // tuple element.
+  for (auto& pair : GetInstructionValueSet(gte)) {
+    const ShapeIndex& index = pair.first;
+    HloValueSet& value_set = pair.second;
+
+    // The corresponding ShapeIndex of the operand is simply the GTE ShapeIndex
+    // with the tuple element number prefixed.
+    ShapeIndex operand_index = {gte->tuple_index()};
+    for (int64_t i : index) {
+      operand_index.push_back(i);
+    }
+
+    HloValueSet& operand_value_set =
+        GetValueSet(gte->operand(0), operand_index);
+    if (value_set != operand_value_set) {
+      value_set = operand_value_set;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 bool HloDataflowAnalysis::UpdateParameterValueSet(HloInstruction* parameter) {
   CHECK_EQ(parameter->opcode(), HloOpcode::kParameter);
   const CallGraphNode& call_graph_node =
@@ -988,10 +1014,7 @@ bool HloDataflowAnalysis::UpdateInstructionValueSet(
       break;
     }
     case HloOpcode::kGetTupleElement: {
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: UpdateGetTupleElementValueSet
-      // clang-format on
-      // changed = UpdateGetTupleElementValueSet(instruction);
+      changed = UpdateGetTupleElementValueSet(instruction);
       break;
     }
     case HloOpcode::kTuple: {

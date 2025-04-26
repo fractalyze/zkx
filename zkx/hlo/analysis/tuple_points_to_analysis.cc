@@ -197,40 +197,34 @@ absl::Status TuplePointsToAnalysis::DefaultAction(
 
 absl::Status TuplePointsToAnalysis::HandleGetTupleElement(
     HloInstruction* get_tuple_element) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::tuple_index
-  // clang-format on
   // GetTupleElement forwards a pointer to a particular element of the tuple
   // operand.
-  // int64_t element_index = get_tuple_element->tuple_index();
+  int64_t element_index = get_tuple_element->tuple_index();
 
-  // PointsToSet& points_to_set = CreateEmptyPointsToSet(get_tuple_element);
-  // const PointsToSet& operand_points_to_set =
-  //     *PerInst(get_tuple_element->operand(0))->points_to_set;
+  PointsToSet& points_to_set = CreateEmptyPointsToSet(get_tuple_element);
+  const PointsToSet& operand_points_to_set =
+      *PerInst(get_tuple_element->operand(0))->points_to_set;
 
-  // // Copy the points-to set (and tuple sources) at index {element_index} of
-  // the
-  // // operand to the points-to set for this GetTupleElement instruction.
-  // points_to_set.ForEachMutableElement(
-  //     [&](const ShapeIndex& target_index, PointsToSet::BufferList* points_to)
-  //     {
-  //       // Construct an index into the operand by prepending element_index to
-  //       // the index for the GetTupleElement instruction's points-to set.
-  //       ShapeIndex src_index;
-  //       src_index.push_back(element_index);
-  //       for (auto element : target_index) {
-  //         src_index.push_back(element);
-  //       }
+  // Copy the points-to set (and tuple sources) at index {element_index} of the
+  // operand to the points-to set for this GetTupleElement instruction.
+  points_to_set.ForEachMutableElement(
+      [&](const ShapeIndex& target_index, PointsToSet::BufferList* points_to) {
+        // Construct an index into the operand by prepending element_index to
+        // the index for the GetTupleElement instruction's points-to set.
+        ShapeIndex src_index;
+        src_index.push_back(element_index);
+        for (auto element : target_index) {
+          src_index.push_back(element);
+        }
 
-  //       *points_to = operand_points_to_set.element(src_index);
-  //       for (HloInstruction* tuple :
-  //            operand_points_to_set.tuple_sources(src_index)) {
-  //         points_to_set.add_tuple_source(target_index, tuple);
-  //       }
-  //     });
+        *points_to = operand_points_to_set.element(src_index);
+        for (HloInstruction* tuple :
+             operand_points_to_set.tuple_sources(src_index)) {
+          points_to_set.add_tuple_source(target_index, tuple);
+        }
+      });
 
-  // return absl::OkStatus();
-  return absl::UnimplementedError("");
+  return absl::OkStatus();
 }
 
 absl::Status TuplePointsToAnalysis::HandleCopy(HloInstruction* copy) {

@@ -1967,10 +1967,21 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           operands[0], channel_id, *is_host_transfer));
     }
     case HloOpcode::kGetTupleElement: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateGetTupleElement
-      // clang-format on
-      return nullptr;
+      std::optional<int64_t> index;
+      attrs["index"] = {/*required=*/true, AttrTy::kInt64, &index};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeUtil::GetTupleElementShape(operands[0]->shape(),
+                                                   *index);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateGetTupleElement(*shape, operands[0], *index));
     }
     case HloOpcode::kCall: {
       // clang-format off
