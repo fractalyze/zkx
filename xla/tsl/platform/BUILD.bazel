@@ -100,6 +100,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "numbers",
+    srcs = ["numbers.cc"],
+    hdrs = ["numbers.h"],
+    deps = [
+        "//zkx/base:logging",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "hash",
     srcs = ["hash.cc"],
     hdrs = ["hash.h"],
@@ -207,6 +219,7 @@ zkx_cc_unittest(
         "cpu_info_unittest.cc",
         "fingerprint_unittest.cc",
         "hash_unittest.cc",
+        "numbers_unittest.cc",
         "path_unittest.cc",
         "scanner_unittest.cc",
         "subprocess_unittest.cc",
@@ -222,6 +235,7 @@ zkx_cc_unittest(
         ":env",
         ":fingerprint",
         ":hash",
+        ":numbers",
         ":path",
         ":scanner",
         ":subprocess",
