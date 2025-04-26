@@ -227,11 +227,26 @@ class ShapeUtil {
   // ((,),)
   static bool EqualStructure(const Shape& lhs, const Shape& rhs);
 
+  // Returns the number of dimensions for which the dimension is not (trivially)
+  // 1. e.g., f32[2x1x1] has a true rank of 1D, the other dimensions are just
+  // fluff. Note that zero dimensions are included in the true rank, e.g.,
+  // f32[3,0,1] has a true rank of 2D.
+  static int64_t TrueRank(const Shape& shape);
+
   ////////////////////
   // Scalar-specific
 
   static bool IsScalar(const Shape& shape) {
     return shape.IsArray() && shape.rank() == 0;
+  }
+  static bool IsEffectiveScalar(const Shape& shape) {
+    return shape.IsArray() && TrueRank(shape) == 0;
+  }
+
+  // Returns whether "shape" is a scalar (array) with the given element_type.
+  static bool IsScalarWithElementType(const Shape& shape,
+                                      PrimitiveType element_type) {
+    return IsScalar(shape) && shape.element_type() == element_type;
   }
 
   // Returns a shape with the same dimensions as the original, but with the

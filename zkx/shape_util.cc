@@ -275,6 +275,18 @@ bool ShapeUtil::EqualStructure(const Shape& lhs, const Shape& rhs) {
 }
 
 // static
+int64_t ShapeUtil::TrueRank(const Shape& shape) {
+  int64_t accum = 0;
+  for (int64_t dimension : shape.dimensions()) {
+    // We do not count unit dimensions.
+    if (dimension != 1) {
+      accum += 1;
+    }
+  }
+  return accum;
+}
+
+// static
 bool ShapeUtil::FillNewShape(PrimitiveType element_type,
                              absl::Span<const int64_t> dimensions,
                              Shape* shape) {
