@@ -54,5 +54,27 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "tuple_points_to_analysis",
+    srcs = ["tuple_points_to_analysis.cc"],
+    hdrs = ["tuple_points_to_analysis.h"],
+    deps = [
+        ":logical_buffer_analysis",
+        "//xla/tsl/lib/gtl:compactptrset",
+        "//zkx:shape_util",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:dfs_hlo_visitor_with_default",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:logical_buffer",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
 # TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
 # TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
+# TODO(chokobole): Add tuple_points_to_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
