@@ -990,6 +990,42 @@ class HloParameterInstruction : public HloInstruction {
   std::optional<std::vector<bool>> parameter_replicated_at_leaf_buffers_;
 };
 
+class HloGetTupleElementInstruction : public HloInstruction {
+ public:
+  explicit HloGetTupleElementInstruction(const Shape& shape,
+                                         HloInstruction* operand,
+                                         int64_t index);
+  // Returns the tuple index associated with this instruction.
+  int64_t tuple_index() const { return tuple_index_; }
+  // Sets the tuple index associated with this instruction.
+  void set_tuple_index(int64_t new_tuple_index) {
+    tuple_index_ = new_tuple_index;
+  }
+  // Returns a serialized representation of this instruction.
+  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
+  // HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kGetTupleElement;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  int64_t tuple_index_ = -1;
+};
+
 class HloInfeedInstruction : public HloInstruction {
  public:
   explicit HloInfeedInstruction(const Shape& infeed_shape,

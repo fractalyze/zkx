@@ -167,6 +167,19 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateConstant(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateGetTupleElement(
+    const Shape& shape, HloInstruction* operand, int64_t index) {
+  return std::make_unique<HloGetTupleElementInstruction>(shape, operand, index);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateGetTupleElement(
+    HloInstruction* operand, int64_t index) {
+  return std::make_unique<HloGetTupleElementInstruction>(
+      operand->shape().tuple_shapes(index), operand, index);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateNary(
     const Shape& shape, HloOpcode opcode,
     absl::Span<HloInstruction* const> operands) {
@@ -2049,6 +2062,15 @@ const std::optional<std::vector<bool>>&
 HloInstruction::parameter_replicated_at_leaf_buffers() const {
   return Cast<HloParameterInstruction>(this)
       ->parameter_replicated_at_leaf_buffers();
+}
+
+int64_t HloInstruction::tuple_index() const {
+  return Cast<HloGetTupleElementInstruction>(this)->tuple_index();
+}
+
+void HloInstruction::set_tuple_index(int64_t new_tuple_index) {
+  return Cast<HloGetTupleElementInstruction>(this)->set_tuple_index(
+      new_tuple_index);
 }
 
 std::string HloInstruction::infeed_config() const {

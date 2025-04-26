@@ -272,6 +272,14 @@ class HloInstruction {
   // Creates a literal constant instruction.
   static std::unique_ptr<HloInstruction> CreateConstant(Literal literal);
 
+  // Creates a get tuple element instruction.
+  static std::unique_ptr<HloInstruction> CreateGetTupleElement(
+      const Shape& shape, HloInstruction* operand, int64_t index);
+
+  // Creates a get tuple element instruction.
+  static std::unique_ptr<HloInstruction> CreateGetTupleElement(
+      HloInstruction* operand, int64_t index);
+
   // Creates a unary instruction (one operand).
   // Precondition: opcode must be a legitimate unary operation.
   static std::unique_ptr<HloInstruction> CreateUnary(const Shape& shape,
@@ -1317,6 +1325,12 @@ class HloInstruction {
   // Delegates to HloParameterInstruction::parameter_replicated_at_leaf_buffers.
   const std::optional<std::vector<bool>>& parameter_replicated_at_leaf_buffers()
       const;
+
+  // Delegates to HloGetTupleElementInstruction::tuple_index.
+  int64_t tuple_index() const;
+
+  // Delegates to HloGetTupleElementInstruction::set_tuple_index.
+  void set_tuple_index(int64_t new_tuple_index);
 
   // Delegates to HloInfeedInstruction::infeed_config.
   std::string infeed_config() const;

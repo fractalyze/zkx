@@ -1194,6 +1194,45 @@ HloParameterInstruction::CloneWithNewOperandsImpl(
   return clone;
 }
 
+HloGetTupleElementInstruction::HloGetTupleElementInstruction(
+    const Shape& shape, HloInstruction* operand, int64_t index)
+    : HloInstruction(HloOpcode::kGetTupleElement, shape), tuple_index_(index) {
+  AppendOperand(operand);
+}
+
+// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
+// HloInstructionProto HloGetTupleElementInstruction::ToProto() const {
+//   HloInstructionProto proto = HloInstruction::ToProto();
+//   proto.set_tuple_index(tuple_index_);
+//   return proto;
+// }
+
+// TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+// void HloGetTupleElementInstruction::PrintExtraAttributesImpl(
+//     AttributePrinter& printer, const HloPrintOptions& options) const {
+//   printer.Next([this](Printer* printer) {
+//     AppendCat(printer, "index=", tuple_index());
+//   });
+// }
+
+bool HloGetTupleElementInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other =
+      static_cast<const HloGetTupleElementInstruction&>(other);
+  return tuple_index() == casted_other.tuple_index();
+}
+
+std::unique_ptr<HloInstruction>
+HloGetTupleElementInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), 1);
+  return std::make_unique<HloGetTupleElementInstruction>(shape, new_operands[0],
+                                                         tuple_index());
+}
+
 HloInfeedInstruction::HloInfeedInstruction(const Shape& infeed_shape,
                                            HloInstruction* token_operand,
                                            const std::string& config)
