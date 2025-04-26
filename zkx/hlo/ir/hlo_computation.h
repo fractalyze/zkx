@@ -397,6 +397,20 @@ class HloComputation {
       absl::flat_hash_map<const HloInstruction*,
                           absl::InlinedVector<HloInstruction*, 1>>;
 
+  // Compute and return a post-order of the instructions in the computation. In
+  // this order, definitions of values always appear before their uses.
+  std::vector<HloInstruction*> MakeInstructionPostOrder() const;
+  // Same as MakeInstructionPostOrder but starting at any instruction in the
+  // computation, not just the root. Describes the corresponding subgraph.
+  std::vector<HloInstruction*> MakeInstructionPostOrderFrom(
+      HloInstruction&) const;
+  std::vector<HloInstruction*> MakeInstructionPostOrder(
+      const ChannelDependencies& channel_dependencies) const;
+  // Same as MakeInstructionPostOrder but with special tie-breaking behavior.
+  // Specifically, when ties (in ordering) between instructions occur, Reshapes
+  // will be sorted before other operations.
+  std::vector<HloInstruction*> MakeInstructionPostOrderWithReshapeFirst() const;
+
   // Calls `func` with each instruction in the computation in post-order.
   void ForEachInstructionPostOrder(
       absl::FunctionRef<void(HloInstruction*)> func) const;
