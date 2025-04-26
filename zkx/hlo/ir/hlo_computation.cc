@@ -354,6 +354,76 @@ bool HloComputation::IsMarkedAsDead(const HloInstruction* inst) {
   return inst->IsMarkedAsDead();
 }
 
+absl::Status HloComputation::RemoveInstructionAndUnusedOperands(
+    HloInstruction* instruction,
+    std::optional<absl::FunctionRef<void(HloInstruction*)>> cleanup,
+    bool ignore_control_dependencies) {
+  TF_RET_CHECK(root_instruction() != instruction);
+
+  TF_RET_CHECK(instruction->IsDead());
+  TF_RET_CHECK(IsSafelyRemovable(instruction, ignore_control_dependencies))
+      << "Cannot remove instruction: " << instruction->ToString();
+  absl::flat_hash_set<HloInstruction*> removed;
+  std::queue<HloInstruction*> worklist;
+  worklist.push(instruction);
+  std::vector<HloInstruction*> parameters_to_be_removed;
+  while (!worklist.empty()) {
+    HloInstruction* item = worklist.front();
+    worklist.pop();
+
+    if (removed.contains(item) || !item->IsDead() ||
+        !IsSafelyRemovable(item, ignore_control_dependencies) ||
+        (item->HasSideEffect() && item != instruction)) {
+      continue;
+    }
+    if (ignore_control_dependencies) {
+      TF_RETURN_IF_ERROR(item->SafelyDropAllControlDependencies());
+    } else if (item->HasControlDependencies()) {
+      continue;
+    }
+
+    for (int i = 0; i < item->operand_count(); ++i) {
+      worklist.push(item->mutable_operand(i));
+    }
+
+    if (cleanup != std::nullopt) {
+      (*cleanup)(item);
+    }
+    if (item->opcode() == HloOpcode::kParameter) {
+      // Note that right now, only parameters inside fusion computations are
+      // considered to be safely removable. We cannot remove a parameter
+      // directly, because it may cause a renumbering of other parameters which
+      // may invalidate some of the pointers in the worklist.
+      parameters_to_be_removed.push_back(item);
+    } else {
+      TF_RETURN_IF_ERROR(RemoveInstruction(item));
+    }
+    removed.insert(item);
+  }
+  // Sort into decreasing order by parameter number, otherwise the renumbering
+  // of parameters when one parameter is deleted will cause issues.
+  std::sort(parameters_to_be_removed.begin(), parameters_to_be_removed.end(),
+            [](HloInstruction* a, HloInstruction* b) {
+              return a->parameter_number() > b->parameter_number();
+            });
+  for (HloInstruction* param : parameters_to_be_removed) {
+    int64_t parameter_number = param->parameter_number();
+    TF_RETURN_IF_ERROR(RemoveParameter(parameter_number));
+    if (FusionInstruction() != nullptr) {
+      auto operand = FusionInstruction()->mutable_operand(parameter_number);
+      FusionInstruction()->RemoveOperandAt(parameter_number);
+      FusionInstruction()->DetachFrom(operand);
+      if (operand->IsDead() && operand->parent()->IsSafelyRemovable(
+                                   operand, ignore_control_dependencies)) {
+        TF_RETURN_IF_ERROR(
+            operand->parent()->RemoveInstructionAndUnusedOperands(
+                operand, cleanup, ignore_control_dependencies));
+      }
+    }
+  }
+  return absl::OkStatus();
+}
+
 absl::Status HloComputation::RemoveInstruction(HloInstruction* instruction) {
   return RemoveInstructionImpl(instruction, /*ignore_safety_check=*/false);
 }
@@ -934,6 +1004,137 @@ bool HloComputation::EqualInternal(
     return execution_thread() == other.execution_thread();
   }
   return true;
+}
+
+absl::Status HloComputation::ReplaceWithNewInstruction(
+    HloInstruction* old_instruction,
+    std::unique_ptr<HloInstruction> new_instruction) {
+  return ReplaceInstruction(old_instruction,
+                            AddInstruction(std::move(new_instruction)));
+}
+
+absl::Status HloComputation::ReplaceWithNewEntryComputationParameter(
+    HloInstruction* old_instruction,
+    std::unique_ptr<HloInstruction> new_instruction) {
+  return ReplaceInstruction(old_instruction, AddEntryComputationParameter(
+                                                 std::move(new_instruction)));
+}
+
+absl::StatusOr<bool> HloComputation::ReplaceInstruction(
+    HloInstruction* old_instruction, HloInstruction* new_instruction,
+    bool preserve_sharding, bool relay_control_dependency,
+    bool remove_unused_operands) {
+  TF_RET_CHECK(
+      ShapeUtil::Compatible(old_instruction->shape(), new_instruction->shape()))
+      << absl::StreamFormat(
+             "\"%s\" (%s) vs \"%s\" (%s)", old_instruction->name(),
+             old_instruction->shape().ToString(/*print_layout=*/true),
+             new_instruction->name(),
+             new_instruction->shape().ToString(/*print_layout=*/true));
+  return ReplaceInstructionWithDifferentShape(
+      old_instruction, new_instruction, preserve_sharding,
+      relay_control_dependency, remove_unused_operands);
+}
+
+absl::Status HloComputation::ReplaceInstruction(
+    HloInstruction* old_instruction, HloInstruction* new_instruction) {
+  TF_ASSIGN_OR_RETURN(bool changed,
+                      ReplaceInstruction(old_instruction, new_instruction,
+                                         /*preserve_sharding=*/false));
+  DCHECK(changed);
+  return absl::OkStatus();
+}
+
+absl::StatusOr<bool> HloComputation::ReplaceInstructionWithDifferentShape(
+    HloInstruction* old_instruction, HloInstruction* new_instruction,
+    bool preserve_sharding, bool relay_control_dependency,
+    bool remove_unused_operands) {
+  if (preserve_sharding && new_instruction->has_sharding() &&
+      old_instruction->has_sharding() &&
+      !new_instruction->has_compatible_sharding(old_instruction)) {
+    VLOG(10) << "Skipping replacement due to incompatible sharding";
+    return false;
+  }
+  if (relay_control_dependency) {
+    TF_RETURN_IF_ERROR(
+        new_instruction->CopyAllControlDepsFrom(old_instruction));
+    TF_RETURN_IF_ERROR(old_instruction->DropAllControlDeps());
+  } else if (old_instruction->HasControlDependencies()) {
+    VLOG(10) << "Skipping replacement because old instruction has "
+                "control dependencies";
+    return false;
+  }
+  VLOG(10) << "transformed " << old_instruction->ToString() << " to "
+           << new_instruction->ToString();
+  // Try to add metadata for HLO instructions that are created to replace
+  // existing HLO instructions (e.g. during optimizations). The assumption is
+  // that the old instruction and the new instruction would perform the same
+  // function, and that they would be correlated to the same TF op. This might
+  // not always be correct since HLO optimizations can cross TF op boundaries.
+  // But still this seems to be better than nothing.
+  bool overwrite_op_name = new_instruction->metadata().op_name().empty() &&
+                           !old_instruction->metadata().op_name().empty();
+  if (overwrite_op_name) {
+    new_instruction->set_metadata(old_instruction->metadata());
+  }
+  if (new_instruction->frontend_attributes().map().empty()) {
+    new_instruction->set_frontend_attributes(
+        old_instruction->frontend_attributes());
+  }
+  if (auto original_value = old_instruction->original_value()) {
+    // Fusions are handled separately. The original value of fused instructions
+    // is copied when they are added into the fused computation.
+    if (new_instruction->opcode() != HloOpcode::kFusion) {
+      if (ShapeUtil::Compatible(old_instruction->shape(),
+                                new_instruction->shape())) {
+        new_instruction->set_original_value(original_value);
+      } else {
+        LOG(WARNING)
+            << "Expect the new instruction to have the same shape with the old "
+               "instruction when copying over original_value\n";
+      }
+    }
+  }
+
+  // Like the metadata above, if the user didn't specify any sharding
+  // information on the new instruction we should copy the old sharding
+  // information (if any).
+  if (!new_instruction->has_sharding()) {
+    new_instruction->copy_sharding(old_instruction);
+  }
+
+  TF_RETURN_IF_ERROR(
+      old_instruction->ReplaceAllUsesWithDifferentShape(new_instruction));
+
+  // Preserve the old instruction's name if the new and old instruction have the
+  // same opcode. This makes it easier to follow instructions as they're
+  // mutated through passes.
+  // clang-format off
+  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::custom_call_target
+  // clang-format on
+  // if (old_instruction->opcode() == new_instruction->opcode() &&
+  //     (old_instruction->opcode() != HloOpcode::kCustomCall ||
+  //      old_instruction->custom_call_target() ==
+  //          new_instruction->custom_call_target())) {
+  //   new_instruction->SetAndSanitizeName(old_instruction->name());
+  // }
+  if (remove_unused_operands) {
+    TF_RETURN_IF_ERROR(RemoveInstructionAndUnusedOperands(
+        old_instruction, /*cleanup=*/std::nullopt,
+        /*ignore_control_dependencies=*/relay_control_dependency));
+  } else {
+    TF_RETURN_IF_ERROR(RemoveInstruction(old_instruction));
+  }
+  return true;
+}
+
+absl::Status HloComputation::ReplaceInstructionWithDifferentShape(
+    HloInstruction* old_instruction, HloInstruction* new_instruction) {
+  TF_ASSIGN_OR_RETURN(bool changed, ReplaceInstructionWithDifferentShape(
+                                        old_instruction, new_instruction,
+                                        /*preserve_sharding=*/false));
+  DCHECK(changed);
+  return absl::OkStatus();
 }
 
 std::vector<HloInstruction*> HloComputation::CollectUnreachableRoots() const {

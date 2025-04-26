@@ -253,6 +253,24 @@ class HloComputation {
   // instruction is a constant, its literal is cleared.
   absl::Status ForceRemoveInstruction(HloInstruction* instruction);
 
+  // Remove an instruction (including side effecting ones) from the computation
+  // and also transitively any operand that has no side effect and no users post
+  // removing an instruction. The instruction must have no users. This call does
+  // not yet deallocate the instruction, but marks it as deleted, so that the
+  // next call to Cleanup() will deallocate it. If the instruction is a
+  // constant, its literal is cleared. If given, the cleanup routine is executed
+  // on a removed instruction before its marked as deleted. If
+  // ignore_control_dependencies is set to true, if will remove the unused
+  // operands even when they have control dependencies, and transitively pass
+  // the control dependencies from the predecessors to the successors of the
+  // removed instructions, so that the logical execution order of the remaining
+  // unremoved instructions are preserved.
+  absl::Status RemoveInstructionAndUnusedOperands(
+      HloInstruction* instruction,
+      std::optional<absl::FunctionRef<void(HloInstruction*)>> cleanup =
+          std::nullopt,
+      bool ignore_control_dependencies = false);
+
   // Set the root of the computation to the given instruction. The instruction
   // must have already been added to the computation. In addition it must have
   // the same shape as the result of the computation for non fusion
@@ -470,6 +488,49 @@ class HloComputation {
   bool operator!=(const HloComputation& other) const {
     return !(*this == other);
   }
+
+  // Replaces old instruction with newly created instruction. Removes old
+  // instruction from computation. Updates uses and root instruction.
+  absl::Status ReplaceWithNewInstruction(
+      HloInstruction* old_instruction,
+      std::unique_ptr<HloInstruction> new_instruction);
+
+  // Replaces an old instruction with a newly created instruction, and adds the
+  // new instruction as an entry computation's parameter. Removes old
+  // instruction from computation. Updates uses and root instruction.
+  absl::Status ReplaceWithNewEntryComputationParameter(
+      HloInstruction* old_instruction,
+      std::unique_ptr<HloInstruction> new_instruction);
+
+  // Replace old instruction with new instruction.  Updates uses and root
+  // instruction. Removes old instruction from computation. Transitively removes
+  // non-side effecting operands of old instruction that no longer have users,
+  // similar to RemoveInstructionAndUnusedOperands(). Precondition:
+  // old_instruction and new_instruction must have the compatible shapes.
+  // If preserve_sharding is true, the replacement will fail if both new and old
+  // instruction have sharding that is not compatible, and the function will
+  // return false. Otherwise, when the replacement happens, if |new_instruction|
+  // doesn't have any sharding information it will receive the sharding
+  // information of |old_instruction|, and function will return true.
+  absl::StatusOr<bool> ReplaceInstruction(HloInstruction* old_instruction,
+                                          HloInstruction* new_instruction,
+                                          bool preserve_sharding,
+                                          bool relay_control_dependency = false,
+                                          bool remove_unused_operands = true);
+
+  // Same as above, with preserve_sharding=false. Since this replacement always
+  // happens, it returns just a absl::Status as opposed to absl::StatusOr<bool>
+  absl::Status ReplaceInstruction(HloInstruction* old_instruction,
+                                  HloInstruction* new_instruction);
+
+  // Same as ReplaceInstruction, but the new instruction can have a different
+  // shape.
+  absl::StatusOr<bool> ReplaceInstructionWithDifferentShape(
+      HloInstruction* old_instruction, HloInstruction* new_instruction,
+      bool preserve_sharding, bool relay_control_dependency = false,
+      bool remove_unused_operands = true);
+  absl::Status ReplaceInstructionWithDifferentShape(
+      HloInstruction* old_instruction, HloInstruction* new_instruction);
 
   // Set/get the module containing this computation.
   void set_parent(HloModule* module) { parent_ = module; }
