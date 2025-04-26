@@ -476,6 +476,28 @@ class HloComputation {
   const HloModule* parent() const { return parent_; }
   HloModule* parent() { return parent_; }
 
+  // Visit every node in the computation in DFS post-order with the given
+  // visitor. This is similar to calling HloInstruction::Accept on the root of
+  // the computation except this method also visits instructions not reachable
+  // via the root. The root instruction of the computation is visited last, and
+  // the visitor's FinishVisit method is called once upon completion (with the
+  // root instruction as the argument).
+  template <typename HloInstructionPtr>
+  absl::Status Accept(DfsHloVisitorBase<HloInstructionPtr>* visitor) const;
+
+  // Same as Accept() above, but the order of operand and control predecessor
+  // visitation is determined by the given operand order; if compare(A, B) ==
+  // true, A is visited before B.
+  absl::Status AcceptWithOperandOrder(
+      DfsHloVisitor* visitor,
+      const HloInstruction::CompareFunction& operand_order) const;
+
+  // Visit every node in the computation in the given order. 'order' must
+  // be a topological sort of all instructions in the computation.
+  template <typename HloInstructionPtr>
+  absl::Status AcceptOrdered(DfsHloVisitorBase<HloInstructionPtr>* visitor,
+                             absl::Span<HloInstruction* const> order) const;
+
   // Returns true if the given instruction can be removed from the computation.
   // Parameter instructions cannot be removed without violating invariants of
   // the HLO computation with the exception of fusion computation. A parameter
@@ -705,6 +727,57 @@ class HloComputation {
   HloComputation(const HloComputation&) = delete;
   HloComputation& operator=(const HloComputation&) = delete;
 };
+
+template <typename HloInstructionPtr>
+absl::Status HloComputation::Accept(
+    DfsHloVisitorBase<HloInstructionPtr>* visitor) const {
+  // Visit unreachable roots. Beware that the visitor might delete the currently
+  // visited root, which would invalidate iterators if the unreachable roots
+  // weren't computed ahead of time.
+  for (HloInstruction* root : CollectUnreachableRoots()) {
+    VLOG(3) << "Traversing unreachable root: " << root->ToString();
+    // Call FinishVisit only at the end.
+    TF_RETURN_IF_ERROR(root->Accept(visitor, /*call_finish_visit=*/false));
+  }
+  // Visit the computation root instruction last.
+  return root_instruction()->Accept(visitor, /*call_finish_visit=*/true);
+}
+
+// Explicit instantiations.
+template absl::Status HloComputation::Accept(DfsHloVisitor* visitor) const;
+template absl::Status HloComputation::Accept(ConstDfsHloVisitor* visitor) const;
+
+template <typename HloInstructionPtr>
+absl::Status HloComputation::AcceptOrdered(
+    DfsHloVisitorBase<HloInstructionPtr>* visitor,
+    absl::Span<HloInstruction* const> order) const {
+  VLOG(3) << "Accepting visitor with order.";
+  for (HloInstruction* root : CollectUnreachableRoots()) {
+    TF_RET_CHECK(absl::c_linear_search(order, root)) << root->ToString();
+  }
+  TF_RET_CHECK(order.size() == instruction_count());
+  absl::flat_hash_set<const HloInstruction*> visited;
+  for (const HloInstruction* instruction : order) {
+    VLOG(3) << "Visiting ordered: " << instruction->ToString();
+    TF_RET_CHECK(!visited.contains(instruction))
+        << "Instruction " << instruction->name()
+        << " appears more than once in order";
+    HloInstruction* mutable_instruction =
+        const_cast<HloInstruction*>(instruction);
+    TF_RETURN_IF_ERROR(visitor->Preprocess(mutable_instruction));
+    TF_RETURN_IF_ERROR(mutable_instruction->Visit(visitor));
+    visitor->SetVisited(*mutable_instruction);
+    TF_RETURN_IF_ERROR(visitor->Postprocess(mutable_instruction));
+    visited.insert(instruction);
+  }
+  return visitor->FinishVisit(root_instruction());
+}
+
+// Explicit instantiations.
+template absl::Status HloComputation::AcceptOrdered(
+    DfsHloVisitor*, absl::Span<HloInstruction* const>) const;
+template absl::Status HloComputation::AcceptOrdered(
+    ConstDfsHloVisitor*, absl::Span<HloInstruction* const>) const;
 
 }  // namespace zkx
 

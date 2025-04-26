@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/hlo/ir/hlo_instruction.h"
 
+#include "absl/base/optimization.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/escaping.h"
 
@@ -251,7 +252,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateVariadic(
 std::unique_ptr<HloInstruction> HloInstruction::CreateAsyncStart(
     const Shape& shape, absl::Span<HloInstruction* const> operands,
     HloComputation* async_computation,
-    absl::string_view async_execution_thread) {
+    std::string_view async_execution_thread) {
   return std::make_unique<HloAsyncStartInstruction>(
       HloOpcode::kAsyncStart, shape, operands, async_computation,
       async_execution_thread);
@@ -489,7 +490,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateInfeed(
 // static
 std::unique_ptr<HloInstruction> HloInstruction::CreateOutfeed(
     const Shape& outfeed_shape, HloInstruction* operand,
-    HloInstruction* token_operand, absl::string_view outfeed_config) {
+    HloInstruction* token_operand, std::string_view outfeed_config) {
   return std::make_unique<HloOutfeedInstruction>(outfeed_shape, operand,
                                                  token_operand, outfeed_config);
 }
@@ -1336,6 +1337,10 @@ std::string_view PrintName(std::string_view name, bool print_ids) {
 
 namespace {
 
+namespace {
+
+using DFSStack = absl::InlinedVector<std::pair<int, HloInstruction*>, 16>;
+
 void PrintNameInternal(Printer* printer, std::string_view name,
                        const HloPrintOptions& options) {
   if (options.print_percent()) {
@@ -1343,6 +1348,59 @@ void PrintNameInternal(Printer* printer, std::string_view name,
   }
   printer->Append(PrintName(name, options.print_ids()));
 }
+
+std::string PrintCycle(const HloInstruction* child, DFSStack* dfs_stack,
+                       bool ignore_control_predecessors) {
+  // This set contains HloInstructions from the top of `DFSStack` that might
+  // belong to the cycle, i.e. if  DFSStack :=[back,...,child,...,top], then
+  // `subgraph` := {child,...,top}.
+  absl::flat_hash_set<const HloInstruction*> subgraph;
+  while (!dfs_stack->empty() && dfs_stack->back().second != child) {
+    subgraph.insert(dfs_stack->back().second);
+    dfs_stack->pop_back();
+  }
+  // Start dfs at `child` and find a cycle with all nodes in `subgraph`.
+  absl::flat_hash_set<const HloInstruction*> visited;
+  absl::InlinedVector<const HloInstruction*, 16> dfs;
+  dfs.push_back(child);
+  std::string result;
+  while (!dfs.empty() && result.empty()) {
+    bool found_next_instr = false;
+    auto process_users_or_successors =
+        [&](const std::vector<HloInstruction*>& users_or_successors) {
+          for (const auto& user : users_or_successors) {
+            if (user == child) {
+              dfs.push_back(child);
+              result = "\n\nDirected cycle:\n  " +
+                       absl::StrJoin(
+                           dfs, "\n ",
+                           [](std::string* out, const HloInstruction* instr) {
+                             absl::StrAppend(out, instr->name());
+                           });
+              return;
+            }
+            if (!subgraph.contains(user) || visited.contains(user)) {
+              continue;
+            }
+            visited.insert(user);
+            dfs.push_back(user);
+            found_next_instr = true;
+          }
+        };
+    const HloInstruction* back = dfs.back();
+    process_users_or_successors(back->users());
+    if (!ignore_control_predecessors) {
+      process_users_or_successors(back->control_successors());
+    }
+    if (!found_next_instr) {
+      dfs.pop_back();
+    }
+  }
+
+  return result;
+}
+
+}  // namespace
 
 }  //  namespace
 
@@ -1607,6 +1665,324 @@ HloInstruction::HloInstruction(HloOpcode opcode, const Shape& shape)
       shape_(shape),
       name_(HloOpcodeString(opcode)) {
   TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape_));
+}
+
+template <typename HloInstructionPtr>
+absl::Status HloInstruction::Visit(
+    DfsHloVisitorBase<HloInstructionPtr>* visitor) {
+  switch (opcode_) {
+    case HloOpcode::kConstant:
+      return visitor->HandleConstant(this);
+    case HloOpcode::kGetTupleElement:
+      return visitor->HandleGetTupleElement(this);
+    case HloOpcode::kParameter:
+      return visitor->HandleParameter(this);
+    case HloOpcode::kCompare:
+      return visitor->HandleCompare(this);
+    case HloOpcode::kAdd:
+      return visitor->HandleAdd(this);
+    case HloOpcode::kDivide:
+      return visitor->HandleDivide(this);
+    case HloOpcode::kSubtract:
+      return visitor->HandleSubtract(this);
+    case HloOpcode::kMaximum:
+      return visitor->HandleMaximum(this);
+    case HloOpcode::kMinimum:
+      return visitor->HandleMinimum(this);
+    case HloOpcode::kConcatenate:
+      return visitor->HandleConcatenate(this);
+    case HloOpcode::kBitcastConvert:
+      return visitor->HandleBitcastConvert(this);
+    case HloOpcode::kCopy:
+      return visitor->HandleCopy(this);
+    case HloOpcode::kMultiply:
+      return visitor->HandleMultiply(this);
+    case HloOpcode::kDot:
+      return visitor->HandleDot(this);
+    case HloOpcode::kRaggedDot:
+      return visitor->HandleRaggedDot(this);
+    case HloOpcode::kPower:
+      return visitor->HandlePower(this);
+    case HloOpcode::kSelect:
+      return visitor->HandleSelect(this);
+    case HloOpcode::kAllGather:
+      return visitor->HandleAllGather(this);
+    case HloOpcode::kAllGatherStart:
+      return visitor->HandleAllGatherStart(this);
+    case HloOpcode::kAllGatherDone:
+      return visitor->HandleAllGatherDone(this);
+    case HloOpcode::kAllReduce:
+      return visitor->HandleAllReduce(this);
+    case HloOpcode::kReduceScatter:
+      return visitor->HandleReduceScatter(this);
+    case HloOpcode::kAllReduceStart:
+      return visitor->HandleAllReduceStart(this);
+    case HloOpcode::kAllReduceDone:
+      return visitor->HandleAllReduceDone(this);
+    case HloOpcode::kAllToAll:
+      return visitor->HandleAllToAll(this);
+    case HloOpcode::kRaggedAllToAll:
+      return visitor->HandleRaggedAllToAll(this);
+    case HloOpcode::kCollectiveBroadcast:
+      return visitor->HandleCollectiveBroadcast(this);
+    case HloOpcode::kCollectivePermute:
+      return visitor->HandleCollectivePermute(this);
+    case HloOpcode::kCollectivePermuteStart:
+      return visitor->HandleCollectivePermuteStart(this);
+    case HloOpcode::kCollectivePermuteDone:
+      return visitor->HandleCollectivePermuteDone(this);
+    case HloOpcode::kReplicaId:
+      return visitor->HandleReplicaId(this);
+    case HloOpcode::kPartitionId:
+      return visitor->HandlePartitionId(this);
+    case HloOpcode::kTuple:
+      return visitor->HandleTuple(this);
+    case HloOpcode::kMap:
+      return visitor->HandleMap(this);
+    case HloOpcode::kReduce:
+      return visitor->HandleReduce(this);
+    case HloOpcode::kNegate:
+      return visitor->HandleNegate(this);
+    case HloOpcode::kBitcast:
+      return visitor->HandleBitcast(this);
+    case HloOpcode::kBroadcast:
+      return visitor->HandleBroadcast(this);
+    case HloOpcode::kReshape:
+      return visitor->HandleReshape(this);
+    case HloOpcode::kDynamicReshape:
+      return visitor->HandleDynamicReshape(this);
+    case HloOpcode::kTranspose:
+      return visitor->HandleTranspose(this);
+    case HloOpcode::kReverse:
+      return visitor->HandleReverse(this);
+    case HloOpcode::kSlice:
+      return visitor->HandleSlice(this);
+    case HloOpcode::kDynamicSlice:
+      return visitor->HandleDynamicSlice(this);
+    case HloOpcode::kDynamicUpdateSlice:
+      return visitor->HandleDynamicUpdateSlice(this);
+    case HloOpcode::kInfeed:
+      return visitor->HandleInfeed(this);
+    case HloOpcode::kOutfeed:
+      return visitor->HandleOutfeed(this);
+    case HloOpcode::kWhile:
+      return visitor->HandleWhile(this);
+    case HloOpcode::kFusion:
+      return visitor->HandleFusion(this);
+    case HloOpcode::kCall:
+      return visitor->HandleCall(this);
+    case HloOpcode::kConditional:
+      return visitor->HandleConditional(this);
+    case HloOpcode::kCustomCall:
+      return visitor->HandleCustomCall(this);
+    case HloOpcode::kAsyncStart:
+      return visitor->HandleAsyncStart(this);
+    case HloOpcode::kAsyncUpdate:
+      return visitor->HandleAsyncUpdate(this);
+    case HloOpcode::kAsyncDone:
+      return visitor->HandleAsyncDone(this);
+    case HloOpcode::kCopyStart:
+      return visitor->HandleCopyStart(this);
+    case HloOpcode::kCopyDone:
+      return visitor->HandleCopyDone(this);
+    case HloOpcode::kRecv:
+      return visitor->HandleRecv(this);
+    case HloOpcode::kRecvDone:
+      return visitor->HandleRecvDone(this);
+    case HloOpcode::kSend:
+      return visitor->HandleSend(this);
+    case HloOpcode::kSendDone:
+      return visitor->HandleSendDone(this);
+    case HloOpcode::kGather:
+      return visitor->HandleGather(this);
+    case HloOpcode::kScatter:
+      return visitor->HandleScatter(this);
+    case HloOpcode::kDomain:
+      return visitor->HandleDomain(this);
+    case HloOpcode::kAfterAll:
+      return visitor->HandleAfterAll(this);
+    case HloOpcode::kAddDependency:
+      return visitor->HandleAddDependency(this);
+    case HloOpcode::kGetDimensionSize:
+      return visitor->HandleGetDimensionSize(this);
+    case HloOpcode::kSetDimensionSize:
+      return visitor->HandleSetDimensionSize(this);
+    case HloOpcode::kOptimizationBarrier:
+      return visitor->HandleOptimizationBarrier(this);
+    default:
+      return absl::InternalError(absl::StrFormat(
+          "Unhandled HloOpcode for DfsHloVisitor: %s. This should not happen - "
+          "please file a bug for ZKX.",
+          HloOpcodeString(opcode_)));
+  }
+}
+
+// Explicit instantiations.
+template absl::Status HloInstruction::Visit(DfsHloVisitor* visitor);
+template absl::Status HloInstruction::Visit(ConstDfsHloVisitor* visitor);
+
+// Push "child" onto the dfs_stack if not already visited.  Returns false if a
+// cycle was detected, and true otherwise.
+template <typename Visitor>
+inline bool PushDFSChild(Visitor* visitor, DFSStack* dfs_stack,
+                         HloInstruction* child) {
+  CHECK(child != nullptr);
+  const int id = child->unique_id();
+  CHECK_GE(id, 0) << "instruction may not have a parent computation";
+  switch (visitor->GetVisitState(id)) {
+    case Visitor::kVisiting:
+      return false;
+
+    case Visitor::kVisited:
+      // Nothing to do
+      return true;
+
+    case Visitor::kNotVisited:
+      dfs_stack->push_back(std::make_pair(id, child));
+      return true;
+  }
+}
+
+using InternalCompareFunction =
+    absl::FunctionRef<bool(std::pair<int, const HloInstruction*>,
+                           std::pair<int, const HloInstruction*>)>;
+template <typename Visitor>
+static absl::Status PostOrderDFS(
+    HloInstruction* root, Visitor* visitor,
+    std::optional<InternalCompareFunction> operand_order,
+    bool ignore_control_predecessors, bool cross_computation) {
+  visitor->ReserveVisitStates(root->parent()->instruction_count());
+
+  // dfs_stack holds pairs of <HloInstruction*->unique_id(), HloInstruction*>.
+  //
+  // We need to keep track of both the id and the instruction because
+  // instructions can get deleted while they are on the stack, so we
+  // can't always use the (potentially dead) instruction object to grab
+  // its id.
+  DFSStack dfs_stack;
+  dfs_stack.emplace_back(root->unique_id(), root);
+
+  do {
+    DCHECK(!dfs_stack.empty());
+
+    int current_id = dfs_stack.back().first;
+    HloInstruction* current_node = dfs_stack.back().second;
+    CHECK_GE(current_id, 0) << current_id << ": " << current_node
+                            << ": instruction may not have parent computation";
+    typename Visitor::VisitState visit_state =
+        visitor->GetVisitState(current_id);
+    if (visit_state == Visitor::kVisited) {
+      dfs_stack.pop_back();
+      VLOG(3) << "Not visiting HLO (id = " << current_id
+              << ") as it was already visited.";
+      continue;
+    }
+
+    if (visit_state == Visitor::kVisiting) {
+      dfs_stack.pop_back();
+
+      TF_RETURN_IF_ERROR(visitor->Preprocess(current_node));
+      VLOG(2) << "Visiting HLO %" << current_node->name();
+      TF_RETURN_IF_ERROR(current_node->Visit(visitor));
+      visitor->SetVisitState(current_id, Visitor::kVisited);
+      TF_RETURN_IF_ERROR(visitor->Postprocess(current_node));
+      continue;
+    }
+
+    visitor->SetVisitState(current_id, Visitor::kVisiting);
+
+    const size_t old_dfs_stack_size = dfs_stack.size();
+    for (HloInstruction* child : current_node->operands()) {
+      if (!ABSL_PREDICT_TRUE(PushDFSChild(visitor, &dfs_stack, child))) {
+        return absl::FailedPreconditionError(absl::StrFormat(
+            "A cycle is detected while visiting instruction %s %s",
+            current_node->ToString(),
+            PrintCycle(child, &dfs_stack, ignore_control_predecessors)));
+      }
+    }
+
+    if (!ignore_control_predecessors) {
+      for (HloInstruction* child : current_node->control_predecessors()) {
+        if (!ABSL_PREDICT_TRUE(PushDFSChild(visitor, &dfs_stack, child))) {
+          return absl::FailedPreconditionError(absl::StrFormat(
+              "A cycle is detected while visiting instruction %s %s",
+              current_node->ToString(),
+              PrintCycle(child, &dfs_stack, ignore_control_predecessors)));
+        }
+      }
+    }
+
+    // If `cross_computation` is enabled, and the current visiting instruction
+    // is a caller of other computations, we try to push the root instruction of
+    // those called computations onto the stack .
+    if (cross_computation) {
+      for (const HloComputation* called_computation :
+           current_node->called_computations()) {
+        HloInstruction* root_instruction =
+            called_computation->root_instruction();
+        if (!ABSL_PREDICT_TRUE(
+                PushDFSChild(visitor, &dfs_stack, root_instruction))) {
+          return absl::FailedPreconditionError(absl::StrFormat(
+              "A cycle is detected while visiting instruction %s %s",
+              current_node->ToString(),
+              PrintCycle(root_instruction, &dfs_stack,
+                         ignore_control_predecessors)));
+        }
+      }
+    }
+
+    if (operand_order != std::nullopt) {
+      std::sort(dfs_stack.begin() + old_dfs_stack_size, dfs_stack.end(),
+                *operand_order);
+    }
+
+    // This makes the traversal order the same as what you'd expect
+    // out of a recursive algorithm.
+    std::reverse(dfs_stack.begin() + old_dfs_stack_size, dfs_stack.end());
+  } while (!dfs_stack.empty());
+
+  return absl::OkStatus();
+}
+
+template <typename HloInstructionPtr>
+absl::Status HloInstruction::Accept(
+    DfsHloVisitorBase<HloInstructionPtr>* visitor, bool call_finish_visit,
+    bool ignore_control_predecessors, bool cross_computation) {
+  VLOG(3) << "HloInstruction::Accept(%" << name() << ")";
+  TF_RETURN_IF_ERROR(PostOrderDFS(this, visitor, std::nullopt,
+                                  ignore_control_predecessors,
+                                  cross_computation));
+  if (call_finish_visit) {
+    TF_RETURN_IF_ERROR(visitor->FinishVisit(this));
+  }
+  return absl::OkStatus();
+}
+
+// Explicit instantiations.
+template absl::Status HloInstruction::Accept(DfsHloVisitor*, bool, bool, bool);
+template absl::Status HloInstruction::Accept(ConstDfsHloVisitor*, bool, bool,
+                                             bool);
+
+absl::Status HloInstruction::AcceptWithOperandOrder(
+    DfsHloVisitor* visitor, CompareFunction operand_order,
+    bool call_finish_visit) {
+  VLOG(2) << "HloInstruction::AcceptWithOperandOrder(%" << name() << ")";
+  auto func = [operand_order](std::pair<int, const HloInstruction*> a,
+                              std::pair<int, const HloInstruction*> b) {
+    // Call the client's comparison function on the actual HloInstruction*
+    // objects (ignoring the internal ids we also have in our stack entries)
+    return operand_order(a.second, b.second);
+  };
+  TF_RETURN_IF_ERROR(PostOrderDFS(this, visitor, func,
+                                  /*ignore_control_predecessors=*/false,
+                                  /*cross_computation=*/false));
+  if (call_finish_visit) {
+    VLOG(3) << "HloInstruction::AcceptWithOperandOrder BEFORE FINISH VISIT";
+    TF_RETURN_IF_ERROR(visitor->FinishVisit(this));
+    VLOG(3) << "HloInstruction::AcceptWithOperandOrder AFTER FINISH VISIT";
+  }
+  VLOG(2) << "HloInstruction::AcceptWithOperandOrder EXIT";
+  return absl::OkStatus();
 }
 
 absl::InlinedVector<int64_t, 4> HloInstruction::OperandIndices(

@@ -23,6 +23,7 @@
 #include "zkx/comparison_util.h"
 #include "zkx/hlo/ir/backend_config.h"
 #include "zkx/hlo/ir/collective_device_list.h"
+#include "zkx/hlo/ir/dfs_hlo_visitor.h"
 #include "zkx/hlo/ir/hlo_clone_context.h"
 #include "zkx/hlo/ir/hlo_opcode.h"
 #include "zkx/hlo/ir/hlo_original_value.h"
@@ -889,8 +890,43 @@ class HloInstruction {
   // Same as ReplaceAllUsesWith, but new_producer can have a different shape.
   absl::Status ReplaceAllUsesWithDifferentShape(HloInstruction* new_producer);
 
+  // Performs a postorder DFS visit using this node as the root. If
+  // `call_finish_visit` is true, then DfsHloVisitor::FinishVisit is called when
+  // complete. If ignore_control_predecessors is true, instructions only
+  // reachable via control dependencies will not be visited, and the postorder
+  // will not take control dependencies into account. It is as if the control
+  // dependencies didn't exist in the graph at all. If cross_computation is
+  // true, DFS will go across the computation boundary (i.e., from an
+  // instruction to the root instruction of a computation it calls).
+  template <typename HloInstructionPtr>
+  absl::Status Accept(DfsHloVisitorBase<HloInstructionPtr>* visitor,
+                      bool call_finish_visit = true,
+                      bool ignore_control_predecessors = false,
+                      bool cross_computation = false);
+  absl::Status Accept(ConstDfsHloVisitor* visitor,
+                      bool call_finish_visit = true,
+                      bool ignore_control_predecessors = false,
+                      bool cross_computation = false) const {
+    return const_cast<HloInstruction*>(this)->Accept(
+        visitor, call_finish_visit, ignore_control_predecessors,
+        cross_computation);
+  }
+
+  // Same as Accept() above, but the order of operand and control predecessor
+  // visitation is determined by the given operand order; if compare(A, B) ==
+  // true, A is visited before B.
   using CompareFunction =
       absl::FunctionRef<bool(const HloInstruction*, const HloInstruction*)>;
+  absl::Status AcceptWithOperandOrder(DfsHloVisitor* visitor,
+                                      CompareFunction operand_order,
+                                      bool call_finish_visit = true);
+
+  // Visit this instruction and only this instruction with the given visitor.
+  template <typename HloInstructionPtr>
+  absl::Status Visit(DfsHloVisitorBase<HloInstructionPtr>* visitor);
+  absl::Status Visit(ConstDfsHloVisitor* visitor) const {
+    return const_cast<HloInstruction*>(this)->Visit(visitor);
+  }
 
   // Gets/sets the to_apply HloComputation for Call, Map, Reduce, etc.
   // The setter should only be called by HloModule or HloComputation methods.
@@ -1581,6 +1617,15 @@ class HloInstruction {
   // the memory footprint of HloInstruction.
   std::unique_ptr<OpMetadata> metadata_ = std::make_unique<OpMetadata>();
 };
+
+// Explicit instantiations in hlo_instruction.cc.
+extern template absl::Status HloInstruction::Accept(DfsHloVisitor*, bool, bool,
+                                                    bool);
+extern template absl::Status HloInstruction::Accept(ConstDfsHloVisitor*, bool,
+                                                    bool, bool);
+
+extern template absl::Status HloInstruction::Visit(DfsHloVisitor* visitor);
+extern template absl::Status HloInstruction::Visit(ConstDfsHloVisitor* visitor);
 
 absl::StatusOr<HloInstruction::FusionKind> StringToFusionKind(
     std::string_view kind_name);

@@ -951,6 +951,22 @@ std::vector<HloInstruction*> HloComputation::CollectUnreachableRoots() const {
   return unreachable_roots;
 }
 
+absl::Status HloComputation::AcceptWithOperandOrder(
+    DfsHloVisitor* visitor,
+    const HloInstruction::CompareFunction& operand_order) const {
+  // Visit unreachable roots. Beware that the visitor might delete the currently
+  // visited root, which would invalidate iterators if the unreachable roots
+  // weren't computed ahead of time.
+  for (HloInstruction* root : CollectUnreachableRoots()) {
+    TF_RETURN_IF_ERROR(
+        root->AcceptWithOperandOrder(visitor, operand_order,
+                                     /*call_finish_visit=*/false));
+  }
+  // Visit the computation root instruction last.
+  return root_instruction()->AcceptWithOperandOrder(visitor, operand_order,
+                                                    /*call_finish_visit=*/true);
+}
+
 void HloComputation::UniquifyName(HloModule* module) {
   UniquifyName(&module->computation_name_uniquer());
 }
