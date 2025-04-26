@@ -271,13 +271,13 @@ zkx_cc_unittest(
     srcs = [
         "backend_config_unittest.cc",
         "collective_device_list_unittest.cc",
-        # TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateParameter, HloCollectivePermuteInstruction, HloAllReduceInstruction
-        # "hlo_casting_utils_unittest.cc",
+        "hlo_casting_utils_unittest.cc",
         "ptr_vec_unittest.cc",
     ],
     deps = [
         ":backend_config",
         ":collective_device_list",
+        ":hlo",
         ":ptr_vec",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
