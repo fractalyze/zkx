@@ -8,6 +8,32 @@ package(
 )
 
 cc_library(
+    name = "compactptrset",
+    hdrs = ["compactptrset.h"],
+    deps = [
+        ":flatset",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+cc_library(
+    name = "flatrep",
+    hdrs = ["flatrep.h"],
+    deps = ["@com_google_absl//absl/base:prefetch"],
+)
+
+cc_library(
+    name = "flatset",
+    hdrs = ["flatset.h"],
+    deps = [
+        ":flatrep",
+        "//xla/tsl/platform:hash",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+cc_library(
     name = "int_type",
     hdrs = ["int_type.h"],
     deps = [
@@ -36,11 +62,15 @@ cc_library(
 zkx_cc_unittest(
     name = "tsl_lib_gtl_tests",
     srcs = [
+        "compactptrset_test.cc",
+        "flatset_test.cc",
         "int_type_test.cc",
         "iterator_range_test.cc",
         "map_util_test.cc",
     ],
     deps = [
+        ":compactptrset",
+        ":flatset",
         ":int_type",
         ":iterator_range",
         ":map_util",
