@@ -1410,6 +1410,8 @@ class HloInstruction {
 
   void AppendComputation(HloComputation* computation);
 
+  void DetachFrom(HloInstruction* usee) { usee->RemoveUser(this); }
+
   // Change instruction's name to have a given suffix.
   void AddSuffixToInstructionName(const std::string_view suffix);
 
