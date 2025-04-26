@@ -435,6 +435,22 @@ class HloComputation {
 
   int64_t instruction_count() const { return instruction_count_; }
 
+  // Creates an async start/done instruction pair where instruction is wrapped
+  // inside an asynchronous computation. The context shapes are appended to the
+  // output tuple of the asynchronous start which is backend specific. Returns
+  // the async done instruction. The new async start instruction is the operand
+  // of the async done instruction so that can be accessed using that. If
+  // present, `async_execution_thread` will be attached to the
+  // async-start/update/done instructions as well as wrapped computations.
+  // If `replace` is true, replace instruction with the async done instruction.
+  // If `override_names` is true, the clone on `instruction` and the async op
+  // created will get non-default names.
+  absl::StatusOr<HloInstruction*> CreateAsyncInstructions(
+      HloInstruction* instruction, absl::Span<const Shape> context_shapes,
+      std::string_view async_execution_thread =
+          HloInstruction::kMainExecutionThread,
+      bool replace = true, bool override_names = false);
+
   // Creates and returns a list of the embedded computations called by this
   // computation. This includes all embedded computations called directly or
   // transitively. The embedded computations are sorted such that if computation
