@@ -331,6 +331,23 @@ zkx_cc_library(
     hdrs = ["time_utils.h"],
 )
 
+zkx_cc_library(
+    name = "tuple_util",
+    srcs = ["tuple_util.cc"],
+    hdrs = ["tuple_util.h"],
+    deps = [
+        ":hlo_value",
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
 zkx_cc_unittest(
     name = "service_unittests",
     srcs = [
