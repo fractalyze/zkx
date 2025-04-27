@@ -457,7 +457,7 @@ class HloModule {
   int unique_id() const { return unique_id_; }
 
   // Sets the schedule of the module to the given schedule.
-  absl::Status set_schedule(HloSchedule schedule);
+  absl::Status set_schedule(HloSchedule&& schedule);
 
   // Clears the schedule of the module.
   void clear_schedule() { schedule_.reset(); }

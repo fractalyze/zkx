@@ -22,7 +22,7 @@ limitations under the License.
 
 namespace zkx {
 
-absl::Status HloModule::set_schedule(HloSchedule schedule) {
+absl::Status HloModule::set_schedule(HloSchedule&& schedule) {
   TF_RET_CHECK(schedule.module() == this);
   TF_RETURN_IF_ERROR(schedule.Verify());
   schedule_ = std::move(schedule);
