@@ -1445,30 +1445,26 @@ void HloInstruction::PrintWithCanonicalNameMap(
   }
 
   // Print opcode, operand(s).
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::async_wrapped_computation
-  // clang-format on
-  //
-  // if (options.syntax_sugar_async_ops() && HloOpcodeIsAsync(opcode()) &&
-  //     (async_wrapped_computation() &&
-  //      async_wrapped_computation()->CanExpandIntoSingleInstruction())) {
-  //   std::string_view suffix = [&]() {
-  //     switch (opcode()) {
-  //       case HloOpcode::kAsyncStart:
-  //         return "-start";
-  //       case HloOpcode::kAsyncUpdate:
-  //         return "-update";
-  //       default:
-  //         CHECK(opcode() == HloOpcode::kAsyncDone)
-  //             << "Unexpected async opcode: " << opcode();
-  //         return "-done";
-  //     }
-  //   }();
-  //   printer->Append(HloOpcodeString(async_wrapped_opcode()));
-  //   printer->Append(suffix);
-  // } else {
-  //   printer->Append(HloOpcodeString(opcode()));
-  // }
+  if (options.syntax_sugar_async_ops() && HloOpcodeIsAsync(opcode()) &&
+      (async_wrapped_computation() &&
+       async_wrapped_computation()->CanExpandIntoSingleInstruction())) {
+    std::string_view suffix = [&]() {
+      switch (opcode()) {
+        case HloOpcode::kAsyncStart:
+          return "-start";
+        case HloOpcode::kAsyncUpdate:
+          return "-update";
+        default:
+          CHECK(opcode() == HloOpcode::kAsyncDone)
+              << "Unexpected async opcode: " << opcode();
+          return "-done";
+      }
+    }();
+    printer->Append(HloOpcodeString(async_wrapped_opcode()));
+    printer->Append(suffix);
+  } else {
+    printer->Append(HloOpcodeString(opcode()));
+  }
   printer->Append("(");
   PrintOperandsWithCanonicalNameMap(printer, options, canonical_name_map);
   printer->Append(")");
