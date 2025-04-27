@@ -49,6 +49,69 @@ void ComputeInputOutputAliasedValues(const HloValue& value,
   }
 }
 
+void ComputeWhileAliasedValues(const HloValue& value,
+                               const HloDataflowAnalysis& dataflow,
+                               FlatValueSet& aliased_values) {
+  VLOG(3) << "Compute kWhile aliases";
+  // Value is init of a while (use is while).
+  for (const HloUse& use : value.GetUses()) {
+    if (use.instruction->opcode() == HloOpcode::kWhile) {
+      // Determine the while value that this shares a buffer with.
+      const HloValue& while_value =
+          dataflow.GetUniqueValueAt(use.instruction, use.operand_index);
+      aliased_values.insert(&while_value);
+      VLOG(3) << "  value is init value to a while; must share buffer with "
+                 "while value "
+              << while_value;
+    }
+  }
+  // Value is a parameter of a while body/condition.
+  if (value.defining_instruction()->opcode() == HloOpcode::kParameter) {
+    const HloComputation* computation = value.defining_instruction()->parent();
+    const CallGraphNode& call_graph_node =
+        dataflow.call_graph().GetNode(computation);
+    for (const CallSite& callsite : call_graph_node.caller_callsites()) {
+      if (callsite.instruction()->opcode() == HloOpcode::kWhile) {
+        // Call graph must have been flattened.
+        CHECK_EQ(call_graph_node.caller_callsites().size(), 1);
+
+        const HloValue& while_value = dataflow.GetUniqueValueAt(
+            callsite.instruction(), value.defining_index());
+        VLOG(3) << "  value is parameter value of the body or condition of a "
+                   "while; must share buffer with while value "
+                << while_value;
+        aliased_values.insert(&while_value);
+      }
+    }
+  }
+  // Value is the root of a while body.
+  for (const HloPosition& position : value.positions()) {
+    if (!position.instruction->IsRoot()) continue;
+
+    const HloComputation* computation = position.instruction->parent();
+    const CallGraphNode& call_graph_node =
+        dataflow.call_graph().GetNode(computation);
+
+    for (const CallSite& callsite : call_graph_node.caller_callsites()) {
+      if (callsite.instruction()->opcode() == HloOpcode::kWhile &&
+          callsite.instruction()->while_body() == computation) {
+        // Call graph must have been flattened.
+        CHECK_EQ(call_graph_node.caller_callsites().size(), 1)
+            << "Call graph must have been flattened.";
+
+        const HloValue& while_value =
+            dataflow.GetUniqueValueAt(callsite.instruction(), position.index);
+        VLOG(3) << "  value @ " << position << " is root of "
+                << callsite.instruction()->name()
+                << "; body root and while value root must share buffer "
+                   "among them: "
+                << while_value;
+        aliased_values.insert(&while_value);
+      }
+    }
+  }
+}
+
 void ComputeConditionalAliasedValues(const HloValue& value,
                                      const HloDataflowAnalysis& dataflow,
                                      FlatValueSet& aliased_values) {
@@ -126,8 +189,7 @@ FlatValueSet ComputeAliasedValues(const HloValue& value,
 
   FlatValueSet aliased_values{&value};
   ComputeInputOutputAliasedValues(value, dataflow, aliased_values);
-  // TODO(chokobole): Uncomment this. Dependency: ComputeWhileAliasedValues
-  // ComputeWhileAliasedValues(value, dataflow, aliased_values);
+  ComputeWhileAliasedValues(value, dataflow, aliased_values);
   ComputeConditionalAliasedValues(value, dataflow, aliased_values);
   ComputeInPlaceOperationAliasedValues(value, dataflow, aliased_values);
   return aliased_values;

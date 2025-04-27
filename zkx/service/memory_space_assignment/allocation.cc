@@ -847,18 +847,12 @@ absl::Status ParentAllocation::Process(const BitcastSplitFn& bitcast_split_fn) {
   TF_RETURN_IF_ERROR(calling_instruction_->ReplaceOperandWithDifferentShape(
       0, new_while_operand));
   *calling_instruction_->mutable_shape() = new_while_operand->shape();
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_condition
-  // clang-format on
-  // *calling_instruction_->while_condition()
-  //      ->parameter_instruction(0)
-  //      ->mutable_shape() = new_while_operand->shape();
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_body
-  // clang-format on
-  // *calling_instruction_->while_body()
-  //      ->parameter_instruction(0)
-  //      ->mutable_shape() = new_while_operand->shape();
+  *calling_instruction_->while_condition()
+       ->parameter_instruction(0)
+       ->mutable_shape() = new_while_operand->shape();
+  *calling_instruction_->while_body()
+       ->parameter_instruction(0)
+       ->mutable_shape() = new_while_operand->shape();
   HloPosition defining_position = original_defining_position();
   defining_position.index = {new_tuple_index};
   set_original_defining_position(defining_position);
@@ -886,19 +880,14 @@ absl::Status ParentAllocation::PostProcess() {
   // while body root as a use, so they would update the old root instead of the
   // new root. Doing the post-process step later ensures the root has been
   // updated with other changes, and we can safely add the additional parameter.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_body
-  // clang-format on
-  // HloComputation* while_body = calling_instruction_->while_body();
-  // TF_ASSIGN_OR_RETURN(HloInstruction * new_while_body_root,
-  //                     TupleUtil::ReplaceTupleWith(
-  //                         AddGetTupleElements(),
-  //                         while_body->root_instruction(),
-  //                         original_defining_position().index));
-  // while_body->set_root_instruction(new_while_body_root,
-  //                                  /*accept_different_shape=*/true);
-  // return absl::OkStatus();
-  return absl::UnimplementedError("");
+  HloComputation* while_body = calling_instruction_->while_body();
+  TF_ASSIGN_OR_RETURN(HloInstruction * new_while_body_root,
+                      TupleUtil::ReplaceTupleWith(
+                          AddGetTupleElements(), while_body->root_instruction(),
+                          original_defining_position().index));
+  while_body->set_root_instruction(new_while_body_root,
+                                   /*accept_different_shape=*/true);
+  return absl::OkStatus();
 }
 
 void ParentAllocation::MarkIfNeeded(

@@ -75,15 +75,12 @@ HloOrdering::ExecutionConstraint HloOrdering::GetExecutionConstraint(
   // to execute before the body computation so if `a` is in the condition and
   // `b` is in the body, then `a` executes before `b`.
   if (a_ancestor == b_ancestor && a_ancestor->opcode() == HloOpcode::kWhile) {
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_body, HloInstruction::while_condition
-    // clang-format on
-    // const HloComputation* body = a_ancestor->while_body();
-    // const HloComputation* condition = a_ancestor->while_condition();
-    // if (call_graph_->InstructionIsNestedIn(a, condition) &&
-    //     call_graph_->InstructionIsNestedIn(b, body)) {
-    //   return ExecutionConstraint::kRunBeforeEnd;
-    // }
+    const HloComputation* body = a_ancestor->while_body();
+    const HloComputation* condition = a_ancestor->while_condition();
+    if (call_graph_->InstructionIsNestedIn(a, condition) &&
+        call_graph_->InstructionIsNestedIn(b, body)) {
+      return ExecutionConstraint::kRunBeforeEnd;
+    }
   }
 
   // If the common ancestor is a conditional instruction, even though the branch
@@ -93,44 +90,41 @@ HloOrdering::ExecutionConstraint HloOrdering::GetExecutionConstraint(
   // as they will forcibly have disjoint liveness.
   if (a_ancestor == b_ancestor &&
       (a_ancestor->opcode() == HloOpcode::kConditional)) {
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloInstruction::branch_count, HloInstruction::branch_computation
-    // clang-format on
-    // int a_branch = -1;
-    // int b_branch = -1;
-    // for (int j = 0; j < a_ancestor->branch_count(); ++j) {
-    //   if (call_graph_->InstructionIsNestedIn(
-    //           a, a_ancestor->branch_computation(j))) {
-    //     a_branch = j;
-    //   }
-    //   if (call_graph_->InstructionIsNestedIn(
-    //           b, a_ancestor->branch_computation(j))) {
-    //     b_branch = j;
-    //   }
-    // }
-    // // If neither a nor b is inside the branches they both are the ancestor.
-    // if (a_branch == -1 && b_branch == -1) {
-    //   CHECK_EQ(a, a_ancestor);
-    //   CHECK_EQ(b, b_ancestor);
-    //   CHECK_EQ(a, b);
-    //   return ExecutionConstraint::kIsSame;
-    // }
-    // // If `b` is the conditional ancestor, and `a` is within a branch
-    // // computation, `a` executes before `b`.
-    // if (b_branch == -1) {
-    //   CHECK_EQ(b, a_ancestor);
-    //   return ExecutionConstraint::kRunBeforeEnd;
-    // }
-    // if (a_branch == -1) {
-    //   CHECK_EQ(a, a_ancestor);
-    //   return ExecutionConstraint::kRunAfter;
-    // }
-    // if (a_branch < b_branch) {
-    //   return ExecutionConstraint::kRunExclusiveBefore;
-    // }
-    // if (b_branch < a_branch) {
-    //   return ExecutionConstraint::kRunExclusiveAfter;
-    // }
+    int a_branch = -1;
+    int b_branch = -1;
+    for (int j = 0; j < a_ancestor->branch_count(); ++j) {
+      if (call_graph_->InstructionIsNestedIn(
+              a, a_ancestor->branch_computation(j))) {
+        a_branch = j;
+      }
+      if (call_graph_->InstructionIsNestedIn(
+              b, a_ancestor->branch_computation(j))) {
+        b_branch = j;
+      }
+    }
+    // If neither a nor b is inside the branches they both are the ancestor.
+    if (a_branch == -1 && b_branch == -1) {
+      CHECK_EQ(a, a_ancestor);
+      CHECK_EQ(b, b_ancestor);
+      CHECK_EQ(a, b);
+      return ExecutionConstraint::kIsSame;
+    }
+    // If `b` is the conditional ancestor, and `a` is within a branch
+    // computation, `a` executes before `b`.
+    if (b_branch == -1) {
+      CHECK_EQ(b, a_ancestor);
+      return ExecutionConstraint::kRunBeforeEnd;
+    }
+    if (a_branch == -1) {
+      CHECK_EQ(a, a_ancestor);
+      return ExecutionConstraint::kRunAfter;
+    }
+    if (a_branch < b_branch) {
+      return ExecutionConstraint::kRunExclusiveBefore;
+    }
+    if (b_branch < a_branch) {
+      return ExecutionConstraint::kRunExclusiveAfter;
+    }
   }
 
   if (ExecutesBeforeInSameComputation(a_ancestor, b_ancestor)) {
@@ -189,34 +183,26 @@ bool HloOrdering::IsDefinedBefore(const HloValue& a, const HloValue& b) const {
 
   // If `b` is a while phi and `a` is in the body or condition, then `a`
   // executes before `b`.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_condition, HloInstruction::while_body
-  // clang-format on
-  // if (b.is_phi() && b.defining_instruction()->opcode() == HloOpcode::kWhile
-  // &&
-  //     (call_graph_->InstructionIsNestedIn(
-  //          a.defining_instruction(), b.defining_instruction()->while_body())
-  //          ||
-  //      call_graph_->InstructionIsNestedIn(
-  //          a.defining_instruction(),
-  //          b.defining_instruction()->while_condition()))) {
-  //   return true;
-  // }
+  if (b.is_phi() && b.defining_instruction()->opcode() == HloOpcode::kWhile &&
+      (call_graph_->InstructionIsNestedIn(
+           a.defining_instruction(), b.defining_instruction()->while_body()) ||
+       call_graph_->InstructionIsNestedIn(
+           a.defining_instruction(),
+           b.defining_instruction()->while_condition()))) {
+    return true;
+  }
   // If `b` is a conditional phi and `a` is in some branch computation, then `a`
   // executes before `b`.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::branch_computation
-  // clang-format on
-  // if (b.is_phi() &&
-  //     b.defining_instruction()->opcode() == HloOpcode::kConditional) {
-  //   for (int j = 0; j < b.defining_instruction()->(); ++j) {
-  //     if (call_graph_->InstructionIsNestedIn(
-  //             a.defining_instruction(),
-  //             b.defining_instruction()->branch_computation(j))) {
-  //       return true;
-  //     }
-  //   }
-  // }
+  if (b.is_phi() &&
+      b.defining_instruction()->opcode() == HloOpcode::kConditional) {
+    for (int j = 0; j < b.defining_instruction()->branch_count(); ++j) {
+      if (call_graph_->InstructionIsNestedIn(
+              a.defining_instruction(),
+              b.defining_instruction()->branch_computation(j))) {
+        return true;
+      }
+    }
+  }
   return ExecutesBefore(a.defining_instruction(), b.defining_instruction());
 }
 
@@ -320,47 +306,40 @@ bool HloOrdering::UsesBeforeValueDefinition(
     // parameter, since the input of a while's live range is only ended at the
     // start the body.
     if (use.instruction->opcode() == HloOpcode::kWhile) {
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_condition, HloInstruction::while_body
-      // clang-format on
-      // const HloInstruction* xla_while = use.instruction;
-      // if (call_graph_->InstructionIsNestedIn(value.defining_instruction(),
-      //                                        xla_while->while_body())) {
-      //   VLOG(4) << "  use is while " << use.instruction->name()
-      //           << " and def is in body";
-      //   return true;
-      // }
-      // if (call_graph_->InstructionIsNestedIn(value.defining_instruction(),
-      //                                        xla_while->while_condition())) {
-      //   if (value.defining_instruction() !=
-      //       xla_while->while_condition()->parameter_instruction(0)) {
-      //     VLOG(4) << "  use is while " << use.instruction->name()
-      //             << " and def is in condition and is not the parameter";
-      //     return false;
-      //   } else {
-      //     VLOG(4) << "  use is while " << use.instruction->name()
-      //             << " and def is in condition and is the parameter";
-      //     return true;
-      //   }
-      // }
+      const HloInstruction* zkx_while = use.instruction;
+      if (call_graph_->InstructionIsNestedIn(value.defining_instruction(),
+                                             zkx_while->while_body())) {
+        VLOG(4) << "  use is while " << use.instruction->name()
+                << " and def is in body";
+        return true;
+      }
+      if (call_graph_->InstructionIsNestedIn(value.defining_instruction(),
+                                             zkx_while->while_condition())) {
+        if (value.defining_instruction() !=
+            zkx_while->while_condition()->parameter_instruction(0)) {
+          VLOG(4) << "  use is while " << use.instruction->name()
+                  << " and def is in condition and is not the parameter";
+          return false;
+        } else {
+          VLOG(4) << "  use is while " << use.instruction->name()
+                  << " and def is in condition and is the parameter";
+          return true;
+        }
+      }
     }
     // Similarly if the value is defined at a while, it logically occurs after
     // any uses in the body or condition computations.
     if (value.defining_instruction()->opcode() == HloOpcode::kWhile) {
       CHECK(value.is_phi());
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_condition, HloInstruction::while_body
-      // clang-format on
-      // const HloInstruction* xla_while = value.defining_instruction();
-      // if (call_graph_->InstructionIsNestedIn(use.instruction,
-      //                                        xla_while->while_body()) ||
-      //     call_graph_->InstructionIsNestedIn(use.instruction,
-      //                                        xla_while->while_condition())) {
-      //   VLOG(4) << "  value is while " <<
-      //   value.defining_instruction()->name()
-      //           << " and use is in condition or body";
-      //   return true;
-      // }
+      const HloInstruction* zkx_while = value.defining_instruction();
+      if (call_graph_->InstructionIsNestedIn(use.instruction,
+                                             zkx_while->while_body()) ||
+          call_graph_->InstructionIsNestedIn(use.instruction,
+                                             zkx_while->while_condition())) {
+        VLOG(4) << "  value is while " << value.defining_instruction()->name()
+                << " and use is in condition or body";
+        return true;
+      }
     }
     // The use at a call occurs before values that are defined in the called
     // computation.
@@ -386,10 +365,7 @@ bool HloOrdering::UsesBeforeValueDefinition(
       }
     }
     if (use.instruction->opcode() == HloOpcode::kConditional) {
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloInstruction::branch_computation
-      // clang-format on
-      // const HloInstruction* conditional = use.instruction;
+      const HloInstruction* conditional = use.instruction;
       // In general the use of a value in the conditional parameter should be
       // considered to be before a definition in one of its branches, and
       // therefore allowed in live range merging, if there is no
@@ -402,39 +378,38 @@ bool HloOrdering::UsesBeforeValueDefinition(
       // assume a backward control flow path could exist, and set
       // `has_escaped_use_in_conditional` to disallow any later uses in
       // exclusive branches.
-      // for (int j = 0; j < conditional->branch_count(); ++j) {
-      //   if (call_graph_->InstructionIsNestedIn(
-      //           value.defining_instruction(),
-      //           conditional->branch_computation(j))) {
-      //     // If the use operand does not create a new value, and the value
-      //     def
-      //     // is returned by as part of the result of the conditional, it
-      //     // is possible for the branch definition to flow backward through a
-      //     // surrounding loop and then back into the conditional parameter.
-      //     if (!dataflow.ValueIsDefinedAt(
-      //             use.instruction->operand(use.operand_number), {})) {
-      //       for (auto value_use : value.GetUses()) {
-      //         VLOG(4) << "def have use:" << value_use << "\n";
-      //         if (value_use.instruction ==
-      //             value_use.instruction->parent()->root_instruction()) {
-      //           VLOG(4) << "def use is conditional root \n";
-      //           has_escaped_use_in_conditional = true;
-      //           break;
-      //         }
-      //       }
-      //     }
-      //     if (!has_use_in_exclusive_branches) {
-      //       VLOG(4) << "  use is conditional " << use.instruction->name()
-      //               << " and def is in " << j << "th branch computation";
-      //       return true;
-      //     }
-      //   }
-      // }
-      // if (value.defining_instruction() == use.instruction) {
-      //   VLOG(4) << "  use is conditional " << use << " and def is "
-      //           << value.ToShortString();
-      //   return true;
-      // }
+      for (int j = 0; j < conditional->branch_count(); ++j) {
+        if (call_graph_->InstructionIsNestedIn(
+                value.defining_instruction(),
+                conditional->branch_computation(j))) {
+          // If the use operand does not create a new value, and the value def
+          // is returned by as part of the result of the conditional, it
+          // is possible for the branch definition to flow backward through a
+          // surrounding loop and then back into the conditional parameter.
+          if (!dataflow.ValueIsDefinedAt(
+                  use.instruction->operand(use.operand_number), {})) {
+            for (auto value_use : value.GetUses()) {
+              VLOG(4) << "def have use:" << value_use << "\n";
+              if (value_use.instruction ==
+                  value_use.instruction->parent()->root_instruction()) {
+                VLOG(4) << "def use is conditional root \n";
+                has_escaped_use_in_conditional = true;
+                break;
+              }
+            }
+          }
+          if (!has_use_in_exclusive_branches) {
+            VLOG(4) << "  use is conditional " << use.instruction->name()
+                    << " and def is in " << j << "th branch computation";
+            return true;
+          }
+        }
+      }
+      if (value.defining_instruction() == use.instruction) {
+        VLOG(4) << "  use is conditional " << use << " and def is "
+                << value.ToShortString();
+        return true;
+      }
     }
 
     VLOG(4) << "  use is not before value definition";

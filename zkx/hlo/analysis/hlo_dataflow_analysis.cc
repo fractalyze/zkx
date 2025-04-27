@@ -40,16 +40,12 @@ int64_t CalculatePostOrderScheduleHelper(
                                                    ordinal_map);
       }
     }
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_condition, HloInstruction::while_body
-    // clang-format on
-    // if (instruction->opcode() == HloOpcode::kWhile) {
-    //   ordinal =
-    //   CalculatePostOrderScheduleHelper(instruction->while_condition(),
-    //                                              ordinal, ordinal_map);
-    //   ordinal = CalculatePostOrderScheduleHelper(instruction->while_body(),
-    //                                              ordinal, ordinal_map);
-    // }
+    if (instruction->opcode() == HloOpcode::kWhile) {
+      ordinal = CalculatePostOrderScheduleHelper(instruction->while_condition(),
+                                                 ordinal, ordinal_map);
+      ordinal = CalculatePostOrderScheduleHelper(instruction->while_body(),
+                                                 ordinal, ordinal_map);
+    }
     // It's possible that in some unit tests the computation graph is not
     // flatten (meaning we could have multiple callers for one computation). In
     // that case the ordinal_map will see the instruction multiple times. We
@@ -609,6 +605,21 @@ bool HloDataflowAnalysis::UpdateCallValueSet(HloInstruction* call) {
   return false;
 }
 
+bool HloDataflowAnalysis::UpdateConditionalValueSet(
+    HloInstruction* conditional) {
+  CHECK_EQ(conditional->opcode(), HloOpcode::kConditional);
+  std::vector<const InstructionValueSet*> inputs(conditional->branch_count());
+  for (int j = 0; j < conditional->branch_count(); ++j) {
+    inputs[j] = &GetInstructionValueSet(
+        conditional->branch_computation(j)->root_instruction());
+  }
+  if (ssa_form_) {
+    return Phi(conditional, inputs);
+  } else {
+    return GetInstructionValueSet(conditional).AssignUnionOf(inputs);
+  }
+}
+
 bool HloDataflowAnalysis::UpdateCopyValueSet(HloInstruction* copy) {
   CHECK_EQ(copy->opcode(), HloOpcode::kCopy);
   bool changed = false;
@@ -740,16 +751,15 @@ bool HloDataflowAnalysis::UpdateParameterValueSet(HloInstruction* parameter) {
       // If the parameter *is not* the root, parameter state would be
       // updated by the root, otherwise don't consider it's current state
       // (InstructionValueSet) as we are recomputing its current state.
-      // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_body
-      // if (parameter !=
-      //     callsite.instruction()->while_body()->root_instruction()) {
-      //   inputs.push_back(&GetInstructionValueSet(
-      //       callsite.instruction()->while_body()->root_instruction()));
-      // }
+      if (parameter !=
+          callsite.instruction()->while_body()->root_instruction()) {
+        inputs.push_back(&GetInstructionValueSet(
+            callsite.instruction()->while_body()->root_instruction()));
+      }
       need_phi = true;
     } else if (opcode == HloOpcode::kConditional) {
       CHECK_EQ(parameter->parameter_number(), 0);
-      // auto conditional = callsite.instruction();
+      auto conditional = callsite.instruction();
       // Conditional has branch_count+1 operands. Operand 0 is the branch_index,
       // operands 1 and onward are the arguments to the branch computations.
       //
@@ -758,17 +768,14 @@ bool HloDataflowAnalysis::UpdateParameterValueSet(HloInstruction* parameter) {
       // belongs to conditional's branch 5 computation, then operand 6 is
       // forwarded to this parameter instruction.
       bool found_parent = false;
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloInstruction::branch_count, HloInstruction::branch_computation
-      // clang-format on
-      // for (int j = 0; j < conditional->branch_count(); ++j) {
-      //   if (parameter->parent() == conditional->branch_computation(j)) {
-      //     inputs.push_back(
-      //         &GetInstructionValueSet(conditional->operand(j + 1)));
-      //     found_parent = true;
-      //     break;
-      //   }
-      // }
+      for (int j = 0; j < conditional->branch_count(); ++j) {
+        if (parameter->parent() == conditional->branch_computation(j)) {
+          inputs.push_back(
+              &GetInstructionValueSet(conditional->operand(j + 1)));
+          found_parent = true;
+          break;
+        }
+      }
       CHECK(found_parent);
       need_phi = true;
     } else if (opcode == HloOpcode::kAsyncStart) {
@@ -814,6 +821,18 @@ bool HloDataflowAnalysis::UpdateTupleValueSet(HloInstruction* tuple) {
     }
   }
   return changed;
+}
+
+bool HloDataflowAnalysis::UpdateWhileValueSet(HloInstruction* zkx_while) {
+  CHECK_EQ(zkx_while->opcode(), HloOpcode::kWhile);
+  const InstructionValueSet* const inputs[] = {
+      &GetInstructionValueSet(zkx_while->while_body()->root_instruction()),
+      &GetInstructionValueSet(zkx_while->operand(0))};
+  if (ssa_form_) {
+    return Phi(zkx_while, inputs);
+  } else {
+    return GetInstructionValueSet(zkx_while).AssignUnionOf(inputs);
+  }
 }
 
 bool HloDataflowAnalysis::UpdateAllGatherStartValueSet(
@@ -1030,8 +1049,7 @@ bool HloDataflowAnalysis::UpdateInstructionValueSet(
       break;
     }
     case HloOpcode::kWhile: {
-      // TODO(chokobole): Uncomment this. Dependency: UpdateWhileValueSet
-      // changed = UpdateWhileValueSet(instruction);
+      changed = UpdateWhileValueSet(instruction);
       break;
     }
     case HloOpcode::kSend: {
@@ -1051,8 +1069,7 @@ bool HloDataflowAnalysis::UpdateInstructionValueSet(
       break;
     }
     case HloOpcode::kConditional: {
-      // TODO(chokobole): Uncomment this. Dependency: UpdateConditionalValueSet
-      // changed = UpdateConditionalValueSet(instruction);
+      changed = UpdateConditionalValueSet(instruction);
       break;
     }
     case HloOpcode::kAllReduceDone: {
@@ -1208,13 +1225,11 @@ void HloDataflowAnalysis::Propagate() {
         if (callsite.instruction()->opcode() == HloOpcode::kWhile) {
           // Add the while itself, and the body and condition parameters.
           add_to_worklist(callsite.instruction());
-          // TODO(chokobole): Uncomment this. Dependency: while_body
-          // add_to_worklist(
-          //     callsite.instruction()->while_body()->parameter_instruction(0));
-          // TODO(chokobole): Uncomment this. Dependency: while_condition
-          // add_to_worklist(
-          //     callsite.instruction()->while_condition()->parameter_instruction(
-          //         0));
+          add_to_worklist(
+              callsite.instruction()->while_body()->parameter_instruction(0));
+          add_to_worklist(
+              callsite.instruction()->while_condition()->parameter_instruction(
+                  0));
         } else if (call_graph_node.context() == CallContext::kControlFlow ||
                    callsite.instruction()->opcode() ==
                        HloOpcode::kConditional) {

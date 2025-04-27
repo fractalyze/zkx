@@ -282,6 +282,7 @@ class HloDataflowAnalysis {
   // the instruction value set changed.
   bool UpdateBitcastValueSet(HloInstruction* bitcast);
   bool UpdateCallValueSet(HloInstruction* call);
+  bool UpdateConditionalValueSet(HloInstruction* conditional);
   bool UpdateCopyValueSet(HloInstruction* copy);
   bool UpdateCustomCallValueSet(HloInstruction* custom_call);
   bool UpdateDomainValueSet(HloInstruction* domain);
@@ -307,6 +308,7 @@ class HloDataflowAnalysis {
   bool UpdateRecvDoneValueSet(HloInstruction* recv_done);
   bool UpdateSendValueSet(HloInstruction* send);
   bool UpdateTupleValueSet(HloInstruction* tuple);
+  bool UpdateWhileValueSet(HloInstruction* zkx_while);
   bool UpdateAddDependencyValueSet(HloInstruction* add_dependency);
   bool UpdateAllGatherStartValueSet(HloInstruction* all_gather_start);
   bool UpdateAllGatherDoneValueSet(HloInstruction* all_gather_done);

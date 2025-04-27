@@ -100,14 +100,8 @@ void HloLiveRange::FlattenSchedule(const HloComputation& computation,
                               : async_context);
         }
       } else if (instruction->opcode() == HloOpcode::kWhile) {
-        // clang-format off
-        // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_condition
-        // clang-format on
-        // FlattenSchedule(*instruction->while_condition(), async_context);
-        // clang-format off
-        // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_body
-        // clang-format on
-        // FlattenSchedule(*instruction->while_body(), async_context);
+        FlattenSchedule(*instruction->while_condition(), async_context);
+        FlattenSchedule(*instruction->while_body(), async_context);
       }
     }
 

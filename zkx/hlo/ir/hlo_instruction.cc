@@ -853,7 +853,9 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     //              ? context->module()->DeepCloneComputation(callee, context)
     //              : callee;
     // });
-    // TODO(chokobole): Uncomment this. Dependency: HloModule::while_body
+    // clang-format off
+    // TODO(chokobole): Uncomment this. Dependency: HloComputation::SetWhileCallInstruction
+    // clang-format on
     // if (opcode() == HloOpcode::kWhile) {
     //   clone->while_body()->SetWhileCallInstruction(clone.get());
     // }
@@ -1092,21 +1094,16 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kCall:
       return eq_computations(to_apply(), other.to_apply());
     case HloOpcode::kConditional:
-      // TODO(chokobole): Uncomment this. Dependency: branch_count
-      //   for (int j = 0; j < branch_count(); ++j) {
-      //     if (!eq_computations(branch_computation(j),
-      //                          other.branch_computation(j))) {
-      //       return false;
-      //     }
-      //   }
-      //   return true;
-      return false;
+      for (int j = 0; j < branch_count(); ++j) {
+        if (!eq_computations(branch_computation(j),
+                             other.branch_computation(j))) {
+          return false;
+        }
+      }
+      return true;
     case HloOpcode::kWhile:
-      // TODO(chokobole): Uncomment this. Dependency: while_body,
-      // while_condition
-      //   return (eq_computations(while_body(), other.while_body()) &&
-      //           eq_computations(while_condition(), other.while_condition()));
-      return false;
+      return (eq_computations(while_body(), other.while_body()) &&
+              eq_computations(while_condition(), other.while_condition()));
 
     // Ops migrated to subclasses should never come to this line.
     // TODO(b/80131774): Remove this switch when migration is complete.
