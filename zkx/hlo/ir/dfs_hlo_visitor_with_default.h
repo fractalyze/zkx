@@ -266,8 +266,7 @@ class DfsHloRewriteVisitor : public DfsHloVisitorWithDefault {
     absl::Status status;
     for (HloComputation* computation :
          module->MakeNonfusionComputations(execution_threads)) {
-      // TODO(chokobole): Uncomment this. Dependency: HloComputation::Accept
-      // status = computation->Accept(this);
+      status = computation->Accept(this);
       static_cast<void>(computation);
       if (ABSL_PREDICT_FALSE(!status.ok())) return status;
     }
@@ -291,13 +290,8 @@ class DfsHloRewriteVisitor : public DfsHloVisitorWithDefault {
     VLOG(3) << "Replacing instruction:" << "\n  old: "
             << old_instruction->ToString()
             << "\n  new: " << new_instruction->ToString();
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloComputation::ReplaceWithNewInstruction
-    // clang-format on
-    // absl::Status status =
-    // old_instruction->parent()->ReplaceWithNewInstruction(
-    //     old_instruction, std::move(new_instruction));
-    absl::Status status = absl::UnimplementedError("...");
+    absl::Status status = old_instruction->parent()->ReplaceWithNewInstruction(
+        old_instruction, std::move(new_instruction));
     if (ABSL_PREDICT_TRUE(status.ok())) {
       changed_ = true;
     }
@@ -313,14 +307,10 @@ class DfsHloRewriteVisitor : public DfsHloVisitorWithDefault {
     VLOG(3) << "Replacing instruction:" << "\n  old: "
             << old_instruction->ToString()
             << "\n  new: " << new_instruction->ToString();
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloComputation::ReplaceInstruction
-    // clang-format on
-    // absl::StatusOr<bool> changed_or =
-    //     old_instruction->parent()->ReplaceInstruction(
-    //         old_instruction, new_instruction, preserve_sharding,
-    //         /*relay_control_dependency=*/true);
-    absl::StatusOr<bool> changed_or = absl::UnimplementedError("...");
+    absl::StatusOr<bool> changed_or =
+        old_instruction->parent()->ReplaceInstruction(
+            old_instruction, new_instruction, preserve_sharding,
+            /*relay_control_dependency=*/true);
     if (ABSL_PREDICT_TRUE(changed_or.ok())) {
       changed_ |= changed_or.value();
     }
