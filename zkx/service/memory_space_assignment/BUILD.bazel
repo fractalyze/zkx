@@ -9,6 +9,26 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "allocation",
+    srcs = ["allocation.cc"],
+    hdrs = ["allocation.h"],
+    deps = [
+        ":slice",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:time_utils",
+        "//zkx/service:tuple_util",
+        "//zkx/service/heap_simulator",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "slice",
     srcs = ["slice.cc"],
     hdrs = ["slice.h"],
@@ -33,3 +53,5 @@ zkx_cc_unittest(
         "//zkx/service:time_utils",
     ],
 )
+
+# TODO(chokobole): Add allocation_unittest.cc. Dependency: HloTestBase
