@@ -956,6 +956,36 @@ class HloInstruction {
   // Whether the instruction has a valid to_apply_ field.
   bool has_to_apply() const;
 
+  // Gets/sets the while_condition or while_body HloComputation for While. The
+  // setters should only be called by HloModule or HloComputation methods.
+  //
+  // Precondition: The instruction is a While instruction.
+  HloComputation* while_condition() const;
+  HloComputation* while_body() const;
+  void set_while_condition(HloComputation* computation);
+  void set_while_body(HloComputation* computation);
+
+  HloInstruction* while_init() const;
+
+  // Gets/sets the true and false HloComputation for Conditional.
+  //
+  // Precondition: The instruction is a predicated Conditional instruction.
+  HloComputation* true_computation() const;
+  HloComputation* false_computation() const;
+
+  // Gets the branch HloComputations for Conditional.
+  //
+  // Precondition: The instruction is a Conditional instruction.
+  const PtrVec<HloComputation*>& branch_computations() const;
+  int32_t branch_count() const;
+  HloComputation* branch_computation(int32_t b) const;
+  int32_t branch_index(HloComputation* computation) const;
+  // Sets a branch HloComputation for Conditional.
+  // The setter should only be called by HloModule or HloComputation methods.
+  //
+  // Precondition: The instruction is a Conditional instruction.
+  void set_branch_computation(int b, HloComputation* computation);
+
   // Prints a debugging string that represents this instruction.
   void Print(Printer* printer) const {
     return Print(printer, HloPrintOptions::Default());
@@ -1436,6 +1466,22 @@ class HloInstruction {
   void AppendComputation(HloComputation* computation);
 
   void DetachFrom(HloInstruction* usee) { usee->RemoveUser(this); }
+
+  // Indices of computations in called_computations for instructions which call
+  // multiple computations.
+  enum {
+    // kWhile computations.
+    kBodyComputationIndex = 0,
+    kConditionComputationIndex = 1,
+
+    // kSelectAndScatter computations.
+    kSelectComputationIndex = 0,
+    kScatterComputationIndex = 1,
+
+    // kConditional computations.
+    kTrueComputationIndex = 0,
+    kFalseComputationIndex = 1,
+  };
 
   // Change instruction's name to have a given suffix.
   void AddSuffixToInstructionName(const std::string_view suffix);

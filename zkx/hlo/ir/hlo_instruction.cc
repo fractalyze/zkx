@@ -1350,6 +1350,78 @@ bool HloInstruction::has_to_apply() const {
   }
 }
 
+HloComputation* HloInstruction::while_condition() const {
+  CHECK_EQ(HloOpcode::kWhile, opcode_);
+  return called_computations()[kConditionComputationIndex];
+}
+
+HloComputation* HloInstruction::while_body() const {
+  CHECK_EQ(HloOpcode::kWhile, opcode_);
+  return called_computations()[kBodyComputationIndex];
+}
+
+void HloInstruction::set_while_condition(HloComputation* computation) {
+  CHECK_EQ(HloOpcode::kWhile, opcode_);
+  rare_->called_computations[kConditionComputationIndex] = computation;
+}
+
+void HloInstruction::set_while_body(HloComputation* computation) {
+  CHECK_EQ(HloOpcode::kWhile, opcode_);
+  rare_->called_computations[kBodyComputationIndex] = computation;
+}
+
+HloInstruction* HloInstruction::while_init() const {
+  CHECK_EQ(HloOpcode::kWhile, opcode_);
+  return operands_[0];
+}
+
+HloComputation* HloInstruction::true_computation() const {
+  CHECK_EQ(HloOpcode::kConditional, opcode_);
+  CHECK_EQ(PRED, operand(0)->shape().element_type());
+  return called_computations()[kTrueComputationIndex];
+}
+
+HloComputation* HloInstruction::false_computation() const {
+  CHECK_EQ(HloOpcode::kConditional, opcode_);
+  CHECK_EQ(PRED, operand(0)->shape().element_type());
+  return called_computations()[kFalseComputationIndex];
+}
+
+const PtrVec<HloComputation*>& HloInstruction::branch_computations() const {
+  CHECK(HloOpcode::kConditional == opcode_);
+  return called_computations();
+}
+
+int32_t HloInstruction::branch_count() const {
+  CHECK(HloOpcode::kConditional == opcode_);
+  return called_computations().size();
+}
+
+HloComputation* HloInstruction::branch_computation(int32_t b) const {
+  CHECK_EQ(HloOpcode::kConditional, opcode_);
+  CHECK_GE(b, 0);
+  CHECK_LT(b, called_computations().size());
+  return called_computations()[b];
+}
+
+int32_t HloInstruction::branch_index(HloComputation* computation) const {
+  CHECK_EQ(HloOpcode::kConditional, opcode_);
+  CHECK_NE(computation, nullptr);
+  for (int32_t idx = 0; idx < branch_count(); idx++) {
+    if (branch_computation(idx) == computation) {
+      return idx;
+    }
+  }
+  LOG(FATAL) << absl::StrFormat("Conditional %s does not contain branch %s",
+                                name(), computation->name());
+}
+
+void HloInstruction::set_branch_computation(int b,
+                                            HloComputation* computation) {
+  CHECK_EQ(HloOpcode::kConditional, opcode_);
+  rare_->called_computations[b] = computation;
+}
+
 int64_t HloInstruction::operand_index(const HloInstruction* target) const {
   for (int64_t i = 0; i < operand_count(); ++i) {
     if (target == operand(i)) {
