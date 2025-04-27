@@ -29,6 +29,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "allocation_value",
+    hdrs = ["allocation_value.h"],
+    deps = [
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "slice",
     srcs = ["slice.cc"],
     hdrs = ["slice.h"],
