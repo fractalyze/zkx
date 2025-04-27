@@ -37,6 +37,11 @@ message CompilationEnvironmentsProto {
 //    corresponding backend section, and sorted alphabetically by the flag name.
 //
 message DebugOptions {
+  // If true, ZKX will annotate instructions in the dumps with emitter code
+  // location (source:line) annotations. This helps to identify the source of
+  // the code that emits a particular instruction.
+  bool zkx_annotate_with_emitter_loc = 358;
+
   // Per-heap size constraint. New heaps will be created if per-heap max size is
   // reached.
   int32 zkx_multiheap_size_constraint_per_heap = 142;

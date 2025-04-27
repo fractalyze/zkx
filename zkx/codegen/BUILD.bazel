@@ -3,6 +3,17 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "emitter_loc_op_builder",
+    srcs = ["emitter_loc_op_builder.cc"],
+    hdrs = ["emitter_loc_op_builder.h"],
+    deps = [
+        "//xla/tsl/platform",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+zkx_cc_library(
     name = "kernel_spec",
     hdrs = ["kernel_spec.h"],
     deps = [
