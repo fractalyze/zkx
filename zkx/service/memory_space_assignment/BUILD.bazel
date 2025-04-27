@@ -39,6 +39,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "memory_space_assignment",
+    hdrs = ["memory_space_assignment.h"],
+    deps = [
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:hlo_value",
+        "//zkx/service/heap_simulator",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "slice",
     srcs = ["slice.cc"],
     hdrs = ["slice.h"],
