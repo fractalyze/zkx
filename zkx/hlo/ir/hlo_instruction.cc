@@ -541,6 +541,18 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateRecvDone(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateTuple(
+    absl::Span<HloInstruction* const> elements) {
+  std::vector<const Shape*> element_shapes;
+  element_shapes.reserve(elements.size());
+  for (auto element : elements) {
+    element_shapes.push_back(&element->shape());
+  }
+  Shape tuple_shape = ShapeUtil::MakeTupleShapeWithPtrs(element_shapes);
+  return CreateVariadic(tuple_shape, HloOpcode::kTuple, elements);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateAfterAll(
     absl::Span<HloInstruction* const> operands) {
   CHECK(!operands.empty());

@@ -643,6 +643,11 @@ class HloInstruction {
       HloInstruction* operand, std::optional<int64_t> channel_id,
       bool is_host_transfer);
 
+  // Creates a tuple instruction with the given elements. This is a convenience
+  // wrapper around CreateVariadic.
+  static std::unique_ptr<HloInstruction> CreateTuple(
+      absl::Span<HloInstruction* const> elements);
+
   // Creates a Afterall instruction used for joining or creating new values of
   // token type which thread through side-effecting operations. Operands must
   // all be tokens, calls without operands generates a token.
