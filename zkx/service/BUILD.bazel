@@ -4,6 +4,11 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 cc_proto_library(
+    name = "buffer_assignment_proto",
+    srcs = ["buffer_assignment.proto"],
+)
+
+cc_proto_library(
     name = "hlo_proto",
     srcs = ["hlo.proto"],
     deps = [
@@ -29,12 +34,21 @@ zkx_cc_library(
     srcs = ["buffer_assignment.cc"],
     hdrs = ["buffer_assignment.h"],
     deps = [
+        ":buffer_assignment_proto",
         ":hlo_buffer",
         ":hlo_value",
         ":logical_buffer",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:numbers",
         "//zkx:map_util",
         "//zkx/base:logging",
         "//zkx/hlo/analysis:hlo_alias_analysis",
+        "//zkx/hlo/analysis:hlo_dataflow_analysis",
+        "//zkx/hlo/analysis:hlo_ordering",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_op_metadata",
+        "//zkx/service/memory_space_assignment",
+        "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",

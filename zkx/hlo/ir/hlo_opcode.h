@@ -56,6 +56,7 @@ namespace zkx {
 // - HloInstruction::CreateBinary
 // - HloInstruction::has_to_apply
 // - GetInstructionCallContext
+// - GatherComputationsByAllocationType
 #define HLO_OPCODE_LIST(V)                                                     \
   /* go/keep-sorted start */                                                   \
   V(kAdd, "add", 2)                                                            \

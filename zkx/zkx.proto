@@ -37,7 +37,9 @@ message CompilationEnvironmentsProto {
 //    corresponding backend section, and sorted alphabetically by the flag name.
 //
 message DebugOptions {
-
+  // Per-heap size constraint. New heaps will be created if per-heap max size is
+  // reached.
+  int32 zkx_multiheap_size_constraint_per_heap = 142;
 }
 
 message ShardableValueUpdatePairProto {
