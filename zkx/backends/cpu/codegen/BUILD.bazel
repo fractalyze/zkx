@@ -30,6 +30,21 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cpu_features",
+    srcs = ["cpu_features.cc"],
+    hdrs = ["cpu_features.h"],
+    deps = [
+        "//xla/tsl/platform:cpu_info",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TargetParser",
+    ],
+)
+
+zkx_cc_library(
     name = "execution_engine",
     srcs = ["execution_engine.cc"],
     hdrs = ["execution_engine.h"],

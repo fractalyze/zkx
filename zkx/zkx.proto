@@ -37,6 +37,11 @@ message CompilationEnvironmentsProto {
 //    corresponding backend section, and sorted alphabetically by the flag name.
 //
 message DebugOptions {
+  // When set, ZKX:CPU will only generate code up to the specified ISA.
+  // (It will not use newer ISAs.) Using the string format allows us to extend
+  // the flag for more flexible control if necessary.
+  string zkx_cpu_max_isa = 333;
+
   // If true, ZKX will annotate instructions in the dumps with emitter code
   // location (source:line) annotations. This helps to identify the source of
   // the code that emits a particular instruction.
