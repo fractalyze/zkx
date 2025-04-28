@@ -340,6 +340,25 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "shaped_buffer",
+    srcs = ["shaped_buffer.cc"],
+    hdrs = ["shaped_buffer.h"],
+    deps = [
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:device_memory_allocator",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "sharding_config",
     srcs = ["sharding_config.cc"],
     hdrs = ["sharding_config.h"],
@@ -386,6 +405,8 @@ zkx_cc_unittest(
         "rendezvous_unittest.cc",
         "shape_inference_unittest.cc",
         "sharding_config_unittest.cc",
+        # TODO(chokobole): Add unittest. Dependency: PlatformUtil::GetStreamExecutors
+        # "shaped_buffer_unittest.cc",
     ],
     deps = [
         ":compilation_environments",
