@@ -73,6 +73,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "function_library",
+    srcs = ["function_library.cc"],
+    hdrs = ["function_library.h"],
+    deps = [
+        ":kernel_c_api",
+        "//xla/tsl/lib/gtl:int_type",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "collective_thunk",
     srcs = ["collective_thunk.cc"],
     hdrs = ["collective_thunk.h"],
