@@ -88,6 +88,16 @@ class ShapeUtil {
  public:
   using DynamicSizeType = int32_t;
 
+  // Data structure which describes the coordinates and the shape, of a tuple
+  // shaped sub-shape.
+  struct IndexedShape {
+    IndexedShape() = default;
+    IndexedShape(ShapeIndex index, Shape shape)
+        : index(std::move(index)), shape(std::move(shape)) {}
+    ShapeIndex index;
+    Shape shape;
+  };
+
   // Returns the product of the statically bound dimensions.
   template <bool kBoundedDynamicOk>
   static inline std::pair<int64_t, bool> ExtentProduct(const Shape& shape) {
@@ -418,6 +428,10 @@ class ShapeUtil {
   // Returns the number of leaves in the shape.
   static int64_t GetLeafCount(const Shape& shape);
   static int64_t GetLeafCountTuple(const Shape& shape);
+
+  // Retrieves all the leaf shapes and their indexes, in the order walked by
+  // the ForEachSubshape() API.
+  static std::vector<IndexedShape> GetLeafShapes(const Shape& shape);
 
   // Calls the given visitor function for each subshape of the given shape.
   // Subshapes are visited in DFS pre-order starting with the entire shape

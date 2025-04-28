@@ -871,6 +871,18 @@ int64_t ShapeUtil::GetLeafCount(const Shape& shape) {
 }
 
 // static
+std::vector<ShapeUtil::IndexedShape> ShapeUtil::GetLeafShapes(
+    const Shape& shape) {
+  std::vector<IndexedShape> leaves;
+  ForEachSubshape(shape, [&](const Shape& sub_shape, const ShapeIndex& index) {
+    if (IsLeafIndex(shape, index)) {
+      leaves.emplace_back(index, sub_shape);
+    }
+  });
+  return leaves;
+}
+
+// static
 std::optional<ShapeUtil::ShapeEqualityDescriptor>
 ShapeUtil::InsertedOrDeleted1SizedDimensions(const Shape& shape_pre,
                                              const Shape& shape_post) {
