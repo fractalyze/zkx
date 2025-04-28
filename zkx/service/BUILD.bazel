@@ -161,6 +161,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "custom_call_status",
+    srcs = [
+        "custom_call_status.cc",
+        "custom_call_status_internal.h",
+    ],
+    hdrs = ["custom_call_status.h"],
+)
+
+zkx_cc_library(
     name = "global_device_id",
     srcs = ["global_device_id.cc"],
     hdrs = ["global_device_id.h"],
@@ -368,6 +377,8 @@ zkx_cc_unittest(
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
         # "call_graph_unittest.cc",
         "compilation_environments_unittest.cc",
+        "custom_call_status_test_c_caller.c",
+        "custom_call_status_test_c_caller.h",
         "hlo_module_config_unittest.cc",
         "mapped_ptr_container_sorter_unittest.cc",
         "name_uniquer_unittest.cc",
@@ -378,6 +389,7 @@ zkx_cc_unittest(
     ],
     deps = [
         ":compilation_environments",
+        ":custom_call_status",
         ":hlo_module_config",
         ":mapped_ptr_container_sorter",
         ":name_uniquer",
