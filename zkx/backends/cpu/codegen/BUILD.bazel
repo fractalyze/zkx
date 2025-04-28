@@ -16,6 +16,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "execution_engine",
+    srcs = ["execution_engine.cc"],
+    hdrs = ["execution_engine.h"],
+    deps = [
+        ":contiguous_section_memory_manager",
+        "//zkx/base:logging",
+        "//zkx/service/cpu:orc_jit_memory_mapper",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:ExecutionEngine",
+        "@llvm-project//llvm:OrcJIT",
+    ],
+)
+
+zkx_cc_library(
     name = "target_machine_features",
     srcs = ["target_machine_features.cc"],
     hdrs = ["target_machine_features.h"],
