@@ -146,7 +146,10 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "codegen_unittests",
-    srcs = ["jit_compiler_unittest.cc"],
+    srcs = [
+        "jit_compiler_unittest.cc",
+        "object_loader_unittest.cc",
+    ],
     deps = [
         ":jit_compiler",
         "//xla/tsl/platform:env",
