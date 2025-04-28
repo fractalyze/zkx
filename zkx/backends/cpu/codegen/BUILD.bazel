@@ -47,6 +47,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "object_loader",
+    srcs = ["object_loader.cc"],
+    hdrs = ["object_loader.h"],
+    deps = [
+        ":compiled_function_library",
+        ":execution_engine",
+        "//xla/tsl/platform:statusor",
+        "//zkx/backends/cpu/runtime:function_library",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:ExecutionEngine",
+        "@llvm-project//llvm:OrcJIT",
+    ],
+)
+
+zkx_cc_library(
     name = "target_machine_features",
     srcs = ["target_machine_features.cc"],
     hdrs = ["target_machine_features.h"],
