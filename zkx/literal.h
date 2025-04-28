@@ -38,6 +38,7 @@ limitations under the License.
 #include "zkx/layout_util.h"
 #include "zkx/maybe_owning.h"
 #include "zkx/primitive_util.h"
+#include "zkx/printer.h"
 #include "zkx/shape.h"
 #include "zkx/shape_util.h"
 #include "zkx/util.h"
@@ -85,6 +86,56 @@ class LiteralBase {
   const void* untyped_data(const ShapeIndex& shape_index = {}) const;
   int64_t size_bytes(const ShapeIndex& shape_index = {}) const;
 
+  // Prints a string representation of the literal value. The Shape of the
+  // literal is a prefix of the literal value in the string.
+  //
+  // Warning: this function can take minutes for multi-million element Literals.
+  void Print(Printer* printer) const;
+
+  // Similar to Print, but prints the result in a compact one-line form.
+  void PrintOneline(Printer* printer) const;
+
+  // Prints a string representation of the literal value which does *not*
+  // include the shape string.
+  void PrintWithoutShape(Printer* printer) const;
+
+  // Similar to PrintWithoutShape, but prints the result in a compact one-line
+  // form.
+  void PrintWithoutShapeOneline(Printer* printer) const;
+
+  // Prints a string representation of the literal value which includes the
+  // shape string with its layout.does *not* include the shape string.
+  void PrintWithLayout(Printer* printer) const;
+
+  // Similar to PrintWithLayout, but prints the result in a compact one-line
+  // form.
+  void PrintWithLayoutOneline(Printer* printer) const;
+
+  // Returns a string representation of the literal value. The Shape of the
+  // literal is a prefix of the literal value in the string.
+  //
+  // Warning: this function can take minutes for multi-million element Literals.
+  std::string ToString() const;
+
+  // Similar to ToString, but return the result in a compact one-line form.
+  std::string ToStringOneline() const;
+
+  // Returns a string representation of the literal value which does *not*
+  // include the shape string.
+  std::string ToStringWithoutShape() const;
+
+  // Similar to ToStringWithoutShape, but return the result in a compact
+  // one-line form.
+  std::string ToStringWithoutShapeOneline() const;
+
+  // Returns a string representation of the literal value which includes the
+  // shape string with its layout.does *not* include the shape string.
+  std::string ToStringWithLayout() const;
+
+  // Similar to ToStringWithLayout, but return the result in a compact one-line
+  // form.
+  std::string ToStringWithLayoutOneline() const;
+
   // Gets an element in the literal at the given index. The multi_index is
   // CHECKed against the dimension sizes.
   template <typename NativeT>
@@ -107,6 +158,11 @@ class LiteralBase {
 
   // As above but returns any integer type casted to an int64_t.
   std::optional<int64_t> GetFirstInteger() const;
+
+  // As Get(), but determines the correct type and converts the value
+  // into text.
+  std::string GetAsString(absl::Span<const int64_t> multi_index,
+                          const ShapeIndex& shape_index = {}) const;
 
   // Checks whether all of this literal's values are equal to the given scalar
   // literal.
@@ -243,6 +299,16 @@ class LiteralBase {
   // An overload of Relayout which changes the layout of the entire shape rather
   // than being limited to a single array within the shape.
   Literal Relayout(const Shape& shape_with_layout) const;
+
+  // Returns true if the leaf arrays of the literal within the given shape index
+  // are all determined.
+  // See comments on ArrayValueState for detailed explanation.
+  bool IsDetermined(const ShapeIndex& shape_index = {}) const;
+
+  // Returns true if the leaf arrays of the literal within the given shape index
+  // are all known.
+  // See comments on ArrayValueState for detailed explanation.
+  bool IsKnown(const ShapeIndex& shape_index = {}) const;
 
   // Creates a new Literal object with the shape specified as parameter.
   // The content of the literal values is the default value of the primitive
@@ -487,6 +553,11 @@ class LiteralBase {
     // and src must be compatible. If only_dynamic_bound is true, only elements
     // within dynamic bounds will be copied.
     absl::Status CopyFrom(const Piece& src, bool only_dynamic_bound);
+
+    // See comments on ArrayValueState for detailed explanation.
+    bool IsDetermined() const;
+
+    bool IsKnown() const;
 
    private:
     // Uninitialized state representation.

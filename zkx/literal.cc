@@ -85,6 +85,255 @@ std::unique_ptr<Literal> LiteralBase::CloneToUnique() const {
   return result;
 }
 
+bool LiteralBase::IsDetermined(const ShapeIndex& shape_index) const {
+  return piece(shape_index).IsDetermined();
+}
+
+bool LiteralBase::IsKnown(const ShapeIndex& shape_index) const {
+  return piece(shape_index).IsKnown();
+}
+
+std::string LiteralBase::GetAsString(absl::Span<const int64_t> multi_index,
+                                     const ShapeIndex& shape_index) const {
+  const Shape& subshape = ShapeUtil::GetSubshape(shape(), shape_index);
+  CHECK(LayoutUtil::IsDenseArray(subshape));
+  return primitive_util::ArrayTypeSwitch<std::string>(
+      [&](auto primitive_type_constant) -> std::string {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        if constexpr (primitive_util::IsIntegralType(primitive_type_constant)) {
+          return absl::StrCat(Get<NativeT>(multi_index, shape_index));
+        }
+        if constexpr (primitive_type_constant == PRED) {
+          return Get<bool>(multi_index, shape_index) ? "true" : "false";
+        }
+        LOG(FATAL) << PrimitiveType_Name(subshape.element_type());
+      },
+      subshape.element_type());
+}
+
+namespace {
+
+void PrintShape(bool print_layout, const Shape& shape, Printer* printer) {
+  if (print_layout) {
+    ShapeUtil::PrintHumanStringWithLayout(printer, shape);
+  } else {
+    ShapeUtil::PrintHumanString(printer, shape);
+  }
+}
+
+void PrintHelper(const LiteralBase& literal, const ShapeIndex& shape_index,
+                 bool print_shape, bool print_layout, bool oneline,
+                 Printer* printer);
+
+void TuplePrintHelper(const LiteralBase& literal, const ShapeIndex& shape_index,
+                      bool print_shape, bool print_layout, bool oneline,
+                      Printer* printer) {
+  const Shape& subshape = ShapeUtil::GetSubshape(literal.shape(), shape_index);
+  printer->Append(oneline ? "( " : "(\n");
+  for (int i = 0; i < ShapeUtil::TupleElementCount(subshape); ++i) {
+    ShapeIndex element_index = shape_index;
+    element_index.push_back(i);
+    if (i > 0) printer->Append(oneline ? ", " : ",\n");
+    PrintHelper(literal, element_index, print_shape, print_layout, oneline,
+                printer);
+  }
+  printer->Append(oneline ? " )" : "\n)");
+}
+
+void DenseArrayPrintHelper(const LiteralBase& literal,
+                           const ShapeIndex& shape_index, bool print_shape,
+                           bool print_layout, bool oneline, Printer* printer) {
+  const Shape& subshape = ShapeUtil::GetSubshape(literal.shape(), shape_index);
+  int64_t rank = subshape.rank();
+  const std::string_view linebreak = oneline ? " " : "\n";
+
+  std::function<void(absl::Span<const int64_t> dimensions,
+                     std::vector<int64_t>*)>
+      print_recursive = [&](absl::Span<const int64_t> dimensions,
+                            std::vector<int64_t>* accum_indices) {
+        // dimensions.size() decreases by 1 at each recursive call,
+        // and accum_indices->size() increases by 1.
+        // Their sum is equal to the rank of the tensor.
+        CHECK_EQ(rank, dimensions.size() + accum_indices->size());
+
+        auto brace_to_string = [&](std::string brace) -> std::string {
+          // Handle 1D tensor
+          if (rank == 1) {
+            return brace;
+          }
+          // Handle the innermost tensor of a 2D+ tensor.
+          if (dimensions.size() == 1 && brace == "{") {
+            return absl::StrCat(oneline ? "" : "  ", brace,
+                                dimensions[0] <= 1 ? "" : " ");
+          }
+          if (dimensions.size() == 1 && brace == "}") {
+            return absl::StrCat(dimensions[0] <= 1 ? "" : " ", brace);
+          }
+          // Handle the non-innermost tensors of a 2D+ tensor.
+          if (brace == "{") {
+            const int64_t accum_indices_size = accum_indices->size();
+            if (rank > 3 && !accum_indices->empty() &&
+                accum_indices_size < rank) {
+              int index = accum_indices->size() - 1;
+              int value = accum_indices->back();
+              int size = dimensions.front();
+              return absl::StrCat(brace, " /*i", index, "=", value, "*/",
+                                  size > 0 ? linebreak : "");
+            }
+            return absl::StrCat(brace, linebreak);
+          }
+          return absl::StrCat(linebreak, brace);
+        };
+
+        if (dimensions.empty()) {
+          // Display predicates as 0s and 1s so that the string is more dense.
+          std::string elem;
+          if (subshape.element_type() == PRED && rank > 0) {
+            elem = literal.Get<bool>(*accum_indices, shape_index) ? "1" : "0";
+          } else {
+            elem = literal.GetAsString(*accum_indices, shape_index);
+          }
+          printer->Append(elem);
+        } else {
+          printer->Append(brace_to_string("{"));
+          for (int i = 0; i < dimensions[0]; ++i) {
+            accum_indices->push_back(i);
+            print_recursive(dimensions.subspan(1), accum_indices);
+            accum_indices->pop_back();
+            if (i < dimensions[0] - 1) {
+              printer->Append(",");
+              printer->Append(dimensions.size() > 1 ? linebreak : " ");
+            }
+          }
+          printer->Append(brace_to_string("}"));
+        }
+      };
+
+  if (print_shape) {
+    PrintShape(print_layout, subshape, printer);
+    if (subshape.is_dynamic()) {
+      printer->Append("(");
+      for (int64_t i = 0; i < subshape.dimensions_size(); ++i) {
+        printer->Append(literal.GetDynamicSize(i, shape_index));
+        if (i < subshape.dimensions_size() - 1) {
+          printer->Append(",");
+        }
+      }
+      printer->Append(")");
+    }
+    printer->Append(" ");
+  }
+  std::vector<int64_t> indices = {};
+  std::vector<int64_t> dimensions;
+  dimensions.reserve(subshape.rank());
+  for (int64_t i = 0; i < subshape.rank(); ++i) {
+    dimensions.push_back(literal.GetDynamicSize(i, shape_index));
+  }
+  print_recursive(dimensions, &indices);
+}
+
+void PrintHelper(const LiteralBase& literal, const ShapeIndex& shape_index,
+                 bool print_shape, bool print_layout, bool oneline,
+                 Printer* printer) {
+  const Shape& subshape = ShapeUtil::GetSubshape(literal.shape(), shape_index);
+  CHECK(LayoutUtil::HasLayout(literal.shape()));
+  CHECK(LayoutUtil::HasLayout(subshape));
+  if (subshape.IsTuple()) {
+    TuplePrintHelper(literal, shape_index, print_shape, print_layout, oneline,
+                     printer);
+  } else if (subshape.IsToken()) {
+    printer->Append("token");
+  } else {
+    CHECK(LayoutUtil::IsDenseArray(subshape));
+    if (literal.IsKnown(shape_index)) {
+      DenseArrayPrintHelper(literal, shape_index, print_shape, print_layout,
+                            oneline, printer);
+    } else {
+      PrintShape(print_layout, subshape, printer);
+      printer->Append(" ");
+      if (literal.IsDetermined(shape_index)) {
+        printer->Append("unknown");
+      } else {
+        printer->Append("undetermined");
+      }
+    }
+  }
+}
+
+}  // namespace
+
+void LiteralBase::Print(Printer* printer) const {
+  CHECK(LayoutUtil::HasLayout(this->shape()));
+  PrintHelper(*this, {}, /*print_shape=*/true, /*print_layout=*/false,
+              /*oneline=*/false, printer);
+}
+
+void LiteralBase::PrintOneline(Printer* printer) const {
+  CHECK(LayoutUtil::HasLayout(this->shape()));
+  PrintHelper(*this, {}, /*print_shape=*/true, /*print_layout=*/false,
+              /*oneline=*/true, printer);
+}
+
+void LiteralBase::PrintWithoutShape(Printer* printer) const {
+  CHECK(LayoutUtil::HasLayout(this->shape()));
+  PrintHelper(*this, {}, /*print_shape=*/false, /*print_layout=*/false,
+              /*oneline=*/false, printer);
+}
+
+void LiteralBase::PrintWithoutShapeOneline(Printer* printer) const {
+  CHECK(LayoutUtil::HasLayout(this->shape()));
+  PrintHelper(*this, {}, /*print_shape=*/false, /*print_layout=*/false,
+              /*oneline=*/true, printer);
+}
+
+void LiteralBase::PrintWithLayout(Printer* printer) const {
+  CHECK(LayoutUtil::HasLayout(this->shape()));
+  PrintHelper(*this, {}, /*print_shape=*/true, /*print_layout=*/true,
+              /*oneline=*/false, printer);
+}
+
+void LiteralBase::PrintWithLayoutOneline(Printer* printer) const {
+  CHECK(LayoutUtil::HasLayout(this->shape()));
+  PrintHelper(*this, {}, /*print_shape=*/true, /*print_layout=*/true,
+              /*oneline=*/true, printer);
+}
+
+std::string LiteralBase::ToString() const {
+  StringPrinter printer;
+  Print(&printer);
+  return std::move(printer).ToString();
+}
+
+std::string LiteralBase::ToStringOneline() const {
+  StringPrinter printer;
+  PrintOneline(&printer);
+  return std::move(printer).ToString();
+}
+
+std::string LiteralBase::ToStringWithoutShape() const {
+  StringPrinter printer;
+  PrintWithoutShape(&printer);
+  return std::move(printer).ToString();
+}
+
+std::string LiteralBase::ToStringWithoutShapeOneline() const {
+  StringPrinter printer;
+  PrintWithoutShapeOneline(&printer);
+  return std::move(printer).ToString();
+}
+
+std::string LiteralBase::ToStringWithLayout() const {
+  StringPrinter printer;
+  PrintWithLayout(&printer);
+  return std::move(printer).ToString();
+}
+
+std::string LiteralBase::ToStringWithLayoutOneline() const {
+  StringPrinter printer;
+  PrintWithLayoutOneline(&printer);
+  return std::move(printer).ToString();
+}
+
 template <typename NativeT>
 bool LiteralBase::Piece::EqualElementsInternal(
     const LiteralBase::Piece& other, std::vector<int64_t>* multi_index) const {
@@ -567,6 +816,42 @@ void* LiteralBase::Piece::untyped_data() {
   DCHECK(LayoutUtil::IsDenseArray(subshape()))
       << ShapeUtil::HumanString(subshape());
   return buffer();
+}
+
+bool LiteralBase::Piece::IsDetermined() const {
+  if (array_value_state_ == ArrayValueState::kUndetermined) {
+    return false;
+  }
+  if (subshape().IsTuple()) {
+    bool are_all_leaf_arrays_determined = true;
+    ForEachSubpiece([&are_all_leaf_arrays_determined](const ShapeIndex& index,
+                                                      const Piece& piece) {
+      if (!piece.subshape().IsArray()) {
+        return;
+      }
+      are_all_leaf_arrays_determined &= piece.IsDetermined();
+    });
+    return are_all_leaf_arrays_determined;
+  }
+  return true;
+}
+
+bool LiteralBase::Piece::IsKnown() const {
+  if (array_value_state_ != ArrayValueState::kKnown) {
+    return false;
+  }
+  if (subshape().IsTuple()) {
+    bool are_all_leaf_arrays_known = true;
+    ForEachSubpiece([&are_all_leaf_arrays_known](const ShapeIndex& index,
+                                                 const Piece& piece) {
+      if (!piece.subshape().IsArray()) {
+        return;
+      }
+      are_all_leaf_arrays_known &= piece.IsKnown();
+    });
+    return are_all_leaf_arrays_known;
+  }
+  return true;
 }
 
 const void* LiteralBase::untyped_data(const ShapeIndex& shape_index) const {
