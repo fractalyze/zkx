@@ -594,6 +594,10 @@ class ShapeUtil {
   static bool DynamicShapeIsCompatible(const Shape& dynamic_shape,
                                        const Shape& bounded_shape);
 
+  // Strips device-specific information, namely tiling and memory-space
+  // information, from a shape.
+  static Shape DeviceShapeToHostShape(Shape s);
+
   // Returns the array size in bytes (layout/tiling required), all paddings are
   // included.
   static int64_t ArraySize(const Shape& shape);

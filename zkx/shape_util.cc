@@ -1307,6 +1307,21 @@ bool ShapeUtil::DynamicShapeIsCompatible(const Shape& dynamic_shape,
 }
 
 // static
+Shape ShapeUtil::DeviceShapeToHostShape(Shape s) {
+  ForEachMutableSubshape(&s, [](Shape* subshape, const ShapeIndex& index) {
+    if (subshape->IsArray() && subshape->has_layout()) {
+      subshape->mutable_layout()->clear_tiles();
+      subshape->mutable_layout()->set_memory_space(Layout::kDefaultMemorySpace);
+      subshape->mutable_layout()->clear_physical_shape();
+      subshape->mutable_layout()->set_element_size_in_bits(0);
+      subshape->mutable_layout()->set_tail_padding_alignment_in_elements(1);
+      subshape->mutable_layout()->set_dynamic_shape_metadata_prefix_bytes(0);
+    }
+  });
+  return s;
+}
+
+// static
 int64_t ShapeUtil::ArraySize(const Shape& shape) {
   CHECK(LayoutUtil::IsDenseArray(shape));
   if (shape.layout().tiles().empty()) {
