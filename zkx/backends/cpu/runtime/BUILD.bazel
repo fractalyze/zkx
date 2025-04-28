@@ -302,17 +302,21 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "runtime_unittests",
     srcs = [
+        "kernel_thunk_unittest.cc",
         "resource_use_unittest.cc",
         "thunk_executor_unittest.cc",
         "thunk_unittest.cc",
         "work_queue_unittest.cc",
     ],
     deps = [
+        ":function_library",
+        ":kernel_thunk",
         ":resource_use",
         ":thunk",
         ":thunk_executor",
         ":thunk_testlib",
         ":work_queue",
+        "//xla/tsl/concurrency:async_value",
         "//xla/tsl/platform:env",
         "//zkx:literal_util",
         "@com_google_absl//absl/algorithm:container",
