@@ -176,16 +176,15 @@ KernelThunk<num_arguments, num_results>::ExecuteInternal(
   absl::call_once(kernel_init_flag_, [&]() {
     // Because thunks are owned by a parent CpuExecutable, we can safely assume
     // that kernel pointer will not change after we find it the first time.
-    // TODO(chokobole): Uncomment this. Dependency: FunctionLibrary
-    // absl::StatusOr<FunctionLibrary::Kernel*> kernel_fn =
-    //     params.function_library->ResolveFunction<FunctionLibrary::Kernel>(
-    //         kernel_name_);
+    absl::StatusOr<FunctionLibrary::Kernel*> kernel_fn =
+        params.function_library->ResolveFunction<FunctionLibrary::Kernel>(
+            kernel_name_);
 
-    // if (ABSL_PREDICT_TRUE(kernel_fn.ok())) {
-    //   kernel_.emplace(num_kernel_args_, *kernel_fn);
-    // } else {
-    //   kernel_ = std::move(kernel_fn.status());
-    // }
+    if (ABSL_PREDICT_TRUE(kernel_fn.ok())) {
+      kernel_.emplace(num_kernel_args_, *kernel_fn);
+    } else {
+      kernel_ = std::move(kernel_fn.status());
+    }
   });
   TF_RETURN_IF_ERROR(kernel_.status());
   Kernel* kernel = &kernel_.value();

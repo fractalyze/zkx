@@ -383,9 +383,7 @@ TEST(ThunkExecutorTest, Execute) {
       // Always return current worker id as 0.
       [] { return 0; });
 
-  // TODO(chokobole): Uncomment this. Dependency: FunctionLibrary
-  // Thunk::ExecuteParams params = {nullptr, &allocations};
-  Thunk::ExecuteParams params = {&allocations};
+  Thunk::ExecuteParams params = {nullptr, &allocations};
   params.task_runner = &task_runner;
   params.session =
       Thunk::ExecuteSession(/*max_workers=*/8, /*split_threshold=*/0);
@@ -477,9 +475,7 @@ TEST(ThunkExecutorTest, ExecuteOnCorrectThreadPool) {
     task();
   });
 
-  // TODO(chokobole): Uncomment this. Dependency: FunctionLibrary
-  // Thunk::ExecuteParams params = {nullptr, &allocations};
-  Thunk::ExecuteParams params = {&allocations};
+  Thunk::ExecuteParams params = {nullptr, &allocations};
   params.task_runner = &task_runner;
   params.session =
       Thunk::ExecuteSession(/*max_workers=*/1, /*split_threshold=*/1000);

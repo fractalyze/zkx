@@ -223,6 +223,7 @@ zkx_cc_library(
     hdrs = ["thunk.h"],
     deps = [
         ":buffer_allocations",
+        ":function_library",
         ":resource_use",
         "//xla/tsl/concurrency:async_value",
         "//xla/tsl/platform:statusor",
