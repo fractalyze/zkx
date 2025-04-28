@@ -47,6 +47,28 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ir_compiler",
+    srcs = ["ir_compiler.cc"],
+    hdrs = ["ir_compiler.h"],
+    deps = [
+        "//zkx/base:logging",
+        "//zkx/service:hlo_module_config",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@llvm-project//llvm:ExecutionEngine",
+        "@llvm-project//llvm:MC",
+        "@llvm-project//llvm:Object",
+        "@llvm-project//llvm:OrcJIT",
+        "@llvm-project//llvm:Passes",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:Target",
+    ],
+)
+
+zkx_cc_library(
     name = "object_loader",
     srcs = ["object_loader.cc"],
     hdrs = ["object_loader.h"],

@@ -42,9 +42,20 @@ message DebugOptions {
   // the code that emits a particular instruction.
   bool zkx_annotate_with_emitter_loc = 358;
 
+  // Numerical optimization level for the ZKX compiler backend; the specific
+  // interpretation of this value is left to the backends.
+  int32 zkx_backend_optimization_level = 31;
+
+  // If true, a set of expensive LLVM optimization passes will not be run.
+  bool zkx_llvm_disable_expensive_passes = 73;
+
   // Per-heap size constraint. New heaps will be created if per-heap max size is
   // reached.
   int32 zkx_multiheap_size_constraint_per_heap = 142;
+
+  // Extra options to pass to the compilation backend (e.g. LLVM); specific
+  // interpretation of these values is left to the backend.
+  map<string, string> zkx_backend_extra_options = 500;
 }
 
 message ShardableValueUpdatePairProto {
