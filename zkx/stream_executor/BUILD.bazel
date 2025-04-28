@@ -73,6 +73,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "platform_manager",
+    srcs = ["platform_manager.cc"],
+    hdrs = ["platform_manager.h"],
+    deps = [
+        ":namespace_alias",
+        ":platform",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "semantic_version",
     srcs = ["semantic_version.cc"],
     hdrs = ["semantic_version.h"],
