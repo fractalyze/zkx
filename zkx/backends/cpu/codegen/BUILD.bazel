@@ -3,6 +3,19 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "contiguous_section_memory_manager",
+    srcs = ["contiguous_section_memory_manager.cc"],
+    hdrs = ["contiguous_section_memory_manager.h"],
+    deps = [
+        "//zkx:util",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/log:check",
+        "@llvm-project//llvm:ExecutionEngine",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "target_machine_features",
     srcs = ["target_machine_features.cc"],
     hdrs = ["target_machine_features.h"],
