@@ -1,4 +1,5 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx.bzl", "if_aarch64", "if_x86_32", "if_x86_64")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -84,6 +85,31 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "jit_compiler",
+    srcs = ["jit_compiler.cc"],
+    hdrs = ["jit_compiler.h"],
+    deps = [
+        ":cpu_features",
+        ":execution_engine",
+        ":ir_compiler",
+        ":object_loader",
+        "//zkx/backends/cpu/runtime:function_library",
+        "@com_google_absl//absl/base",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:ExecutionEngine",
+        "@llvm-project//llvm:OrcJIT",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TargetParser",
+    ] + if_x86_32([
+        "@llvm-project//llvm:X86CodeGen",
+    ]) + if_x86_64([
+        "@llvm-project//llvm:X86CodeGen",
+    ]) + if_aarch64([
+        "@llvm-project//llvm:AArch64CodeGen",
+    ]),
+)
+
+zkx_cc_library(
     name = "object_loader",
     srcs = ["object_loader.cc"],
     hdrs = ["object_loader.h"],
@@ -115,5 +141,19 @@ zkx_cc_library(
         "@com_google_absl//absl/log:check",
         "@llvm-project//llvm:Analysis",
         "@llvm-project//llvm:Target",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "codegen_unittests",
+    srcs = ["jit_compiler_unittest.cc"],
+    deps = [
+        ":jit_compiler",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "@llvm-project//llvm:AsmParser",
+        "@llvm-project//llvm:ExecutionEngine",
+        "@llvm-project//llvm:Support",
     ],
 )
