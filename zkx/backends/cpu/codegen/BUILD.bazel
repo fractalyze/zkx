@@ -3,6 +3,20 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "compiled_function_library",
+    srcs = ["compiled_function_library.cc"],
+    hdrs = ["compiled_function_library.h"],
+    deps = [
+        ":execution_engine",
+        "//zkx/backends/cpu/runtime:function_library",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "contiguous_section_memory_manager",
     srcs = ["contiguous_section_memory_manager.cc"],
     hdrs = ["contiguous_section_memory_manager.h"],
