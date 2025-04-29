@@ -64,6 +64,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cpu_function_runtime",
+    hdrs = ["cpu_function_runtime.h"],
+    deps = ["//zkx/backends/cpu:alignment"],
+)
+
+zkx_cc_library(
     name = "executable_run_options",
     srcs = ["executable_run_options.cc"],
     hdrs = ["executable_run_options.h"],
