@@ -16,7 +16,9 @@ limitations under the License.
 #include "zkx/service/llvm_ir/llvm_util.h"
 
 #include "absl/log/check.h"
+#include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/MDBuilder.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include "zkx/base/logging.h"
@@ -109,6 +111,31 @@ llvm::Type* ShapeToLLVMType(const Shape& shape, llvm::LLVMContext& context) {
     }
   }
   return result_type;
+}
+
+void SetAlignmentMetadataForLoad(llvm::LoadInst* load, uint64_t alignment) {
+  llvm::LLVMContext& context = load->getContext();
+  llvm::Type* int64_ty = llvm::Type::getInt64Ty(context);
+  llvm::Constant* alignment_constant =
+      llvm::ConstantInt::get(int64_ty, alignment);
+  llvm::MDBuilder metadata_builder(context);
+  auto* alignment_metadata =
+      metadata_builder.createConstant(alignment_constant);
+  load->setMetadata(llvm::LLVMContext::MD_align,
+                    llvm::MDNode::get(context, alignment_metadata));
+}
+
+void SetDereferenceableMetadataForLoad(llvm::LoadInst* load,
+                                       uint64_t dereferenceable_bytes) {
+  llvm::LLVMContext& context = load->getContext();
+  llvm::Type* int64_ty = llvm::Type::getInt64Ty(context);
+  llvm::Constant* dereferenceable_bytes_constant =
+      llvm::ConstantInt::get(int64_ty, dereferenceable_bytes);
+  llvm::MDBuilder metadata_builder(context);
+  auto* dereferenceable_bytes_metadata =
+      metadata_builder.createConstant(dereferenceable_bytes_constant);
+  load->setMetadata(llvm::LLVMContext::MD_dereferenceable,
+                    llvm::MDNode::get(context, dereferenceable_bytes_metadata));
 }
 
 }  // namespace zkx::llvm_ir
