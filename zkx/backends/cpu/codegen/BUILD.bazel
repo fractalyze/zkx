@@ -110,6 +110,35 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "kernel_api_ir_builder",
+    srcs = ["kernel_api_ir_builder.cc"],
+    hdrs = ["kernel_api_ir_builder.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:cpu_function_runtime",
+        "//zkx:shape_util",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/runtime:buffer_use",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:hlo_module_config",
+        "//zkx/service/llvm_ir:llvm_array",
+        "//zkx/service/llvm_ir:llvm_util",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "object_loader",
     srcs = ["object_loader.cc"],
     hdrs = ["object_loader.h"],
@@ -148,6 +177,8 @@ zkx_cc_unittest(
     name = "codegen_unittests",
     srcs = [
         "jit_compiler_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: HloTestBase
+        # "kernel_api_ir_builder_unittest.cc",
         "object_loader_unittest.cc",
     ],
     deps = [
