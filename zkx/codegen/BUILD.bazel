@@ -14,6 +14,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "kernel_source",
+    hdrs = ["kernel_source.h"],
+)
+
+zkx_cc_library(
     name = "kernel_spec",
     hdrs = ["kernel_spec.h"],
     deps = [
