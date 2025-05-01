@@ -3,6 +3,21 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "cpu_executable",
+    srcs = ["cpu_executable.cc"],
+    hdrs = ["cpu_executable.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/backends/cpu/runtime:function_library",
+        "//zkx/backends/cpu/runtime:thunk",
+        "//zkx/backends/cpu/runtime:thunk_executor",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+    ],
+)
+
+zkx_cc_library(
     name = "cpu_executable_run_options",
     hdrs = ["cpu_executable_run_options.h"],
     deps = ["//zkx/backends/cpu/collectives:cpu_collectives"],
