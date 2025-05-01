@@ -27,6 +27,7 @@ limitations under the License.
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 
+#include "zkx/hlo/ir/hlo_instruction.h"
 #include "zkx/shape.h"
 #include "zkx/zkx_data.pb.h"
 
@@ -50,6 +51,19 @@ std::string DumpToString(const llvm::Value* value);
 std::string DumpToString(mlir::Operation* operation);
 std::string DumpToString(mlir::Type type);
 std::string DumpToString(mlir::Value value);
+
+// Constructs a human-friendly name from the given inputs.  The result is
+// suitable for use as an llvm::Value's name.
+//
+// This is equivalent to
+//
+//   - changing the HloInstruction* to its name() (if we called that overload),
+//   - joining all of the nonempty inputs by '.', and then
+//   - removing all '%'s.
+//
+std::string IrName(std::string_view a);
+std::string IrName(std::string_view a, std::string_view b);
+std::string IrName(const HloInstruction* a, std::string_view b = "");
 
 // Returns the LLVM type which represents the given ZKX primitive type.
 llvm::Type* PrimitiveTypeToLLVMType(PrimitiveType element_type,

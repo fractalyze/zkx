@@ -16,6 +16,7 @@ limitations under the License.
 #include "zkx/service/llvm_ir/llvm_util.h"
 
 #include "absl/log/check.h"
+#include "absl/strings/str_cat.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/MDBuilder.h"
@@ -61,6 +62,23 @@ std::string DumpToString(mlir::Type type) { return DumpToStringTempl(&type); }
 
 std::string DumpToString(mlir::Value value) {
   return DumpToStringTempl(&value);
+}
+
+std::string IrName(std::string_view a) {
+  std::string s(a);
+  s.erase(std::remove(s.begin(), s.end(), '%'), s.end());
+  return s;
+}
+
+std::string IrName(std::string_view a, std::string_view b) {
+  if (!a.empty() && !b.empty()) {
+    return IrName(absl::StrCat(a, ".", b));
+  }
+  return IrName(absl::StrCat(a, b));
+}
+
+std::string IrName(const HloInstruction* a, std::string_view b) {
+  return IrName(a->name(), b);
 }
 
 llvm::Type* PrimitiveTypeToLLVMType(PrimitiveType element_type,
