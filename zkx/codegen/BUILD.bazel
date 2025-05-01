@@ -24,6 +24,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "kernel_emitter",
+    hdrs = ["kernel_emitter.h"],
+    deps = [
+        ":kernel_definition",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "kernel_source",
     hdrs = ["kernel_source.h"],
 )
