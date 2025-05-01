@@ -46,3 +46,15 @@ zkx_cc_library(
         "@com_google_absl//absl/container:inlined_vector",
     ],
 )
+
+zkx_cc_library(
+    name = "llvm_ir_kernel_source",
+    srcs = ["llvm_ir_kernel_source.cc"],
+    hdrs = ["llvm_ir_kernel_source.h"],
+    deps = [
+        ":kernel_source",
+        "//zkx/service/llvm_ir:llvm_util",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:ExecutionEngine",
+    ],
+)
