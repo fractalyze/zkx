@@ -30,5 +30,34 @@ zkx_cc_library(
         "@llvm-project//llvm:Core",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+    ],
+)
+
+zkx_cc_library(
+    name = "mlir_array",
+    srcs = ["mlir_array.cc"],
+    hdrs = ["mlir_array.h"],
+    deps = [
+        "//xla/tsl/platform:status",
+        "//zkx:shape_util",
+        "//zkx/codegen:emitter_loc_op_builder",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+    ],
+)
+
+zkx_cc_library(
+    name = "mlir_loop_emitter",
+    srcs = ["mlir_loop_emitter.cc"],
+    hdrs = ["mlir_loop_emitter.h"],
+    deps = [
+        ":mlir_array",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/codegen:emitter_loc_op_builder",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@llvm-project//mlir:IR",
     ],
 )

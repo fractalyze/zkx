@@ -1,0 +1,36 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "elemental_kernel_emitter",
+    srcs = ["elemental_kernel_emitter.cc"],
+    hdrs = ["elemental_kernel_emitter.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/backends/cpu/codegen:kernel_api_ir_builder",
+        "//zkx/base:logging",
+        "//zkx/codegen:emitter_loc_op_builder",
+        "//zkx/codegen:kernel_emitter",
+        "//zkx/codegen:llvm_ir_kernel_source",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:elemental_ir_emitter",
+        "//zkx/service/llvm_ir:llvm_util",
+        "//zkx/service/llvm_ir:mlir_loop_emitter",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineToStandard",
+        "@llvm-project//mlir:AllExtensions",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:BuiltinToLLVMIRTranslation",
+        "@llvm-project//mlir:ConvertToLLVM",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:LLVMIRTransforms",
+        "@llvm-project//mlir:LLVMToLLVMIRTranslation",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+# TODO(chokobole): Add elemental_kernel_emitter_unittest.cc Dependency: HloTestBase

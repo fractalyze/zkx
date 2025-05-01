@@ -21,6 +21,7 @@ limitations under the License.
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/Support/raw_ostream.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 
 #include "zkx/base/logging.h"
 #include "zkx/layout_util.h"
@@ -116,6 +117,41 @@ llvm::Type* PrimitiveTypeToLLVMType(PrimitiveType element_type,
   }
 }
 
+mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
+                                   mlir::MLIRContext* context) {
+  switch (element_type) {
+    case S2:
+    case U2:
+      return mlir::IntegerType::get(context, 2);
+    case S4:
+    case U4:
+      return mlir::IntegerType::get(context, 4);
+    case S8:
+    case PRED:
+    case U8:
+      return mlir::IntegerType::get(context, 8);
+    case S16:
+    case U16:
+      return mlir::IntegerType::get(context, 16);
+    case S32:
+    case U32:
+      return mlir::IntegerType::get(context, 32);
+    case S64:
+    case U64:
+      return mlir::IntegerType::get(context, 64);
+    case TUPLE:
+    // An Opaque is like a void*, use i8*.
+    case OPAQUE_TYPE:
+      return mlir::LLVM::LLVMPointerType::get(context);
+    case TOKEN:
+      // Tokens do not have a physical representation, but the compiler needs
+      // some placeholder type, so use int8_t*.
+      return mlir::LLVM::LLVMPointerType::get(context);
+    default:
+      LOG(FATAL) << "unsupported type " << element_type;
+  }
+}
+
 llvm::Type* ShapeToLLVMType(const Shape& shape, llvm::LLVMContext& context) {
   llvm::Type* result_type =
       PrimitiveTypeToLLVMType(shape.element_type(), context);
@@ -126,6 +162,22 @@ llvm::Type* ShapeToLLVMType(const Shape& shape, llvm::LLVMContext& context) {
     for (int64_t dimension : LayoutUtil::MinorToMajor(shape)) {
       result_type =
           llvm::ArrayType::get(result_type, shape.dimensions(dimension));
+    }
+  }
+  return result_type;
+}
+
+mlir::Type ShapeToMLIRType(const Shape& shape, mlir::MLIRContext* context) {
+  mlir::Type result_type =
+      PrimitiveTypeToMLIRType(shape.element_type(), context);
+  if (shape.IsTuple()) {
+    // A tuple buffer is an array of pointers.
+    result_type =
+        mlir::LLVM::LLVMArrayType::get(result_type, shape.tuple_shapes_size());
+  } else if (shape.IsArray()) {
+    for (int64_t dimension : LayoutUtil::MinorToMajor(shape)) {
+      result_type = mlir::LLVM::LLVMArrayType::get(result_type,
+                                                   shape.dimensions(dimension));
     }
   }
   return result_type;

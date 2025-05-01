@@ -184,6 +184,21 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "elemental_ir_emitter",
+    srcs = ["elemental_ir_emitter.cc"],
+    hdrs = ["elemental_ir_emitter.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/codegen:emitter_loc_op_builder",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service/llvm_ir:mlir_loop_emitter",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+zkx_cc_library(
     name = "global_device_id",
     srcs = ["global_device_id.cc"],
     hdrs = ["global_device_id.h"],
@@ -421,6 +436,8 @@ zkx_cc_unittest(
         "compilation_environments_unittest.cc",
         "custom_call_status_test_c_caller.c",
         "custom_call_status_test_c_caller.h",
+        # TODO(chokobole): Add unittest. Dependency: HloTestBase
+        # "elemental_ir_emitter_unittest.cc"
         "hlo_module_config_unittest.cc",
         "mapped_ptr_container_sorter_unittest.cc",
         "name_uniquer_unittest.cc",

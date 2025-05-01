@@ -37,6 +37,12 @@ message CompilationEnvironmentsProto {
 //    corresponding backend section, and sorted alphabetically by the flag name.
 //
 message DebugOptions {
+  // When true, ZKX:CPU uses HLO module scheduler that is optimized for
+  // extracting concurrency at the cost of extra memory: we extend the live
+  // ranges of temporaries to allow ZKX runtime to schedule independent
+  // operations in parallel on separate threads.
+  bool zkx_cpu_enable_concurrency_optimized_scheduler = 307;
+
   // When set, ZKX:CPU will only generate code up to the specified ISA.
   // (It will not use newer ISAs.) Using the string format allows us to extend
   // the flag for more flexible control if necessary.
