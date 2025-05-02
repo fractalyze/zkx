@@ -70,6 +70,25 @@ class LiteralUtil {
   static Literal CreateFull(absl::Span<const int64_t> dimensions,
                             NativeT value);
 
+  // Creates a new literal from an Array type. The variants not ending with
+  // WithLayout use the default XLA layout for the literal's linear
+  // representation in memory.
+  template <typename NativeT>
+  static Literal CreateFromArray(const Array<NativeT>& values);
+  template <typename NativeT>
+  static Literal CreateFromArrayWithLayout(const Array<NativeT>& values,
+                                           const Layout& layout);
+  template <typename NativeT>
+  static Literal CreateR2FromArray2D(const Array2D<NativeT>& values);
+  template <typename NativeT>
+  static Literal CreateR2FromArray2DWithLayout(const Array2D<NativeT>& values,
+                                               const Layout& layout);
+  template <typename NativeT>
+  static Literal CreateR3FromArray3D(const Array3D<NativeT>& values);
+  template <typename NativeT>
+  static Literal CreateR3FromArray3DWithLayout(const Array3D<NativeT>& values,
+                                               const Layout& layout);
+
   // Returns a tuple literal composed of given literals. Data is copied from the
   // given elements into the returned literal.
   static Literal MakeTuple(absl::Span<const Literal* const> elements);
@@ -194,6 +213,50 @@ Literal LiteralUtil::CreateR3(
     std::initializer_list<std::initializer_list<std::initializer_list<NativeT>>>
         values) {
   return CreateR3WithLayout(values, LayoutUtil::GetDefaultLayoutForR3());
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateFromArrayWithLayout(const Array<NativeT>& values,
+                                               const Layout& layout) {
+  Literal literal(ShapeUtil::MakeShapeWithDenseLayout(
+      primitive_util::NativeToPrimitiveType<NativeT>(), values.dimensions(),
+      layout.minor_to_major()));
+  literal.PopulateFromArray(values);
+  return literal;
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateFromArray(const Array<NativeT>& values) {
+  return CreateFromArrayWithLayout(
+      values, LayoutUtil::GetDefaultLayoutForRank(values.num_dimensions()));
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateR2FromArray2DWithLayout(
+    const Array2D<NativeT>& values, const Layout& layout) {
+  return CreateFromArrayWithLayout(values, layout);
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateR2FromArray2D(const Array2D<NativeT>& values) {
+  return CreateFromArray(values);
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateR3FromArray3DWithLayout(
+    const Array3D<NativeT>& values, const Layout& layout) {
+  return CreateFromArrayWithLayout(values, layout);
+}
+
+// static
+template <typename NativeT>
+Literal LiteralUtil::CreateR3FromArray3D(const Array3D<NativeT>& values) {
+  return CreateFromArray(values);
 }
 
 // static
