@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -86,5 +86,23 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
         "@llvm-project//llvm:OrcJIT",
+    ],
+)
+
+zkx_cc_binary(
+    name = "demo",
+    srcs = ["demo.cc"],
+    data = [
+        "testdata/add.hlo",
+        "testdata/add2.hlo",
+        "testdata/add3.hlo",
+    ],
+    deps = [
+        ":cpu_compiler",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal_util",
+        "//zkx/hlo/parser:hlo_parser",
     ],
 )

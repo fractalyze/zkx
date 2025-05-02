@@ -1,0 +1,8 @@
+HloModule simple_addition
+
+ENTRY %simple_add (x: u32[], y: u32[]) -> u32[] {
+  %x = u32[] parameter(0)
+  %y = u32[] parameter(1)
+
+  ROOT %sum = u32[] add(%x, %y)
+}
