@@ -107,9 +107,11 @@ zkx_cc_library(
     deps = [
         ":computation_placer",
         ":global_device_id",
+        ":pattern_matcher",
         "//xla/tsl/platform:statusor",
         "//zkx:executable_run_options",
         "//zkx:status_macros",
+        "//zkx/hlo/ir:hlo",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

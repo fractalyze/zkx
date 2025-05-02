@@ -38,8 +38,7 @@ class ThunkEmitter {
   };
 
   ThunkEmitter(const BufferAssignment* buffer_assignment,
-               mlir::MLIRContext* mlir_context)
-      : buffer_assignment_(buffer_assignment), mlir_context_(mlir_context) {}
+               mlir::MLIRContext* mlir_context);
 
   absl::StatusOr<ThunkSequence> EmitEntryComputation(const HloModule& module);
 
@@ -55,6 +54,16 @@ class ThunkEmitter {
       const HloComputation* computation);
   absl::StatusOr<ThunkSequence> EmitHloInstruction(const HloInstruction* instr);
 
+  absl::StatusOr<ThunkSequence> EmitAllGatherThunk(
+      const HloInstruction* instruction);
+  absl::StatusOr<ThunkSequence> EmitAllReduceThunk(
+      const HloInstruction* instruction);
+  absl::StatusOr<ThunkSequence> EmitAllToAllThunk(
+      const HloInstruction* instruction);
+  absl::StatusOr<ThunkSequence> EmitCollectivePermuteThunk(
+      const HloInstruction* instruction);
+  absl::StatusOr<ThunkSequence> EmitReduceScatterThunk(
+      const HloInstruction* instruction);
   absl::StatusOr<ThunkSequence> EmitElementalKernelThunk(
       const HloInstruction* instruction);
 
@@ -65,6 +74,9 @@ class ThunkEmitter {
   const BufferAssignment* const buffer_assignment_;
   mlir::MLIRContext* const mlir_context_;
   std::vector<EmittedKernel> kernels_;
+
+  // A global resource that is used to order all collective operations.
+  std::shared_ptr<Resource> communicator_resource_;
 };
 
 }  // namespace zkx::cpu

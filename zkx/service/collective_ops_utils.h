@@ -29,6 +29,7 @@ limitations under the License.
 #include "absl/types/span.h"
 
 #include "zkx/executable_run_options.h"
+#include "zkx/hlo/ir/hlo_computation.h"
 #include "zkx/service/computation_placer.h"
 #include "zkx/service/global_device_id.h"
 #include "zkx/zkx_data.pb.h"
@@ -38,6 +39,14 @@ namespace zkx {
 enum class ReductionKind { kSum, kProduct, kMin, kMax };
 
 std::string_view ReductionKindToString(ReductionKind reduction_kind);
+
+// Attempts to match instruction to one of the possible cases for ReductionKind.
+std::optional<ReductionKind> MatchReductionInstruction(
+    const HloInstruction* hlo);
+
+// Attempts to match computation to one of the possible cases in ReductionKind.
+std::optional<ReductionKind> MatchReductionComputation(
+    const HloComputation* computation);
 
 // There are broadly 4 modes that collective communication ops use to describe
 // which sets of devices are participating with a given device in the operation.

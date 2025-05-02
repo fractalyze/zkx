@@ -63,6 +63,7 @@ namespace zkx {
 // - ZKX_NULLOP_PATTERN
 // - ZKX_TERNOP_PATTERN
 // - ZKX_VARIADIC_OP_PATTERN
+// - MatchReductionInstruction
 #define HLO_OPCODE_LIST(V)                                                     \
   /* go/keep-sorted start */                                                   \
   V(kAdd, "add", 2)                                                            \

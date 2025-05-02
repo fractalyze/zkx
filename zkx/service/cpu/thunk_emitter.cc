@@ -19,9 +19,17 @@ limitations under the License.
 
 #include "xla/tsl/platform/casts.h"
 #include "zkx/backends/cpu/codegen/elemental/elemental_kernel_emitter.h"
+#include "zkx/backends/cpu/runtime/all_gather_thunk.h"
+#include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
+#include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
+#include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
 #include "zkx/backends/cpu/runtime/kernel_thunk.h"
+#include "zkx/backends/cpu/runtime/reduce_scatter_thunk.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
 #include "zkx/cpu_function_runtime.h"
+#include "zkx/hlo/ir/hlo_casting_utils.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
+#include "zkx/service/collective_ops_utils.h"
 
 namespace zkx::cpu {
 namespace {
@@ -32,7 +40,98 @@ Thunk::Info ThunkInfo(const HloInstruction* instruction) {
                      std::string(module->name()), module->unique_id()};
 }
 
+absl::StatusOr<ReductionKind> MatchReductionKind(
+    const HloComputation* computation) {
+  if (auto reduction_kind = MatchReductionComputation(computation)) {
+    return reduction_kind.value();
+  }
+  return absl::UnimplementedError(absl::StrFormat(
+      "Unsupported reduction computation: %s", computation->ToString()));
+}
+
+template <typename CollectiveInstruction>
+absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
+    const CollectiveInstruction* instruction) {
+  return CollectiveThunk::OpParams{
+      /*op_id=*/instruction->channel_id().has_value()
+          ? instruction->channel_id().value()
+          : instruction->GetModule()->unique_id(),
+      /*has_channel_id=*/instruction->channel_id().has_value(),
+      /*use_global_device_ids=*/instruction->use_global_device_ids(),
+      /*replica_groups=*/instruction->replica_groups(),
+  };
+}
+
+// TODO(ezhulenev): Figure out why AllToAll instruction does not have
+// `use_global_device_ids` field and how to unify it with every other collective
+// operation.
+static absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
+    const HloAllToAllInstruction* instruction) {
+  return CollectiveThunk::OpParams{
+      /*op_id=*/instruction->channel_id().has_value()
+          ? instruction->channel_id().value()
+          : instruction->GetModule()->unique_id(),
+      /*has_channel_id=*/instruction->channel_id().has_value(),
+      /*use_global_device_ids=*/std::nullopt,
+      /*replica_groups=*/instruction->replica_groups(),
+  };
+}
+
+// TODO(ezhulenev): Figure out why CollectivePermute instruction does not have
+// `use_global_device_ids` field and how to unify it with every other collective
+// operation.
+static absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
+    const HloCollectivePermuteInstruction* instruction) {
+  return CollectiveThunk::OpParams{
+      /*op_id=*/instruction->channel_id().has_value()
+          ? instruction->channel_id().value()
+          : instruction->GetModule()->unique_id(),
+      /*has_channel_id=*/instruction->channel_id().has_value(),
+      /*use_global_device_ids=*/std::nullopt,
+      /*replica_groups=*/{},  // CollectivePermute does not have replica groups
+  };
+}
+
+absl::StatusOr<CollectiveThunk::OpBuffers> GetCollectiveOpBuffers(
+    const HloInstruction* instruction,
+    const BufferAssignment* buffer_assignment) {
+  // Collect buffer slices for all operands.
+  std::vector<BufferAllocation::Slice> source_buffers;
+  std::vector<Shape> source_shapes;
+
+  for (const HloInstruction* operand : instruction->operands()) {
+    TF_ASSIGN_OR_RETURN(source_buffers.emplace_back(),
+                        buffer_assignment->GetUniqueSlice(operand, {}));
+    source_shapes.push_back(operand->shape());
+  }
+
+  // Collect buffer slices for all results.
+  std::vector<BufferAllocation::Slice> destination_buffers;
+  std::vector<Shape> destination_shapes;
+
+  for (auto& indexed : ShapeUtil::GetLeafShapes(instruction->shape())) {
+    TF_ASSIGN_OR_RETURN(
+        destination_buffers.emplace_back(),
+        buffer_assignment->GetUniqueSlice(instruction, indexed.index));
+    destination_shapes.push_back(indexed.shape);
+  }
+
+  return CollectiveThunk::OpBuffers{
+      /*source_buffers=*/std::move(source_buffers),
+      /*source_shapes=*/std::move(source_shapes),
+      /*destination_buffers=*/std::move(destination_buffers),
+      /*destination_shapes=*/std::move(destination_shapes),
+  };
+}
+
 }  // namespace
+
+ThunkEmitter::ThunkEmitter(const BufferAssignment* buffer_assignment,
+                           mlir::MLIRContext* mlir_context)
+    : buffer_assignment_(buffer_assignment),
+      mlir_context_(mlir_context),
+      communicator_resource_(
+          Resource::Create(Resource::kCollectiveCommunicator)) {}
 
 absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     const HloInstruction* instr) {
@@ -43,6 +142,16 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kSubtract:
     case HloOpcode::kMultiply:
       return EmitElementalKernelThunk(instr);
+    case HloOpcode::kAllGather:
+      return EmitAllGatherThunk(instr);
+    case HloOpcode::kAllReduce:
+      return EmitAllReduceThunk(instr);
+    case HloOpcode::kAllToAll:
+      return EmitAllToAllThunk(instr);
+    case HloOpcode::kCollectivePermute:
+      return EmitCollectivePermuteThunk(instr);
+    case HloOpcode::kReduceScatter:
+      return EmitReduceScatterThunk(instr);
 
     default:
       return absl::InternalError(
@@ -96,6 +205,92 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitElementalKernelThunk(
   return MakeKernelThunkSequence(
       instruction, std::move(kernel_spec),
       /*min_alignment=*/cpu_function_runtime::MinAlign());
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitAllGatherThunk(
+    const HloInstruction* instruction) {
+  auto* all_gather = Cast<HloAllGatherInstruction>(instruction);
+
+  TF_ASSIGN_OR_RETURN(AllGatherThunk::OpParams op_params,
+                      GetCollectiveOpParams(all_gather));
+  TF_ASSIGN_OR_RETURN(AllGatherThunk::OpBuffers op_buffers,
+                      GetCollectiveOpBuffers(all_gather, buffer_assignment_));
+  AllGatherThunk::OpResources op_resources = {communicator_resource_};
+
+  return ThunkSequence::Of<AllGatherThunk>(
+      ThunkInfo(all_gather), std::move(op_params), std::move(op_buffers),
+      std::move(op_resources));
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitAllReduceThunk(
+    const HloInstruction* instruction) {
+  auto* all_reduce = Cast<HloAllReduceInstruction>(instruction);
+
+  TF_ASSIGN_OR_RETURN(ReductionKind reduction_kind,
+                      MatchReductionKind(all_reduce->to_apply()));
+  TF_ASSIGN_OR_RETURN(AllReduceThunk::OpParams op_params,
+                      GetCollectiveOpParams(all_reduce));
+  TF_ASSIGN_OR_RETURN(AllReduceThunk::OpBuffers op_buffers,
+                      GetCollectiveOpBuffers(all_reduce, buffer_assignment_));
+  AllReduceThunk::OpResources op_resources = {communicator_resource_};
+
+  const HloModuleConfig& config = instruction->GetModule()->config();
+  bool single_replica =
+      config.replica_count() == 1 && config.num_partitions() == 1;
+
+  return ThunkSequence::Of<AllReduceThunk>(
+      ThunkInfo(all_reduce), reduction_kind, std::move(op_params),
+      std::move(op_buffers), std::move(op_resources), single_replica);
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitAllToAllThunk(
+    const HloInstruction* instruction) {
+  auto* all_to_all = Cast<HloAllToAllInstruction>(instruction);
+
+  TF_ASSIGN_OR_RETURN(AllToAllThunk::OpParams op_params,
+                      GetCollectiveOpParams(all_to_all));
+  TF_ASSIGN_OR_RETURN(AllToAllThunk::OpBuffers op_buffers,
+                      GetCollectiveOpBuffers(all_to_all, buffer_assignment_));
+  AllToAllThunk::OpResources op_resources = {communicator_resource_};
+
+  return ThunkSequence::Of<AllToAllThunk>(
+      ThunkInfo(all_to_all), std::move(op_params), std::move(op_buffers),
+      std::move(op_resources));
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitCollectivePermuteThunk(
+    const HloInstruction* instruction) {
+  auto* collective_permute = Cast<HloCollectivePermuteInstruction>(instruction);
+
+  TF_ASSIGN_OR_RETURN(CollectivePermuteThunk::OpParams op_params,
+                      GetCollectiveOpParams(collective_permute));
+  TF_ASSIGN_OR_RETURN(
+      CollectivePermuteThunk::OpBuffers op_buffers,
+      GetCollectiveOpBuffers(collective_permute, buffer_assignment_));
+  CollectivePermuteThunk::OpResources op_resources = {communicator_resource_};
+
+  return ThunkSequence::Of<CollectivePermuteThunk>(
+      ThunkInfo(collective_permute), std::move(op_params),
+      std::move(op_buffers), std::move(op_resources),
+      collective_permute->source_target_pairs());
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitReduceScatterThunk(
+    const HloInstruction* instruction) {
+  auto* reduce_scatter = Cast<HloReduceScatterInstruction>(instruction);
+
+  TF_ASSIGN_OR_RETURN(ReductionKind reduction_kind,
+                      MatchReductionKind(reduce_scatter->to_apply()));
+  TF_ASSIGN_OR_RETURN(ReduceScatterThunk::OpParams op_params,
+                      GetCollectiveOpParams(reduce_scatter));
+  TF_ASSIGN_OR_RETURN(
+      ReduceScatterThunk::OpBuffers op_buffers,
+      GetCollectiveOpBuffers(reduce_scatter, buffer_assignment_));
+  ReduceScatterThunk::OpResources op_resources = {communicator_resource_};
+
+  return ThunkSequence::Of<ReduceScatterThunk>(
+      ThunkInfo(reduce_scatter), reduction_kind, std::move(op_params),
+      std::move(op_buffers), std::move(op_resources));
 }
 
 // static
