@@ -307,6 +307,16 @@ static T RemoveElements(absl::Span<const int64_t> sorted_ids_to_remove,
   return result;
 }
 
+class HloInstruction;
+class HloModule;
+
+// A predicate over HLO instruction.
+using HloPredicate = std::function<bool(const HloInstruction*)>;
+using HloModulePredicate = std::function<bool(const HloModule*)>;
+
+inline bool HloPredicateTrue(const HloInstruction*) { return true; }
+inline bool HloPredicateFalse(const HloInstruction*) { return false; }
+
 }  // namespace zkx
 
 #endif  // ZKX_UTIL_H_s
