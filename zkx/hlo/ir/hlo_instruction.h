@@ -1700,6 +1700,7 @@ extern template absl::Status HloInstruction::Accept(ConstDfsHloVisitor*, bool,
 extern template absl::Status HloInstruction::Visit(DfsHloVisitor* visitor);
 extern template absl::Status HloInstruction::Visit(ConstDfsHloVisitor* visitor);
 
+std::string_view ToString(HloInstruction::FusionKind kind);
 absl::StatusOr<HloInstruction::FusionKind> StringToFusionKind(
     std::string_view kind_name);
 
