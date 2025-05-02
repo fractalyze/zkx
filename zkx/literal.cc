@@ -111,6 +111,21 @@ std::string LiteralBase::GetAsString(absl::Span<const int64_t> multi_index,
       subshape.element_type());
 }
 
+std::optional<int64_t> LiteralBase::GetIntegralAsS64(
+    absl::Span<const int64_t> multi_index) const {
+  CHECK(LayoutUtil::IsDenseArray(shape()));
+  return primitive_util::PrimitiveTypeSwitch<std::optional<int64_t>>(
+      [&](auto primitive_type_constant) -> std::optional<int64_t> {
+        if constexpr (primitive_util::IsIntegralType(primitive_type_constant) ||
+                      primitive_type_constant == PRED) {
+          using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+          return Get<NativeT>(multi_index);
+        }
+        return std::nullopt;
+      },
+      shape().element_type());
+}
+
 namespace {
 
 void PrintShape(bool print_layout, const Shape& shape, Printer* printer) {

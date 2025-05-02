@@ -164,6 +164,21 @@ class LiteralBase {
   std::string GetAsString(absl::Span<const int64_t> multi_index,
                           const ShapeIndex& shape_index = {}) const;
 
+  // Return whether the value at the specified index is equal to the provided
+  // generic `value` (T must be an arithmetic type).
+  //
+  // Precondition: must be an array.
+  template <typename T>
+  typename std::enable_if<std::numeric_limits<T>::is_specialized, bool>::type
+  IsEqualAt(absl::Span<const int64_t> multi_index, T value) const {
+    return *GetIntegralAsS64(multi_index) == value;
+  }
+
+  // As Get(), but determines the correct type and converts the value into
+  // int64_t.  This literal must be an array.
+  std::optional<int64_t> GetIntegralAsS64(
+      absl::Span<const int64_t> multi_index) const;
+
   // Checks whether all of this literal's values are equal to the given scalar
   // literal.
   //
