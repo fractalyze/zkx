@@ -11,6 +11,7 @@
 
 #include "zkx/codegen/emitter_loc_op_builder.h"
 #include "zkx/service/llvm_ir/mlir_array.h"
+#include "zkx/service/llvm_ir/mlir_for_loop.h"
 #include "zkx/shape.h"
 
 namespace zkx::llvm_ir {
@@ -82,6 +83,12 @@ class MlirLoopEmitter {
   mlir::Block* exit_block_;
 
   EmitterLocOpBuilder& b_;
+
+ private:
+  MlirArray::Index EmitStaticIndex(MlirForLoopNest* loop_nest,
+                                   mlir::Type index_type);
+  MlirArray::Index EmitDynamicIndex(MlirForLoopNest* loop_nest,
+                                    mlir::Type index_type);
 };
 
 }  // namespace zkx::llvm_ir

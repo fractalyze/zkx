@@ -42,6 +42,7 @@ zkx_cc_library(
         "//xla/tsl/platform:status",
         "//zkx:shape_util",
         "//zkx/codegen:emitter_loc_op_builder",
+        "@com_google_absl//absl/types:span",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LLVMDialect",
     ],
@@ -53,11 +54,32 @@ zkx_cc_library(
     hdrs = ["mlir_loop_emitter.h"],
     deps = [
         ":mlir_array",
+        ":mlir_for_loop",
         "//xla/tsl/platform:statusor",
         "//zkx:shape_util",
+        "//zkx/base:logging",
         "//zkx/codegen:emitter_loc_op_builder",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+    ],
+)
+
+zkx_cc_library(
+    name = "mlir_for_loop",
+    srcs = ["mlir_for_loop.cc"],
+    hdrs = ["mlir_for_loop.h"],
+    deps = [
+        ":llvm_util",
+        ":mlir_array",
+        "//zkx:shape_util",
+        "//zkx/codegen:emitter_loc_op_builder",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
     ],
 )

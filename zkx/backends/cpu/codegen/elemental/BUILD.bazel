@@ -24,6 +24,7 @@ zkx_cc_library(
         "@llvm-project//mlir:AllExtensions",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:BuiltinToLLVMIRTranslation",
+        "@llvm-project//mlir:ControlFlowDialect",
         "@llvm-project//mlir:ConvertToLLVM",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:LLVMDialect",

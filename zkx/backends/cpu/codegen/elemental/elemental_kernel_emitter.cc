@@ -20,6 +20,7 @@ limitations under the License.
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"
@@ -44,8 +45,9 @@ namespace zkx::cpu {
 namespace {
 
 void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
-  mlir_context->loadDialect<mlir::arith::ArithDialect, mlir::func::FuncDialect,
-                            mlir::LLVM::LLVMDialect>();
+  mlir_context
+      ->loadDialect<mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
+                    mlir::func::FuncDialect, mlir::LLVM::LLVMDialect>();
 }
 
 void AddPasses(mlir::OpPassManager& pm) {
@@ -95,11 +97,24 @@ void Postprocess(llvm::Module* llvm_module, llvm::Module* new_llvm_module,
   llvm::Function* impl_fn = llvm_module->getFunction(name);
   CHECK(impl_fn);
 
-  llvm::BasicBlock* from = &impl_fn->getEntryBlock();
-  from->getTerminator()->eraseFromParent();
-  llvm::BasicBlock* to = &kernel_prototype.function->getEntryBlock();
+  llvm::Function* from_fn = impl_fn;
+  llvm::Function* to_fn = kernel_prototype.function;
 
-  to->splice(to->getTerminator()->getIterator(), from);
+  llvm::BasicBlock* last_block = &to_fn->back();
+  to_fn->splice(llvm::Function::iterator(last_block), from_fn);
+
+  llvm::BranchInst* br = llvm::dyn_cast<llvm::BranchInst>(
+      kernel_prototype.function->getEntryBlock().getTerminator());
+  CHECK(br && br->isUnconditional());
+  llvm::Function::iterator it = std::next(to_fn->begin());
+  llvm::BasicBlock* target_block = &*it;
+  br->setSuccessor(0, target_block);
+
+  it = std::prev(std::prev(to_fn->end()));
+  llvm::BasicBlock* from_block = &*it;
+  from_block->getTerminator()->eraseFromParent();
+  llvm::IRBuilder<> b(from_block);
+  b.CreateBr(last_block);
 
   for (const auto& [arg, ir_array] :
        llvm::zip(impl_fn->args(), kernel_prototype.arguments)) {
@@ -151,8 +166,13 @@ ElementalKernelEmitter::EmitKernelDefinition() {
   auto fn = b.create<mlir::func::FuncOp>(
       instr_->name(), b.getFunctionType(fn_arg_types, std::nullopt));
 
+  // The `entry_block` is used by `MlirForLoop` to allocate the induction
+  // variable within this block.
   mlir::Block* entry_block = fn.addEntryBlock();
-  b.setInsertionPointToStart(entry_block);
+  mlir::Block* block = fn.addBlock();
+  b.setInsertionPointToEnd(entry_block);
+  b.create<mlir::cf::BranchOp>(block);
+  b.setInsertionPointToStart(block);
 
   auto get_mlir_array = [this, entry_block](const HloInstruction* instr,
                                             int64_t i) {

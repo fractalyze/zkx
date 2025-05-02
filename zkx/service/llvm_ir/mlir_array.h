@@ -5,6 +5,7 @@
 
 #include <vector>
 
+#include "absl/types/span.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 
@@ -22,6 +23,20 @@ class MlirArray {
     explicit Index(mlir::Type index_ty) : index_type_(index_ty) {
       CHECK(index_ty.isInteger());
     }
+
+    // Constructs an index from a multi-dimensional index. `shape` is the shape
+    // for which the multi-dimensional index is used. `index_type` is the type
+    // of the index.
+    //
+    // Precondition: `shape` has a layout.
+    Index(absl::Span<mlir::Value const> multidim, const Shape& shape,
+          mlir::Type index_type);
+
+    // Same as above, but only the dimensions of the shape without layout is
+    // passed. The layout is assumed to be the default (descending
+    // minor-to-major) layout.
+    Index(absl::Span<mlir::Value const> multidim,
+          absl::Span<int64_t const> dimensions, mlir::Type index_type);
 
     const std::vector<mlir::Value>& multidim() const { return multidim_; }
     const std::vector<int64_t>& dims() const { return dims_; }

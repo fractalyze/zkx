@@ -8,6 +8,28 @@
 
 namespace zkx::llvm_ir {
 
+MlirArray::Index::Index(absl::Span<mlir::Value const> multidim,
+                        absl::Span<int64_t const> dimensions,
+                        mlir::Type index_type)
+    : Index(multidim, ShapeUtil::MakeShape(/*arbitrary*/ PRED, dimensions),
+            index_type) {}
+
+MlirArray::Index::Index(absl::Span<mlir::Value const> multidim,
+                        const Shape& shape, mlir::Type index_type)
+    : multidim_(multidim.begin(), multidim.end()),
+      linear_(nullptr),
+      layout_(shape.layout()),
+      dims_(shape.dimensions().begin(), shape.dimensions().end()),
+      index_type_(index_type) {
+  CHECK_EQ(shape.dimensions_size(), multidim.size());
+  for (const mlir::Value dim : multidim) {
+    CHECK(dim);
+  }
+  CHECK(LayoutUtil::HasLayout(shape))
+      << "Shape " << ShapeUtil::HumanStringWithLayout(shape)
+      << " should have a layout.";
+}
+
 MlirArray::MlirArray(mlir::Value base_ptr, mlir::Type pointee_type, Shape shape)
     : base_ptr_(base_ptr),
       pointee_type_(pointee_type),
