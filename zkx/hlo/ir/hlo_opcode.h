@@ -57,6 +57,12 @@ namespace zkx {
 // - HloInstruction::has_to_apply
 // - GetInstructionCallContext
 // - GatherComputationsByAllocationType
+// - ZKX_UNOP_PATTERN
+// - ZKX_BINOP_PATTERN
+// - ZKX_COMMUTATIVE_BINOP_PATTERN
+// - ZKX_NULLOP_PATTERN
+// - ZKX_TERNOP_PATTERN
+// - ZKX_VARIADIC_OP_PATTERN
 #define HLO_OPCODE_LIST(V)                                                     \
   /* go/keep-sorted start */                                                   \
   V(kAdd, "add", 2)                                                            \
