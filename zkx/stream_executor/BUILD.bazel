@@ -303,6 +303,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "stream_common",
+    srcs = ["stream_common.cc"],
+    hdrs = ["stream_common.h"],
+    deps = [
+        ":stream",
+        ":stream_executor",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "stream_executor",
     hdrs = ["stream_executor.h"],
     deps = [
