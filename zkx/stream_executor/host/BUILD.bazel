@@ -3,6 +3,15 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "host_event",
+    hdrs = ["host_event.h"],
+    deps = [
+        "//zkx/stream_executor:event",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "host_platform_id",
     srcs = ["host_platform_id.cc"],
     hdrs = ["host_platform_id.h"],
