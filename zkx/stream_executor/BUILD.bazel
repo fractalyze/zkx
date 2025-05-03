@@ -328,6 +328,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "stream_executor_common",
+    srcs = ["stream_executor_common.cc"],
+    hdrs = ["stream_executor_common.h"],
+    deps = [
+        ":platform",
+        ":stream_executor",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/util:env_var",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "typed_kernel_factory",
     hdrs = ["typed_kernel_factory.h"],
     deps = [
