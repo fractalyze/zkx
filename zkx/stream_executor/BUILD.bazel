@@ -160,6 +160,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "mock_platform",
+    testonly = True,
+    hdrs = ["mock_platform.h"],
+    deps = [
+        ":platform",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
     name = "mock_stream_executor",
     testonly = True,
     hdrs = ["mock_stream_executor.h"],
