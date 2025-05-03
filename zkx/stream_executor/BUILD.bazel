@@ -382,6 +382,7 @@ zkx_cc_unittest(
         "generic_memory_allocator_unittest.cc",
         "kernel_unittest.cc",
         "semantic_version_unittest.cc",
+        "stream_unittest.cc",
     ],
     deps = [
         ":bit_pattern",
