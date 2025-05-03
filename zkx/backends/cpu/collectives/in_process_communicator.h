@@ -36,7 +36,8 @@ namespace zkx::cpu {
 // and works only within a single process.
 class InProcessCommunicator : public Communicator {
  public:
-  InProcessCommunicator(size_t rank, size_t num_ranks): rank_(rank), num_ranks_(num_ranks) {}
+  InProcessCommunicator(size_t rank, size_t num_ranks)
+      : rank_(rank), num_ranks_(num_ranks) {}
 
   absl::Status AllReduce(se::DeviceMemoryBase send_buffer,
                          se::DeviceMemoryBase recv_buffer, PrimitiveType dtype,
