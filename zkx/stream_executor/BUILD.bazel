@@ -82,6 +82,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "host_or_device_scalar",
+    hdrs = ["host_or_device_scalar.h"],
+    deps = [
+        ":device_memory",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
     name = "kernel",
     srcs = ["kernel.cc"],
     hdrs = ["kernel.h"],
