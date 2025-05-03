@@ -129,6 +129,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "memory_allocation",
+    hdrs = ["memory_allocation.h"],
+    deps = [":namespace_alias"],
+)
+
+zkx_cc_library(
     name = "namespace_alias",
     hdrs = ["namespace_alias.h"],
     visibility = ["//visibility:private"],
