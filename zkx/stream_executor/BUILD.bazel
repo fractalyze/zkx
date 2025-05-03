@@ -9,6 +9,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "allocator_stats",
+    srcs = ["allocator_stats.cc"],
+    hdrs = ["allocator_stats.h"],
+    deps = [
+        ":namespace_alias",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "bit_pattern",
     srcs = ["bit_pattern.cc"],
     hdrs = ["bit_pattern.h"],
