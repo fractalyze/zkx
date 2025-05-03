@@ -429,6 +429,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "stream_pool",
+    srcs = ["stream_pool.cc"],
+    hdrs = ["stream_pool.h"],
+    deps = [
+        "//zkx/base:logging",
+        "//zkx/stream_executor",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "time_utils",
     hdrs = ["time_utils.h"],
 )
@@ -471,6 +484,7 @@ zkx_cc_unittest(
         "sharding_config_unittest.cc",
         # TODO(chokobole): Add unittest. Dependency: PlatformUtil::GetStreamExecutors
         # "shaped_buffer_unittest.cc",
+        "stream_pool_unittest.cc",
     ],
     deps = [
         ":compilation_environments",
@@ -482,11 +496,14 @@ zkx_cc_unittest(
         ":rendezvous",
         ":shape_inference",
         ":sharding_config",
+        ":stream_pool",
         ":test_compilation_environment_proto",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
         "//zkx:literal_util",
         "//zkx/hlo/parser:hlo_parser",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor/host:host_platform",
         "//zkx/tests:test_utils",
         "@com_google_absl//absl/synchronization",
     ],
