@@ -380,6 +380,7 @@ zkx_cc_unittest(
         "executor_cache_unittest.cc",
         "generic_memory_allocation_unittest.cc",
         "generic_memory_allocator_unittest.cc",
+        "kernel_unittest.cc",
         "semantic_version_unittest.cc",
     ],
     deps = [
@@ -389,9 +390,14 @@ zkx_cc_unittest(
         ":executor_cache",
         ":generic_memory_allocation",
         ":generic_memory_allocator",
+        ":kernel",
+        ":kernel_spec",
         ":mock_stream_executor",
+        ":platform_manager",
         ":semantic_version",
+        ":typed_kernel_factory",
         "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor/host:host_platform",
         "@com_google_absl//absl/hash:hash_testing",
     ],
 )
