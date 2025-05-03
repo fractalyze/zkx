@@ -108,6 +108,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "executor_cache",
+    srcs = ["executor_cache.cc"],
+    hdrs = ["executor_cache.h"],
+    deps = [
+        ":stream_executor",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "host_or_device_scalar",
     hdrs = ["host_or_device_scalar.h"],
     deps = [
@@ -310,14 +326,17 @@ zkx_cc_unittest(
         "bit_pattern_unittest.cc",
         "device_description_unittest.cc",
         "device_memory_handle_unittest.cc",
+        "executor_cache_unittest.cc",
         "semantic_version_unittest.cc",
     ],
     deps = [
         ":bit_pattern",
         ":device_description",
         ":device_memory_handle",
+        ":executor_cache",
         ":mock_stream_executor",
         ":semantic_version",
+        "//xla/tsl/platform:statusor",
         "@com_google_absl//absl/hash:hash_testing",
     ],
 )
