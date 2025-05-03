@@ -36,6 +36,7 @@ limitations under the License.
 #include "zkx/service/cpu/cpu_options.h"
 #include "zkx/service/cpu/thunk_emitter.h"
 #include "zkx/shape_util.h"
+#include "zkx/util.h"
 
 namespace zkx::cpu {
 
@@ -99,6 +100,86 @@ inline void VlogMaxIsa(std::string_view max_cpu_isa) {
               << "`. This flag is not supported on non-x86 CPUs yet.";
     }
   }
+}
+
+absl::StatusOr<CpuExecutable::ConstantAllocation> LiteralToConstantAllocation(
+    BufferAllocation::Index index, const Literal& literal) {
+  // TODO(ezhulenev): This code is almost identical to code in XLA:GPU, we
+  // should standardize it. See `xla/service/gpu/ir_emission_utils.cc`.
+  PrimitiveType element_type = literal.shape().element_type();
+  if (!primitive_util::IsArrayType(element_type)) {
+    return absl::InternalError(
+        "Only array literals can be converted to constant allocations");
+  }
+
+  int64_t size_bytes = literal.size_bytes();
+  const void* untyped_data = literal.untyped_data();
+
+  // Pack sub-byte types into an XLA storage format.
+  if (primitive_util::IsSubByteNonPredType(element_type)) {
+    int bit_width = primitive_util::BitWidth(element_type);
+    int packed_size_bytes = CeilOfRatio<int64_t>(size_bytes, 8 / bit_width);
+
+    // Use Literal as a storage for packed data as it allocates underlying
+    // buffer with correct alignment. Keep it allocated on heap to avoid
+    // capturing stack address that will be invalidated by a move below.
+    auto packed = std::make_unique<Literal>(
+        ShapeUtil::MakeShape(U8, {packed_size_bytes}));
+
+    PackIntN(
+        bit_width,
+        absl::MakeSpan(reinterpret_cast<const char*>(untyped_data), size_bytes),
+        absl::MakeSpan(reinterpret_cast<char*>(packed->untyped_data()),
+                       packed->size_bytes()));
+
+    return CpuExecutable::ConstantAllocation{index, std::move(packed)};
+  }
+
+  // Create a constant allocation from the literal's untyped data.
+  return CpuExecutable::ConstantAllocation{
+      index, absl::Span<const uint8_t>(
+                 reinterpret_cast<const uint8_t*>(untyped_data), size_bytes)};
+}
+
+// Creates a vector of constant allocations from the given buffer assignment.
+absl::StatusOr<std::vector<CpuExecutable::ConstantAllocation>>
+CreateConstantAllocations(const BufferAssignment& assignment) {
+  std::vector<CpuExecutable::ConstantAllocation> constants;
+
+  for (const BufferAllocation& allocation : assignment.Allocations()) {
+    if (!allocation.is_constant()) {
+      continue;
+    }
+
+    // Find the constant instruction defining the value for allocation.
+    HloInstruction* const_instr = nullptr;
+    for (const auto& [value, _] : allocation.assigned_buffers()) {
+      // Multiple aliasing instructions can share the allocation, we need to
+      // find the original constant instruction that defines the value.
+      if (value->instruction()->opcode() == HloOpcode::kConstant) {
+        if (const_instr != nullptr) {
+          return absl::InternalError(
+              absl::StrCat("Multiple constant instructions define buffer ",
+                           allocation.ToString()));
+        }
+        const_instr = value->instruction();
+      }
+    }
+    if (const_instr == nullptr) {
+      return absl::InternalError(
+          absl::StrCat("Could not find constant instruction defining buffer ",
+                       allocation.ToString()));
+    }
+
+    VLOG(3) << "Create constant allocation for index " << allocation.index()
+            << " from constant literal " << const_instr->name()
+            << "; shape=" << const_instr->literal().shape();
+    TF_ASSIGN_OR_RETURN(constants.emplace_back(),
+                        LiteralToConstantAllocation(allocation.index(),
+                                                    const_instr->literal()));
+  }
+
+  return constants;
 }
 
 }  // namespace
@@ -246,15 +327,14 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
                       std::move(jit_compiler).Compile(compiled_symbols));
 
   // Create constant allocations from the buffer assignment.
-  // TODO(chokobole): Uncomment this. Dependency: CreateConstantAllocations
-  // TF_ASSIGN_OR_RETURN(std::vector<CpuExecutable::ConstantAllocation>
-  // constants,
-  //                     CreateConstantAllocations(*assignment));
+  TF_ASSIGN_OR_RETURN(std::vector<CpuExecutable::ConstantAllocation> constants,
+                      CreateConstantAllocations(*assignment));
 
   TF_ASSIGN_OR_RETURN(
       auto cpu_executable,
       CpuExecutable::Create(std::move(function_library), std::move(assignment),
-                            std::move(module), std::move(thunks)));
+                            std::move(module), std::move(thunks),
+                            std::move(constants)));
 
   return std::move(cpu_executable);
   // TODO(chokobole): Implement other branch.
