@@ -26,7 +26,6 @@ limitations under the License.
 #include <variant>
 
 #include "zkx/stream_executor/launch_dim.h"
-#include "zkx/stream_executor/namespace_alias.h"
 #include "zkx/stream_executor/semantic_version.h"
 
 namespace stream_executor {

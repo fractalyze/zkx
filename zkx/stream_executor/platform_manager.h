@@ -69,7 +69,6 @@ limitations under the License.
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
-#include "zkx/stream_executor/namespace_alias.h"
 #include "zkx/stream_executor/platform.h"
 
 namespace stream_executor {

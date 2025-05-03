@@ -7,7 +7,6 @@ zkx_cc_library(
     hdrs = ["device_description.h"],
     deps = [
         ":launch_dim",
-        ":namespace_alias",
         ":semantic_version",
         "//xla/tsl/lib/math:math_util",
         "//zkx/base:logging",
@@ -29,7 +28,6 @@ zkx_cc_library(
     hdrs = ["device_memory_allocator.h"],
     deps = [
         ":device_memory",
-        ":namespace_alias",
         ":platform",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:status",
@@ -68,7 +66,6 @@ zkx_cc_library(
     hdrs = ["platform.h"],
     deps = [
         ":device_description",
-        ":namespace_alias",
         "@com_google_absl//absl/status:statusor",
     ],
 )
@@ -78,7 +75,6 @@ zkx_cc_library(
     srcs = ["platform_manager.cc"],
     hdrs = ["platform_manager.h"],
     deps = [
-        ":namespace_alias",
         ":platform",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",

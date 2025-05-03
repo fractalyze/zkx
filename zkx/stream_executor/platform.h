@@ -25,7 +25,6 @@ limitations under the License.
 #include "absl/status/statusor.h"
 
 #include "zkx/stream_executor/device_description.h"
-#include "zkx/stream_executor/namespace_alias.h"
 
 namespace stream_executor {
 
