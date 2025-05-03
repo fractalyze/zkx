@@ -82,6 +82,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "kernel",
+    srcs = ["kernel.cc"],
+    hdrs = ["kernel.h"],
+    deps = [
+        ":device_memory",
+        ":launch_dim",
+        ":stream",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "launch_dim",
     hdrs = ["launch_dim.h"],
     deps = [
