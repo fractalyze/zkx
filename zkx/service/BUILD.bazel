@@ -382,6 +382,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "service_executable_run_options",
+    hdrs = ["service_executable_run_options.h"],
+    deps = [
+        ":stream_pool",
+        "//xla/tsl/platform:statusor",
+        "//zkx:executable_run_options",
+        "//zkx/stream_executor",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "shape_inference",
     srcs = ["shape_inference.cc"],
     hdrs = ["shape_inference.h"],
