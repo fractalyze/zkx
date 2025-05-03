@@ -12,6 +12,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "host_executor",
+    srcs = ["host_executor.cc"],
+    hdrs = ["host_executor.h"],
+    deps = [
+        ":host_event",
+        ":host_stream_factory",
+        "//xla/tsl/platform:cpu_info",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:mem",
+        "//xla/tsl/platform/profile_utils:cpu_utils",
+        "//zkx/stream_executor:executor_cache",
+        "//zkx/stream_executor:generic_memory_allocation",
+        "//zkx/stream_executor:generic_memory_allocator",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:stream_executor_common",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "host_platform_id",
     srcs = ["host_platform_id.cc"],
     hdrs = ["host_platform_id.h"],
