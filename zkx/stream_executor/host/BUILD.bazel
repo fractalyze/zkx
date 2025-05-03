@@ -32,3 +32,14 @@ zkx_cc_library(
         "@com_google_absl//absl/synchronization",
     ],
 )
+
+zkx_cc_library(
+    name = "host_stream_factory",
+    srcs = ["host_stream_factory.cc"],
+    hdrs = ["host_stream_factory.h"],
+    deps = [
+        ":host_stream",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
