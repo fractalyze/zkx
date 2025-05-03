@@ -99,6 +99,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "kernel_spec",
+    srcs = ["kernel_spec.cc"],
+    hdrs = ["kernel_spec.h"],
+    deps = [
+        ":namespace_alias",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "launch_dim",
     hdrs = ["launch_dim.h"],
     deps = [
