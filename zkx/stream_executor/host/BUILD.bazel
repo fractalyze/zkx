@@ -32,6 +32,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "host_platform",
+    srcs = ["host_platform.cc"],
+    hdrs = ["host_platform.h"],
+    deps = [
+        ":host_executor",
+        ":host_platform_id",
+        "//zkx/stream_executor:executor_cache",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor/platform:initialize",
+    ],
+)
+
+zkx_cc_library(
     name = "host_platform_id",
     srcs = ["host_platform_id.cc"],
     hdrs = ["host_platform_id.h"],
