@@ -3,6 +3,12 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "activate_context",
+    hdrs = ["activate_context.h"],
+    deps = [":namespace_alias"],
+)
+
+zkx_cc_library(
     name = "bit_pattern",
     srcs = ["bit_pattern.cc"],
     hdrs = ["bit_pattern.h"],
