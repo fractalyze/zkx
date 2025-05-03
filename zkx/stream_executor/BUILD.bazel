@@ -236,6 +236,31 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "stream_executor",
+    hdrs = ["stream_executor.h"],
+    deps = [
+        ":activate_context",
+        ":allocator_stats",
+        ":command_buffer",
+        ":device_description",
+        ":device_memory",
+        ":event",
+        ":event_based_timer",
+        ":kernel",
+        ":kernel_spec",
+        ":memory_allocation",
+        ":memory_allocator",
+        ":module_spec",
+        ":platform",
+        ":stream",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
 zkx_cc_unittest(
     name = "stream_executor_unittests",
     srcs = [
