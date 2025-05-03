@@ -22,7 +22,6 @@ limitations under the License.
 
 #include "zkx/stream_executor/device_memory.h"
 #include "zkx/stream_executor/device_memory_allocator.h"
-#include "zkx/stream_executor/namespace_alias.h"
 
 namespace zkx {
 

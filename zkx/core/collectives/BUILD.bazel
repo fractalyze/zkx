@@ -77,7 +77,6 @@ zkx_cc_library(
         "//zkx:zkx_data_proto",
         "//zkx/service:collective_ops_utils",
         "//zkx/stream_executor:device_memory",
-        "//zkx/stream_executor:namespace_alias",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
