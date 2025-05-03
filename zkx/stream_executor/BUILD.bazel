@@ -133,6 +133,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "generic_memory_allocator",
+    hdrs = ["generic_memory_allocator.h"],
+    deps = [
+        ":memory_allocation",
+        ":memory_allocator",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "host_or_device_scalar",
     hdrs = ["host_or_device_scalar.h"],
     deps = [
@@ -337,6 +348,7 @@ zkx_cc_unittest(
         "device_memory_handle_unittest.cc",
         "executor_cache_unittest.cc",
         "generic_memory_allocation_unittest.cc",
+        "generic_memory_allocator_unittest.cc",
         "semantic_version_unittest.cc",
     ],
     deps = [
@@ -345,6 +357,7 @@ zkx_cc_unittest(
         ":device_memory_handle",
         ":executor_cache",
         ":generic_memory_allocation",
+        ":generic_memory_allocator",
         ":mock_stream_executor",
         ":semantic_version",
         "//xla/tsl/platform:statusor",
