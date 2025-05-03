@@ -68,6 +68,11 @@ message DebugOptions {
   // If true, a set of expensive LLVM optimization passes will not be run.
   bool zkx_llvm_disable_expensive_passes = 73;
 
+  // If true, every time an HLO module is run, we will dump an HloSnapshot
+  // (essentially, a serialized module plus its inputs) to the --zkx_dump_to
+  // directory.
+  bool zkx_dump_hlo_snapshots = 118;
+
   // Per-heap size constraint. New heaps will be created if per-heap max size is
   // reached.
   int32 zkx_multiheap_size_constraint_per_heap = 142;

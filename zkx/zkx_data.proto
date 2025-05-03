@@ -334,6 +334,42 @@ message OpMetadata {
   string scheduling_name = 15;
 }
 
+// Profile data from the execution of a computation.
+message ExecutionProfile {
+  // Whether the executable was read from the compilation cache.
+  bool compilation_cache_hit = 1;
+
+  // The time in milliseconds spent to compile the computation. This only set if
+  // the executable was not read from the compilation cache
+  // (compilation_cache_hit == false).
+  int64 compile_time_ms = 2;
+
+  // The number of cycles spent for the computation. This does not include the
+  // time taken for the data transfers between the host and the device. This is
+  // a target-dependent field and only used for debugging purposes.
+  int64 compute_cycle_count = 3;
+
+  // The time in nanoseconds spent for the computation, without data transfer.
+  int64 compute_time_ns = 4;
+
+  // The time in nanoseconds spent for the entire computation, including the
+  // result data transfer time. Current implementation does not spend any cycles
+  // for the input data transfer since the memory is initialized with the proper
+  // values before the execution.
+  int64 compute_and_transfer_time_ns = 5;
+
+  // The size of the binary code in the executable.
+  int64 executable_size_in_bytes = 6;
+
+  // Whether this profile was drawn from a cache of profiles instead of from
+  // execution on the hardware.
+  bool profile_cache_hit = 7;
+
+  // Whether a warm-up run of the computation was executed before the
+  // measured execution.
+  bool warmup_run_executed = 8;
+}
+
 // DeviceAssignmentProto is a serialized form of DeviceAssignment class, which
 // represents the device ids assigned to a set of replicated computations.
 // See zkx::DeviceAssignment class comment for more details.
