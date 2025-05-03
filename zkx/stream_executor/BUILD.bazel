@@ -29,6 +29,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "command_buffer",
+    hdrs = ["command_buffer.h"],
+    deps = [
+        ":bit_pattern",
+        ":device_memory",
+        ":kernel",
+        ":launch_dim",
+        "//xla/tsl/lib/gtl:int_type",
+        "//xla/tsl/platform:errors",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "device_description",
     hdrs = ["device_description.h"],
     deps = [
