@@ -46,6 +46,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "event_based_timer",
+    hdrs = ["event_based_timer.h"],
+    deps = [
+        ":namespace_alias",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+zkx_cc_library(
     name = "launch_dim",
     hdrs = ["launch_dim.h"],
     deps = [
