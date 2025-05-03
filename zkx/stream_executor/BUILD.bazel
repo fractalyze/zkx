@@ -113,6 +113,22 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "stream",
+    hdrs = ["stream.h"],
+    deps = [
+        ":device_memory",
+        ":event",
+        ":event_based_timer",
+        ":launch_dim",
+        ":platform",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
 zkx_cc_unittest(
     name = "stream_executor_unittests",
     srcs = [
