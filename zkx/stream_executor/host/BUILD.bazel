@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -75,5 +75,16 @@ zkx_cc_library(
         ":host_stream",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "host_unittests",
+    srcs = ["host_stream_unittest.cc"],
+    deps = [
+        ":host_platform",
+        ":host_stream",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor:platform_manager",
     ],
 )
