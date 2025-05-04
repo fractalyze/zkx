@@ -147,6 +147,17 @@ zkx_cc_library(
     srcs = ["compiler.cc"],
     hdrs = ["compiler.h"],
     deps = [
+        ":buffer_value",
+        ":computation_placer",
+        ":executable",
+        ":hlo_cost_analysis",
+        "//xla/tsl/platform:env",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_module_group",
+        "//zkx/pjrt/distributed:key_value_store_interface",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory_allocator",
         "//zkx/stream_executor:platform",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -249,6 +260,12 @@ zkx_cc_library(
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
     ],
+)
+
+zkx_cc_library(
+    name = "hlo_cost_analysis",
+    hdrs = ["hlo_cost_analysis.h"],
+    deps = ["//zkx:shape_util"],
 )
 
 zkx_cc_library(

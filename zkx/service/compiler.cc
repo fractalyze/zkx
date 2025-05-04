@@ -26,6 +26,34 @@ namespace zkx {
 ABSL_CONST_INIT absl::Mutex Compiler::platform_compiler_mutex_(
     absl::kConstInit);
 
+std::vector<std::unique_ptr<google::protobuf::Message>>
+Compiler::ComputeBackendConfigs(const HloInstruction& hlo,
+                                se::StreamExecutor* executor) const {
+  CHECK(executor != nullptr);
+  return {};
+}
+
+std::unique_ptr<google::protobuf::Message>
+Compiler::ComputeDefaultBackendConfig(const HloInstruction& hlo,
+                                      se::StreamExecutor* executor) const {
+  CHECK(executor != nullptr);
+  return nullptr;
+}
+
+// Define a default version where metadata is not used.
+absl::StatusOr<std::vector<std::unique_ptr<AotCompilationResult>>>
+Compiler::CompileAheadOfTime(
+    std::unique_ptr<HloModuleGroup> module_group,
+    const AotCompilationOptions& options,
+    std::unique_ptr<AotCompilationMetadata>* metadata) {
+  if (metadata != nullptr) {
+    return absl::UnimplementedError(
+        "Populating AotCompilationMetadata is not implemented on this "
+        "compiler.");
+  }
+  return CompileAheadOfTime(std::move(module_group), options);
+}
+
 // static
 absl::flat_hash_map<se::Platform::Id, Compiler::CompilerFactory>*
 Compiler::GetPlatformCompilerFactories() {
@@ -82,5 +110,9 @@ absl::StatusOr<Compiler*> Compiler::GetForPlatform(
   compilers->insert(std::make_pair(platform->id(), it->second()));
   return compilers->at(platform->id()).get();
 }
+
+AotCompilationOptions::AotCompilationOptions() {}
+// TODO(chokobole): Uncomment this. Dependency: GetDebugOptionsFromFlags()
+// : debug_options_(GetDebugOptionsFromFlags()) {}
 
 }  // namespace zkx
