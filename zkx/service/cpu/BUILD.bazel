@@ -149,6 +149,21 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "runtime_symbol_generator",
+    srcs = ["runtime_symbol_generator.cc"],
+    hdrs = ["runtime_symbol_generator.h"],
+    deps = [
+        ":cpu_runtime",
+        ":runtime_custom_call_status",
+        ":runtime_fork_join",
+        "//zkx/service:custom_call_target_registry",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:OrcJIT",
+        "@llvm-project//mlir:_mlir_c_runner_utils",
+    ],
+)
+
+zkx_cc_library(
     name = "thunk_emitter",
     srcs = ["thunk_emitter.cc"],
     hdrs = ["thunk_emitter.h"],
