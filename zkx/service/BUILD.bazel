@@ -308,6 +308,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "llvm_compiler",
+    srcs = ["llvm_compiler.cc"],
+    hdrs = ["llvm_compiler.h"],
+    deps = [
+        ":compiler",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/log:check",
+        "@llvm-project//llvm:Core",
+    ],
+)
+
+zkx_cc_library(
     name = "logical_buffer",
     srcs = ["logical_buffer.cc"],
     hdrs = ["logical_buffer.h"],
