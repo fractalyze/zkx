@@ -48,6 +48,11 @@ message DebugOptions {
   // the flag for more flexible control if necessary.
   string zkx_cpu_max_isa = 333;
 
+  // The number of parts to split the LLVM module into before codegen. This
+  // allows ZKX to compile all parts in parallel, and resolve kernel symbols
+  // from different dynamic libraries.
+  int32 zkx_cpu_parallel_codegen_split_count = 323;
+
   // A `prefer-vector-width` value that is passed to the LLVM backend. Default
   // value is `256` (AVX2 on x86 platforms).
   int32 zkx_cpu_prefer_vector_width = 308;

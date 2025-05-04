@@ -123,8 +123,9 @@ absl::Status RealMain(int argc, char** argv) {
                       ParseAndReturnUnverifiedModule(hlo_string));
 
   CpuCompiler compiler;
-  TF_ASSIGN_OR_RETURN(std::unique_ptr<CpuExecutable> executable,
-                      compiler.RunBackend(std::move(module)));
+  TF_ASSIGN_OR_RETURN(std::unique_ptr<Executable> executable,
+                      compiler.RunBackend(std::move(module), nullptr,
+                                          Compiler::CompileOptions()));
 
   auto [input1, input2, output] = CreateLiterals(test_case);
   std::vector<Literal*> literals_ptrs = {&output, &input1, &input2};
@@ -135,14 +136,15 @@ absl::Status RealMain(int argc, char** argv) {
                                         // Always return current worker id as 0.
                                         [] { return 0; });
 
+  auto cpu_executable = static_cast<CpuExecutable*>(executable.get());
   Thunk::ExecuteParams params;
-  params.function_library = executable->function_library();
+  params.function_library = cpu_executable->function_library();
   params.buffer_allocations = &allocations;
   params.task_runner = &task_runner;
   params.session =
       Thunk::ExecuteSession(/*max_workers=*/1, /*split_threshold=*/0);
 
-  auto execute_event = executable->thunks().Execute(params);
+  auto execute_event = cpu_executable->thunks().Execute(params);
 
   tsl::BlockUntilReady(execute_event);
   CHECK(execute_event.IsConcrete());

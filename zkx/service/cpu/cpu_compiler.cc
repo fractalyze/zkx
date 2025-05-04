@@ -19,7 +19,12 @@ limitations under the License.
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
+#include "llvm/Bitcode/BitcodeReader.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/Transforms/Utils/SplitModule.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/IR/MLIRContext.h"
 
@@ -30,12 +35,13 @@ limitations under the License.
 #include "zkx/backends/cpu/codegen/cpu_features.h"
 #include "zkx/backends/cpu/codegen/jit_compiler.h"
 #include "zkx/base/logging.h"
-#include "zkx/cpu_function_runtime.h"
 #include "zkx/hlo/transforms/simplifiers/hlo_memory_scheduler.h"
 #include "zkx/service/buffer_value.h"
 #include "zkx/service/cpu/cpu_options.h"
+#include "zkx/service/cpu/runtime_symbol_generator.h"
 #include "zkx/service/cpu/thunk_emitter.h"
 #include "zkx/shape_util.h"
+#include "zkx/stream_executor/host/host_platform_id.h"
 #include "zkx/util.h"
 
 namespace zkx::cpu {
@@ -50,26 +56,56 @@ int64_t memory_alignment(LogicalBuffer::Color) {
   return cpu_function_runtime::MinAlign();
 }
 
-int64_t ShapeSizeBytes(const Shape& shape) {
-  // On the cpu, opaques are pointers.
-  if (shape.IsOpaque()) {
-    return sizeof(void*);
-  }
-  if (shape.is_static() || shape.IsTuple()) {
-    return ShapeUtil::ByteSizeOf(shape, sizeof(void*));
-  }
-  // Each dynamic dimension size is represented as a S32.
-  int64_t metadata_size = sizeof(int32_t) * shape.dimensions_size();
-  return ShapeUtil::ByteSizeOf(shape, sizeof(void*)) + metadata_size;
+std::pair<LlvmCompiler::ModuleHook, LlvmCompiler::ModuleHook> GetIRModuleHooks(
+    const HloModule& hlo_module,
+    const LlvmCompiler::ModuleHook& user_pre_optimization_hook,
+    const LlvmCompiler::ModuleHook& user_post_optimization_hook) {
+  // Create the IR hooks. If applicable, each IR hook does the following:
+  //
+  //  * Calls the user supplied module hook.
+  //  * Writes out the IR to a file in the output directory designated by
+  //    --zkx_dump_to
+  auto hook = [user_pre_optimization_hook, user_post_optimization_hook](
+                  bool optimized, const llvm::Module& llvm_module) {
+    const auto& user_hook =
+        !optimized ? user_pre_optimization_hook : user_post_optimization_hook;
+    if (user_hook) {
+      user_hook(llvm_module);
+    }
+
+    // Include LLVM module identifier suffix in case `llvm_module` is just a
+    // part of the original LLVM module constructed by the ZKX.
+    // TODO(chokobole): Uncomment this. Dependency: DumpIrIfEnabled
+    // std::string_view id = llvm_module.getModuleIdentifier();
+    // size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
+    // llvm_ir::DumpIrIfEnabled(*hlo_module_ptr, llvm_module, optimized,
+    //                          /*filename_suffix=*/id.substr(pos));
+  };
+  return {[hook](const llvm::Module& llvm_module) {
+            return hook(/*optimized=*/false, llvm_module);
+          },
+          [hook](const llvm::Module& llvm_module) {
+            return hook(/*optimized=*/true, llvm_module);
+          }};
 }
 
-// TODO(chokobole): Remove this. Dependency: Compiler
-std::function<int64_t(const BufferValue&)> BufferSizeBytesFunction() {
-  return
-      [](const BufferValue& buffer) { return ShapeSizeBytes(buffer.shape()); };
+absl::Status VerifyLlvmModule(const llvm::Module& llvm_module) {
+  // TODO(chokobole): Uncomment this. Dependency: XLA_SCOPED_LOGGING_TIMER
+  // XLA_SCOPED_LOGGING_TIMER("CpuCompiler - Running LLVM verifier");
+
+  std::string err;
+  llvm::raw_string_ostream err_stream(err);
+
+  // verifyModule() returns true if the module is broken.
+  TF_RET_CHECK(!llvm::verifyModule(llvm_module, &err_stream))
+      << "Invalid LLVM IR before optimizations:\n"
+      << err_stream.str()
+      << "\nThis probably indicates a bug in the HLO -> LLVM IR lowering. "
+         "Rerun with --zkx_dump_to to get the IR. ";
+  return absl::OkStatus();
 }
 
-// Returns a global (per-process) thread pool for XLA CPU compilation tasks.
+// Returns a global (per-process) thread pool for ZKX CPU compilation tasks.
 tsl::thread::ThreadPool* GetCompilationThreadPool() {
   // LLVM compilation has a lot of memory-bound pointer chasing and not
   // so much CPU-bound work. Based on profiling a few examples, 32 threads seems
@@ -88,6 +124,29 @@ JitCompiler::TaskRunner GetCompilationTaskRunner() {
   };
 }
 
+// If LLVM module has large constants constructed from literals, we don't want
+// to split it, because it will cause us to copy large constants across module
+// parts. We should not be storing large constants in LLVM IR in a first place,
+// but while we do that, we have to be extra-careful, or it leads to extremely
+// long compilation times, OOMs and timeouts.
+//
+// TODO(b/361800465): Figure out how to avoid putting large constants into
+// LLVM IR in the first place.
+bool HasLargeConstants(llvm::Module& module) {
+  static constexpr int kMaxConstantSize = 10000;
+  for (llvm::GlobalVariable& g : module.globals()) {
+    if (!g.hasInitializer()) {
+      continue;
+    }
+
+    llvm::Constant* initializer = g.getInitializer();
+    if (auto* arr = llvm::dyn_cast<llvm::ArrayType>(initializer->getType())) {
+      if (arr->getNumElements() > kMaxConstantSize) return true;
+    }
+  }
+  return false;
+}
+
 inline void VlogMaxIsa(std::string_view max_cpu_isa) {
   // TODO(chokobole): Uncomment this. Dependency: VLOG_IS_ON
   // if (VLOG_IS_ON(1) && !max_cpu_isa.empty()) {
@@ -102,10 +161,35 @@ inline void VlogMaxIsa(std::string_view max_cpu_isa) {
   }
 }
 
+// Post-compilation callback functor for use by SimpleOrcJIT.
+//
+// Dumps machine code if dumping is enabled for the module.
+std::function<void(const llvm::Module&, const llvm::object::ObjectFile&)>
+CreateOrcJITPostCompilationHook(const HloModule* hlo_module,
+                                std::vector<std::string>* obj_files) {
+  return [=](const llvm::Module& llvm_module,
+             const llvm::object::ObjectFile& obj_file) {
+    if (obj_files) obj_files->push_back(obj_file.getData().str());
+
+    // clang-format off
+    // TODO(chokobole): Uncomment this. Dependency: DumpingEnabledForHloModule. DumpToFileInDir
+    // clang-format on
+    // if (DumpingEnabledForHloModule(*hlo_module)) {
+    //   std::string_view id = llvm_module.getModuleIdentifier();
+    //   size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
+    //   DumpToFileInDir(
+    //       *hlo_module, /*file_prefix=*/"",
+    //       /*file_suffix=*/absl::StrCat("obj-file.", id.substr(pos), ".o"),
+    //       std::string_view(obj_file.getData().data(),
+    //                        obj_file.getData().size()));
+    // }
+  };
+}
+
 absl::StatusOr<CpuExecutable::ConstantAllocation> LiteralToConstantAllocation(
     BufferAllocation::Index index, const Literal& literal) {
-  // TODO(ezhulenev): This code is almost identical to code in XLA:GPU, we
-  // should standardize it. See `xla/service/gpu/ir_emission_utils.cc`.
+  // TODO(ezhulenev): This code is almost identical to code in ZKX:GPU, we
+  // should standardize it. See `zkx/service/gpu/ir_emission_utils.cc`.
   PrimitiveType element_type = literal.shape().element_type();
   if (!primitive_util::IsArrayType(element_type)) {
     return absl::InternalError(
@@ -115,7 +199,7 @@ absl::StatusOr<CpuExecutable::ConstantAllocation> LiteralToConstantAllocation(
   int64_t size_bytes = literal.size_bytes();
   const void* untyped_data = literal.untyped_data();
 
-  // Pack sub-byte types into an XLA storage format.
+  // Pack sub-byte types into an ZKX storage format.
   if (primitive_util::IsSubByteNonPredType(element_type)) {
     int bit_width = primitive_util::BitWidth(element_type);
     int packed_size_bytes = CeilOfRatio<int64_t>(size_bytes, 8 / bit_width);
@@ -182,7 +266,122 @@ CreateConstantAllocations(const BufferAssignment& assignment) {
   return constants;
 }
 
+// Removes unused globals and function declarations from the LLVM module.
+//
+// After splitting LLVM module into multiple parts, we end up with unused
+// symbols in each part: external globals and function declarations. We don't
+// support linking across modules added to SimpleOrcJIT, and we don't need it,
+// because we never construct LLVM IR that might require cross-module linking,
+// so we can just remove unused symbols from each part.
+void RemoveUnusedSymbols(llvm::Module& module) {
+  llvm::SmallVector<llvm::GlobalVariable*> unused_globals;
+  llvm::SmallVector<llvm::Function*> unused_functions;
+
+  for (llvm::GlobalVariable& gv : module.globals()) {
+    if (gv.use_empty()) unused_globals.push_back(&gv);
+  }
+  for (llvm::Function& f : module.functions()) {
+    if (f.isDeclaration() && f.use_empty()) unused_functions.push_back(&f);
+  }
+
+  for (llvm::GlobalVariable* gv : unused_globals) {
+    module.eraseGlobalVariable(gv);
+  }
+  for (llvm::Function* f : unused_functions) {
+    f->eraseFromParent();
+  }
+}
+
+// Clones a ThreadSafeModule from the given LLVM module in a new LLVM context.
+//
+// To enable parallel compilation, each LLVM module has to be owned by a
+// separate LLVM context. We take each part of the original module after a
+// split, and clone it into a new LLVM context.
+llvm::orc::ThreadSafeModule CloneAsThreadSafeModule(
+    int64_t part, std::unique_ptr<llvm::Module> module) {
+  // TODO(chokobole): Uncomment this. Dependency: Profiler
+  // TraceMe trace([&] {
+  //   return TraceMeEncode("CpuCompiler::CloneAsThreadSafeModule",
+  //                        {{"part", part}});
+  // });
+
+  // There is no way to clone a module from one context to another, so we need
+  // to serialize the module to bitcode and parse it back into the new context.
+  llvm::SmallString<0> bc;
+  llvm::raw_svector_ostream bcos(bc);
+  llvm::WriteBitcodeToFile(*module, bcos);
+
+  // Parse module back into its own LLVM context.
+  auto clone_context = std::make_unique<llvm::LLVMContext>();
+  auto clone_module = llvm::parseBitcodeFile(
+      llvm::MemoryBufferRef(
+          llvm::StringRef(bc.data(), bc.size()),
+          absl::StrFormat("%s_part_%02d", kZkxModuleIdentifier, part)),
+      *clone_context);
+
+  return llvm::orc::ThreadSafeModule(std::move(*clone_module),
+                                     std::move(clone_context));
+}
+
 }  // namespace
+
+se::Platform::Id CpuAotCompilationOptions::PlatformId() const {
+  return se::host::kHostPlatformId;
+}
+
+absl::StatusOr<std::vector<std::unique_ptr<Executable>>> CpuCompiler::Compile(
+    std::unique_ptr<HloModuleGroup> module_group,
+    std::vector<std::vector<se::StreamExecutor*>> executors,
+    const CompileOptions& options) {
+  for (const std::vector<se::StreamExecutor*>& se_vector : executors) {
+    if (se_vector.size() != 1) {
+      return absl::UnimplementedError(
+          "Model partitioning not implemented for the CPU compiler");
+    }
+  }
+  return LlvmCompiler::Compile(std::move(module_group), executors, options);
+}
+
+absl::Status CpuCompiler::RunHloPassesThroughLayoutAssn(
+    HloModule* module, bool is_aot_compile,
+    TargetMachineFeatures* target_machine_features) {
+  return absl::UnimplementedError("...");
+}
+
+absl::Status CpuCompiler::RunHloPassesAfterLayoutAssn(
+    HloModule* module, bool is_aot_compile,
+    TargetMachineFeatures* target_machine_features,
+    const CompileOptions& compile_options) {
+  return absl::UnimplementedError("...");
+}
+
+absl::Status CpuCompiler::RunHloPasses(HloModule* module, bool is_aot_compile,
+                                       llvm::TargetMachine* target_machine,
+                                       const CompileOptions& compile_options) {
+  TargetMachineFeatures target_machine_features(target_machine);
+  TF_RETURN_IF_ERROR(RunHloPassesThroughLayoutAssn(module, is_aot_compile,
+                                                   &target_machine_features));
+
+  return RunHloPassesAfterLayoutAssn(module, is_aot_compile,
+                                     &target_machine_features, compile_options);
+}
+
+absl::StatusOr<std::unique_ptr<HloModule>> CpuCompiler::RunHloPasses(
+    std::unique_ptr<HloModule> module, se::StreamExecutor* /*stream_exec*/,
+    const CompileOptions& options) {
+  const HloModuleConfig& config = module->config();
+
+  TF_ASSIGN_OR_RETURN(
+      std::unique_ptr<llvm::TargetMachine> jit_target_machine,
+      JitCompiler::InferTargetMachine(
+          llvm::TargetOptions(), IrCompiler::GetCodeGenOptLevel(config),
+          CpuFeatureFromString(config.debug_options().zkx_cpu_max_isa())));
+
+  TF_RETURN_IF_ERROR(RunHloPasses(module.get(), /*is_aot_compile=*/false,
+                                  jit_target_machine.get(),
+                                  /*compile_options=*/options));
+  return std::move(module);
+}
 
 absl::StatusOr<std::unique_ptr<CpuExecutable>>
 CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
@@ -192,12 +391,11 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
   //                        {{"name", module->name()}});
   // });
 
-  // TODO(chokobole): Uncomment this. Dependency: GetIRModuleHooks
-  // ModuleHook pre_optimization_ir_hook;
-  // ModuleHook post_optimization_ir_hook;
-  // std::tie(pre_optimization_ir_hook, post_optimization_ir_hook) =
-  //     GetIRModuleHooks(*module, user_pre_optimization_hook_,
-  //                      user_post_optimization_hook_);
+  ModuleHook pre_optimization_ir_hook;
+  ModuleHook post_optimization_ir_hook;
+  std::tie(pre_optimization_ir_hook, post_optimization_ir_hook) =
+      GetIRModuleHooks(*module, user_pre_optimization_hook_,
+                       user_post_optimization_hook_);
 
   // Compile must be thread-safe so create a new LLVM context for the module.
   mlir::DialectRegistry registry;
@@ -214,11 +412,8 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
 
   // We split LLVM module and distribute it across separate DyLibs to enable
   // parallel compilation at run time.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: DebugOptions::zkx_cpu_parallel_codegen_split_count
-  // clang-format on
-  // size_t parallel_codegen_split_count =
-  //     debug_options.zkx_cpu_parallel_codegen_split_count();
+  size_t parallel_codegen_split_count =
+      debug_options.zkx_cpu_parallel_codegen_split_count();
   VlogMaxIsa(debug_options.zkx_cpu_max_isa());
 
   const HloModuleConfig& config = module->config();
@@ -233,35 +428,27 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
       /*disable_loop_unrolling=*/options::DisableLoopUnrolling(config),
   };
 
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: CreateOrcJITPostCompilationHook
-  // clang-format on
   // Compiler hooks to intercept compiled LLVM IR modules.
-  // IrCompiler::CompilationHooks ir_compiler_hooks{
-  //     pre_optimization_ir_hook,
-  //     post_optimization_ir_hook,
-  //     CreateOrcJITPostCompilationHook(module.get(), &obj_files),
-  // };
+  IrCompiler::CompilationHooks ir_compiler_hooks{
+      pre_optimization_ir_hook,
+      post_optimization_ir_hook,
+      CreateOrcJITPostCompilationHook(module.get(), &obj_files),
+  };
 
   // Definition generator to link with ZKX:CPU host runtime symbols.
-  // TODO(chokobole): Uncomment this. Dependency: RuntimeSymbolGenerator
-  // ExecutionEngine::DefinitionGenerator definition_generator =
-  //     [](const llvm::DataLayout& data_layout) {
-  //       return std::make_unique<RuntimeSymbolGenerator>(data_layout);
-  //     };
+  ExecutionEngine::DefinitionGenerator definition_generator =
+      [](const llvm::DataLayout& data_layout) {
+        return std::make_unique<RuntimeSymbolGenerator>(data_layout);
+      };
 
   // Options for orchestrating the JIT compilation process.
-  // JitCompiler::Options jit_compiler_options{
-  //     std::move(ir_compiler_options),
-  //     std::move(ir_compiler_hooks),
-  //     /*num_dylibs=*/parallel_codegen_split_count,
-  //     /*definition_generator=*/std::move(definition_generator),
-  //     /*max_cpu_isa=*/CpuFeatureFromString(debug_options.xla_cpu_max_isa()),
-  // };
-  JitCompiler::Options jit_compiler_options;
-  jit_compiler_options.ir_compiler_options = std::move(ir_compiler_options);
-  jit_compiler_options.max_cpu_feature =
-      CpuFeatureFromString(debug_options.zkx_cpu_max_isa());
+  JitCompiler::Options jit_compiler_options{
+      std::move(ir_compiler_options),
+      std::move(ir_compiler_hooks),
+      /*num_dylibs=*/parallel_codegen_split_count,
+      /*definition_generator=*/std::move(definition_generator),
+      /*max_cpu_isa=*/CpuFeatureFromString(debug_options.zkx_cpu_max_isa()),
+  };
 
   TF_ASSIGN_OR_RETURN(JitCompiler jit_compiler,
                       JitCompiler::Create(llvm::TargetOptions(),
@@ -305,6 +492,65 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
   TF_ASSIGN_OR_RETURN(ThunkSequence thunks,
                       thunk_emitter.EmitEntryComputation(*module));
 
+  TF_RETURN_IF_ERROR(VerifyLlvmModule(*llvm_module));
+  for (const auto& [name, module] : thunk_emitter.kernels()) {
+    TF_RETURN_IF_ERROR(VerifyLlvmModule(*module.getModuleUnlocked()));
+  }
+
+  // We define the number of module parts based on the total number of
+  // compiled functions (kernels and comparators) that are called from thunks,
+  // and the maximum number of parts that we want to split the module into.
+  size_t num_compiled_functions = thunk_emitter.kernels().size();
+  size_t num_parts =
+      std::min(num_compiled_functions, parallel_codegen_split_count);
+
+  if (HasLargeConstants(*llvm_module)) {
+    VLOG(3) << "Skip parallel compilation due to large constants";
+    num_parts = 1;
+  }
+
+  if (num_parts > 1) {
+    VLOG(3) << "Split LLVM module into " << num_parts
+            << " parts before codegen to enable parallel compilation"
+            << " (max split count: " << parallel_codegen_split_count << ")";
+
+    // TODO(chokobole): Uncomment this. Dependency: Profiler
+    // TraceMe trace([&] {
+    //   return TraceMeEncode("SplitModule", {{"num_parts", num_parts}});
+    // });
+
+    llvm::SplitModule(
+        *llvm_module, num_parts,
+        [&, n = 0](std::unique_ptr<llvm::Module> llvm_module_part) mutable {
+          // Collect symbols that are compiled in this LLVM module part.
+          RemoveUnusedSymbols(*llvm_module_part);
+          // clang-format off
+          // TODO(chokobole): Uncomment this. Dependency: CollectCompiledSymbolsPart
+          // clang-format on
+          // compiled_parts.push_back(
+          //     CollectCompiledSymbolsPart(ir_emitter2, *llvm_module_part));
+
+          // Clone LLVM module part into its own thread safe context.
+          auto tsm = CloneAsThreadSafeModule(n, std::move(llvm_module_part));
+          TF_CHECK_OK(
+              jit_compiler.AddModule(std::move(tsm), /*dylib_index=*/n++));
+        },
+        /*PreserveLocals=*/true, /*RoundRobin=*/true);
+
+    // Free resources used by the original LLVM module.
+    llvm_module.reset();
+    llvm_context.reset();
+
+  } else {
+    VLOG(3) << "Compile LLVM module without splitting (max split count: "
+            << parallel_codegen_split_count << ")";
+    // TODO(chokobole): Uncomment this. Dependency: CollectCompiledSymbolsPart
+    // compiled_parts.push_back(
+    //     CollectCompiledSymbolsPart(ir_emitter2, *llvm_module));
+    TF_CHECK_OK(jit_compiler.AddModule(llvm::orc::ThreadSafeModule(
+        std::move(llvm_module), std::move(llvm_context))));
+  }
+
   // Collect compiled symbols from all LLVM module parts.
   std::vector<FunctionLibrary::Symbol> compiled_symbols;
   for (auto& [name, module] : thunk_emitter.kernels()) {
@@ -336,13 +582,31 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
                             std::move(module), std::move(thunks),
                             std::move(constants)));
 
+  // Save object files to be able to export them to AOT compilation
+  // result.
+  cpu_executable->set_obj_files(std::move(obj_files));
+
+  // Save compiled symbols to be able to export them to AOT compilation
+  // result.
+  cpu_executable->set_compiled_symbols(std::move(compiled_symbols));
+
+  // Save mapping between symbol type id and function type id to be able to
+  // export them to AOT compilation result.
+  // clang-format off
+  // TODO(chokobole): Uncomment this. Dependency: symbol_type_id_to_function_type_id
+  // clang-format on
+  // cpu_executable->set_symbol_type_id_to_function_type_id(
+  //     symbol_type_id_to_function_type_id);
+
   return std::move(cpu_executable);
   // TODO(chokobole): Implement other branch.
   // if (!module->config().debug_options().xla_cpu_use_thunk_runtime()) {
 }
 
-absl::StatusOr<std::unique_ptr<CpuExecutable>> CpuCompiler::RunBackend(
-    std::unique_ptr<HloModule> module) {
+absl::StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
+    std::unique_ptr<HloModule> module,
+    [[maybe_unused]] se::StreamExecutor* executor,
+    [[maybe_unused]] const CompileOptions& options) {
   // TODO(chokobole): Uncomment this. Dependency: Profiler
   // TraceMe trace([&] {
   //   return TraceMeEncode("CpuCompiler::RunBackend", {{"name",
@@ -370,14 +634,15 @@ absl::StatusOr<std::unique_ptr<CpuExecutable>> CpuCompiler::RunBackend(
   std::unique_ptr<CpuExecutable> cpu_executable;
   TF_ASSIGN_OR_RETURN(cpu_executable, CompileCpuExecutable(std::move(module)));
 
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: CpuExecutable::set_debug_info
-  // clang-format on
-  // cpu_executable->set_debug_info(
-  //     cpu_executable->buffer_assignment().StatsString(
-  //         /*report_total_fragmentation=*/true));
+  cpu_executable->set_debug_info(
+      cpu_executable->buffer_assignment().StatsString(
+          /*report_total_fragmentation=*/true));
   VLOG(1) << "Compilation finished";
   return std::unique_ptr<CpuExecutable>(std::move(cpu_executable));
+}
+
+se::Platform::Id CpuCompiler::PlatformId() const {
+  return se::host::kHostPlatformId;
 }
 
 absl::StatusOr<HloSchedule> CpuCompiler::CreateHloSchedule(
