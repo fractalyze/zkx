@@ -110,6 +110,21 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "xfeed_manager",
+    srcs = ["xfeed_manager.cc"],
+    hdrs = ["xfeed_manager.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
 zkx_cc_binary(
     name = "demo",
     srcs = ["demo.cc"],
