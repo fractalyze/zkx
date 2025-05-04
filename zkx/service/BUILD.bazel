@@ -197,6 +197,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "custom_call_target_registry",
+    srcs = ["custom_call_target_registry.cc"],
+    hdrs = ["custom_call_target_registry.h"],
+)
+
+zkx_cc_library(
     name = "elemental_ir_emitter",
     srcs = ["elemental_ir_emitter.cc"],
     hdrs = ["elemental_ir_emitter.h"],
@@ -538,6 +544,7 @@ zkx_cc_unittest(
         "compilation_environments_unittest.cc",
         "custom_call_status_test_c_caller.c",
         "custom_call_status_test_c_caller.h",
+        "custom_call_target_registry_unittest.cc",
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
         # "elemental_ir_emitter_unittest.cc"
         "hlo_module_config_unittest.cc",
@@ -556,6 +563,7 @@ zkx_cc_unittest(
     deps = [
         ":compilation_environments",
         ":custom_call_status",
+        ":custom_call_target_registry",
         ":hlo_module_config",
         ":mapped_ptr_container_sorter",
         ":name_uniquer",
