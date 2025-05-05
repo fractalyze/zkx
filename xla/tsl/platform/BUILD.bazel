@@ -163,6 +163,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "random",
+    srcs = ["random.cc"],
+    hdrs = ["random.h"],
+    deps = [
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "scanner",
     srcs = ["scanner.cc"],
     hdrs = ["scanner.h"],
@@ -222,6 +232,7 @@ zkx_cc_unittest(
         "hash_unittest.cc",
         "numbers_unittest.cc",
         "path_unittest.cc",
+        "random_unittest.cc",
         "scanner_unittest.cc",
         "subprocess_unittest.cc",
     ],
@@ -238,6 +249,7 @@ zkx_cc_unittest(
         ":hash",
         ":numbers",
         ":path",
+        ":random",
         ":scanner",
         ":subprocess",
         ":test_util",
