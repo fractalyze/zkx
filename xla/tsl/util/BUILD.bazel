@@ -1,6 +1,19 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "device_name_utils",
+    srcs = ["device_name_utils.cc"],
+    hdrs = ["device_name_utils.h"],
+    deps = [
+        "//xla/tsl/platform:str_util",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
 
 zkx_cc_library(
     name = "env_var",
@@ -9,6 +22,16 @@ zkx_cc_library(
     deps = [
         "//xla/tsl/platform:errors",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "util_unittests",
+    srcs = ["device_name_utils_unittest.cc"],
+    deps = [
+        ":device_name_utils",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
     ],
 )
