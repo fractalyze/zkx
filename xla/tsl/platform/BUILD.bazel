@@ -215,6 +215,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "str_util",
+    srcs = ["str_util.cc"],
+    hdrs = ["str_util.h"],
+)
+
+zkx_cc_library(
     name = "subprocess",
     srcs = if_posix([
         "subprocess_posix.cc",
@@ -251,6 +257,7 @@ zkx_cc_unittest(
         "random_unittest.cc",
         "scanner_unittest.cc",
         "status_matchers_unittest.cc",
+        "str_util_unittest.cc",
         "subprocess_unittest.cc",
     ],
     data = [
@@ -269,6 +276,7 @@ zkx_cc_unittest(
         ":random",
         ":scanner",
         ":status_matchers",
+        ":str_util",
         ":subprocess",
         ":test_util",
     ],
