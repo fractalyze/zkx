@@ -3,6 +3,11 @@ load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
 package(default_visibility = ["//visibility:public"])
 
 cc_proto_library(
+    name = "coordination_config_proto",
+    srcs = ["coordination_config.proto"],
+)
+
+cc_proto_library(
     name = "coordination_service_proto",
     srcs = ["coordination_service.proto"],
     deps = ["@com_google_protobuf//:cc_wkt_protos"],

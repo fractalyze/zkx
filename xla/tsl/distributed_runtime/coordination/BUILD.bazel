@@ -13,6 +13,35 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "coordination_service_agent",
+    srcs = ["coordination_service_agent.cc"],
+    hdrs = ["coordination_service_agent.h"],
+    deps = [
+        ":coordination_client",
+        ":coordination_service_error_util",
+        "//xla/tsl/distributed_runtime:call_options",
+        "//xla/tsl/framework:cancellation",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:random",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/protobuf:coordination_config_proto",
+        "//xla/tsl/protobuf:coordination_service_proto",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+zkx_cc_library(
     name = "coordination_service_error_util",
     srcs = ["coordination_service_error_util.cc"],
     hdrs = ["coordination_service_error_util.h"],
@@ -30,5 +59,18 @@ zkx_cc_unittest(
     deps = [
         ":coordination_service_error_util",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "coordination_service_agent_unittest",
+    timeout = "moderate",
+    srcs = ["coordination_service_agent_unittest.cc"],
+    deps = [
+        ":coordination_service_agent",
+        ":coordination_service_error_util",
+        "//xla/tsl/platform:status_matchers",
+        "//xla/tsl/protobuf:coordination_config_proto",
+        "@com_google_absl//absl/log:check",
     ],
 )
