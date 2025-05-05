@@ -1,3 +1,4 @@
+load("//bazel:zkx.bzl", "if_android")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -10,6 +11,19 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "logging",
+    srcs = ["logging.cc"],
     hdrs = ["logging.h"],
-    deps = ["@com_google_absl//absl/log"],
+    deps = [
+        "//xla/tsl/platform",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+    ] + if_android(
+        [],
+        [
+            "@com_google_absl//absl/base",
+            "@com_google_absl//absl/strings:str_format",
+            "//xla/tsl/platform:env_time",
+        ],
+    ),
 )
