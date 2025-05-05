@@ -110,7 +110,8 @@ class EnvPosix : public Env {
     return new PThread(thread_options, name, std::move(fn));
   }
 
-  void SleepForMicroseconds(int64_t micros) override {
+  void Sleep(absl::Duration duration) override {
+    int64_t micros = absl::ToInt64Microseconds(duration);
     while (micros > 0) {
       timespec sleep_time;
       sleep_time.tv_sec = 0;

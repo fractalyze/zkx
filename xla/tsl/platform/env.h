@@ -27,6 +27,7 @@ limitations under the License.
 #include "absl/functional/any_invocable.h"
 #include "absl/status/status.h"
 #include "absl/strings/ascii.h"
+#include "absl/time/time.h"
 #include "google/protobuf/message.h"
 
 #include "xla/tsl/platform/env_time.h"
@@ -421,8 +422,8 @@ class Env {
   /// \brief Returns the number of seconds since the Unix epoch.
   virtual uint64_t NowSeconds() const { return EnvTime::NowSeconds(); }
 
-  /// Sleeps/delays the thread for the prescribed number of micro-seconds.
-  virtual void SleepForMicroseconds(int64_t micros) = 0;
+  /// Sleeps/delays the thread for the prescribed duration.
+  virtual void Sleep(absl::Duration duration) = 0;
 
   /// Returns the process ID of the calling process.
   int32_t GetProcessId();

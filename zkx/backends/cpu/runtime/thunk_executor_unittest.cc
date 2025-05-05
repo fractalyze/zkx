@@ -424,7 +424,7 @@ class NoOpAsyncThunk : public Thunk {
   tsl::AsyncValueRef<ExecuteEvent> Execute(const ExecuteParams&) final {
     auto ret = tsl::MakeConstructedAsyncValueRef<ExecuteEvent>();
     ThreadPool()->Schedule([ret] {
-      tsl::Env::Default()->SleepForMicroseconds(10 * 1000);
+      tsl::Env::Default()->Sleep(absl::Microseconds(10 * 1000));
       ret.SetStateConcrete();
     });
     return ret;
