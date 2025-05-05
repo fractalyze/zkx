@@ -166,6 +166,25 @@ class EnvPosix : public Env {
 #endif
   }
 
+  void SchedClosure(absl::AnyInvocable<void()> closure) override {
+    // TODO(b/27290852): Spawning a new thread here is wasteful, but
+    // needed to deal with the fact that many `closure` functions are
+    // blocking in the current codebase.
+    std::thread closure_thread(std::move(closure));
+    closure_thread.detach();
+  }
+
+  void SchedClosureAfter(absl::Duration duration,
+                         absl::AnyInvocable<void()> closure) override {
+    // TODO(b/27290852): Consuming a thread here is wasteful, but this
+    // code is (currently) only used in the case where a step fails
+    // (AbortStep). This could be replaced by a timer thread
+    SchedClosure([this, duration, closure = std::move(closure)]() mutable {
+      Sleep(duration);
+      closure();
+    });
+  }
+
   std::string GetRunfilesDir() override {
     std::string bin_path = this->GetExecutablePath();
     std::string runfiles_suffix = ".runfiles/org_tensorflow";

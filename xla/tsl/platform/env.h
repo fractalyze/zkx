@@ -446,6 +446,18 @@ class Env {
   // Copies current thread name to "name". Returns true if success.
   virtual bool GetCurrentThreadName(std::string* name) = 0;
 
+  // \brief Schedules the given closure on a thread-pool.
+  //
+  // NOTE(mrry): This closure may block.
+  virtual void SchedClosure(absl::AnyInvocable<void()> closure) = 0;
+
+  // \brief Schedules the given closure on a thread-pool after the given number
+  // of duration.
+  //
+  // NOTE(mrry): This closure must not block.
+  virtual void SchedClosureAfter(absl::Duration duration,
+                                 absl::AnyInvocable<void()> closure) = 0;
+
   // Returns a possible list of local temporary directories.
   virtual void GetLocalTempDirectories(std::vector<std::string>* list) = 0;
 
