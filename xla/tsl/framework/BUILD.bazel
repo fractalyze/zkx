@@ -1,0 +1,26 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "cancellation",
+    srcs = ["cancellation.cc"],
+    hdrs = ["cancellation.h"],
+    deps = [
+        "//xla/tsl/lib/gtl:flatmap",
+        "//xla/tsl/platform:status",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "framework_unittests",
+    srcs = ["cancellation_unittest.cc"],
+    deps = [
+        ":cancellation",
+        "//xla/tsl/platform:env",
+    ],
+)
