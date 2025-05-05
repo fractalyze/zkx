@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -9,5 +9,26 @@ zkx_cc_library(
         "//xla/tsl/distributed_runtime:call_options",
         "//xla/tsl/platform:status",
         "//xla/tsl/protobuf:coordination_service_proto",
+    ],
+)
+
+zkx_cc_library(
+    name = "coordination_service_error_util",
+    srcs = ["coordination_service_error_util.cc"],
+    hdrs = ["coordination_service_error_util.h"],
+    deps = [
+        "//xla/tsl/protobuf:coordination_service_proto",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_googlesource_code_re2//:re2",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "coordination_unittests",
+    srcs = ["coordination_service_error_util_unittest.cc"],
+    deps = [
+        ":coordination_service_error_util",
+        "@com_google_absl//absl/strings",
     ],
 )
