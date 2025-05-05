@@ -5,8 +5,6 @@
 
 namespace zkx::base {
 
-std::string HumanReadableElapsedTime(double seconds);
-
 std::string_view BoolToString(bool b);
 
 }  // namespace zkx::base
