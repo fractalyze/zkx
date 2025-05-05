@@ -47,29 +47,14 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 39,40d9
 < # Todo(bmzhao): Remaining targets to add to this BUILD file are: all tests.
 <
-44,49d12
+44c13,16
 <     deps = [":flatset"],
-< )
-<
-< cc_library(
-<     name = "flatmap",
-<     hdrs = ["flatmap.h"],
-51,54c14,15
-<         ":flatrep",
-<         "//xla/tsl/platform:logging",
-<         "//xla/tsl/platform:types",
-<         "@tsl//tsl/platform:hash",
 ---
+>     deps = [
 >         ":flatset",
 >         "@com_google_absl//absl/log:check",
-61,64c22
-<     deps = [
-<         "//xla/tsl/platform:types",
-<         "@com_google_absl//absl/base:prefetch",
-<     ],
----
->     deps = ["@com_google_absl//absl/base:prefetch"],
-72,74c30,32
+>     ],
+52,54c24,26
 <         "//xla/tsl/platform:logging",
 <         "//xla/tsl/platform:types",
 <         "@tsl//tsl/platform:hash",
@@ -77,7 +62,22 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 >         "//xla/tsl/platform:hash",
 >         "//zkx/base:logging",
 >         "@com_google_absl//absl/log:check",
-79,89d36
+61,64c33
+<     deps = [
+<         "//xla/tsl/platform:types",
+<         "@com_google_absl//absl/base:prefetch",
+<     ],
+---
+>     deps = ["@com_google_absl//absl/base:prefetch"],
+72,74c41,43
+<         "//xla/tsl/platform:logging",
+<         "//xla/tsl/platform:types",
+<         "@tsl//tsl/platform:hash",
+---
+>         "//xla/tsl/platform:hash",
+>         "//zkx/base:logging",
+>         "@com_google_absl//absl/log:check",
+79,89d47
 <     name = "inlined_vector",
 <     hdrs = ["inlined_vector.h"],
 <     deps = [
@@ -89,24 +89,24 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 < )
 <
 < cc_library(
-93,94c40,41
+93,94c51,52
 <         "//xla/tsl/platform:macros",
 <         "//xla/tsl/platform:types",
 ---
 >         "@com_google_absl//absl/base:core_headers",
 >         "@com_google_absl//absl/hash",
-100a48,51
+100a59,62
 >     deps = [
 >         "@com_google_absl//absl/base:core_headers",
 >         "@com_google_absl//absl/hash",
 >     ],
-105c56
+105c67
 <     srcs = [
 ---
 >     hdrs = [
-109d59
+109d70
 <     hdrs = ["map_util.h"],
-112,208c62
+112,208c73
 < filegroup(
 <     name = "legacy_lib_gtl_headers",
 <     srcs = [
@@ -206,11 +206,7 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 < tsl_cc_test(
 ---
 > zkx_cc_unittest(
-212d65
-<         "flatmap_test.cc",
-220d72
-<         ":flatmap",
-225,229d76
+225,229d89
 <         "//xla/tsl/platform:macros",
 <         "//xla/tsl/platform:test",
 <         "//xla/tsl/platform:types",
@@ -238,8 +234,100 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/compactptrset_test.cc xla/t
 <   string data = "ABCDEFG";
 ---
 >   std::string data = "ABCDEFG";
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: flatmap.h
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: flatmap_test.cc
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/flatmap.h xla/tsl/lib/gtl/flatmap.h
+25a26,27
+> #include "absl/log/check.h"
+>
+27,29c29,30
+< #include "xla/tsl/platform/logging.h"
+< #include "xla/tsl/platform/types.h"
+< #include "tsl/platform/hash.h"
+---
+> #include "xla/tsl/platform/hash.h"
+> #include "zkx/base/logging.h"
+136c137
+<     iterator(Bucket* b, Bucket* end, uint32 i) : b_(b), end_(end), i_(i) {
+---
+>     iterator(Bucket* b, Bucket* end, uint32_t i) : b_(b), end_(end), i_(i) {
+163c164
+<     uint32 i_;
+---
+>     uint32_t i_;
+195c196
+<     const_iterator(Bucket* b, Bucket* end, uint32 i) : rep_(b, end, i) {}
+---
+>     const_iterator(Bucket* b, Bucket* end, uint32_t i) : rep_(b, end, i) {}
+324c325
+<     uint8 marker[Rep::kWidth];
+---
+>     uint8_t marker[Rep::kWidth];
+336c337
+<     Key& key(uint32 i) {
+---
+>     Key& key(uint32_t i) {
+340c341
+<     Val& val(uint32 i) {
+---
+>     Val& val(uint32_t i) {
+345c346
+<     void InitVal(uint32 i, V&& v) {
+---
+>     void InitVal(uint32_t i, V&& v) {
+348c349
+<     void Destroy(uint32 i) {
+---
+>     void Destroy(uint32_t i) {
+352c353
+<     void MoveFrom(uint32 i, Bucket* src, uint32 src_index) {
+---
+>     void MoveFrom(uint32_t i, Bucket* src, uint32_t src_index) {
+356c357
+<     void CopyFrom(uint32 i, Bucket* src, uint32 src_index) {
+---
+>     void CopyFrom(uint32_t i, Bucket* src, uint32_t src_index) {
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/flatmap_test.cc xla/tsl/lib/gtl/flatmap_test.cc
+25,27c25
+< #include "xla/tsl/platform/test.h"
+< #include "xla/tsl/platform/types.h"
+< #include "tsl/platform/hash.h"
+---
+> #include "gtest/gtest.h"
+33c31
+< typedef FlatMap<int64_t, int32> NumMap;
+---
+> typedef FlatMap<int64_t, int32_t> NumMap;
+36c34
+< int32 Get(const NumMap& map, int64_t k, int32_t def = -1) {
+---
+> int32_t Get(const NumMap& map, int64_t k, int32_t def = -1) {
+50c48
+< typedef std::vector<std::pair<int64_t, int32>> NumMapContents;
+---
+> typedef std::vector<std::pair<int64_t, int32_t>> NumMapContents;
+149,150c147,148
+<   FlatMap<int64_t, std::unique_ptr<string>> smap;
+<   smap.emplace(1, std::make_unique<string>("hello"));
+---
+>   FlatMap<int64_t, std::unique_ptr<std::string>> smap;
+>   smap.emplace(1, std::make_unique<std::string>("hello"));
+347c345
+<   typedef std::unordered_map<int64_t, int32> StdNumMap;
+---
+>   typedef std::unordered_map<int64_t, int32_t> StdNumMap;
+594,597c592,595
+<   FlatMap<string, string> map;
+<   string k1 = "the quick brown fox jumped over the lazy dog";
+<   string k2 = k1 + k1;
+<   string k3 = k1 + k2;
+---
+>   FlatMap<std::string, std::string> map;
+>   std::string k1 = "the quick brown fox jumped over the lazy dog";
+>   std::string k2 = k1 + k1;
+>   std::string k3 = k1 + k2;
+604c602
+<   EXPECT_EQ(string(), map[k3]);
+---
+>   EXPECT_EQ(std::string(), map[k3]);
 diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/flatrep.h xla/tsl/lib/gtl/flatrep.h
 18a19,20
 > #include <stddef.h>

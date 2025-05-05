@@ -17,6 +17,17 @@ cc_library(
 )
 
 cc_library(
+    name = "flatmap",
+    hdrs = ["flatmap.h"],
+    deps = [
+        ":flatrep",
+        "//xla/tsl/platform:hash",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+cc_library(
     name = "flatrep",
     hdrs = ["flatrep.h"],
     deps = ["@com_google_absl//absl/base:prefetch"],
@@ -63,6 +74,7 @@ zkx_cc_unittest(
     name = "tsl_lib_gtl_tests",
     srcs = [
         "compactptrset_test.cc",
+        "flatmap_test.cc",
         "flatset_test.cc",
         "int_type_test.cc",
         "iterator_range_test.cc",
@@ -70,6 +82,7 @@ zkx_cc_unittest(
     ],
     deps = [
         ":compactptrset",
+        ":flatmap",
         ":flatset",
         ":int_type",
         ":iterator_range",
