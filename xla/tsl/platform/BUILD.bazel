@@ -184,8 +184,12 @@ zkx_cc_library(
     srcs = ["status.cc"],
     hdrs = ["status.h"],
     deps = [
-        "@com_google_absl//absl/log",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
     ],
 )
 
