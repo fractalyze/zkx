@@ -1,0 +1,13 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "coordination_client",
+    hdrs = ["coordination_client.h"],
+    deps = [
+        "//xla/tsl/distributed_runtime:call_options",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/protobuf:coordination_service_proto",
+    ],
+)

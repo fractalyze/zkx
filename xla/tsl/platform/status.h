@@ -16,12 +16,15 @@ limitations under the License.
 #ifndef XLA_TSL_PLATFORM_STATUS_H_
 #define XLA_TSL_PLATFORM_STATUS_H_
 
+#include <functional>
 #include <string>
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 
 namespace tsl {
+
+typedef std::function<void(const absl::Status&)> StatusCallback;
 
 std::string* TfCheckOpHelperOutOfLine(const absl::Status& v, const char* msg);
 
