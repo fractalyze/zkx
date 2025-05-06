@@ -1,6 +1,13 @@
+load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+cc_proto_library(
+    name = "test_device_proto",
+    testonly = True,
+    srcs = ["test_device.proto"],
+)
 
 zkx_cc_library(
     name = "coordination_client",
@@ -9,6 +16,36 @@ zkx_cc_library(
         "//xla/tsl/distributed_runtime:call_options",
         "//xla/tsl/platform:status",
         "//xla/tsl/protobuf:coordination_service_proto",
+    ],
+)
+
+zkx_cc_library(
+    name = "coordination_service",
+    srcs = ["coordination_service.cc"],
+    hdrs = ["coordination_service.h"],
+    deps = [
+        ":coordination_client",
+        ":coordination_service_error_util",
+        "//xla/tsl/distributed_runtime:call_options",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:random",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/protobuf:coordination_config_proto",
+        "//xla/tsl/protobuf:coordination_service_proto",
+        "//xla/tsl/util:device_name_utils",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
     ],
 )
 
@@ -72,5 +109,20 @@ zkx_cc_unittest(
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/protobuf:coordination_config_proto",
         "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "coordination_service_unittest",
+    timeout = "moderate",
+    srcs = ["coordination_service_unittest.cc"],
+    deps = [
+        ":coordination_service",
+        ":coordination_service_error_util",
+        ":test_device_proto",
+        "//xla/tsl/platform:random",
+        "//xla/tsl/platform:status_matchers",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
     ],
 )
