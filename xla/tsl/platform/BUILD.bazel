@@ -194,6 +194,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "status_matchers",
+    testonly = True,
+    srcs = ["status_matchers.cc"],
+    hdrs = ["status_matchers.h"],
+    deps = [
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
     name = "statusor",
     hdrs = ["statusor.h"],
     deps = [
@@ -238,6 +250,7 @@ zkx_cc_unittest(
         "path_unittest.cc",
         "random_unittest.cc",
         "scanner_unittest.cc",
+        "status_matchers_unittest.cc",
         "subprocess_unittest.cc",
     ],
     data = [
@@ -255,6 +268,7 @@ zkx_cc_unittest(
         ":path",
         ":random",
         ":scanner",
+        ":status_matchers",
         ":subprocess",
         ":test_util",
     ],

@@ -114,6 +114,9 @@ inline std::string* TfCheckOpHelper(absl::Status v, const char* msg) {
   while (false && (absl::OkStatus() == (val))) LOG(FATAL)
 #endif
 
+#define TF_ASSERT_OK(expr) ASSERT_TRUE(expr.ok())
+#define TF_EXPECT_OK(expr) EXPECT_TRUE(expr.ok())
+
 }  // namespace tsl
 
 #endif  // XLA_TSL_PLATFORM_STATUS_H_
