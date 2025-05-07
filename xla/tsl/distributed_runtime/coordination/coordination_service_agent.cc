@@ -765,12 +765,8 @@ std::shared_ptr<CallOptions> CoordinationServiceAgentImpl::GetKeyValueAsync(
           done(s);
           VLOG(3) << "GetKeyValueResponse: " << s;
         } else {
-          // TODO(chokobole): Temporary workaround to make
-          // GetKeyValue_DelayedResponseBeforeTimeout_Success pass.
-          // Investigate why this triggers an error and fix the root cause.
-          std::string debug_str = response->DebugString();
           done(response->kv().value());
-          VLOG(3) << "GetKeyValueResponse: " << debug_str;
+          VLOG(3) << "GetKeyValueResponse: " << response->DebugString();
         }
       });
   return call_opts;
