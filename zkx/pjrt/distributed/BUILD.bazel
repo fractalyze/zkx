@@ -26,16 +26,6 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
-    name = "key_value_store_interface",
-    hdrs = ["key_value_store_interface.h"],
-    deps = [
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/time",
-    ],
-)
-
-zkx_cc_library(
     name = "in_memory_key_value_store",
     srcs = ["in_memory_key_value_store.cc"],
     hdrs = ["in_memory_key_value_store.h"],
@@ -45,5 +35,15 @@ zkx_cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "key_value_store_interface",
+    hdrs = ["key_value_store_interface.h"],
+    deps = [
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/time",
     ],
 )
