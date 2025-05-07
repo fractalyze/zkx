@@ -12,6 +12,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "pjrt_common",
+    hdrs = ["pjrt_common.h"],
+    deps = ["//xla/tsl/lib/gtl:int_type"],
+)
+
+zkx_cc_library(
     name = "status_casters",
     hdrs = ["status_casters.h"],
     deps = [
