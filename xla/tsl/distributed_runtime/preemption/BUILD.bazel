@@ -17,11 +17,45 @@ zkx_cc_library(
     ],
 )
 
-zkx_cc_unittest(
-    name = "preemption_unittests",
-    srcs = ["preemption_notifier_unittest.cc"],
+zkx_cc_library(
+    name = "preemption_sync_manager",
+    srcs = ["preemption_sync_manager.cc"],
+    hdrs = ["preemption_sync_manager.h"],
     deps = [
         ":preemption_notifier",
+        "//xla/tsl/distributed_runtime:call_options",
+        "//xla/tsl/distributed_runtime/coordination:coordination_service_agent",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:statusor",
+        "//xla/tsl/protobuf:coordination_service_cc_proto",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "preemption_unittests",
+    srcs = [
+        "preemption_notifier_unittest.cc",
+        "preemption_sync_manager_unittest.cc",
+    ],
+    deps = [
+        ":preemption_notifier",
+        ":preemption_sync_manager",
+        "//xla/tsl/distributed_runtime/coordination:coordination_client",
+        "//xla/tsl/distributed_runtime/coordination:coordination_service",
+        "//xla/tsl/distributed_runtime/rpc:async_service_interface",
+        "//xla/tsl/distributed_runtime/rpc/coordination:grpc_coordination_client",
+        "//xla/tsl/distributed_runtime/rpc/coordination:grpc_coordination_service_impl",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/protobuf:coordination_config_cc_proto",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/memory",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
     ],
