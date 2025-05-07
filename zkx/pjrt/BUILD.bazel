@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -15,6 +15,22 @@ zkx_cc_library(
     name = "pjrt_common",
     hdrs = ["pjrt_common.h"],
     deps = ["//xla/tsl/lib/gtl:int_type"],
+)
+
+zkx_cc_library(
+    name = "pjrt_future",
+    srcs = ["pjrt_future.cc"],
+    hdrs = ["pjrt_future.h"],
+    deps = [
+        "//xla/tsl/concurrency:async_value",
+        "//xla/tsl/concurrency:ref_count",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
 )
 
 zkx_cc_library(
@@ -47,4 +63,10 @@ zkx_cc_library(
         "//xla/tsl/platform:cpu_info",
         "@com_google_absl//absl/strings",
     ],
+)
+
+zkx_cc_unittest(
+    name = "pjrt_unittests",
+    srcs = ["pjrt_future_unittest.cc"],
+    deps = [":pjrt_future"],
 )
