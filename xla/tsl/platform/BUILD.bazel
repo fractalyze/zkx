@@ -173,6 +173,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "refcount",
+    hdrs = ["refcount.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "scanner",
     srcs = ["scanner.cc"],
     hdrs = ["scanner.h"],
@@ -255,6 +265,7 @@ zkx_cc_unittest(
         "numbers_unittest.cc",
         "path_unittest.cc",
         "random_unittest.cc",
+        "refcount_unittest.cc",
         "scanner_unittest.cc",
         "status_matchers_unittest.cc",
         "str_util_unittest.cc",
@@ -274,6 +285,7 @@ zkx_cc_unittest(
         ":numbers",
         ":path",
         ":random",
+        ":refcount",
         ":scanner",
         ":status_matchers",
         ":str_util",
