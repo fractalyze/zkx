@@ -1,6 +1,43 @@
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "compile_options_proto",
+    srcs = ["compile_options.proto"],
+    deps = [
+        "//zkx:zkx_data_proto",
+        "//zkx:zkx_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "compile_options_cc_proto",
+    deps = [":compile_options_proto"],
+)
+
+proto_library(
+    name = "execute_options_proto",
+    srcs = ["execute_options.proto"],
+)
+
+cc_proto_library(
+    name = "execute_options_cc_proto",
+    deps = [":execute_options_proto"],
+)
+
+proto_library(
+    name = "executable_metadata_proto",
+    srcs = ["executable_metadata.proto"],
+    deps = ["//zkx/service:hlo_proto"],
+)
+
+cc_proto_library(
+    name = "executable_metadata_cc_proto",
+    deps = [":executable_metadata_proto"],
+)
 
 zkx_cc_library(
     name = "exceptions",
@@ -24,6 +61,32 @@ zkx_cc_library(
         ":pjrt_common",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "pjrt_executable",
+    srcs = ["pjrt_executable.cc"],
+    hdrs = ["pjrt_executable.h"],
+    deps = [
+        ":compile_options_cc_proto",
+        ":executable_metadata_cc_proto",
+        ":execute_options_cc_proto",
+        ":pjrt_common",
+        ":pjrt_layout",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:hlo_cost_analysis",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -78,6 +141,13 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "pjrt_unittests",
-    srcs = ["pjrt_future_unittest.cc"],
-    deps = [":pjrt_future"],
+    srcs = [
+        "pjrt_executable_unittest.cc",
+        "pjrt_future_unittest.cc",
+    ],
+    deps = [
+        ":pjrt_executable",
+        ":pjrt_future",
+        "//xla/tsl/platform:status_matchers",
+    ],
 )

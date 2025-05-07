@@ -35,6 +35,7 @@ limitations under the License.
 #include "zkx/overflow_util.h"
 #include "zkx/primitive_util.h"
 #include "zkx/shape.h"
+#include "zkx/util.h"
 
 namespace zkx {
 
@@ -258,6 +259,9 @@ class ShapeUtil {
                                       PrimitiveType element_type) {
     return IsScalar(shape) && shape.element_type() == element_type;
   }
+
+  // Creates a `DimensionVector` by copying dimensions from a given shape.
+  static DimensionVector CreateDimensionVectorFromShape(const Shape& shape);
 
   // Returns a shape with the same dimensions as the original, but with the
   // element type changed to type.

@@ -701,6 +701,16 @@ bool ShapeUtil::CompatibleKind(const Shape& lhs, const Shape& rhs) {
 }
 
 // static
+DimensionVector ShapeUtil::CreateDimensionVectorFromShape(const Shape& shape) {
+  DimensionVector dimensions;
+  dimensions.reserve(shape.dimensions_size());
+  for (int i = 0; i < shape.dimensions_size(); ++i) {
+    dimensions.push_back(shape.dimensions(i));
+  }
+  return dimensions;
+}
+
+// static
 int64_t ShapeUtil::ByteSizeOfPrimitiveType(PrimitiveType primitive_type) {
   return primitive_util::ByteWidth(primitive_type);
 }

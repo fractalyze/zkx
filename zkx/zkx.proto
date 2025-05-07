@@ -169,39 +169,3 @@ message ShardingConfigProto {
   // Configuration for each HLO instruction.
   repeated NodeShardingConfigProto nodes = 1;
 }
-
-// A trace of a HeapSimulator run.
-message HeapSimulatorTrace {
-  // The trace includes a list of events, where each event describes one action
-  // performed by the heap simulator.
-  message Event {
-    enum Kind {
-      ALLOC = 0;  // A memory region was allocated for the buffer.
-      FREE = 1;   // A memory region was freed for the buffer.
-
-      // A buffer was shared with another (canonical) buffer. This is similar to
-      // ALLOC, except that instead of allocating a new region of memory, the
-      // memory region of the canonical buffer is directly re-used. Multiple
-      // buffers may share with the same canonical buffer. The lifetime of the
-      // canonical buffer is extended to the union of all lifetimes.
-      SHARE_WITH = 2;
-    }
-    Kind kind = 1;
-
-    // The id of the LogicalBuffer that the event applies to.
-    int64 buffer_id = 2;
-
-    // The HloInstruction that the simulation was processing that caused this
-    // event to occur, identified by its computation and instruction name. E.g.
-    // buffers defined by instruction A are allocated when processing A.
-    string computation_name = 3;
-    string instruction_name = 4;
-
-    // The id of the canonical LogicalBuffer that the buffer shares with. Only
-    // set for SHARE_WITH events.
-    int64 share_with_canonical_id = 5;
-  }
-  repeated Event events = 1;
-  bool whole_module_simulation = 2;
-  int64 buffer_allocation_index = 3;
-}
