@@ -17,6 +17,17 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "grpc_call",
+    hdrs = ["grpc_call.h"],
+    deps = [
+        "//xla/tsl/platform:refcount",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "grpc_util",
     srcs = ["grpc_util.cc"],
     hdrs = ["grpc_util.h"],
