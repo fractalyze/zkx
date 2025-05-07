@@ -55,6 +55,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "pjrt_compiler",
+    srcs = ["pjrt_compiler.cc"],
+    hdrs = ["pjrt_compiler.h"],
+    deps = [
+        ":pjrt_device_description",
+        ":pjrt_executable",
+        "//xla/tsl/platform:fingerprint",
+        "//zkx/hlo/builder:zkx_computation",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+zkx_cc_library(
     name = "pjrt_device_description",
     hdrs = ["pjrt_device_description.h"],
     deps = [
