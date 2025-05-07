@@ -17,6 +17,11 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "async_service_interface",
+    hdrs = ["async_service_interface.h"],
+)
+
+zkx_cc_library(
     name = "grpc_call",
     hdrs = ["grpc_call.h"],
     deps = [
