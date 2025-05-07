@@ -18,6 +18,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "pjrt_layout",
+    hdrs = ["pjrt_layout.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/hlo/parser:hlo_parser",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "status_casters",
     hdrs = ["status_casters.h"],
     deps = [
