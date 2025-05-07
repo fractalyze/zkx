@@ -148,9 +148,7 @@ bool HasLargeConstants(llvm::Module& module) {
 }
 
 inline void VlogMaxIsa(std::string_view max_cpu_isa) {
-  // TODO(chokobole): Uncomment this. Dependency: VLOG_IS_ON
-  // if (VLOG_IS_ON(1) && !max_cpu_isa.empty()) {
-  if (!max_cpu_isa.empty()) {
+  if (VLOG_IS_ON(1) && !max_cpu_isa.empty()) {
     if (tsl::port::IsX86CPU()) {
       VLOG(1) << "`zkx_cpu_max_isa` is set. Will not use features newer than: "
               << max_cpu_isa;

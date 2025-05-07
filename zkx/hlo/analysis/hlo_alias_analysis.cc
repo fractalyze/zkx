@@ -180,12 +180,11 @@ void ComputeInPlaceOperationAliasedValues(const HloValue& value,
 // with due to HLO aliasing rules (including the value itself).
 FlatValueSet ComputeAliasedValues(const HloValue& value,
                                   const HloDataflowAnalysis& dataflow) {
-  // TODO(chokobole): Uncomment this. Dependency: VLOG_IS_ON
-  // if (VLOG_IS_ON(2)) {
-  for (const HloUse& use : value.GetUses()) {
-    VLOG(2) << "Use of value " << value << ": " << use;
+  if (VLOG_IS_ON(2)) {
+    for (const HloUse& use : value.GetUses()) {
+      VLOG(2) << "Use of value " << value << ": " << use;
+    }
   }
-  // }
 
   FlatValueSet aliased_values{&value};
   ComputeInputOutputAliasedValues(value, dataflow, aliased_values);

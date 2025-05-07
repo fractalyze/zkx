@@ -1866,23 +1866,22 @@ GlobalDecreasingSizeBestFitHeap<BufferType>::SlicedAllocationFinder::
       << "Even an unsliced allocation is expected to have a list of free "
          "chunks at slice time t0.";
 
-  // TODO(chokobole): Uncomment this. Dependency: VLOG_IS_ON
-  // if (VLOG_IS_ON(1)) {
-  // Create a 2d vector where each row represents a slice time and each
-  // column represents a free chunk at that slice time.
-  std::vector<std::vector<Chunk>> time_by_chunks;
-  for (int64_t i = 0; i < free_chunks_per_slice_time.size(); ++i) {
-    std::vector<Chunk> chunks;
-    for (const auto& free_chunk : free_chunks_per_slice_time[i]) {
-      chunks.push_back(
-          Chunk::FromOffsetEnd(free_chunk.first, free_chunk.second));
+  if (VLOG_IS_ON(1)) {
+    // Create a 2d vector where each row represents a slice time and each
+    // column represents a free chunk at that slice time.
+    std::vector<std::vector<Chunk>> time_by_chunks;
+    for (int64_t i = 0; i < free_chunks_per_slice_time.size(); ++i) {
+      std::vector<Chunk> chunks;
+      for (const auto& free_chunk : free_chunks_per_slice_time[i]) {
+        chunks.push_back(
+            Chunk::FromOffsetEnd(free_chunk.first, free_chunk.second));
+      }
+      time_by_chunks.push_back(chunks);
     }
-    time_by_chunks.push_back(chunks);
-  }
 
-  LOG(INFO) << "Initial free space:\n"
-            << RenderTimeByFreeChunks(time_by_chunks);
-  // }
+    LOG(INFO) << "Initial free space:\n"
+              << RenderTimeByFreeChunks(time_by_chunks);
+  }
 
   if (max_colocation_size_ < slice_size_sum_) {
     // If max_colocation_size was specified as -1 (or some other incorrect

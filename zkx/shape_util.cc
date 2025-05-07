@@ -238,9 +238,7 @@ std::ostream& operator<<(std::ostream& out, const ShapeIndex& shape_index) {
 bool ShapeUtil::Equal(const Shape& lhs, const Shape& rhs) {
   bool equal = Shape::Equal()(lhs, rhs);
 
-  // TODO(chokobole): Uncomment this. Dependency: VLOG_IS_ON
-  // if (!equal && VLOG_IS_ON(3)) {
-  if (!equal) {
+  if (!equal && VLOG_IS_ON(3)) {
     VLOG(3) << "ShapeUtil::Equal differ: lhs = " << lhs.ShortDebugString()
             << ", rhs = " << rhs.ShortDebugString();
   }
@@ -251,9 +249,7 @@ bool ShapeUtil::Equal(const Shape& lhs, const Shape& rhs) {
 // static
 bool ShapeUtil::EqualIgnoringElementType(const Shape& lhs, const Shape& rhs) {
   bool equal = Shape::Equal().IgnoreElementType()(lhs, rhs);
-  // TODO(chokobole): Uncomment this. Dependency: VLOG_IS_ON
-  // if (!equal && VLOG_IS_ON(3)) {
-  if (!equal) {
+  if (!equal && VLOG_IS_ON(3)) {
     VLOG(3) << "ShapeUtil::EqualIgnoringElementType differ: lhs = "
             << lhs.ShortDebugString() << ", rhs = " << rhs.ShortDebugString();
   }
