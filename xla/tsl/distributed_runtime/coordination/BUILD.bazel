@@ -90,6 +90,22 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "coordination_service_rpc_handler",
+    srcs = ["coordination_service_rpc_handler.cc"],
+    hdrs = ["coordination_service_rpc_handler.h"],
+    deps = [
+        ":coordination_service",
+        ":coordination_service_agent",
+        ":coordination_service_error_util",
+        "//xla/tsl/platform:status",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
+    ],
+)
+
 zkx_cc_unittest(
     name = "coordination_unittests",
     srcs = ["coordination_service_error_util_unittest.cc"],
