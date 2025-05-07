@@ -47,3 +47,21 @@ zkx_cc_library(
         "@com_google_absl//absl/time",
     ],
 )
+
+zkx_cc_library(
+    name = "service",
+    srcs = ["service.cc"],
+    hdrs = ["service.h"],
+    deps = [
+        "//xla/tsl/distributed_runtime/coordination:coordination_service",
+        "//xla/tsl/distributed_runtime/rpc:async_service_interface",
+        "//xla/tsl/distributed_runtime/rpc/coordination:grpc_coordination_service_impl",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/protobuf:coordination_config_cc_proto",
+        "//zkx/base:logging",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/time",
+    ],
+)
