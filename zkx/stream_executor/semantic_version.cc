@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <vector>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_split.h"
 
