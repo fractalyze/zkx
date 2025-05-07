@@ -115,10 +115,28 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "coordination_unittests",
-    srcs = ["coordination_service_error_util_unittest.cc"],
+    srcs = [
+        "coordination_service_error_util_unittest.cc",
+        "coordination_service_recoverable_job_unittest.cc",
+    ],
     deps = [
         ":coordination_service_error_util",
+        "//xla/tsl/distributed_runtime/coordination:coordination_client",
+        "//xla/tsl/distributed_runtime/coordination:coordination_service",
+        "//xla/tsl/distributed_runtime/rpc:async_service_interface",
+        "//xla/tsl/distributed_runtime/rpc/coordination:grpc_coordination_client",
+        "//xla/tsl/distributed_runtime/rpc/coordination:grpc_coordination_service_impl",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/protobuf:coordination_config_cc_proto",
+        "//zkx/base:logging",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
     ],
 )
 
