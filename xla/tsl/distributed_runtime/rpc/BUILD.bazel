@@ -47,6 +47,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "grpc_state",
+    hdrs = ["grpc_state.h"],
+    deps = [
+        ":grpc_client_cq_tag",
+        ":grpc_util",
+        "//xla/tsl/distributed_runtime:call_options",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/util:env_var",
+        "//zkx/base:logging",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "grpc_util",
     srcs = ["grpc_util.cc"],
     hdrs = ["grpc_util.h"],
