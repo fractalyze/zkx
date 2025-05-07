@@ -1,0 +1,20 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "grpc_coordination_client",
+    srcs = ["grpc_coordination_client.cc"],
+    hdrs = ["grpc_coordination_client.h"],
+    deps = [
+        "//xla/tsl/distributed_runtime/coordination:coordination_client",
+        "//xla/tsl/distributed_runtime/rpc:grpc_channel",
+        "//xla/tsl/distributed_runtime/rpc:grpc_client_cq_tag",
+        "//xla/tsl/distributed_runtime/rpc:grpc_state",
+        "//xla/tsl/platform:env",
+        "//zkx/base:logging",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
