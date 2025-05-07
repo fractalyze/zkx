@@ -31,3 +31,13 @@ cc_grpc_library(
     grpc_only = True,
     deps = [":coordination_service_cc_proto"],
 )
+
+proto_library(
+    name = "distributed_runtime_payloads_proto",
+    srcs = ["distributed_runtime_payloads.proto"],
+)
+
+cc_proto_library(
+    name = "distributed_runtime_payloads_cc_proto",
+    deps = [":distributed_runtime_payloads_proto"],
+)
