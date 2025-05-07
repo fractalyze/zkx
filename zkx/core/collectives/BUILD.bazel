@@ -74,7 +74,7 @@ zkx_cc_library(
     hdrs = ["communicator.h"],
     deps = [
         ":rank_id",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "//zkx/service:collective_ops_utils",
         "//zkx/stream_executor:device_memory",
         "@com_google_absl//absl/status",

@@ -164,7 +164,7 @@ zkx_cc_library(
     hdrs = ["target_machine_features.h"],
     deps = [
         "//zkx:primitive_util",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "//zkx/backends/cpu:alignment",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:check",

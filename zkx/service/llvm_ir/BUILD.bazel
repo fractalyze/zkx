@@ -22,7 +22,7 @@ zkx_cc_library(
     hdrs = ["llvm_util.h"],
     deps = [
         "//zkx:shape_util",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "//zkx/base:logging",
         "//zkx/hlo/ir:hlo",
         "@com_google_absl//absl/log:check",

@@ -1,11 +1,17 @@
-load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
-cc_proto_library(
+proto_library(
     name = "memory_space_assignment_proto",
     srcs = ["memory_space_assignment.proto"],
+)
+
+cc_proto_library(
+    name = "memory_space_assignment_cc_proto",
+    deps = [":memory_space_assignment_proto"],
 )
 
 zkx_cc_library(
@@ -54,7 +60,7 @@ zkx_cc_library(
     srcs = ["slice.cc"],
     hdrs = ["slice.h"],
     deps = [
-        ":memory_space_assignment_proto",
+        ":memory_space_assignment_cc_proto",
         "//zkx:shape_util",
         "//zkx/base:logging",
         "//zkx/service:time_utils",

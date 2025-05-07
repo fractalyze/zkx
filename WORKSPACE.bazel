@@ -7,3 +7,7 @@ zkx_deps()
 load("//bazel:zkx_deps2.bzl", "zkx_deps2")
 
 zkx_deps2()
+
+load("//bazel:zkx_deps3.bzl", "zkx_deps3")
+
+zkx_deps3()

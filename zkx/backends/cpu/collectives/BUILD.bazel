@@ -131,7 +131,7 @@ zkx_cc_library(
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
         "//zkx:primitive_util",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "//zkx/backends/cpu/collectives:cpu_collectives",
         "//zkx/core/collectives:communicator",
         "//zkx/service:collective_ops_utils",

@@ -1,32 +1,54 @@
-load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
-cc_proto_library(
+proto_library(
     name = "buffer_assignment_proto",
     srcs = ["buffer_assignment.proto"],
 )
 
 cc_proto_library(
+    name = "buffer_assignment_cc_proto",
+    deps = [":buffer_assignment_proto"],
+)
+
+proto_library(
     name = "hlo_proto",
     srcs = ["hlo.proto"],
     deps = [
         ":metrics_proto",
         "//zkx:zkx_data_proto",
-        "@com_google_protobuf//:cc_wkt_protos",
+        "@com_google_protobuf//:any_proto",
     ],
 )
 
 cc_proto_library(
+    name = "hlo_cc_proto",
+    deps = [":hlo_proto"],
+)
+
+proto_library(
     name = "metrics_proto",
     srcs = ["metrics.proto"],
 )
 
 cc_proto_library(
+    name = "metrics_cc_proto",
+    deps = [":metrics_proto"],
+)
+
+proto_library(
     name = "test_compilation_environment_proto",
     testonly = True,
     srcs = ["test_compilation_environment.proto"],
+)
+
+cc_proto_library(
+    name = "test_compilation_environment_cc_proto",
+    testonly = True,
+    deps = [":test_compilation_environment_proto"],
 )
 
 zkx_cc_library(
@@ -34,7 +56,7 @@ zkx_cc_library(
     srcs = ["buffer_assignment.cc"],
     hdrs = ["buffer_assignment.h"],
     deps = [
-        ":buffer_assignment_proto",
+        ":buffer_assignment_cc_proto",
         ":hlo_buffer",
         ":hlo_value",
         ":logical_buffer",
@@ -129,7 +151,7 @@ zkx_cc_library(
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
-        "//zkx:zkx_proto",
+        "//zkx:zkx_cc_proto",
         "//zkx/base:logging",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
@@ -176,7 +198,7 @@ zkx_cc_library(
         "//xla/tsl/platform:statusor",
         "//zkx:array2d",
         "//zkx:status_macros",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "//zkx/base:logging",
         "//zkx/stream_executor:platform",
         "//zkx/stream_executor/host:host_platform_id",
@@ -283,7 +305,7 @@ zkx_cc_library(
         ":computation_placer",
         ":sharding_config",
         "//zkx:shape_util",
-        "//zkx:zkx_proto",
+        "//zkx:zkx_cc_proto",
         "//zkx/base:logging",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:inlined_vector",
@@ -385,7 +407,7 @@ zkx_cc_library(
         "//zkx:literal",
         "//zkx:shape_util",
         "//zkx:util",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "//zkx/base:logging",
         "//zkx/hlo/ir:hlo",
         "//zkx/hlo/parser:hlo_parser",
@@ -462,7 +484,7 @@ zkx_cc_library(
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:status",
         "//zkx:shape_util",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "//zkx/hlo/ir:hlo",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/status:statusor",
@@ -496,7 +518,7 @@ zkx_cc_library(
     srcs = ["sharding_config.cc"],
     hdrs = ["sharding_config.h"],
     deps = [
-        "//zkx:zkx_proto",
+        "//zkx:zkx_cc_proto",
         "//zkx/hlo/ir:hlo_sharding",
     ],
 )
@@ -572,7 +594,7 @@ zkx_cc_unittest(
         ":shape_inference",
         ":sharding_config",
         ":stream_pool",
-        ":test_compilation_environment_proto",
+        ":test_compilation_environment_cc_proto",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
         "//zkx:literal_util",

@@ -1,20 +1,31 @@
-load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
-cc_proto_library(
+proto_library(
     name = "zkx_proto",
     srcs = ["zkx.proto"],
     deps = [
         ":zkx_data_proto",
-        "@com_google_protobuf//:cc_wkt_protos",
+        "@com_google_protobuf//:any_proto",
     ],
 )
 
 cc_proto_library(
+    name = "zkx_cc_proto",
+    deps = [":zkx_proto"],
+)
+
+proto_library(
     name = "zkx_data_proto",
     srcs = ["zkx_data.proto"],
+)
+
+cc_proto_library(
+    name = "zkx_data_cc_proto",
+    deps = [":zkx_data_proto"],
 )
 
 zkx_cc_library(
@@ -53,7 +64,7 @@ zkx_cc_library(
     hdrs = ["comparison_util.h"],
     deps = [
         ":primitive_util",
-        ":zkx_data_proto",
+        ":zkx_data_cc_proto",
         "//zkx/base:logging",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:check",
@@ -179,7 +190,7 @@ zkx_cc_library(
     hdrs = ["primitive_util.h"],
     deps = [
         ":types",
-        ":zkx_data_proto",
+        ":zkx_data_cc_proto",
         "//xla/tsl/lib/math:math_util",
         "//zkx/base:logging",
         "@com_google_absl//absl/base:core_headers",
@@ -237,7 +248,7 @@ zkx_cc_library(
         ":primitive_util",
         ":printer",
         ":util",
-        ":zkx_data_proto",
+        ":zkx_data_cc_proto",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
@@ -298,8 +309,8 @@ zkx_cc_library(
     hdrs = ["util.h"],
     deps = [
         ":status_macros",
+        ":zkx_data_cc_proto",
         "//xla/tsl/lib/math:math_util",
-        "//zkx:zkx_data_proto",
         "//zkx/base:logging",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:inlined_vector",

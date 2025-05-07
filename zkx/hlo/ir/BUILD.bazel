@@ -11,7 +11,7 @@ zkx_cc_library(
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:human_readable_json",
         "//zkx:array",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "//zkx/base:logging",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
@@ -27,7 +27,7 @@ zkx_cc_library(
     deps = [
         ":tile_assignment",
         "//zkx:array",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "//zkx/base:logging",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
@@ -95,8 +95,8 @@ zkx_cc_library(
         "//zkx/base:logging",
         "//zkx/service:compilation_environments",
         "//zkx/service:computation_layout",
+        "//zkx/service:hlo_cc_proto",
         "//zkx/service:hlo_module_config",
-        "//zkx/service:hlo_proto",
         "//zkx/service:mapped_ptr_container_sorter",
         "//zkx/service:name_uniquer",
         "@com_google_absl//absl/container:btree",
@@ -150,7 +150,7 @@ zkx_cc_library(
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
         "//zkx/base:logging",
-        "//zkx/service:hlo_proto",
+        "//zkx/service:hlo_cc_proto",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -162,7 +162,7 @@ zkx_cc_library(
     srcs = ["hlo_op_metadata.cc"],
     hdrs = ["hlo_op_metadata.h"],
     deps = [
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -185,7 +185,7 @@ zkx_cc_library(
     deps = [
         "//zkx:shape_tree",
         "//zkx:shape_util",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -211,7 +211,7 @@ zkx_cc_library(
         "//zkx:printer",
         "//zkx:shape_tree",
         "//zkx:shape_util",
-        "//zkx:zkx_data_proto",
+        "//zkx:zkx_data_cc_proto",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_set",

@@ -95,6 +95,4 @@ T&& CheckNotNull(const char* file, int line, const char* exprtext, T&& t) {
   ::zkx::base::CheckNotNull(__FILE__, __LINE__, "'" #val "' Must be non NULL", \
                             (val))
 
-#define VLOG(level) LOG(INFO).WithVerbosity(level)
-
 #endif  // ZKX_BASE_LOGGING_H_

@@ -52,5 +52,16 @@ build --//:has_rtti
 # NOTE(chokobole): pjrt needs exception.
 build --//:has_exception
 
+# NOTE(chokobole): This is required to avoid an error.
+# /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.4.sdk/usr/include/_stdio.h:318:7: error: expected identifier or '('
+#   318 | FILE    *fdopen(int, const char *) __DARWIN_ALIAS_STARTING(__MAC_10_6, __IPHONE_2_0, __DARWIN_ALIAS(fdopen));
+#       |          ^
+# external/zlib/zutil.h:147:33: note: expanded from macro 'fdopen'
+#   147 | #        define fdopen(fd,mode) NULL /* No fdopen() */
+#       |                                 ^
+# /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/include/__stddef_null.h:26:16: note: expanded from macro 'NULL'
+#    26 | #define NULL ((void*)0)
+build --noenable_bzlmod
+
 # Load rc file with user-specific options.
 try-import %workspace%/.bazelrc.user

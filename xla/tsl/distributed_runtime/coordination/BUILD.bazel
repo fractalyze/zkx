@@ -1,12 +1,19 @@
-load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
-cc_proto_library(
+proto_library(
     name = "test_device_proto",
     testonly = True,
     srcs = ["test_device.proto"],
+)
+
+cc_proto_library(
+    name = "test_device_cc_proto",
+    testonly = True,
+    deps = [":test_device_proto"],
 )
 
 zkx_cc_library(
@@ -15,7 +22,7 @@ zkx_cc_library(
     deps = [
         "//xla/tsl/distributed_runtime:call_options",
         "//xla/tsl/platform:status",
-        "//xla/tsl/protobuf:coordination_service_proto",
+        "//xla/tsl/protobuf:coordination_service_cc_proto",
     ],
 )
 
@@ -30,8 +37,8 @@ zkx_cc_library(
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:random",
         "//xla/tsl/platform:status",
-        "//xla/tsl/protobuf:coordination_config_proto",
-        "//xla/tsl/protobuf:coordination_service_proto",
+        "//xla/tsl/protobuf:coordination_config_cc_proto",
+        "//xla/tsl/protobuf:coordination_service_cc_proto",
         "//xla/tsl/util:device_name_utils",
         "//zkx/base:logging",
         "@com_google_absl//absl/base:core_headers",
@@ -61,8 +68,8 @@ zkx_cc_library(
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:random",
         "//xla/tsl/platform:status",
-        "//xla/tsl/protobuf:coordination_config_proto",
-        "//xla/tsl/protobuf:coordination_service_proto",
+        "//xla/tsl/protobuf:coordination_config_cc_proto",
+        "//xla/tsl/protobuf:coordination_service_cc_proto",
         "//zkx/base:logging",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -83,7 +90,7 @@ zkx_cc_library(
     srcs = ["coordination_service_error_util.cc"],
     hdrs = ["coordination_service_error_util.h"],
     deps = [
-        "//xla/tsl/protobuf:coordination_service_proto",
+        "//xla/tsl/protobuf:coordination_service_cc_proto",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_googlesource_code_re2//:re2",
@@ -123,7 +130,7 @@ zkx_cc_unittest(
         ":coordination_service_agent",
         ":coordination_service_error_util",
         "//xla/tsl/platform:status_matchers",
-        "//xla/tsl/protobuf:coordination_config_proto",
+        "//xla/tsl/protobuf:coordination_config_cc_proto",
         "@com_google_absl//absl/log:check",
     ],
 )
@@ -135,7 +142,7 @@ zkx_cc_unittest(
     deps = [
         ":coordination_service",
         ":coordination_service_error_util",
-        ":test_device_proto",
+        ":test_device_cc_proto",
         "//xla/tsl/platform:random",
         "//xla/tsl/platform:status_matchers",
         "@com_google_absl//absl/strings",

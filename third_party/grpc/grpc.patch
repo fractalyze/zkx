@@ -1,0 +1,14 @@
+diff --git a/src/core/lib/promise/detail/basic_seq.h b/src/core/lib/promise/detail/basic_seq.h
+index 663609d419..5f4199e5df 100644
+--- a/src/core/lib/promise/detail/basic_seq.h
++++ b/src/core/lib/promise/detail/basic_seq.h
+@@ -99,8 +99,7 @@ class BasicSeqIter {
+           }
+           cur_ = next;
+           state_.~State();
+-          Construct(&state_,
+-                    Traits::template CallSeqFactory(f_, *cur_, std::move(arg)));
++          Construct(&state_, Traits::CallSeqFactory(f_, *cur_, std::move(arg)));
+           return PollNonEmpty();
+         });
+   }
