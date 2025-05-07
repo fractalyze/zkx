@@ -18,3 +18,24 @@ zkx_cc_library(
         "@com_google_absl//absl/synchronization",
     ],
 )
+
+zkx_cc_library(
+    name = "grpc_coordination_service_impl",
+    srcs = ["grpc_coordination_service_impl.cc"],
+    hdrs = ["grpc_coordination_service_impl.h"],
+    deps = [
+        "//xla/tsl/distributed_runtime/coordination:coordination_service",
+        "//xla/tsl/distributed_runtime/coordination:coordination_service_agent",
+        "//xla/tsl/distributed_runtime/coordination:coordination_service_rpc_handler",
+        "//xla/tsl/distributed_runtime/rpc:async_service_interface",
+        "//xla/tsl/distributed_runtime/rpc:grpc_call",
+        "//xla/tsl/distributed_runtime/rpc:grpc_util",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/protobuf:coordination_service_cc_grpc",
+        "//xla/tsl/protobuf:coordination_service_cc_proto",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
