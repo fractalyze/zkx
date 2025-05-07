@@ -41,3 +41,13 @@ cc_proto_library(
     name = "distributed_runtime_payloads_cc_proto",
     deps = [":distributed_runtime_payloads_proto"],
 )
+
+proto_library(
+    name = "rpc_options_proto",
+    srcs = ["rpc_options.proto"],
+)
+
+cc_proto_library(
+    name = "rpc_options_cc_proto",
+    deps = [":rpc_options_proto"],
+)

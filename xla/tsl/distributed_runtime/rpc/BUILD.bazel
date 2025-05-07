@@ -28,6 +28,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "grpc_channel",
+    srcs = ["grpc_channel.cc"],
+    hdrs = ["grpc_channel.h"],
+    deps = [
+        ":grpc_channel_common",
+        ":grpc_util",
+        "//xla/tsl/lib/gtl:map_util",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/protobuf:rpc_options_cc_proto",
+        "//xla/tsl/util:device_name_utils",
+        "//zkx/base:logging",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "grpc_channel_common",
     hdrs = ["grpc_channel_common.h"],
     deps = [
@@ -79,10 +99,16 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "rpc_unittests",
-    srcs = ["grpc_util_unittest.cc"],
+    srcs = [
+        "grpc_channel_unittest.cc",
+        "grpc_util_unittest.cc",
+    ],
     deps = [
+        ":grpc_channel",
         ":grpc_util",
         ":test_request_cc_proto",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/util:device_name_utils",
         "@com_google_absl//absl/log:check",
     ],
 )
