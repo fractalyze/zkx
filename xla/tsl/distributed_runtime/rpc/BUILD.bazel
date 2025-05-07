@@ -42,6 +42,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "grpc_client_cq_tag",
+    hdrs = ["grpc_client_cq_tag.h"],
+)
+
+zkx_cc_library(
     name = "grpc_util",
     srcs = ["grpc_util.cc"],
     hdrs = ["grpc_util.h"],
