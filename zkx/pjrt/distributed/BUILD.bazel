@@ -1,6 +1,18 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "protocol_proto",
+    srcs = ["protocol.proto"],
+)
+
+cc_proto_library(
+    name = "protocol_cc_proto",
+    deps = [":protocol_proto"],
+)
 
 zkx_cc_library(
     name = "client",
@@ -75,5 +87,40 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
+    ],
+)
+
+zkx_cc_library(
+    name = "topology_util",
+    srcs = ["topology_util.cc"],
+    hdrs = ["topology_util.h"],
+    deps = [
+        ":key_value_store_interface",
+        ":protocol_cc_proto",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:logging",
+        "//zkx/pjrt:utils",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "distributed_unittests",
+    srcs = ["topology_util_unittest.cc"],
+    deps = [
+        ":in_memory_key_value_store",
+        ":topology_util",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:status_matchers",
     ],
 )

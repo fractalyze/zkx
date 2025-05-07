@@ -20,3 +20,13 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
     ],
 )
+
+zkx_cc_library(
+    name = "utils",
+    srcs = ["utils.cc"],
+    hdrs = ["utils.h"],
+    deps = [
+        "//xla/tsl/platform:cpu_info",
+        "@com_google_absl//absl/strings",
+    ],
+)
