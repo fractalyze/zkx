@@ -1172,4 +1172,48 @@ Literal LiteralBase::Relayout(const Shape& shape_with_layout) const {
   return result;
 }
 
+BorrowingLiteral::BorrowingLiteral(const char* src_buf_ptr, const Shape& shape)
+    : shape_(std::make_unique<Shape>(shape)) {
+  CHECK(shape_->IsArray());
+  CHECK(LayoutUtil::HasLayout(*shape_));
+
+  root_piece_ = Piece();
+  root_piece_.set_subshape(shape_.get());
+  root_piece_.set_buffer(const_cast<char*>(src_buf_ptr));
+}
+
+BorrowingLiteral::BorrowingLiteral(absl::Span<const char* const> src_buf_ptrs,
+                                   const Shape& shape)
+    : LiteralBase(), shape_(std::make_unique<Shape>(shape)) {
+  CHECK(shape_->IsTuple());
+  CHECK(!ShapeUtil::IsNestedTuple(*shape_));
+  CHECK_EQ(src_buf_ptrs.size(), ShapeUtil::TupleElementCount(*shape_));
+  root_piece_ = Piece();
+  root_piece_.set_subshape(shape_.get());
+  BuildPieceSubtree(*shape_, &root_piece_);
+
+  for (int i = 0, end = src_buf_ptrs.size(); i < end; ++i) {
+    const auto& src_shape = shape_->tuple_shapes(i);
+    CHECK(src_shape.IsArray());
+    root_piece_.child(i).set_buffer(const_cast<char*>(src_buf_ptrs[i]));
+  }
+}
+
+BorrowingLiteral::BorrowingLiteral(ShapeTree<const char*> src_buf_ptrs)
+    : LiteralBase(), shape_(std::make_unique<Shape>(src_buf_ptrs.shape())) {
+  root_piece_ = Piece();
+  root_piece_.set_subshape(shape_.get());
+  BuildPieceSubtree(*shape_, &root_piece_);
+
+  root_piece_.ForEachMutableSubpiece(
+      [&](const ShapeIndex& index, Piece* piece) {
+        if (ShapeUtil::GetSubshape(*shape_, index).IsTuple()) {
+          DCHECK_EQ(src_buf_ptrs.element(index), nullptr)
+              << "Tuples should not have buffer pointers";
+          return;
+        }
+        piece->set_buffer(const_cast<char*>(src_buf_ptrs.element(index)));
+      });
+}
+
 }  // namespace zkx

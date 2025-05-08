@@ -914,6 +914,38 @@ class LiteralSlice : public LiteralBase {
   const Piece* root_piece_;  // Not owned.
 };
 
+// A read-only Literal where the underlying buffers are never owned by this
+// class.
+class BorrowingLiteral : public LiteralBase {
+ public:
+  BorrowingLiteral() : LiteralBase() {}
+
+  // 'src_buf_ptr' is not owned by this class and must outlive the
+  // lifetime of this class. It points to an appropriately sized buffer with
+  // data interpreted as indicated by 'shape'.
+  // This constructor is only used for array shapes.
+  BorrowingLiteral(const char* src_buf_ptr, const Shape& shape);
+
+  // Similar as above, except to be used for constructing non-nested tuples.
+  BorrowingLiteral(absl::Span<const char* const> src_buf_ptrs,
+                   const Shape& shape);
+
+  // Similar as above, except to be used for constructing literals with
+  // potentially nested tuples (same shape as `src_buf_ptrs`) with borrowed
+  // buffers for each shape index.
+  explicit BorrowingLiteral(ShapeTree<const char*> src_buf_ptrs);
+
+ private:
+  // Accessor for the root piece of this literal.
+  const Piece& root_piece() const override { return root_piece_; };
+  Piece root_piece_;
+
+  // Shape of this literal. Stored as unique_ptr such that the (default) move
+  // construction of this class would be trivially correct: the pointer to Shape
+  // root_piece_ stores will still point to the correct address.
+  std::unique_ptr<Shape> shape_;
+};
+
 template <typename NativeT>
 absl::Span<const NativeT> LiteralBase::Piece::data() const {
   DCHECK(LayoutUtil::IsDenseArray(subshape()))
