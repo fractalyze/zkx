@@ -39,6 +39,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cpu_event",
+    hdrs = ["cpu_event.h"],
+)
+
+zkx_cc_library(
     name = "cpu_executable",
     srcs = ["cpu_executable.cc"],
     hdrs = ["cpu_executable.h"],

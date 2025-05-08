@@ -1,0 +1,33 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "tracked_tfrt_cpu_device_buffer",
+    srcs = ["tracked_tfrt_cpu_device_buffer.cc"],
+    hdrs = ["tracked_tfrt_cpu_device_buffer.h"],
+    deps = [
+        "//xla/tsl/concurrency:async_value",
+        "//xla/tsl/platform:mem",
+        "//xla/tsl/platform:statusor",
+        "//zkx:cpu_function_runtime",
+        "//zkx:shape_util",
+        "//zkx/service/cpu:cpu_event",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "cpu_unittests",
+    srcs = ["tracked_tfrt_cpu_device_buffer_unittest.cc"],
+    deps = [
+        ":tracked_tfrt_cpu_device_buffer",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:statusor",
+    ],
+)
