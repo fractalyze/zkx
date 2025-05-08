@@ -1,0 +1,16 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+# copybara:uncomment package(default_applicable_licenses = ["//tensorflow:license"])
+
+cc_library(
+    name = "proto_serialization",
+    srcs = ["proto_serialization.cc"],
+    hdrs = ["proto_serialization.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//xla/tsl/platform:hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
