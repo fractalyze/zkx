@@ -3,6 +3,18 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "literal_test_util",
+    testonly = True,
+    srcs = ["literal_test_util.cc"],
+    hdrs = ["literal_test_util.h"],
+    deps = [
+        "//zkx:literal",
+        "//zkx:literal_comparison",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
     name = "test_utils",
     testonly = True,
     hdrs = ["test_utils.h"],
