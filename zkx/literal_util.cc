@@ -15,6 +15,9 @@ limitations under the License.
 
 #include "zkx/literal_util.h"
 
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
+
 #include "xla/tsl/platform/status.h"
 
 namespace zkx {
@@ -68,6 +71,12 @@ Literal LiteralUtil::CreateFromDimensions(
     PrimitiveType primitive_type, absl::Span<const int64_t> dimensions) {
   return Literal::CreateFromShape(
       ShapeUtil::MakeShape(primitive_type, dimensions));
+}
+
+// static
+std::string LiteralUtil::MultiIndexAsString(
+    absl::Span<const int64_t> multi_index) {
+  return absl::StrCat("{", absl::StrJoin(multi_index, ","), "}");
 }
 
 }  // namespace zkx
