@@ -75,6 +75,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "compiler_macros",
+    hdrs = ["compiler_macros.h"],
+)
+
+zkx_cc_library(
     name = "cpu_function_runtime",
     hdrs = ["cpu_function_runtime.h"],
     deps = [
