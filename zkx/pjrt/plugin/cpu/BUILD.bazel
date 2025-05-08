@@ -47,6 +47,21 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "cpu_topology_description",
+    srcs = ["cpu_topology_description.cc"],
+    hdrs = ["cpu_topology_description.h"],
+    deps = [
+        ":cpu_device_description",
+        ":cpu_topology",
+        "//xla/tsl/lib/strings:proto_serialization",
+        "//zkx:shape_util",
+        "//zkx/pjrt:pjrt_client",
+        "//zkx/pjrt:pjrt_compiler",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
 zkx_cc_unittest(
     name = "cpu_unittests",
     srcs = ["cpu_topology_unittest.cc"],
