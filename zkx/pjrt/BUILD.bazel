@@ -77,6 +77,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "lru_cache",
+    hdrs = ["lru_cache.h"],
+    deps = [
+        "//zkx/base:logging",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
     name = "pjrt_client",
     srcs = ["pjrt_client.cc"],
     hdrs = ["pjrt_client.h"],
@@ -238,12 +248,14 @@ zkx_cc_unittest(
     name = "pjrt_unittests",
     srcs = [
         "host_callback_unittest.cc",
+        "lru_cache_unittest.cc",
         "pjrt_executable_unittest.cc",
         "pjrt_future_unittest.cc",
         "semaphore_unittest.cc",
     ],
     deps = [
         ":host_callback",
+        ":lru_cache",
         ":pjrt_executable",
         ":pjrt_future",
         ":semaphore",
