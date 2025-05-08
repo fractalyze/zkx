@@ -19,7 +19,21 @@ limitations under the License.
 #include <numeric>
 #include <tuple>
 
+#include "absl/strings/str_cat.h"
+
 namespace zkx {
+
+absl::Status AddStatus(absl::Status prior, std::string_view context) {
+  CHECK(!prior.ok());
+  return absl::Status{prior.code(),
+                      absl::StrCat(context, ": ", prior.message())};
+}
+
+absl::Status AppendStatus(absl::Status prior, std::string_view context) {
+  CHECK(!prior.ok());
+  return absl::Status{prior.code(),
+                      absl::StrCat(prior.message(), ": ", context)};
+}
 
 int64_t Product(absl::Span<const int64_t> xs) {
   return std::accumulate(xs.begin(), xs.end(), int64_t{1},

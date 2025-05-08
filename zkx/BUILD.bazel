@@ -126,6 +126,25 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "literal_comparison",
+    srcs = ["literal_comparison.cc"],
+    hdrs = ["literal_comparison.h"],
+    deps = [
+        ":literal",
+        ":literal_util",
+        ":primitive_util",
+        ":shape_util",
+        ":util",
+        "//xla/tsl/platform:errors",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "literal_pool",
     srcs = ["literal_pool.cc"],
     hdrs = ["literal_pool.h"],

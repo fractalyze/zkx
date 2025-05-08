@@ -50,6 +50,12 @@ inline constexpr int InlineRank() { return 6; }
 using DimensionVector = absl::InlinedVector<int64_t, InlineRank()>;
 using DimLevelTypeVector = absl::InlinedVector<DimLevelType, InlineRank()>;
 
+// Adds some context information to the error message in a
+// absl::Status. This is useful as absl::Statuses are
+// propagated upwards.
+absl::Status AddStatus(absl::Status prior, std::string_view context);
+absl::Status AppendStatus(absl::Status prior, std::string_view context);
+
 // Imports the templated FloorOfRatio math function from the TensorFlow
 // namespace, as it is very commonly used.
 template <typename T>
