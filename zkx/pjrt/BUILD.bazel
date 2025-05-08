@@ -176,6 +176,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "semaphore",
+    srcs = ["semaphore.cc"],
+    hdrs = ["semaphore.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "status_casters",
     hdrs = ["status_casters.h"],
     deps = [
@@ -200,10 +211,12 @@ zkx_cc_unittest(
     srcs = [
         "pjrt_executable_unittest.cc",
         "pjrt_future_unittest.cc",
+        "semaphore_unittest.cc",
     ],
     deps = [
         ":pjrt_executable",
         ":pjrt_future",
+        ":semaphore",
         "//xla/tsl/platform:status_matchers",
     ],
 )
