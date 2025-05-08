@@ -24,6 +24,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cpu_device_description",
+    srcs = ["cpu_device_description.cc"],
+    hdrs = ["cpu_device_description.h"],
+    deps = [
+        ":cpu_topology",
+        "//zkx/pjrt:pjrt_common",
+        "//zkx/pjrt:pjrt_device_description",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "cpu_topology",
     srcs = ["cpu_topology.cc"],
     hdrs = ["cpu_topology.h"],
