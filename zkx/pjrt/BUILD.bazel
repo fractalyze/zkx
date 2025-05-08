@@ -49,6 +49,21 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "host_callback",
+    srcs = ["host_callback.cc"],
+    hdrs = ["host_callback.h"],
+    deps = [
+        ":pjrt_client",
+        ":pjrt_executable",
+        ":pjrt_future",
+        "//xla/tsl/platform:status",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "host_memory_spaces",
     srcs = ["host_memory_spaces.cc"],
     hdrs = ["host_memory_spaces.h"],
@@ -222,14 +237,17 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "pjrt_unittests",
     srcs = [
+        "host_callback_unittest.cc",
         "pjrt_executable_unittest.cc",
         "pjrt_future_unittest.cc",
         "semaphore_unittest.cc",
     ],
     deps = [
+        ":host_callback",
         ":pjrt_executable",
         ":pjrt_future",
         ":semaphore",
         "//xla/tsl/platform:status_matchers",
+        "//zkx/tests:literal_test_util",
     ],
 )
