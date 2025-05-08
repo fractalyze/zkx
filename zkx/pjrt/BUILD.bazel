@@ -49,6 +49,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "host_memory_spaces",
+    srcs = ["host_memory_spaces.cc"],
+    hdrs = ["host_memory_spaces.h"],
+    deps = [
+        ":pjrt_client",
+        "//xla/tsl/platform:fingerprint",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "pjrt_client",
     srcs = ["pjrt_client.cc"],
     hdrs = ["pjrt_client.h"],
