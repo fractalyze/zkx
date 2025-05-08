@@ -235,6 +235,35 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "transpose",
+    srcs = [
+        "transpose.cc",
+        "transpose_kernels.h",
+    ],
+    hdrs = ["transpose.h"],
+    deps = [
+        ":lru_cache",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:compiler_macros",
+        "//zkx:permutation_util",
+        "//zkx:util",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "utils",
     srcs = ["utils.cc"],
     hdrs = ["utils.h"],
@@ -261,5 +290,20 @@ zkx_cc_unittest(
         ":semaphore",
         "//xla/tsl/platform:status_matchers",
         "//zkx/tests:literal_test_util",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "transpose_unittest",
+    timeout = "moderate",
+    srcs = ["transpose_unittest.cc"],
+    deps = [
+        ":transpose",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:array",
+        "//zkx:permutation_util",
+        "@eigen_archive//:eigen3",
     ],
 )
