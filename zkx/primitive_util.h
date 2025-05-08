@@ -29,10 +29,12 @@ limitations under the License.
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 
 #include "xla/tsl/lib/math/math_util.h"
 #include "zkx/base/logging.h"
 #include "zkx/types.h"
+#include "zkx/util.h"
 #include "zkx/zkx_data.pb.h"
 
 namespace zkx::primitive_util {
@@ -461,6 +463,16 @@ bool IsCanonicalRepresentation(PrimitiveType type) {
 
 constexpr bool IsSubByteNonPredType(PrimitiveType type) {
   return IsArrayType(type) && type != PRED && BitWidth(type) < 8;
+}
+
+inline void PackIntN(PrimitiveType input_type, absl::Span<const char> input,
+                     absl::Span<char> output) {
+  zkx::PackIntN(BitWidth(input_type), input, output);
+}
+
+inline void UnpackIntN(PrimitiveType input_type, absl::Span<const char> input,
+                       absl::Span<char> output) {
+  zkx::UnpackIntN(BitWidth(input_type), input, output);
 }
 
 }  // namespace zkx::primitive_util

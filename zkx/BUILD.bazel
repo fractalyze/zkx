@@ -216,6 +216,7 @@ zkx_cc_library(
     hdrs = ["primitive_util.h"],
     deps = [
         ":types",
+        ":util",
         ":zkx_data_cc_proto",
         "//xla/tsl/lib/math:math_util",
         "//zkx/base:logging",
@@ -224,6 +225,7 @@ zkx_cc_library(
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
