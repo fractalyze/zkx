@@ -672,6 +672,22 @@ std::optional<int64_t> LiteralBase::GetFirstInteger() const {
       shape().element_type());
 }
 
+void LiteralBase::BuildPieceSubtree(const Shape& shape, Piece* piece) {
+  CHECK(shape.IsTuple());
+  for (int i = 0; i < ShapeUtil::TupleElementCount(shape); ++i) {
+    const Shape& subshape = shape.tuple_shapes(i);
+
+    Piece child_piece;
+    child_piece.set_subshape(&subshape);
+
+    if (subshape.IsTuple()) {
+      BuildPieceSubtree(subshape, &child_piece);
+    }
+
+    piece->emplace_back(std::move(child_piece));
+  }
+}
+
 namespace {
 
 // Copies the elements in 'src' to 'dest'. The shape and layout of the data in
@@ -881,7 +897,138 @@ int64_t LiteralBase::size_bytes(const ShapeIndex& shape_index) const {
   return piece(shape_index).size_bytes_dense();
 }
 
+void MutableBorrowingLiteral::CopyPieceSubtree(const Shape& shape,
+                                               const Piece* src_piece,
+                                               Piece* dest_piece) {
+  DCHECK(ShapeUtil::Equal(src_piece->subshape(), dest_piece->subshape()))
+      << "src_piece has shape: "
+      << ShapeUtil::HumanString(src_piece->subshape())
+      << "dest_piece has shape: "
+      << ShapeUtil::HumanString(dest_piece->subshape());
+  dest_piece->set_array_value_state(src_piece->get_array_value_state());
+  if (shape.IsTuple()) {
+    for (int i = 0; i < ShapeUtil::TupleElementCount(shape); ++i) {
+      const Shape& subshape = shape.tuple_shapes(i);
+
+      Piece child_piece;
+      child_piece.set_subshape(&subshape);
+
+      CopyPieceSubtree(subshape, &src_piece->child(i), &child_piece);
+
+      dest_piece->emplace_back(std::move(child_piece));
+    }
+  } else if (shape.IsArray()) {
+    dest_piece->set_buffer(const_cast<char*>(src_piece->buffer()));
+  }
+}
+
 MutableLiteralBase::~MutableLiteralBase() = default;
+
+MutableBorrowingLiteral::MutableBorrowingLiteral(
+    const MutableBorrowingLiteral& literal) {
+  shape_ = literal.shape_.Clone();
+  CHECK(LayoutUtil::HasLayout(*shape_));
+
+  root_piece_ = new Piece();
+  root_piece_->set_subshape(shape_.get());
+
+  CopyPieceSubtree(*shape_, &literal.root_piece(), root_piece_);
+}
+
+MutableBorrowingLiteral& MutableBorrowingLiteral::operator=(
+    const MutableBorrowingLiteral& literal) {
+  shape_ = literal.shape_.Clone();
+  CHECK(LayoutUtil::HasLayout(*shape_));
+
+  root_piece_ = new Piece();
+  root_piece_->set_subshape(shape_.get());
+
+  CopyPieceSubtree(*shape_, &literal.root_piece(), root_piece_);
+
+  return *this;
+}
+
+MutableBorrowingLiteral::MutableBorrowingLiteral(MutableLiteralBase* literal) {
+  shape_ = literal->shape_.Clone();
+  CHECK(LayoutUtil::HasLayout(*shape_));
+
+  root_piece_ = new Piece();
+  root_piece_->set_subshape(shape_.get());
+
+  CopyPieceSubtree(*shape_, &literal->root_piece(), root_piece_);
+}
+
+MutableBorrowingLiteral::MutableBorrowingLiteral(
+    MutableBorrowingLiteral literal, const ShapeIndex& view_root) {
+  shape_ = std::make_unique<Shape>(literal.piece(view_root).subshape());
+  CHECK(LayoutUtil::HasLayout(*shape_));
+
+  root_piece_ = new Piece();
+  root_piece_->set_subshape(shape_.get());
+
+  CopyPieceSubtree(*shape_, &literal.piece(view_root), root_piece_);
+}
+
+MutableBorrowingLiteral::MutableBorrowingLiteral(const char* src_buf_ptr,
+                                                 const Shape& shape) {
+  shape_ = std::make_unique<Shape>(shape);
+  CHECK(LayoutUtil::HasLayout(*shape_));
+  CHECK(!shape_->IsTuple());
+
+  root_piece_ = new Piece();
+  root_piece_->set_subshape(shape_.get());
+  root_piece_->set_buffer(const_cast<char*>(src_buf_ptr));
+}
+
+MutableBorrowingLiteral::MutableBorrowingLiteral(absl::Span<char*> src_buf_ptrs,
+                                                 const Shape& shape) {
+  shape_ = std::make_unique<Shape>(shape);
+  if (!shape_->IsTuple()) {
+    CHECK_EQ(src_buf_ptrs.size(), 1);
+    root_piece_ = new Piece();
+    root_piece_->set_subshape(shape_.get());
+    root_piece_->set_buffer(const_cast<char*>(src_buf_ptrs[0]));
+  } else {
+    CHECK(!ShapeUtil::IsNestedTuple(*shape_));
+    CHECK_EQ(src_buf_ptrs.size(), ShapeUtil::TupleElementCount(*shape_));
+    root_piece_ = new Piece();
+    root_piece_->set_subshape(shape_.get());
+
+    for (int i = 0; i < src_buf_ptrs.size(); ++i) {
+      Piece child_piece;
+      const auto& src_shape = shape_->tuple_shapes(i);
+      CHECK(src_shape.IsArray());
+      child_piece.set_subshape(&src_shape);
+      child_piece.set_buffer(src_buf_ptrs[i]);
+      root_piece_->emplace_back(std::move(child_piece));
+    }
+  }
+}
+
+MutableBorrowingLiteral::MutableBorrowingLiteral(
+    ShapeTree<char*> src_buf_ptrs) {
+  shape_ = std::make_unique<Shape>(src_buf_ptrs.shape());
+
+  root_piece_ = new Piece();
+  root_piece_->set_subshape(shape_.get());
+  BuildPieceSubtree(*shape_, root_piece_);
+
+  root_piece_->ForEachMutableSubpiece(
+      [&](const ShapeIndex& index, Piece* piece) {
+        if (ShapeUtil::GetSubshape(*shape_, index).IsTuple()) {
+          DCHECK_EQ(src_buf_ptrs.element(index), nullptr)
+              << "Tuples should not have buffer pointers";
+          return;
+        }
+        piece->set_buffer(const_cast<char*>(src_buf_ptrs.element(index)));
+      });
+}
+
+MutableBorrowingLiteral::~MutableBorrowingLiteral() {
+  if (root_piece_ != nullptr) {
+    delete root_piece_;
+  }
+}
 
 void MutableLiteralBase::SetDynamicSize(int64_t dim_index, int32_t size) {
   return SetDynamicSize(dim_index, {}, size);

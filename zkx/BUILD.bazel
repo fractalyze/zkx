@@ -116,6 +116,7 @@ zkx_cc_library(
         ":array3d",
         ":maybe_owning",
         ":primitive_util",
+        ":shape_tree",
         ":shape_util",
         ":util",
         "//xla/tsl/platform:mem",

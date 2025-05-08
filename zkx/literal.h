@@ -40,6 +40,7 @@ limitations under the License.
 #include "zkx/primitive_util.h"
 #include "zkx/printer.h"
 #include "zkx/shape.h"
+#include "zkx/shape_tree.h"
 #include "zkx/shape_util.h"
 #include "zkx/util.h"
 
@@ -342,6 +343,17 @@ class LiteralBase {
   static Literal CreateFromShapeWithUnknownLeafArrays(const Shape& shape);
   // Similar to CreateFromShape() but marks all leaf arrays as undetermined.
   static Literal CreateFromShapeWithUndeterminedLeafArrays(const Shape& shape);
+
+ protected:
+  // LiteralSlice and Literal must access Pieces of other Literals.
+  friend class MutableLiteralBase;
+  friend class LiteralSlice;
+  friend class BorrowingLiteral;
+
+  class Piece;
+  // Recursively builds the subtree for the given piece and sets the subshapes
+  // of the given piece with the given shape.
+  void BuildPieceSubtree(const Shape& shape, Piece* piece);
 
   // Array literals could be in one of the following three states:
   //   1) Known: we have evaluated and known the value of the array literal.
@@ -767,6 +779,9 @@ class MutableLiteralBase : public LiteralBase {
   void PopulateWithValue(NativeT value);
 
  protected:
+  friend class LiteralBase;
+  friend class MutableBorrowingLiteral;
+
   // Returns the piece at the given ShapeIndex.
   Piece& piece(const ShapeIndex& shape_index) {
     return const_cast<Piece&>(LiteralBase::piece(shape_index));
@@ -837,6 +852,47 @@ class Literal : public MutableLiteralBase {
       ArrayValueState leaf_array_value_state = ArrayValueState::kKnown);
 
   Piece root_piece_;
+};
+
+// The underlying buffer is not owned by this class and is always owned by
+// others. The shape is not owned by this class and not mutable.
+class MutableBorrowingLiteral : public MutableLiteralBase {
+ public:
+  ~MutableBorrowingLiteral() override;
+
+  MutableBorrowingLiteral() : MutableLiteralBase() {}
+
+  MutableBorrowingLiteral(const MutableBorrowingLiteral& literal);
+  MutableBorrowingLiteral& operator=(const MutableBorrowingLiteral& literal);
+
+  // Implicit conversion constructors.
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  MutableBorrowingLiteral(MutableLiteralBase* literal);
+  MutableBorrowingLiteral(MutableBorrowingLiteral literal,
+                          const ShapeIndex& view_root);
+
+  // 'src_buf_ptr' is not owned by this class and must outlive the
+  // lifetime of this class. It points to an appropriately sized buffer with
+  // data interpreted as indicated by 'shape'.
+  // This constructor is only used for array shapes.
+  MutableBorrowingLiteral(const char* src_buf_ptr, const Shape& shape);
+
+  // Similar as above, except to be used for constructing non-nested tuples.
+  MutableBorrowingLiteral(absl::Span<char*> src_buf_ptrs, const Shape& shape);
+
+  // Similar as above, except to be used for constructing literals with
+  // potentially nested tuples (same shape as `src_buf_ptrs`) with borrowed
+  // buffers for each shape index.
+  explicit MutableBorrowingLiteral(ShapeTree<char*> src_buf_ptrs);
+
+ private:
+  const Piece& root_piece() const override { return *root_piece_; };
+  // Recursively copies the subtree from the `src_piece` at the given child
+  // index to the `dest_piece`. For buffers only the pointers are copied, but
+  // not the content.
+  void CopyPieceSubtree(const Shape& shape, const Piece* src_piece,
+                        Piece* dest_piece);
+  Piece* root_piece_ = nullptr;
 };
 
 // A read-only view of a Literal. A LiteralSlice contains pointers to shape and
