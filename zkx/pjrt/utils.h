@@ -16,10 +16,21 @@ limitations under the License.
 #ifndef ZKX_PJRT_UTILS_H_
 #define ZKX_PJRT_UTILS_H_
 
+#include <stdint.h>
+
+#include "absl/types/span.h"
+
+#include "zkx/zkx_data.pb.h"
+
 namespace zkx {
 
 // Return max parallelism level.
 int DefaultThreadPoolSize();
+
+// Returns true if the striding of an array corresponds to a major-to-minor
+// layout.
+bool HasMajorToMinorLayout(PrimitiveType type, absl::Span<const int64_t> dims,
+                           absl::Span<const int64_t> byte_strides);
 
 }  // namespace zkx
 

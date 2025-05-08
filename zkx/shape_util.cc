@@ -22,6 +22,7 @@ limitations under the License.
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 
+#include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/logging.h"
@@ -1337,6 +1338,31 @@ Shape ShapeUtil::DeviceShapeToHostShape(Shape s) {
     }
   });
   return s;
+}
+
+// static
+absl::Status ShapeUtil::ByteStrides(const Shape& shape,
+                                    absl::Span<int64_t> strides) {
+  TF_RET_CHECK(shape.IsArray());
+  TF_RET_CHECK(shape.has_layout());
+  TF_RET_CHECK(shape.dimensions_size() == strides.size());
+
+  int64_t stride = ByteSizeOfPrimitiveType(shape.element_type());
+  for (int i : shape.layout().minor_to_major()) {
+    strides.at(i) = stride;
+    stride *= shape.dimensions(i);
+  }
+  return absl::OkStatus();
+}
+
+// static
+std::optional<absl::InlinedVector<int64_t, 4>> ShapeUtil::ByteStrides(
+    const Shape& shape) {
+  absl::InlinedVector<int64_t, 4> strides(shape.dimensions_size());
+  if (!ByteStrides(shape, absl::MakeSpan(strides)).ok()) {
+    return std::nullopt;
+  }
+  return strides;
 }
 
 // static

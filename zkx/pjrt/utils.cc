@@ -18,9 +18,12 @@ limitations under the License.
 #include <algorithm>
 #include <cstdlib>
 
+#include "absl/algorithm/container.h"
+#include "absl/log/check.h"
 #include "absl/strings/numbers.h"
 
 #include "xla/tsl/platform/cpu_info.h"
+#include "zkx/primitive_util.h"
 
 namespace zkx {
 
@@ -37,6 +40,26 @@ int DefaultThreadPoolSize() {
     }
   }
   return tsl::port::MaxParallelism();
+}
+
+bool HasMajorToMinorLayout(PrimitiveType type, absl::Span<const int64_t> dims,
+                           absl::Span<const int64_t> byte_strides) {
+  CHECK_EQ(dims.size(), byte_strides.size());
+  // If the array is size 0, the strides are irrelevant.
+  if (absl::c_find(dims, 0) != dims.end()) {
+    return true;
+  }
+  int64_t stride = primitive_util::ByteWidth(type);
+  for (int i = static_cast<int>(dims.size()) - 1; i >= 0; --i) {
+    // If a dimension is of size 1, its stride is irrelevant.
+    if (dims[i] != 1) {
+      if (byte_strides[i] != stride) {
+        return false;
+      }
+      stride *= dims[i];
+    }
+  }
+  return true;
 }
 
 }  // namespace zkx
