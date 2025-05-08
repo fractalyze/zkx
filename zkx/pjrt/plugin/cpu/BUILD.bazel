@@ -1,6 +1,18 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "cpu_topology_proto",
+    srcs = ["cpu_topology.proto"],
+)
+
+cc_proto_library(
+    name = "cpu_topology_cc_proto",
+    deps = [":cpu_topology_proto"],
+)
 
 zkx_cc_library(
     name = "cpu_client_options",
@@ -9,4 +21,21 @@ zkx_cc_library(
         "//zkx/backends/cpu/collectives:cpu_collectives",
         "//zkx/service:hlo_module_config",
     ],
+)
+
+zkx_cc_library(
+    name = "cpu_topology",
+    srcs = ["cpu_topology.cc"],
+    hdrs = ["cpu_topology.h"],
+    deps = [
+        ":cpu_topology_cc_proto",
+        "//zkx/pjrt:pjrt_common",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "cpu_unittests",
+    srcs = ["cpu_topology_unittest.cc"],
+    deps = [":cpu_topology"],
 )
