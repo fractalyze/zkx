@@ -1,0 +1,12 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "cpu_client_options",
+    hdrs = ["cpu_client_options.h"],
+    deps = [
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/service:hlo_module_config",
+    ],
+)
