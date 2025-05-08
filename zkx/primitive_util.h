@@ -442,13 +442,13 @@ template <typename T>
 bool IsCanonicalRepresentation(PrimitiveType type) {
   return PrimitiveTypeSwitch<bool>(
       [](auto primitive_type) -> bool {
-        if constexpr (primitive_util::IsSignedIntegralType(primitive_type)) {
+        if constexpr (IsSignedIntegralType(primitive_type)) {
           return std::numeric_limits<T>::is_integer &&
                  std::numeric_limits<T>::is_signed &&
                  BitWidth(primitive_type) <=
                      (std::numeric_limits<T>::digits + 1);
         }
-        if constexpr (primitive_util::IsUnsignedIntegralType(primitive_type) ||
+        if constexpr (IsUnsignedIntegralType(primitive_type) ||
                       primitive_type == PRED) {
           return std::numeric_limits<T>::is_integer &&
                  !std::numeric_limits<T>::is_signed &&
