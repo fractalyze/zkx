@@ -365,8 +365,7 @@ absl::StatusOr<std::unique_ptr<HloAliasAnalysis>> HloAliasAnalysis::Run(
     const HloModule* module,
     const HloDataflowAnalysis::CanShareBuffer& can_share_buffer) {
   VLOG(2) << "HloAliasAnalysis::Run on module " << module->name();
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(2, module->ToString());
+  ZKX_VLOG_LINES(2, module->ToString());
 
   auto alias_analysis = absl::WrapUnique(new HloAliasAnalysis(module));
   TF_ASSIGN_OR_RETURN(alias_analysis->dataflow_analysis_,
@@ -395,8 +394,7 @@ absl::StatusOr<std::unique_ptr<HloAliasAnalysis>> HloAliasAnalysis::Run(
     alias_analysis->live_out_buffers_.insert(buffers.begin(), buffers.end());
   });
 
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(2, alias_analysis->ToString());
+  ZKX_VLOG_LINES(2, alias_analysis->ToString());
   return std::move(alias_analysis);
 }
 

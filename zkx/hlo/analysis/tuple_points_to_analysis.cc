@@ -145,8 +145,7 @@ absl::Status TuplePointsToAnalysis::Analyze() {
   //       PopulateDefinedBuffersAndAliases(instruction->fused_instructions()));
   // }
 
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(3, ToString());
+  ZKX_VLOG_LINES(3, ToString());
 
   return absl::OkStatus();
 }

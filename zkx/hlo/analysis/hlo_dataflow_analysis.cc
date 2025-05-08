@@ -1148,8 +1148,7 @@ void HloDataflowAnalysis::Propagate() {
     workset.erase(workset.find(instruction));
 
     VLOG(4) << "Worklist top: " << instruction->name();
-    // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-    // XLA_VLOG_LINES(3, ToString());
+    ZKX_VLOG_LINES(3, ToString());
 
     if (!UpdateInstructionValueSet(instruction)) {
       // No change to the instruction's value set.
@@ -1471,12 +1470,10 @@ void HloDataflowAnalysis::OptimizePhiValues() {
   }
 
   VLOG(1) << "Before phi graph optimization";
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(1, phi_graph_.ToString());
+  ZKX_VLOG_LINES(1, phi_graph_.ToString());
   phi_graph_.Optimize();
   VLOG(1) << "After phi graph optimization";
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(1, phi_graph_.ToString());
+  ZKX_VLOG_LINES(1, phi_graph_.ToString());
 
   for (const HloComputation* computation : module_.computations()) {
     if (!HloInstruction::IsThreadIncluded(computation->execution_thread(),
@@ -1515,8 +1512,7 @@ absl::StatusOr<std::unique_ptr<HloDataflowAnalysis>> HloDataflowAnalysis::Run(
     const CanShareBuffer& can_share_buffer, const ForwardsValue& forwards_value,
     absl::flat_hash_set<std::string_view> execution_threads) {
   VLOG(1) << "HloDataflowAnalysis::Run on module " << module.name();
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(2, module.ToString());
+  ZKX_VLOG_LINES(2, module.ToString());
 
   auto dataflow_analysis = absl::WrapUnique(new HloDataflowAnalysis(
       module, ssa_form, bitcast_defines_value, can_share_buffer, forwards_value,
@@ -1569,8 +1565,7 @@ absl::StatusOr<std::unique_ptr<HloDataflowAnalysis>> HloDataflowAnalysis::Run(
 
   TF_DCHECK_OK(dataflow_analysis->Verify());
 
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(1, dataflow_analysis->ToString());
+  ZKX_VLOG_LINES(1, dataflow_analysis->ToString());
 
   return std::move(dataflow_analysis);
 }

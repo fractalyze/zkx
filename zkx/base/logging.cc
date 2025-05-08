@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <stddef.h>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/numbers.h"
 #include "absl/synchronization/mutex.h"
 
@@ -207,6 +208,53 @@ int ParseInteger(std::string_view str) {
   return level;
 }
 
+// Parse log level (int64) from environment variable (char*)
+int64_t LogLevelStrToInt(const char* env_var_val) {
+  if (env_var_val == nullptr) {
+    return 0;
+  }
+  return ParseInteger(env_var_val);
+}
+
+using VmoduleMap = absl::flat_hash_map<std::string_view, int>;
+
+// Returns a mapping from module name to VLOG level, derived from the
+// TF_CPP_VMODULE environment variable; ownership is transferred to the caller.
+VmoduleMap* VmodulesMapFromEnv() {
+  // The value of the env var is supposed to be of the form:
+  //    "foo=1,bar=2,baz=3"
+  const char* env = getenv("ZKX_CPP_VMODULE");
+  if (env == nullptr) {
+    // If there is no TF_CPP_VMODULE configuration (most common case), return
+    // nullptr so that the ShouldVlogModule() API can fast bail out of it.
+    return nullptr;
+  }
+  // The memory returned by getenv() can be invalidated by following getenv() or
+  // setenv() calls. And since we keep references to it in the VmoduleMap in
+  // form of StringData objects, make a copy of it.
+  const char* env_data = strdup(env);
+  std::string_view env_view(env_data);
+  VmoduleMap* result = new VmoduleMap();
+  while (!env_view.empty()) {
+    size_t eq_pos = env_view.find('=');
+    if (eq_pos == std::string_view::npos) {
+      break;
+    }
+    std::string_view module_name = env_view.substr(0, eq_pos);
+    env_view.remove_prefix(eq_pos + 1);
+
+    // Comma either points at the next comma delimiter, or at a null terminator.
+    // We check that the integer we parse ends at this delimiter.
+    size_t level_end_pos = env_view.find(',');
+    std::string_view level_str = env_view.substr(0, level_end_pos);
+    (*result)[module_name] = ParseInteger(level_str);
+    if (level_end_pos != std::string_view::npos) {
+      env_view.remove_prefix(level_end_pos + 1);
+    }
+  }
+  return result;
+}
+
 bool EmitThreadIdFromEnv() {
   const char* env_var_val = getenv("ZKX_CPP_LOG_THREAD_ID");
   return env_var_val == nullptr ? false : ParseInteger(env_var_val) != 0;
@@ -321,6 +369,118 @@ void DefaultLogSink::Send(const LogEntry& entry) {
                 entry.Line(), entry.ToString().c_str());
   fflush(vlog_file.FilePtr());  // Ensure logs are written immediately.
 #endif  // PLATFORM_POSIX_ANDROID
+}
+
+absl::LogSeverityAtLeast MinLogLevelFromEnv() {
+  // We don't want to print logs during fuzzing as that would slow fuzzing down
+  // by almost 2x. So, if we are in fuzzing mode (not just running a test), we
+  // return a value so that nothing is actually printed. Since LOG uses >=
+  // (see ~LogMessage in this file) to see if log messages need to be printed,
+  // the value we're interested on to disable printing is the maximum severity.
+  // See also http://llvm.org/docs/LibFuzzer.html#fuzzer-friendly-build-mode
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+  return absl::LogSeverityAtLeast::kInfinity;
+#else
+  const char* env_var_val = getenv("ZKX_CPP_MIN_LOG_LEVEL");
+  return static_cast<absl::LogSeverityAtLeast>(
+      internal::LogLevelStrToInt(env_var_val));
+#endif
+}
+
+int MaxVLogLevelFromEnv() {
+  // We don't want to print logs during fuzzing as that would slow fuzzing down
+  // by almost 2x. So, if we are in fuzzing mode (not just running a test), we
+  // return a value so that nothing is actually printed. Since VLOG uses <=
+  // (see VLOG_IS_ON in logging.h) to see if log messages need to be printed,
+  // the value we're interested on to disable printing is 0.
+  // See also http://llvm.org/docs/LibFuzzer.html#fuzzer-friendly-build-mode
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+  return 0;
+#else
+  const char* env_var_val = getenv("ZKX_CPP_MAX_VLOG_LEVEL");
+  return internal::LogLevelStrToInt(env_var_val);
+#endif
+}
+
+LogMessage::LogMessage(const char* fname, int line, absl::LogSeverity severity)
+    : fname_(fname), line_(line), severity_(severity) {}
+
+LogMessage& LogMessage::AtLocation(const char* fname, int line) {
+  fname_ = fname;
+  line_ = line;
+  return *this;
+}
+
+LogMessage::~LogMessage() {
+  // Read the min log level once during the first call to logging.
+  static absl::LogSeverityAtLeast min_log_level = MinLogLevelFromEnv();
+  if (severity_ >= min_log_level) {
+    GenerateLogMessage();
+  }
+}
+
+void LogMessage::GenerateLogMessage() {
+  internal::LogSinks::Instance().Send(
+      LogEntry(severity_, fname_, line_, str()));
+}
+
+int LogMessage::MaxVLogLevel() {
+  static int max_vlog_level = MaxVLogLevelFromEnv();
+  return max_vlog_level;
+}
+
+bool LogMessage::VmoduleActivated(const char* fname, int level) {
+  if (level <= MaxVLogLevel()) {
+    return true;
+  }
+  static internal::VmoduleMap* vmodules = internal::VmodulesMapFromEnv();
+  if (ABSL_PREDICT_TRUE(vmodules == nullptr)) {
+    return false;
+  }
+  std::string_view module(fname);
+  if (size_t last_slash = module.rfind('/');
+      last_slash != std::string_view::npos) {
+    module.remove_prefix(last_slash + 1);
+  }
+  if (size_t dot_after = module.find('.');
+      dot_after != std::string_view::npos) {
+    module.remove_suffix(module.size() - dot_after);
+  }
+  auto it = vmodules->find(module);
+  return it != vmodules->end() && it->second >= level;
+}
+
+void LogString(const char* fname, int line, absl::LogSeverity severity,
+               const std::string& message) {
+  LogMessage(fname, line, severity) << message;
+}
+
+void LogLines(absl::LogSeverity sev, std::string_view text, const char* fname,
+              int lineno) {
+  const absl::LogSeverity orig_sev = sev;
+  if (sev == absl::LogSeverity::kFatal) {
+    sev = absl::LogSeverity::kError;
+  }
+
+  // Protect calls with a mutex so we don't interleave calls to LogLines from
+  // multiple threads.
+  static absl::Mutex log_lines_mu(absl::kConstInit);
+  absl::MutexLock lock(&log_lines_mu);
+
+  size_t cur = 0;
+  while (cur < text.size()) {
+    size_t eol = text.find('\n', cur);
+    if (eol == std::string_view::npos) {
+      eol = text.size();
+    }
+    auto msg = text.substr(cur, eol - cur);
+    LogString(fname, lineno, sev, std::string(msg.data(), msg.size()));
+    cur = eol + 1;
+  }
+
+  if (orig_sev == absl::LogSeverity::kFatal) {
+    LogString(fname, lineno, orig_sev, "Aborting due to errors.");
+  }
 }
 
 }  // namespace zkx::base

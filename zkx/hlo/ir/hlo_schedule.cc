@@ -274,8 +274,7 @@ HloSchedule::num_sequences_by_execution_thread() const {
 
 absl::Status HloSchedule::Verify() const {
   VLOG(2) << "VerifySchedule()";
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(2, ToString());
+  ZKX_VLOG_LINES(2, ToString());
 
   // Verify schedule contains exactly the same set of non-fusion computations as
   // module currently does for each thread that has schedule.

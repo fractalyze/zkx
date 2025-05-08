@@ -40,6 +40,7 @@ limitations under the License.
 #include "llvm/Transforms/Instrumentation/DataFlowSanitizer.h"
 
 #include "zkx/base/logging.h"
+#include "zkx/service/llvm_ir/llvm_util.h"
 
 namespace zkx::cpu {
 namespace {
@@ -73,8 +74,7 @@ IrCompiler::IrCompiler(TargetMachineBuilder target_machine_builder,
 llvm::Expected<std::unique_ptr<llvm::MemoryBuffer>> IrCompiler::operator()(
     llvm::Module& module) {
   VLOG(2) << "IR before optimizations";
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(2, llvm_ir::DumpToString(&module));
+  ZKX_VLOG_LINES(2, llvm_ir::DumpToString(&module));
 
   // Get a target machine for compilation. If compilations run concurrently on
   // multiple threads, `IrCompiler` user (in most cases `SimpleOrcJIT`)
@@ -145,8 +145,7 @@ llvm::Expected<std::unique_ptr<llvm::MemoryBuffer>> IrCompiler::operator()(
   llvm::raw_svector_ostream ostream(mc_stream_buffer);
 
   VLOG(2) << "IR after optimizations";
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(2, llvm_ir::DumpToString(&module));
+  ZKX_VLOG_LINES(2, llvm_ir::DumpToString(&module));
 
   {  // Synchronize access to user-defined hooks.
     absl::MutexLock lock(&mutex_);

@@ -310,9 +310,8 @@ std::unique_ptr<CallGraph> CallGraph::Build(
   auto call_graph =
       absl::WrapUnique<CallGraph>(new CallGraph(module, execution_threads));
 
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // VLOG(3) << "Building call graph for:";
-  // XLA_VLOG_LINES(3, module->ToString());
+  VLOG(3) << "Building call graph for:";
+  ZKX_VLOG_LINES(3, module->ToString());
 
   // Construct nodes of the call graph and populate the callsites.
   for (HloComputation* computation : module->computations(execution_threads)) {
@@ -349,8 +348,7 @@ std::unique_ptr<CallGraph> CallGraph::Build(
   call_graph->SetCallContexts();
   call_graph->SetNodeDepths();
 
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(2, call_graph->ToString());
+  ZKX_VLOG_LINES(2, call_graph->ToString());
 
   return call_graph;
 }

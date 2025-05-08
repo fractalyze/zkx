@@ -274,9 +274,8 @@ absl::Status HeapSimulator::RunComputation(
     const HloComputation& computation,
     const HloInstructionSequence& instruction_sequence,
     const HloAliasAnalysis& alias_analysis, HloLiveRange* hlo_live_range) {
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(1, computation.parent()->ToString());
-  // XLA_VLOG_LINES(2, computation.ToString());
+  ZKX_VLOG_LINES(1, computation.parent()->ToString());
+  ZKX_VLOG_LINES(2, computation.ToString());
 
   VLOG(1) << hlo_live_range->ToString();
 

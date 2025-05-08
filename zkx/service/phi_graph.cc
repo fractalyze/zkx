@@ -137,8 +137,7 @@ std::string PhiGraph::ToString() {
 
 void PhiGraph::Optimize() {
   VLOG(2) << "Optimizing phi graph:";
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(2, ToString());
+  ZKX_VLOG_LINES(2, ToString());
   // Set up users for each node.
   for (auto& node : node_storage_) {
     for (Node* input : node->operands) {

@@ -1931,8 +1931,7 @@ void BufferAssigner::AssignBuffersFromHeapSimulator(
     allocation->peak_buffers_ =
         ComputePeakMemoryLogicalBuffers(*allocation, result.debug_trace);
 
-    // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-    // XLA_VLOG_LINES(2, allocation->ToString());
+    ZKX_VLOG_LINES(2, allocation->ToString());
 
     allocation->AddHeapTrace(result.debug_trace);
   }
@@ -1968,10 +1967,9 @@ BufferAssigner::CreateAssignment(
                                         module->entry_computation(), true));
 
   VLOG(1) << "Assigning buffers to module " << module->name();
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(3, module->ToString());
-  // XLA_VLOG_LINES(3, alias_analysis->ToString());
-  // XLA_VLOG_LINES(3, alias_analysis->dataflow_analysis().ToString());
+  ZKX_VLOG_LINES(3, module->ToString());
+  ZKX_VLOG_LINES(3, alias_analysis->ToString());
+  ZKX_VLOG_LINES(3, alias_analysis->dataflow_analysis().ToString());
   VLOG(1) << "Number of buffers to assign: "
           << alias_analysis->buffers().size();
 
@@ -1985,9 +1983,8 @@ BufferAssigner::CreateAssignment(
   TF_RETURN_IF_ERROR(
       colorer_(&assignment->alias_analysis(), assignment->hlo_ordering()));
   VLOG(3) << "After coloring:";
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(3,
-  //  assignment->alias_analysis().dataflow_analysis().ToString());
+  ZKX_VLOG_LINES(3,
+                 assignment->alias_analysis().dataflow_analysis().ToString());
 
   std::vector<const HloComputation*> thread_local_computations;
   std::vector<const HloComputation*> global_computations;
@@ -2062,12 +2059,10 @@ BufferAssigner::CreateAssignment(
 
   assignment->CombineTempAllocations(private_stack_colors, temp_buffer_color);
 
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(2, assignment->ToString());
+  ZKX_VLOG_LINES(2, assignment->ToString());
   assignment->ComputeSummaryStats();
-  // TODO(chokobole): Uncomment this. Dependency: XLA_VLOG_LINES
-  // XLA_VLOG_LINES(1,
-  //                assignment->StatsString(/*report_total_fragmentation=*/true));
+  ZKX_VLOG_LINES(1,
+                 assignment->StatsString(/*report_total_fragmentation=*/true));
   VLOG(1) << "Buffer assignment done.";
   return std::move(assignment);
 }

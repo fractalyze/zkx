@@ -15,6 +15,7 @@ zkx_cc_library(
     hdrs = ["logging.h"],
     deps = [
         "//xla/tsl/platform",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
