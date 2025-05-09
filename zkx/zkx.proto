@@ -95,6 +95,142 @@ message ShardableValueUpdatePairProto {
   repeated int64 output_shape_index = 3;
 }
 
+// These settings control how ZKX compiles and/or runs code.  Not all settings
+// will have an effect on every platform.
+//
+// When adding new fields, keep in mind that boolean fields default to false.
+// Next id: 27.
+message ExecutionOptions {
+  // This optional field's layout is used as a hint when storing the output of
+  // this computation.  Subsequent transfers of this output array to the client
+  // may be faster when using this layout.
+  //
+  // We use a Shape here to accommodate computations that return a tuple.
+  ShapeProto shape_with_output_layout = 2;
+
+  // Used to seed random-number generators used in this computation.  If this is
+  // 0, we generate a seed ourselves.
+  //
+  // Changing the seed unnecessarily forces a recompilation.
+  uint64 seed = 3;
+
+  DebugOptions debug_options = 4;
+
+  // This optional field specifies a particular set of devices to run the
+  // computation on. The computation will be partitioned across these devices.
+  // If not provided, the default device will be chosen.
+  repeated DeviceHandle device_handles = 5;
+
+  // Number of replicas of the computation to run. If zero, uses the default
+  // number of replicas for the ZKX service.
+  int32 num_replicas = 6;
+
+  // This optional field specifies the device assignment if known at compile
+  // time.
+  DeviceAssignmentProto device_assignment = 7;
+
+  // Alias input and output buffers for parameters that are passed-through ZKX
+  // modules without being changed.
+  bool alias_passthrough_params = 8;
+
+  // Number of partitions of the computation to run (model parallelism).
+  // If zero, uses the default number of partitions for the ZKX service.
+  int32 num_partitions = 9;
+
+  // Used to identify a set of programs that should be launch together.
+  int32 launch_id = 10;
+
+  // Indicates whether to use SPMD (true) or MPMD (false) partitioning when
+  // num_partitions > 1 and ZKX is requested to partition the input program.
+  bool use_spmd_partitioning = 11;
+
+  // Whether to automatically generate ZKX shardings for SPMD partitioner.
+  bool use_auto_spmd_partitioning = 15;
+
+  // Device mesh shape used to create the sharding search space when
+  // use_auto_spmd_partitioning=true.
+  repeated int64 auto_spmd_partitioning_mesh_shape = 16;
+
+  // Device mesh ids compatible with the above mesh_shape used when
+  // use_auto_spmd_partitioning=true.
+  repeated int64 auto_spmd_partitioning_mesh_ids = 17;
+
+  // The amount of effort to spend on optimizing for minimizing program
+  // execution time, as a value in [-1.0, +1.0]. The baseline is 0.0, which
+  // strongly prioritizes execution time at the cost of longer compile times,
+  // suitable for production workloads. A value of -0.5 would be appropriate for
+  // research use cases that prefer faster compilations to iterate more quickly.
+  // Positive values, on the other hand, might enable costly optimizations that
+  // are off by default.
+  float exec_time_optimization_effort = 25;
+
+  // The amount of effort to spend on making the program fit in memory (where
+  // "fit in memory" here has a backend-dependent meaning), as a value in
+  // [-1.0,+1.0]. The baseline is 0.0, which expends significant effort on
+  // attempting to make the program fit. A value of -1.0 would be appropriate
+  // for use cases that wish to spend minimal effort here and fail as quickly as
+  // possible instead. Positive values, on the other hand, might enable costly
+  // algorithms to reduce memory usage that are off by default.
+  float memory_fitting_effort = 26;
+
+  // If set, deduplicate hlo into function calls to reduce binary size. Only
+  // works on TPU.
+  bool deduplicate_hlo = 12;
+
+  reserved 13;  // Was broadcast_replicated_parameters_via_collectives
+
+  // Allows sharding propagation to propagate to the parameters. This changes
+  // the input shape of the computation (which is undesirable), but it can be
+  // used to allow to run partial compilation to determine what would be the
+  // input sharding of a computation if ZKX would be allowed to propagate the
+  // sharding which can be used by higher level framework as a way to query
+  // intermediate sharding of operations when multiple computation would be
+  // chained and merged together.
+  // This is a vector of bool, because the user can control which parameters can
+  // have the sharding substituted. If only one boolean value is passed in the
+  // vector that is interpreted as the value to be applied for every parameter.
+  repeated bool allow_spmd_sharding_propagation_to_parameters = 23;
+
+  // Allows sharding propagation to propagate to the outputs. This changes the
+  // output shape of the computation (which is undesirable), but it can be used
+  // to allow to run partial compilation to determine what would be the output
+  // sharding of a computation if ZKX would be allowed to propagate the sharding
+  // which can be used by higher level framework as a way to query intermediate
+  // sharding of operations when multiple computation would be chained and
+  // merged together.
+  // This is a vector of bool, because the user can control (if the output of
+  // the computation is a tuple) which elements of the tuple can have the
+  // sharding substituted and which don't. If only one boolean value is passed
+  // in the vector that's interpreted as the value to be applied for every
+  // single element of the output tuple. One value per element of the tuple
+  // means that each value is attached to one of the output elements.
+  repeated bool allow_spmd_sharding_propagation_to_output = 14;
+
+  // Whether to broadcast args across all replicas. One entry per arg.
+  repeated bool param_requires_broadcast_via_collectives = 18;
+
+  // If enabled, the compiler may generate sharding and unsharding programs as
+  // separate HLO modules, and modify the main program's input and output to
+  // be sharded.
+  bool allow_separate_sharding_programs = 19;
+
+  // The list of input/output pairs in the main program that could be sharded.
+  repeated ShardableValueUpdatePairProto shardable_value_update_pairs = 20;
+
+  // Profiling data for feedback directed optimizations. Note that this is not
+  // the only way to feed FDO data into the compiler and individual backends
+  // may choose to get FDO data by other means.
+  bytes fdo_profile = 21;
+
+  // Amount of device memory available for the executable to use.
+  int64 device_memory_size = 22;
+
+  // Use Shardy, a new partitioner, to replace the existing
+  // ShardingPropagation and SpmdPartitioner. See go/xla-sdy-pipeline for
+  // details.
+  bool use_shardy_partitioner = 24;
+}
+
 // Serialization of HloModuleConfig. See the C++ class definition for
 // descriptions of each field.
 // There are no guarantees of backwards or forwards compatibility.
