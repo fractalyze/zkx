@@ -38,6 +38,8 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_cpu_prefer_vector_width(256);
   opts.set_zkx_cpu_max_isa("");
 
+  opts.set_zkx_force_host_platform_device_count(1);
+
   opts.set_zkx_multiheap_size_constraint_per_heap(-1);
   return opts;
 }
@@ -138,6 +140,16 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "use newer instructions. Available values: SSE4_2, AVX, AVX2, AVX512, "
       "AVX512_VNNI, AVX512_BF16, AMX, and AMX_FP16. (`AMX` will enable both "
       "`AMX_BF16` and `AMX_INT8` instructions.)"));
+  flag_list->push_back(tsl::Flag(
+      "zkx_force_host_platform_device_count",
+      int32_setter_for(&DebugOptions::set_zkx_force_host_platform_device_count),
+      debug_options->zkx_force_host_platform_device_count(),
+      "Force the host platform to pretend that there are these many host "
+      "\"devices\". All of these host devices are backed by the same "
+      "threadpool. Setting this to anything other than 1 can increase overhead "
+      "from context switching but we let the user override this behavior to "
+      "help run tests on the host that run models in parallel across multiple "
+      "devices."));
   flag_list->push_back(tsl::Flag(
       "zkx_flags_reset", bool_setter_for(&DebugOptions::set_zkx_flags_reset),
       debug_options->zkx_flags_reset(),

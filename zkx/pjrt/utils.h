@@ -18,11 +18,26 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <functional>
+#include <memory>
+
+#include "absl/status/statusor.h"
 #include "absl/types/span.h"
 
+#include "zkx/client/executable_build_options.h"
+#include "zkx/service/computation_placer.h"
 #include "zkx/zkx_data.pb.h"
 
 namespace zkx {
+
+// Returns the num_replicas, num_partitions and device assignment given a
+// ExecutableBuildOptions and whether we want a portable executable.
+absl::Status ParseDeviceAssignmentCompileOptions(
+    bool compile_portable_executable, ExecutableBuildOptions* build_options,
+    std::function<absl::StatusOr<DeviceAssignment>(int, int)>
+        GetDefaultDeviceAssignmentFunction,
+    int* num_replicas, int* num_partitions,
+    std::shared_ptr<DeviceAssignment>* device_assignment);
 
 // Return max parallelism level.
 int DefaultThreadPoolSize();

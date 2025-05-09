@@ -23,9 +23,52 @@ limitations under the License.
 #include "absl/strings/numbers.h"
 
 #include "xla/tsl/platform/cpu_info.h"
+#include "xla/tsl/platform/statusor.h"
+#include "zkx/base/logging.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx {
+
+absl::Status ParseDeviceAssignmentCompileOptions(
+    bool compile_portable_executable, ExecutableBuildOptions* build_options,
+    std::function<absl::StatusOr<DeviceAssignment>(int, int)>
+        GetDefaultDeviceAssignmentFunction,
+    int* num_replicas, int* num_partitions,
+    std::shared_ptr<DeviceAssignment>* device_assignment) {
+  if (compile_portable_executable) {
+    if (build_options->has_device_assignment()) {
+      return absl::InvalidArgumentError(
+          "CompileOptions requests portable executable but "
+          "ExecutableBuildOptions includes a device assignment");
+    }
+    if (build_options->num_replicas() != 1 ||
+        build_options->num_partitions() != 1) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "CompileOptions requests portable executable but "
+          "ExecutableBuildOptions includes num_replicas %d and num_partitions "
+          "%d.",
+          build_options->num_replicas(), build_options->num_partitions()));
+    }
+    *num_replicas = 1;
+    *num_partitions = 1;
+  } else {
+    if (!build_options->has_device_assignment()) {
+      VLOG(2) << "Compile using default device_assignment.";
+      TF_ASSIGN_OR_RETURN(
+          DeviceAssignment device_assignment,
+          GetDefaultDeviceAssignmentFunction(build_options->num_replicas(),
+                                             build_options->num_partitions()));
+      build_options->set_device_assignment(device_assignment);
+    }
+    VLOG(2) << "Compile device_assignment:\n"
+            << build_options->device_assignment().ToString();
+    *num_replicas = build_options->device_assignment().replica_count();
+    *num_partitions = build_options->device_assignment().computation_count();
+    *device_assignment =
+        std::make_shared<DeviceAssignment>(build_options->device_assignment());
+  }
+  return absl::OkStatus();
+}
 
 int DefaultThreadPoolSize() {
   // Google's CI system exposes an environment variable NPROC that describes
