@@ -242,6 +242,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "protobuf_util",
+    srcs = ["protobuf_util.cc"],
+    hdrs = ["protobuf_util.h"],
+    deps = [
+        "@com_google_absl//absl/hash",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+zkx_cc_library(
     name = "shape_layout",
     srcs = ["shape_layout.cc"],
     hdrs = ["shape_layout.h"],
