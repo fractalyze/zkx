@@ -319,6 +319,25 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_module_util",
+    srcs = ["hlo_module_util.cc"],
+    hdrs = ["hlo_module_util.h"],
+    deps = [
+        ":compiler",
+        ":computation_layout",
+        ":hlo_module_config",
+        "//xla/tsl/platform:statusor",
+        "//zkx:debug_options_flags",
+        "//zkx:shape_util",
+        "//zkx:zkx_cc_proto",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_value",
     srcs = ["hlo_value.cc"],
     hdrs = ["hlo_value.h"],
