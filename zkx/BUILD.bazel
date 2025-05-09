@@ -1,4 +1,4 @@
-load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library", "cc_test")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
@@ -86,6 +86,27 @@ zkx_cc_library(
         "//zkx/backends/cpu:alignment",
         "@com_google_absl//absl/log:check",
     ],
+)
+
+zkx_cc_library(
+    name = "debug_options_flags",
+    srcs = ["debug_options_flags.cc"],
+    hdrs = ["debug_options_flags.h"],
+    deps = [
+        ":debug_options_parsers",
+        ":parse_flags_from_env",
+        ":zkx_cc_proto",
+        "//xla/tsl/util:command_line_flags",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "debug_options_parsers",
+    hdrs = ["debug_options_parsers.h"],
+    deps = ["@com_google_absl//absl/strings"],
 )
 
 zkx_cc_library(
@@ -197,6 +218,22 @@ zkx_cc_library(
     name = "overflow_util",
     hdrs = ["overflow_util.h"],
     deps = ["@com_google_absl//absl/base:core_headers"],
+)
+
+zkx_cc_library(
+    name = "parse_flags_from_env",
+    srcs = ["parse_flags_from_env.cc"],
+    hdrs = ["parse_flags_from_env.h"],
+    deps = [
+        "//xla/tsl/util:command_line_flags",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
 )
 
 zkx_cc_library(
@@ -367,6 +404,7 @@ zkx_cc_unittest(
         "array3d_unittest.cc",
         "array_unittest.cc",
         "comparison_util_unittest.cc",
+        "debug_options_parsers_unittest.cc",
         "index_util_unittest.cc",
         "iterator_util_unittest.cc",
         "layout_unittest.cc",
@@ -381,13 +419,29 @@ zkx_cc_unittest(
         ":array2d",
         ":array3d",
         ":comparison_util",
+        ":debug_options_flags",
+        ":debug_options_parsers",
         ":iterator_util",
         ":maybe_owning",
         ":permutation_util",
         ":shape_util",
         ":status_macros",
         ":util",
+        ":zkx_cc_proto",
+        "//xla/tsl/platform:env",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
+    ],
+)
+
+cc_test(
+    name = "parse_flags_from_env_unittest",
+    srcs = ["parse_flags_from_env_unittest.cc"],
+    deps = [
+        ":parse_flags_from_env",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:subprocess",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_googletest//:gtest",
     ],
 )
