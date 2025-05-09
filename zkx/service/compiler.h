@@ -323,12 +323,7 @@ class AotCompilationOptions {
   AotCompilationOptions(const AotCompilationOptions&) = delete;
   AotCompilationOptions& operator=(AotCompilationOptions const&) = delete;
 
-  // TODO(chokobole): Uncomment this. Dependency: GetDebugOptionsFromFlags()
-  // explicit AotCompilationOptions(se::Platform::Id platform_id)
-  //     : platform_id_(platform_id), debug_options_(GetDebugOptionsFromFlags())
-  //     {}
-  explicit AotCompilationOptions(se::Platform::Id platform_id)
-      : platform_id_(platform_id) {}
+  explicit AotCompilationOptions(se::Platform::Id platform_id);
   virtual ~AotCompilationOptions() = default;
 
   // Returns the ID of the platform to which these options apply.

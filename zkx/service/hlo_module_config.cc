@@ -22,6 +22,8 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 
+#include "zkx/debug_options_flags.h"
+
 namespace zkx {
 namespace {
 
@@ -145,6 +147,9 @@ void AssignStructPhaseOrderingConfig(HloModuleConfig& config,
 }
 
 }  // namespace
+
+HloModuleConfig::HloModuleConfig()
+    : debug_options_(DefaultDebugOptionsIgnoringFlags()) {}
 
 std::string HloModuleConfig::compilation_cache_key() const {
   // TODO(chokobole): Uncomment this. Dependency: DebugOptions::xla_hlo_profile

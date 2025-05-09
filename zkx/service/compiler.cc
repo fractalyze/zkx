@@ -20,6 +20,8 @@ limitations under the License.
 #include "absl/base/const_init.h"
 #include "absl/log/check.h"
 
+#include "zkx/debug_options_flags.h"
+
 namespace zkx {
 
 // static
@@ -111,8 +113,10 @@ absl::StatusOr<Compiler*> Compiler::GetForPlatform(
   return compilers->at(platform->id()).get();
 }
 
-AotCompilationOptions::AotCompilationOptions() {}
-// TODO(chokobole): Uncomment this. Dependency: GetDebugOptionsFromFlags()
-// : debug_options_(GetDebugOptionsFromFlags()) {}
+AotCompilationOptions::AotCompilationOptions()
+    : debug_options_(GetDebugOptionsFromFlags()) {}
+
+AotCompilationOptions::AotCompilationOptions(se::Platform::Id platform_id)
+    : platform_id_(platform_id), debug_options_(GetDebugOptionsFromFlags()) {}
 
 }  // namespace zkx

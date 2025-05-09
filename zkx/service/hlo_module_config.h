@@ -80,12 +80,7 @@ class HloModuleConfig {
   // ProgramShape creates a computation layout using this shape.
   // The layouts in the ProgramShape will be reset to default unless
   // ignore_layouts is set to false.
-  HloModuleConfig() {
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: DefaultDebugOptionsIgnoringFlags
-    // clang-format on
-    // debug_options_ = DefaultDebugOptionsIgnoringFlags();
-  }
+  HloModuleConfig();
 
   explicit HloModuleConfig(const ProgramShape& program_shape,
                            bool ignore_layouts = true)
