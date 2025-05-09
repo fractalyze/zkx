@@ -215,6 +215,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "pjrt_test_client",
+    testonly = True,
+    srcs = ["pjrt_test_client.cc"],
+    hdrs = ["pjrt_test_client.h"],
+    deps = [
+        ":pjrt_client",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "semaphore",
     srcs = ["semaphore.cc"],
     hdrs = ["semaphore.h"],
@@ -289,6 +303,7 @@ zkx_cc_unittest(
     srcs = [
         "host_callback_unittest.cc",
         "lru_cache_unittest.cc",
+        "pjrt_client_unittest.cc",
         "pjrt_executable_unittest.cc",
         "pjrt_future_unittest.cc",
         "semaphore_unittest.cc",
@@ -300,6 +315,8 @@ zkx_cc_unittest(
         ":pjrt_future",
         ":semaphore",
         "//xla/tsl/platform:status_matchers",
+        "//zkx:literal_util",
+        "//zkx/pjrt/cpu:pjrt_test_client",
         "//zkx/tests:literal_test_util",
     ],
 )

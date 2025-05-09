@@ -105,6 +105,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "pjrt_test_client",
+    testonly = True,
+    srcs = ["pjrt_test_client.cc"],
+    deps = [
+        ":cpu_client",
+        "//zkx/pjrt:pjrt_test_client",
+    ],
+)
+
+zkx_cc_library(
     name = "tracked_tfrt_cpu_device_buffer",
     srcs = ["tracked_tfrt_cpu_device_buffer.cc"],
     hdrs = ["tracked_tfrt_cpu_device_buffer.h"],
