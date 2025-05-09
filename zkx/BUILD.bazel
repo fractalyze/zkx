@@ -121,6 +121,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "execution_options_util",
+    srcs = ["execution_options_util.cc"],
+    hdrs = ["execution_options_util.h"],
+    deps = [
+        ":debug_options_flags",
+        ":zkx_cc_proto",
+    ],
+)
+
+zkx_cc_library(
     name = "iterator_util",
     hdrs = ["iterator_util.h"],
     deps = ["//xla/tsl/lib/gtl:iterator_range"],

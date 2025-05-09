@@ -361,10 +361,9 @@ absl::StatusOr<ExecutableBuildOptions> ExecutableBuildOptionsFromProto(
 
 // Creates an ExecutionOptions based on a given ExecutableBuildOptions and
 // ProgramShape.
-// TODO(chokobole): Uncomment this. Dependency: ExecutionOptions
-// ExecutionOptions CreateExecutionOptions(
-//     const ExecutableBuildOptions& build_options,
-//     const ProgramShape* program_shape);
+ExecutionOptions CreateExecutionOptions(
+    const ExecutableBuildOptions& build_options,
+    const ProgramShape* program_shape);
 
 }  // namespace zkx
 

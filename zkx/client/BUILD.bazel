@@ -10,6 +10,7 @@ zkx_cc_library(
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
         "//zkx:debug_options_flags",
+        "//zkx:execution_options_util",
         "//zkx:shape_util",
         "//zkx:zkx_cc_proto",
         "//zkx/pjrt:compile_options_cc_proto",

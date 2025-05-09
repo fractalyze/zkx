@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/debug_options_flags.h"
+#include "zkx/execution_options_util.h"
 #include "zkx/layout_util.h"
 #include "zkx/shape_util.h"
 
@@ -152,6 +153,70 @@ absl::StatusOr<ExecutableBuildOptions> ExecutableBuildOptionsFromProto(
   output.set_process_index(input.process_index());
   output.set_process_count(input.process_count());
   return output;
+}
+
+ExecutionOptions CreateExecutionOptions(
+    const ExecutableBuildOptions& build_options,
+    const ProgramShape* program_shape) {
+  ExecutionOptions execution_options = CreateDefaultExecutionOptions();
+  if (build_options.has_debug_options()) {
+    *execution_options.mutable_debug_options() = build_options.debug_options();
+  }
+  if (build_options.result_layout() != nullptr) {
+    *execution_options.mutable_shape_with_output_layout() =
+        build_options.result_layout()->ToProto();
+  } else {
+    Shape result_shape(program_shape->result());
+    LayoutUtil::SetToDefaultLayout(&result_shape);
+    *execution_options.mutable_shape_with_output_layout() =
+        result_shape.ToProto();
+  }
+  execution_options.set_num_replicas(build_options.num_replicas());
+  execution_options.set_num_partitions(build_options.num_partitions());
+  execution_options.set_use_spmd_partitioning(
+      build_options.use_spmd_partitioning());
+  execution_options.set_use_auto_spmd_partitioning(
+      build_options.use_auto_spmd_partitioning());
+  for (auto t : build_options.auto_spmd_partitioning_mesh_shape()) {
+    execution_options.mutable_auto_spmd_partitioning_mesh_shape()->Add(t);
+  }
+  for (auto t : build_options.auto_spmd_partitioning_mesh_ids()) {
+    execution_options.mutable_auto_spmd_partitioning_mesh_ids()->Add(t);
+  }
+  execution_options.set_exec_time_optimization_effort(
+      build_options.exec_time_optimization_effort());
+  execution_options.set_memory_fitting_effort(
+      build_options.memory_fitting_effort());
+  execution_options.set_deduplicate_hlo(build_options.deduplicate_hlo());
+  if (!build_options.allow_spmd_sharding_propagation_to_parameters().empty()) {
+    execution_options.mutable_allow_spmd_sharding_propagation_to_parameters()
+        ->Clear();
+    for (bool v :
+         build_options.allow_spmd_sharding_propagation_to_parameters()) {
+      execution_options.mutable_allow_spmd_sharding_propagation_to_parameters()
+          ->Add(v);
+    }
+  }
+  if (!build_options.allow_spmd_sharding_propagation_to_output().empty()) {
+    execution_options.mutable_allow_spmd_sharding_propagation_to_output()
+        ->Clear();
+    for (bool v : build_options.allow_spmd_sharding_propagation_to_output()) {
+      execution_options.mutable_allow_spmd_sharding_propagation_to_output()
+          ->Add(v);
+    }
+  }
+  if (build_options.has_device_assignment()) {
+    build_options.device_assignment().Serialize(
+        execution_options.mutable_device_assignment());
+  }
+  execution_options.set_alias_passthrough_params(
+      build_options.alias_passthrough_params());
+  execution_options.set_fdo_profile(build_options.fdo_profile().data(),
+                                    build_options.fdo_profile().size());
+  execution_options.set_device_memory_size(build_options.device_memory_size());
+  execution_options.set_use_shardy_partitioner(
+      build_options.use_shardy_partitioner());
+  return execution_options;
 }
 
 }  // namespace zkx
