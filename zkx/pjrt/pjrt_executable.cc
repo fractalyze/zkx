@@ -55,9 +55,8 @@ absl::StatusOr<CompileOptionsProto> CompileOptions::ToProto() const {
     }
   }
   output.set_parameter_is_tupled_arguments(parameter_is_tupled_arguments);
-  // TODO(chokobole): Uncomment this. Dependency: ExecutableBuildOptions
-  // TF_ASSIGN_OR_RETURN(*output.mutable_executable_build_options(),
-  //                     executable_build_options.ToProto());
+  TF_ASSIGN_OR_RETURN(*output.mutable_executable_build_options(),
+                      executable_build_options.ToProto());
   output.set_compile_portable_executable(compile_portable_executable);
   output.set_profile_version(profile_version);
   if (multi_slice_config != nullptr) {
@@ -93,11 +92,10 @@ absl::StatusOr<CompileOptions> CompileOptions::FromProto(
     output.argument_layouts = std::move(output_argument_layouts);
   }
   output.parameter_is_tupled_arguments = proto.parameter_is_tupled_arguments();
-  // TODO(chokobole): Uncomment this. Dependency: ExecutableBuildOptions
-  // TF_ASSIGN_OR_RETURN(
-  //     ExecutableBuildOptions executable_build_options,
-  //     ExecutableBuildOptionsFromProto(proto.executable_build_options()));
-  // output.executable_build_options = executable_build_options;
+  TF_ASSIGN_OR_RETURN(
+      ExecutableBuildOptions executable_build_options,
+      ExecutableBuildOptionsFromProto(proto.executable_build_options()));
+  output.executable_build_options = executable_build_options;
   output.compile_portable_executable = proto.compile_portable_executable();
   output.profile_version = proto.profile_version();
   TF_ASSIGN_OR_RETURN(output.env_option_overrides,
@@ -539,8 +537,6 @@ CompileOptions::LoadEnvOptionOverrides(
 
 absl::Status CompileOptions::ApplyOption(const std::string& key,
                                          const OptionOverride& value) {
-  // TODO(chokobole): Uncomment this. Dependency: ExecutableBuildOptions
-  /*
   if (auto* field = DebugOptions::descriptor()->FindFieldByName(key)) {
     DebugOptions& debug_options =
         *executable_build_options.mutable_debug_options();
@@ -606,8 +602,6 @@ absl::Status CompileOptions::ApplyOption(const std::string& key,
     return absl::InvalidArgumentError(
         absl::StrFormat("No such compile option: '%s'", key));
   }
-  */
-  return absl::UnimplementedError("...");
 }
 
 absl::Status CompileOptions::ApplyAllOptionOverrides() {
@@ -619,68 +613,64 @@ absl::Status CompileOptions::ApplyAllOptionOverrides() {
 
 absl::Status CompileOptions::ApplyOptionFromString(
     const google::protobuf::FieldDescriptor* field, const std::string& value) {
-  // TODO(chokobole): Uncomment this. Dependency: ExecutableBuildOptions
-  /*
-DebugOptions& debug_options =
-  *executable_build_options.mutable_debug_options();
-const google::protobuf::Reflection* reflection =
-  debug_options.GetReflection();
-if (field->type() == google::protobuf::FieldDescriptor::TYPE_STRING) {
-reflection->SetString(&debug_options, field, value);
-return absl::OkStatus();
-} else if (field->type() == google::protobuf::FieldDescriptor::TYPE_INT32) {
-int int_value;
-if (absl::SimpleAtoi(value, &int_value)) {
-  reflection->SetInt32(&debug_options, field, int_value);
-  return absl::OkStatus();
-}
-} else if (field->type() == google::protobuf::FieldDescriptor::TYPE_INT64) {
-int int_value;
-if (absl::SimpleAtoi(value, &int_value)) {
-  reflection->SetInt64(&debug_options, field, int_value);
-  return absl::OkStatus();
-}
-} else if (field->type() == google::protobuf::FieldDescriptor::TYPE_FLOAT) {
-float float_value;
-if (absl::SimpleAtof(value, &float_value)) {
-  reflection->SetFloat(&debug_options, field, float_value);
-  return absl::OkStatus();
-}
-} else if (field->type() == google::protobuf::FieldDescriptor::TYPE_BOOL) {
-bool bvalue = value == "True";
-if (value == "True" || value == "False") {
-  reflection->SetBool(&debug_options, field, bvalue);
-  return absl::OkStatus();
-}
-} else if (field->type() == google::protobuf::FieldDescriptor::TYPE_ENUM) {
-int int_value;
-if (absl::SimpleAtoi(value, &int_value)) {
-  if (field->is_repeated()) {
-    reflection->AddEnumValue(&debug_options, field, int_value);
-  } else {
-    reflection->SetEnumValue(&debug_options, field, int_value);
-  }
-  return absl::OkStatus();
-} else {
-  if (value.empty() && field->is_repeated()) {
-    reflection->ClearField(&debug_options, field);
+  DebugOptions& debug_options =
+      *executable_build_options.mutable_debug_options();
+  const google::protobuf::Reflection* reflection =
+      debug_options.GetReflection();
+  if (field->type() == google::protobuf::FieldDescriptor::TYPE_STRING) {
+    reflection->SetString(&debug_options, field, value);
     return absl::OkStatus();
-  }
-  auto enum_desc = field->enum_type()->FindValueByName(value);
-  if (enum_desc != nullptr) {
-    if (field->is_repeated()) {
-      reflection->AddEnum(&debug_options, field, enum_desc);
+  } else if (field->type() == google::protobuf::FieldDescriptor::TYPE_INT32) {
+    int int_value;
+    if (absl::SimpleAtoi(value, &int_value)) {
+      reflection->SetInt32(&debug_options, field, int_value);
+      return absl::OkStatus();
+    }
+  } else if (field->type() == google::protobuf::FieldDescriptor::TYPE_INT64) {
+    int int_value;
+    if (absl::SimpleAtoi(value, &int_value)) {
+      reflection->SetInt64(&debug_options, field, int_value);
+      return absl::OkStatus();
+    }
+  } else if (field->type() == google::protobuf::FieldDescriptor::TYPE_FLOAT) {
+    float float_value;
+    if (absl::SimpleAtof(value, &float_value)) {
+      reflection->SetFloat(&debug_options, field, float_value);
+      return absl::OkStatus();
+    }
+  } else if (field->type() == google::protobuf::FieldDescriptor::TYPE_BOOL) {
+    bool bvalue = value == "True";
+    if (value == "True" || value == "False") {
+      reflection->SetBool(&debug_options, field, bvalue);
+      return absl::OkStatus();
+    }
+  } else if (field->type() == google::protobuf::FieldDescriptor::TYPE_ENUM) {
+    int int_value;
+    if (absl::SimpleAtoi(value, &int_value)) {
+      if (field->is_repeated()) {
+        reflection->AddEnumValue(&debug_options, field, int_value);
+      } else {
+        reflection->SetEnumValue(&debug_options, field, int_value);
+      }
+      return absl::OkStatus();
     } else {
-      reflection->SetEnum(&debug_options, field, enum_desc);
+      if (value.empty() && field->is_repeated()) {
+        reflection->ClearField(&debug_options, field);
+        return absl::OkStatus();
+      }
+      auto enum_desc = field->enum_type()->FindValueByName(value);
+      if (enum_desc != nullptr) {
+        if (field->is_repeated()) {
+          reflection->AddEnum(&debug_options, field, enum_desc);
+        } else {
+          reflection->SetEnum(&debug_options, field, enum_desc);
+        }
+      }
     }
   }
-}
-}
-return absl::InvalidArgumentError(
-  absl::StrFormat("While setting option %s, '%s' is not a valid %s value.",
-                  field->name(), value, field->type_name()));
-  */
-  return absl::UnimplementedError("...");
+  return absl::InvalidArgumentError(
+      absl::StrFormat("While setting option %s, '%s' is not a valid %s value.",
+                      field->name(), value, field->type_name()));
 }
 
 }  // namespace zkx

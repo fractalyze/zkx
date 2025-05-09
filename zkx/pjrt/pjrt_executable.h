@@ -32,6 +32,7 @@ limitations under the License.
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 
+#include "zkx/client/executable_build_options.h"
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/pjrt/compile_options.pb.h"
 #include "zkx/pjrt/executable_metadata.pb.h"
@@ -77,7 +78,7 @@ struct CompileOptions {
   bool parameter_is_tupled_arguments = false;
 
   // ZKX's compilation time options.
-  // ExecutableBuildOptions executable_build_options;
+  ExecutableBuildOptions executable_build_options;
 
   // If true, the executable can be run on any device. May only be true if
   // !executable_build_options.has_device_assignment(), so only applies to

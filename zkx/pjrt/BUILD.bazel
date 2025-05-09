@@ -172,6 +172,7 @@ zkx_cc_library(
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
         "//zkx:shape_util",
+        "//zkx/client:executable_build_options",
         "//zkx/hlo/ir:hlo",
         "//zkx/service:buffer_assignment",
         "//zkx/service:hlo_cost_analysis",

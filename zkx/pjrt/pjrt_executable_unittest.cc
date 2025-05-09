@@ -30,10 +30,9 @@ TEST(CompileOptionsTest, Serialization) {
   src.parameter_is_tupled_arguments = true;
   src.profile_version = 1;
   src.argument_layouts = {ShapeUtil::MakeShape(S32, {1})};
-  // TODO(chokobole): Uncomment this. Dependency: ExecutableBuildOptions
-  // ExecutableBuildOptions build_option;
-  // build_option.set_device_assignment(DeviceAssignment(1, 1));
-  // src.executable_build_options = build_option;
+  ExecutableBuildOptions build_option;
+  build_option.set_device_assignment(DeviceAssignment(1, 1));
+  src.executable_build_options = build_option;
 
   TF_ASSERT_OK_AND_ASSIGN(CompileOptionsProto proto, src.ToProto());
   TF_ASSERT_OK_AND_ASSIGN(CompileOptions output,
