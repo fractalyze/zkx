@@ -26,6 +26,7 @@ zkx_cc_library(
         "//zkx/service:buffer_assignment",
         "//zkx/service:buffer_value",
         "//zkx/service:llvm_compiler",
+        "//zkx/service/llvm_ir:llvm_command_line_options",
         "//zkx/stream_executor/host:host_platform_id",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

@@ -72,6 +72,7 @@ zkx_cc_library(
         "//zkx/service/cpu:cpu_compiler",
         "//zkx/service/cpu:cpu_executable",
         "//zkx/service/cpu:cpu_executable_run_options",
+        "//zkx/service/llvm_ir:llvm_command_line_options",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:check",

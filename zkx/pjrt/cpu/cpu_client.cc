@@ -40,6 +40,7 @@ limitations under the License.
 #include "zkx/service/custom_call_status.h"
 #include "zkx/service/custom_call_status_internal.h"
 #include "zkx/service/hlo_module_util.h"
+#include "zkx/service/llvm_ir/llvm_command_line_options.h"
 #include "zkx/util.h"
 
 namespace zkx {
@@ -585,12 +586,9 @@ static absl::StatusOr<std::unique_ptr<Executable>> JitCompile(
   // kBeforeOptimizationsDumpName);
 
   // RunHloPasses and RunBackend both look at the LLVM command line options.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: llvm_ir::ExtractZkxBackendExtraOptions, llvm_ir::LLVMCommandLineOptionsLock
-  // clang-format on
-  // auto llvm_options = llvm_ir::ExtractZkxBackendExtraOptions(
-  //     hlo_module->config().debug_options().xla_backend_extra_options());
-  // llvm_ir::LLVMCommandLineOptionsLock llvm_lock(llvm_options);
+  auto llvm_options = llvm_ir::ExtractZkxBackendExtraOptions(
+      hlo_module->config().debug_options().zkx_backend_extra_options());
+  llvm_ir::LLVMCommandLineOptionsLock llvm_lock(llvm_options);
 
   // Run Hlo Passes
   cpu::CpuCompiler compiler;

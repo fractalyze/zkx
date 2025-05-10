@@ -40,6 +40,7 @@ limitations under the License.
 #include "zkx/service/cpu/cpu_options.h"
 #include "zkx/service/cpu/runtime_symbol_generator.h"
 #include "zkx/service/cpu/thunk_emitter.h"
+#include "zkx/service/llvm_ir/llvm_command_line_options.h"
 #include "zkx/shape_util.h"
 #include "zkx/stream_executor/host/host_platform_id.h"
 #include "zkx/util.h"
@@ -622,12 +623,9 @@ absl::StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
   // std::string slow_compilation_msg =
   //     absl::StrCat("Compiling module ", module->name());
   // auto slow_compile_alarm = SlowCompilationAlarm(slow_compilation_msg);
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: llvm_ir::LLVMCommandLineOptionsLock
-  // clang-format on
-  // auto llvm_options = llvm_ir::ExtractXlaBackendExtraOptions(
-  //     module->config().debug_options().xla_backend_extra_options());
-  // llvm_ir::LLVMCommandLineOptionsLock llvm_lock(llvm_options);
+  auto llvm_options = llvm_ir::ExtractZkxBackendExtraOptions(
+      module->config().debug_options().zkx_backend_extra_options());
+  llvm_ir::LLVMCommandLineOptionsLock llvm_lock(llvm_options);
 
   std::unique_ptr<CpuExecutable> cpu_executable;
   TF_ASSIGN_OR_RETURN(cpu_executable, CompileCpuExecutable(std::move(module)));
