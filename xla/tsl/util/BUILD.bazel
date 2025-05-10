@@ -36,11 +36,26 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "fixed_option_set_flag",
+    srcs = ["fixed_option_set_flag.cc"],
+    hdrs = ["fixed_option_set_flag.h"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
 zkx_cc_unittest(
     name = "util_unittests",
-    srcs = ["device_name_utils_unittest.cc"],
+    srcs = [
+        "device_name_utils_unittest.cc",
+        "fixed_option_set_flag_unittest.cc",
+    ],
     deps = [
         ":device_name_utils",
+        ":fixed_option_set_flag",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
     ],
