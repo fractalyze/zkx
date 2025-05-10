@@ -1,0 +1,101 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "create_client",
+    srcs = ["create_client.cc"],
+    hdrs = ["create_client.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/pjrt:pjrt_client",
+        "//zkx/pjrt/cpu:cpu_client",
+        "//zkx/pjrt/distributed:client",
+        "//zkx/pjrt/distributed:key_value_store_interface",
+        "//zkx/pjrt/distributed:service",
+        "//zkx/pjrt/plugin/cpu:cpu_client_options",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+zkx_cc_library(
+    name = "functional_hlo_runner",
+    srcs = ["functional_hlo_runner.cc"],
+    hdrs = ["functional_hlo_runner.h"],
+    deps = [
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//xla/tsl/util:fixed_option_set_flag",
+        "//zkx:literal",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:zkx_cc_proto",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:logging",
+        "//zkx/client:executable_build_options",
+        "//zkx/hlo/builder:zkx_computation",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_sharding",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/pjrt:host_memory_spaces",
+        "//zkx/pjrt:pjrt_client",
+        "//zkx/pjrt:pjrt_compiler",
+        "//zkx/pjrt:pjrt_executable",
+        "//zkx/pjrt:pjrt_future",
+        "//zkx/pjrt:pjrt_layout",
+        "//zkx/pjrt/distributed:key_value_store_interface",
+        "//zkx/service:computation_layout",
+        "//zkx/service:computation_placer",
+        "//zkx/service:hlo_cc_proto",
+        "//zkx/service:hlo_module_config",
+        "//zkx/tests:test_utils",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_binary(
+    name = "hlo_runner_main",
+    srcs = ["hlo_runner_main.cc"],
+    deps = [
+        ":create_client",
+        ":functional_hlo_runner",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//xla/tsl/util:command_line_flags",
+        "//zkx:debug_options_flags",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "multihost_hlo_runner_unittests",
+    srcs = ["functional_hlo_runner_unittest.cc"],
+    data = [
+        "data/sharded_16_devices.hlo",
+        "data/sharded_unoptimized_hlo_snapshot.pbtxt",
+        "data/single_device.hlo",
+    ],
+    defines = ["ZKX_TEST_BACKEND_CPU"],
+    deps = [
+        ":create_client",
+        ":functional_hlo_runner",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:status_matchers",
+        "//xla/tsl/platform:subprocess",
+        "//xla/tsl/platform:test_util",
+        "//xla/tsl/util:command_line_flags",
+        "//zkx:debug_options_flags",
+        "//zkx/hlo/testlib:file_check",
+        "@com_google_googletest//:gtest",
+    ],
+)

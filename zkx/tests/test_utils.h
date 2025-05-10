@@ -18,12 +18,59 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <optional>
+#include <random>
+
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include "google/protobuf/text_format.h"
 
+#include "zkx/hlo/ir/hlo_module.h"
+
 namespace zkx {
+
+// Generates a vector of arguments containing fake data. The number, shape and
+// layout of the arguments is appropriate for given HLO module.
+//
+// A best-effort attempt is made to generate the data in a way which produce
+// stable computation results across platforms. Specifically:
+//
+//  (1) Init values of reductions should be the identity of the reduction
+//  computation.
+//
+//  (2) Indices of dynamic slices and update slices should be in bounds.
+//
+//  (3) Keys of key/value sorts should contain no duplicates.
+//
+// These constraints are best-effort only.
+//
+// If max_bits_of_precision is set to a number, then floating point & integer
+// types will be constrained to be represented in that number of bits. Setting
+// it to 5 for integers would mean it only creates integers between -32 and 32.
+//
+// If pseudo_random is true, the generated numbers will be generated
+// deterministically in a pseudo random way unless the values are constrated to
+// be e.g. init values as above. If pseudo_random is false, the returned values
+// will be generated in a faster way that yields less interesting data, e.g. the
+// values may all be just the same value.
+//
+// TODO(b/79942829): Make interesting argument generation fast enough that using
+// pseudo_random does not save any noticeable amount of time so that the
+// parameter can be removed.
+absl::StatusOr<std::vector<Literal>> MakeFakeArguments(
+  const HloModule* module, bool pseudo_random = true,
+    bool treat_gte_as_data_formatting = false,
+    std::optional<int64_t> max_bits_of_precision = std::nullopt,
+    std::minstd_rand0* engine = nullptr);
+
+// Overload which accepts a random number generator. This enables generation of
+// different random values with sequential calls to MakeFakeArguments by reusing
+// the same generator.
+absl::StatusOr<std::vector<Literal>> MakeFakeArguments(
+    const HloModule* module, std::minstd_rand0* engine,
+    bool treat_gte_as_data_formatting = false,
+    std::optional<int64_t> max_bits_of_precision = std::nullopt);
 
 template <typename MessageType>
 absl::StatusOr<MessageType> ParseTextProto(const std::string& text_proto) {

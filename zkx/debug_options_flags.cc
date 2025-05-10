@@ -41,6 +41,8 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_force_host_platform_device_count(1);
 
   opts.set_zkx_multiheap_size_constraint_per_heap(-1);
+
+  opts.set_zkx_pjrt_allow_auto_layout_in_hlo(false);
   return opts;
 }
 
@@ -178,6 +180,13 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "fragmentation. The constraint is soft, so it works with tensors "
       "larger than the given constraint size. -1 corresponds to no "
       "constraints."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_pjrt_allow_auto_layout_in_hlo",
+      bool_setter_for(&DebugOptions::set_zkx_pjrt_allow_auto_layout_in_hlo),
+      debug_options->zkx_pjrt_allow_auto_layout_in_hlo(),
+      "Experimental: Make unset entry computation layout mean auto layout "
+      "instead of default layout in HLO when run through PjRT. In other cases "
+      "(StableHLO or non-PjRT) the auto layout is already used."));
 }
 
 // Allocates flag_values and flag_objects; this function must not be called more

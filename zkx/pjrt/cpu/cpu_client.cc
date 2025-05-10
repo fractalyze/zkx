@@ -573,12 +573,10 @@ static absl::StatusOr<std::unique_ptr<Executable>> JitCompile(
   }
 
   // Unoptimized HloModule.
-  // TODO(chokobole): Uncomment this. Dependency: CreateFromProto
-  // const HloModuleProto& hlo_module_proto = computation.proto();
-  // TF_ASSIGN_OR_RETURN(
-  //     std::unique_ptr<HloModule> hlo_module,
-  //     HloModule::CreateFromProto(hlo_module_proto, *hlo_module_config));
-  std::unique_ptr<HloModule> hlo_module;
+  const HloModuleProto& hlo_module_proto = computation.proto();
+  TF_ASSIGN_OR_RETURN(
+      std::unique_ptr<HloModule> hlo_module,
+      HloModule::CreateFromProto(hlo_module_proto, *hlo_module_config));
   VLOG(3) << "Unoptimized HLO module: " << hlo_module->ToString();
   // TODO(chokobole): Uncomment this. Dependency: DumpHloModuleIfEnabled
   // static constexpr char kBeforeOptimizationsDumpName[] =
@@ -592,12 +590,13 @@ static absl::StatusOr<std::unique_ptr<Executable>> JitCompile(
 
   // Run Hlo Passes
   cpu::CpuCompiler compiler;
-  if (!build_options.run_backend_only()) {
-    TF_ASSIGN_OR_RETURN(
-        hlo_module,
-        compiler.RunHloPasses(std::move(hlo_module),
-                              /*stream_exec=*/nullptr, compile_options));
-  }
+  // TODO(chokobole): Uncomment this. Dependency: CpuCompiler::RunHloPasses
+  // if (!build_options.run_backend_only()) {
+  //   TF_ASSIGN_OR_RETURN(
+  //       hlo_module,
+  //       compiler.RunHloPasses(std::move(hlo_module),
+  //                             /*stream_exec=*/nullptr, compile_options));
+  // }
 
   // Run backend.
   return compiler.RunBackend(std::move(hlo_module), /*stream_exec=*/nullptr,
@@ -613,24 +612,21 @@ absl::StatusOr<std::unique_ptr<PjRtLoadedExecutable>> TfrtCpuClient::Compile(
 absl::StatusOr<std::unique_ptr<PjRtLoadedExecutable>> TfrtCpuClient::Compile(
     const ZkxComputation& computation, CompileOptions options) {
   std::vector<const Shape*> argument_layout_pointers;
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: DetermineArgumentLayoutsFromCompileOptions
-  // clang-format on
-  // const ExecutableBuildOptions& build_options =
-  //     options.executable_build_options;
-  // const bool allow_auto_layout =
-  //     build_options.has_debug_options() &&
-  //     build_options.debug_options().zkx_pjrt_allow_auto_layout_in_hlo();
-  // TF_RETURN_IF_ERROR(DetermineArgumentLayoutsFromCompileOptions(
-  //     computation,
-  //     [allow_auto_layout](Shape shape) -> absl::StatusOr<Shape> {
-  //       if (allow_auto_layout && !shape.has_layout()) {
-  //         return shape;
-  //       }
-  //       return LayoutUtil::GetWithDefaultLayout(shape);
-  //     },
-  //     options.argument_layouts, &options.executable_build_options,
-  //     &argument_layout_pointers));
+  const ExecutableBuildOptions& build_options =
+      options.executable_build_options;
+  const bool allow_auto_layout =
+      build_options.has_debug_options() &&
+      build_options.debug_options().zkx_pjrt_allow_auto_layout_in_hlo();
+  TF_RETURN_IF_ERROR(DetermineArgumentLayoutsFromCompileOptions(
+      computation,
+      [allow_auto_layout](Shape shape) -> absl::StatusOr<Shape> {
+        if (allow_auto_layout && !shape.has_layout()) {
+          return shape;
+        }
+        return LayoutUtil::GetWithDefaultLayout(shape);
+      },
+      options.argument_layouts, &options.executable_build_options,
+      &argument_layout_pointers));
   return CompileInternal(computation, argument_layout_pointers,
                          /*layout_canonicalization_callback=*/nullptr, options);
 }
@@ -1095,14 +1091,10 @@ void TfrtCpuExecutable::Delete() {}
 bool TfrtCpuExecutable::IsDeleted() { return false; }
 
 absl::Status TfrtCpuExecutable::SetUpDonation(bool tuple_inputs) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ComputeParametersThatMustBeDonated
-  // clang-format on
-  // TF_ASSIGN_OR_RETURN(parameters_that_must_be_donated_,
-  //                     ComputeParametersThatMustBeDonated(
-  //                         *cpu_executable_->shared_module(), tuple_inputs));
-  // return absl::OkStatus();
-  return absl::UnimplementedError("...");
+  TF_ASSIGN_OR_RETURN(parameters_that_must_be_donated_,
+                      ComputeParametersThatMustBeDonated(
+                          *cpu_executable_->shared_module(), tuple_inputs));
+  return absl::OkStatus();
 }
 
 namespace {
@@ -1353,10 +1345,8 @@ absl::StatusOr<PjRtLoadedExecutable::Result> TfrtCpuExecutable::ExecuteHelper(
     auto get_buffer = [&](int i) -> absl::Status {
       bool must_donate = donate_it != parameters_that_must_be_donated_.end() &&
                          *donate_it == i;
-      // TODO(chokobole): Uncomment this. Dependency: TestBufferDonationClashes
-      // TF_RETURN_IF_ERROR(TestBufferDonationClashes(
-      //     tfrt_buffer, donation_clashes, must_donate, i, replica,
-      //     partition));
+      TF_RETURN_IF_ERROR(TestBufferDonationClashes(
+          tfrt_buffer, donation_clashes, must_donate, i, replica, partition));
       if (must_donate) {
         ++donate_it;
         absl::StatusOr<TfrtCpuBuffer::DonationTransaction>

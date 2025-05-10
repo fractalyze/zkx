@@ -16,9 +16,12 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "test_utils",
-    testonly = True,
+    srcs = ["test_utils.cc"],
     hdrs = ["test_utils.h"],
     deps = [
+        "//zkx:literal_util",
+        "//zkx/hlo/analysis:hlo_dataflow_analysis",
+        "//zkx/hlo/ir:hlo",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",

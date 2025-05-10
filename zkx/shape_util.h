@@ -32,6 +32,7 @@ limitations under the License.
 #include "absl/types/span.h"
 
 #include "xla/tsl/platform/errors.h"
+#include "zkx/layout_util.h"
 #include "zkx/overflow_util.h"
 #include "zkx/primitive_util.h"
 #include "zkx/shape.h"
@@ -616,6 +617,110 @@ class ShapeUtil {
   static bool DynamicShapeIsCompatible(const Shape& dynamic_shape,
                                        const Shape& bounded_shape);
 
+  using ForEachVisitorFunction =
+      absl::FunctionRef<absl::StatusOr<bool>(absl::Span<const int64_t>)>;
+
+  using ForEachVisitorFunctionNoStatus =
+      absl::FunctionRef<bool(absl::Span<const int64_t>)>;
+
+  // Iterates through all the shape indexes, in minor to major order,
+  // starting from the base indexes, incrementing by the incr steps, up to
+  // count (index[i] < base[i] + count[i]), and calls the visitor_function
+  // with the current index. The visitor_function visitor function should
+  // return true if it wants to continue, or false otherwise.
+  static absl::Status ForEachIndexWithStatus(
+      const Shape& shape, absl::Span<const int64_t> base,
+      absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+      const ForEachVisitorFunction& visitor_function);
+
+  // Simple ergonomic wrapper around ShapeUtil::ForEachIndexWithStatus.
+  struct IndexIterationSpace {
+    std::vector<int64_t> index_base;
+    std::vector<int64_t> index_count;
+    std::vector<int64_t> index_incr;
+  };
+
+  template <typename FnTy>
+  static absl::Status ForEachIndexWithStatus(
+      const Shape& shape, const IndexIterationSpace& iteration_space,
+      FnTy&& function) {
+    return ShapeUtil::ForEachIndexWithStatus(
+        shape, iteration_space.index_base, iteration_space.index_count,
+        iteration_space.index_incr, std::forward<FnTy>(function));
+  }
+
+  static void ForEachIndex(const Shape& shape, absl::Span<const int64_t> base,
+                           absl::Span<const int64_t> count,
+                           absl::Span<const int64_t> incr,
+                           const ForEachVisitorFunction& visitor_function);
+
+  static void ForEachIndexNoStatus(
+      const Shape& shape, absl::Span<const int64_t> base,
+      absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+      const ForEachVisitorFunctionNoStatus& visitor_function);
+
+  // These convenience wrappers don't take `base`, `count` and `incr`
+  // explicitly, but iterate over every element in `shape` instead.
+
+  static absl::Status ForEachIndexWithStatus(
+      const Shape& shape, const ForEachVisitorFunction& visitor_function) {
+    std::vector<int64_t> base(shape.dimensions_size());
+    std::vector<int64_t> incr(shape.dimensions_size(), 1);
+    return ForEachIndexWithStatus(shape, base,
+                                  /*count=*/shape.dimensions(), incr,
+                                  visitor_function);
+  }
+
+  static void ForEachIndexNoStatus(
+      const Shape& shape,
+      const ForEachVisitorFunctionNoStatus& visitor_function) {
+    std::vector<int64_t> base(shape.dimensions_size());
+    std::vector<int64_t> incr(shape.dimensions_size(), 1);
+    ForEachIndexNoStatus(shape, base,
+                         /*count=*/shape.dimensions(), incr, visitor_function);
+  }
+
+  static void ForEachIndex(const Shape& shape,
+                           const ForEachVisitorFunction& visitor_function) {
+    ForEachIndexWithStatus(shape, [&](absl::Span<const int64_t> indices) {
+      return absl::StatusOr<bool>(visitor_function(indices));
+    }).IgnoreError();
+  }
+
+  using ForEachParallelVisitorFunction =
+      absl::FunctionRef<absl::StatusOr<bool>(absl::Span<const int64_t>, int)>;
+
+  // A parallel version of ForEachIndex(WithStatus). This can only be used if
+  // the visitor_function is thread-safe and the order of iteration does not
+  // matter.
+  //
+  // Please use GetForEachIndexParallelThreadCount() to get the number of
+  // threads in the threadpool of ForEachIndexParallel*. This will not change
+  // during the runtime of the process. Please DO NOT use
+  // tsl::port::MaxParallelism() for this purpose, as it may change.
+  static void ForEachIndexParallel(
+      const Shape& shape, absl::Span<const int64_t> base,
+      absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+      const ForEachParallelVisitorFunction& visitor_function);
+
+  // Returns the number of threads in the threadpool of ForEachIndexParallel*.
+  static int GetForEachIndexParallelThreadCount();
+
+  static absl::Status ForEachIndexParallelWithStatus(
+      const Shape& shape, absl::Span<const int64_t> base,
+      absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+      const ForEachParallelVisitorFunction& visitor_function);
+
+  // Convenience wrapper which doesn't take `base`, `count` and `incr`
+  // explicitly, but iterates over every element in `shape` instead.
+  static void ForEachIndexParallel(
+      const Shape& shape,
+      const ForEachParallelVisitorFunction& visitor_function);
+
+  static absl::Status ForEachIndexParallelWithStatus(
+      const Shape& shape,
+      const ForEachParallelVisitorFunction& visitor_function);
+
   // Strips device-specific information, namely tiling and memory-space
   // information, from a shape.
   static Shape DeviceShapeToHostShape(Shape s);
@@ -667,7 +772,87 @@ class ShapeUtil {
     }
     return absl::OkStatus();
   }
+
+  // Keeps track of the iteration state for the ForEach...Internal routines
+  struct ForEachState {
+    ForEachState(const Shape& s, absl::Span<const int64_t> b,
+                 absl::Span<const int64_t> c, absl::Span<const int64_t> i);
+    inline ~ForEachState() = default;
+
+    const Shape& shape;
+    // Pointers to arrays of the passed-in spans
+    const int64_t* const base;
+    const int64_t* const count;
+    const int64_t* const incr;
+
+    const int64_t* const minor_to_major;  // Base of s's minor_to_major array
+    const int64_t rank;
+
+    std::vector<int64_t> indexes;  // The mutable set of indices we go through
+    int64_t* indexes_ptr;          // Points into "indexes"
+    absl::Span<const int64_t> indexes_span;  // Pre-formed span of "indexes"
+
+    int64_t IncrementDim();
+    bool IsZeroElementArray() const;
+
+    // Returns the number of visited elements assuming that the iteration will
+    // not be interrupted.
+    int64_t CalculateNumSteps() const;
+  };
+
+  static absl::Status ForEachIndexInternal(
+      const Shape& shape, absl::Span<const int64_t> base,
+      absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+      const ForEachVisitorFunction& visitor_function);
+
+  static void ForEachIndexInternalNoStatus(
+      const Shape& shape, absl::Span<const int64_t> base,
+      absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+      const ForEachVisitorFunctionNoStatus& visitor_function);
+
+  static absl::Status ForEachIndexInternalParallel(
+      const Shape& shape, absl::Span<const int64_t> base,
+      absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+      const ForEachParallelVisitorFunction& visitor_function);
+
+  ShapeUtil(const ShapeUtil&) = delete;
+  ShapeUtil& operator=(const ShapeUtil&) = delete;
 };
+
+inline ShapeUtil::ForEachState::ForEachState(const Shape& s,
+                                             absl::Span<const int64_t> b,
+                                             absl::Span<const int64_t> c,
+                                             absl::Span<const int64_t> i)
+    : shape(s),
+      base(b.data()),
+      count(c.data()),
+      incr(i.data()),
+      minor_to_major(shape.layout().minor_to_major().data()),
+      rank(LayoutUtil::MinorToMajor(shape).size()),
+      indexes(b.begin(), b.end()),
+      indexes_ptr((rank == 0) ? nullptr : indexes.data()),
+      indexes_span(indexes) {
+  CHECK_EQ(shape.rank(), b.size());
+  CHECK_EQ(i.size(), b.size());
+  CHECK_EQ(c.size(), b.size());
+}
+
+inline int64_t ShapeUtil::ForEachState::IncrementDim() {
+  int64_t n;
+  for (n = 0; n < rank; ++n) {
+    int64_t dim = minor_to_major[n];
+    indexes_ptr[dim] += incr[dim];
+    if (indexes_ptr[dim] < base[dim] + count[dim]) {
+      break;
+    }
+    indexes_ptr[dim] = base[dim];
+  }
+  return n;
+}
+
+inline bool ShapeUtil::ForEachState::IsZeroElementArray() const {
+  return ShapeUtil::IsZeroElementArray(shape);
+}
 
 }  // namespace zkx
 

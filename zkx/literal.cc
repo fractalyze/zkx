@@ -100,6 +100,51 @@ const Shape* TryInternShape(const Shape& shape) {
   return nullptr;
 }
 
+// Utility structure which is used to create the optimal configuration for
+// a ShapeUtil::ForEachIndex() scan across two literals.
+struct StrideConfig {
+  StrideConfig(const Shape& source_shape, const Shape& dest_shape,
+               absl::Span<const int64_t> dimensions);
+
+  // The dimensions of the stride operation. Essentially every dimension
+  // will be iterated from base[i] to base[i]+dimensions[i], in step[i]
+  // steps.
+  absl::Span<const int64_t> dimensions;
+  DimensionVector base;
+  DimensionVector step;
+  int64_t minor_dimension = 0;
+  // The size of the strides for source and destination. One of the two
+  // (the one looping through its most minor dimension) will be 1, while
+  // the other will be the stride size at the dimension matching the other
+  // shape most minor dimension being scanned.
+  int64_t dest_stride = 1;
+  int64_t source_stride = 1;
+  // The size of the inner loop on the most minor dimension.
+  int64_t minor_loop_size = 1;
+};
+
+StrideConfig::StrideConfig(const Shape& source_shape, const Shape& dest_shape,
+                           absl::Span<const int64_t> dimensions)
+    : dimensions(dimensions),
+      base(dimensions.size(), 0),
+      step(dimensions.size(), 1) {
+  if (!dimensions.empty()) {
+    // Selects the shape with the largest minor dimension as the one upon
+    // which to run the tight stride loop.
+    if (dimensions[LayoutUtil::Minor(source_shape.layout(), 0)] >=
+        dimensions[LayoutUtil::Minor(dest_shape.layout(), 0)]) {
+      minor_dimension = LayoutUtil::Minor(source_shape.layout(), 0);
+      dest_stride = IndexUtil::GetDimensionStride(dest_shape, minor_dimension);
+    } else {
+      minor_dimension = LayoutUtil::Minor(dest_shape.layout(), 0);
+      source_stride =
+          IndexUtil::GetDimensionStride(source_shape, minor_dimension);
+    }
+    minor_loop_size = dimensions[minor_dimension];
+    step[minor_dimension] = minor_loop_size;
+  }
+}
+
 }  // namespace
 
 LiteralBase::~LiteralBase() = default;
@@ -778,6 +823,35 @@ absl::StatusOr<Literal> MutableLiteralBase::CreateFromProto(
   return std::move(literal);
 }
 
+std::vector<Literal> Literal::DecomposeTuple() {
+  CHECK(shape().IsTuple());
+  std::vector<Literal> elements;
+  const auto tuple_element_count = ShapeUtil::TupleElementCount(shape());
+  elements.reserve(tuple_element_count);
+  for (int i = 0; i < tuple_element_count; ++i) {
+    elements.push_back(Literal(ShapeUtil::GetSubshape(shape(), {i}),
+                               /*allocate_arrays=*/false));
+    Literal& element = elements.back();
+    element.root_piece_.ForEachMutableSubpiece(
+        [&](const ShapeIndex& index, Piece* dest_piece) {
+          if (dest_piece->subshape().IsTuple()) {
+            return;
+          }
+          ShapeIndex src_index = {i};
+          for (int64_t j : index) {
+            src_index.push_back(j);
+          }
+          Piece& src_piece = piece(src_index);
+
+          // Move the respective buffer over to the element Literal.
+          dest_piece->MoveDataFrom(src_piece);
+        });
+  }
+  // Set this literal to be nil-shaped.
+  *this = Literal();
+  return elements;
+}
+
 namespace {
 
 // Copies the elements in 'src' to 'dest'. The shape and layout of the data in
@@ -1417,6 +1491,71 @@ absl::Status Literal::MoveFrom(Literal&& src_literal,
   src_literal.root_piece_.set_subshape(src_literal.shape_.get());
 
   return absl::OkStatus();
+}
+
+void MutableLiteralBase::PopulateInplaceInternal(
+    absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator,
+    bool parallel) {
+  const Shape& this_shape = shape();
+  const int64_t rank = this_shape.rank();
+  DCHECK(LayoutUtil::IsDenseArray(this_shape));
+  char* const dest_base = static_cast<char*>(untyped_data());
+  if (rank > 0) {
+    StrideConfig stride_config(this_shape, this_shape, this_shape.dimensions());
+    const int64_t primitive_size =
+        ShapeUtil::ByteSizeOfPrimitiveType(shape().element_type());
+    const int64_t num_elements = ShapeUtil::ElementsIn(shape());
+    // If we are rank-1 and we are `parallel`, it is better to use a smaller
+    // `step` than what `StrideConfig` does: stick the entire dimension in the
+    // inner-most loop.
+    if (parallel && this_shape.rank() == 1) {
+      const int64_t thread_count =
+          ShapeUtil::GetForEachIndexParallelThreadCount();
+      // Let's just divide up the array into small amounts per thread.
+      stride_config.dest_stride = stride_config.minor_loop_size =
+          num_elements > 32 ? std::max<int64_t>(num_elements / thread_count, 1)
+                            : num_elements;
+      stride_config.step = {stride_config.minor_loop_size};
+    }
+
+    auto init_function = [&](absl::Span<const int64_t> indexes,
+                             int thread_id) -> absl::StatusOr<bool> {
+      const int64_t index =
+          IndexUtil::MultidimensionalIndexToLinearIndex(shape(), indexes);
+      DimensionVector minor_scan_indexes(rank, 0);
+      std::copy(indexes.begin(), indexes.end(), minor_scan_indexes.begin());
+      char* dest_ptr = dest_base + index * primitive_size;
+      char* const dest_end =
+          dest_base +
+          // This handles the case where minor_loop_size does not evenly divide
+          // the most minor dimension.
+          std::min(index + stride_config.minor_loop_size, num_elements) *
+              primitive_size;
+      while (dest_ptr < dest_end) {
+        populator(dest_ptr, minor_scan_indexes, thread_id);
+        ++minor_scan_indexes[stride_config.minor_dimension];
+        dest_ptr += primitive_size;
+      }
+      return true;
+    };
+    if (parallel) {
+      ShapeUtil::ForEachIndexParallel(this_shape, stride_config.base,
+                                      stride_config.dimensions,
+                                      stride_config.step, init_function);
+    } else {
+      ShapeUtil::ForEachIndex(
+          this_shape, stride_config.base, stride_config.dimensions,
+          stride_config.step,
+          [&init_function](
+              absl::Span<const int64_t> indexes) -> absl::StatusOr<bool> {
+            auto result_ignored = init_function(indexes, /*thread_id=*/-1);
+            return true;
+          });
+    }
+  } else {
+    // For scalars.
+    populator(dest_base, {}, /*thread_id=*/-1);
+  }
 }
 
 absl::Status MutableLiteralBase::CopyFrom(const LiteralSlice& src_literal,

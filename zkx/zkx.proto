@@ -94,6 +94,8 @@ message DebugOptions {
   // reached.
   int32 zkx_multiheap_size_constraint_per_heap = 142;
 
+  bool zkx_pjrt_allow_auto_layout_in_hlo = 344;
+
   // Extra options to pass to the compilation backend (e.g. LLVM); specific
   // interpretation of these values is left to the backend.
   map<string, string> zkx_backend_extra_options = 500;

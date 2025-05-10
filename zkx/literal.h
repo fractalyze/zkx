@@ -29,6 +29,7 @@ limitations under the License.
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/functional/function_ref.h"
 #include "absl/log/check.h"
 
 #include "zkx/array.h"
@@ -42,6 +43,7 @@ limitations under the License.
 #include "zkx/shape.h"
 #include "zkx/shape_tree.h"
 #include "zkx/shape_util.h"
+#include "zkx/status_macros.h"
 #include "zkx/util.h"
 
 namespace zkx {
@@ -784,6 +786,17 @@ class MutableLiteralBase : public LiteralBase {
   template <typename NativeT>
   void PopulateR3FromArray3D(const Array3D<NativeT>& values);
 
+  // Populates literal values by calling the generator function for every cell
+  // in this literal object.
+  //
+  // generator must be a callable of the type
+  // NativeT(absl::Span<const int64_t> indexes) or compatible.
+  //
+  // This literal must have a dense layout.
+  template <typename NativeT>
+  absl::Status Populate(
+      absl::FunctionRef<NativeT(absl::Span<const int64_t>)> generator);
+
   // Fills this literal with the given value.
   template <typename NativeT>
   void PopulateWithValue(NativeT value);
@@ -810,6 +823,17 @@ class MutableLiteralBase : public LiteralBase {
 
   // The parent class borrows this shape.
   MaybeOwningShapePtr shape_;
+
+  // Implementation details shared between Populate() and PopulateParallel()
+  //  template <typename NativeT, typename FnType>
+  //  absl::Status PopulateInternal(const FnType& generator, bool parallel);
+  template <typename NativeT>
+  absl::Status PopulateInternal(
+      absl::FunctionRef<NativeT(absl::Span<const int64_t>, int)> generator,
+      bool parallel);
+  void PopulateInplaceInternal(
+      absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator,
+      bool parallel);
 };
 
 // The underlying buffer and shape is always owned by this class.
@@ -846,6 +870,15 @@ class Literal : public MutableLiteralBase {
   absl::Status MoveFrom(Literal&& src_literal) {
     return MoveFrom(std::move(src_literal), /*dest_shape_index=*/{});
   }
+
+  // Returns a vector containing the tuple elements of this Literal as separate
+  // Literals. This Literal must be tuple-shaped and can be a nested tuple. The
+  // elements are moved into the new Literals; no data is copied. Upon return
+  // this Literal is set to a nil shape (empty tuple)
+  //
+  // TODO(jlebar): Because this function invalidates `this`, it should be
+  // ref-qualified with &&.
+  std::vector<Literal> DecomposeTuple();
 
  private:
   friend class LiteralBase;
@@ -1133,6 +1166,39 @@ void MutableLiteralBase::PopulateR2FromArray2D(const Array2D<NativeT>& values) {
 template <typename NativeT>
 void MutableLiteralBase::PopulateR3FromArray3D(const Array3D<NativeT>& values) {
   PopulateFromArray(values);
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE absl::Status MutableLiteralBase::PopulateInternal(
+    absl::FunctionRef<NativeT(absl::Span<const int64_t>, int)> generator,
+    bool parallel) {
+  const Shape& this_shape = shape();
+  DCHECK(LayoutUtil::IsDenseArray(this_shape));
+  TF_RET_CHECK(this_shape.element_type() ==
+               primitive_util::NativeToPrimitiveType<NativeT>())
+      << "Failing to populate literal with element type "
+      << primitive_util::LowercasePrimitiveTypeName(this_shape.element_type())
+      << " using data of type "
+      << primitive_util::LowercasePrimitiveTypeName(
+             primitive_util::NativeToPrimitiveType<NativeT>());
+  PopulateInplaceInternal(
+      [&](void* dest, absl::Span<const int64_t> indices, int thread_id) {
+        *static_cast<NativeT*>(dest) = generator(indices, thread_id);
+      },
+      parallel);
+  return absl::OkStatus();
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE absl::Status MutableLiteralBase::Populate(
+    absl::FunctionRef<NativeT(absl::Span<const int64_t>)> generator) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  return PopulateInternal<NativeT>(
+      [&](absl::Span<const int64_t> indexes, int /*thread_id*/) {
+        return generator(indexes);
+      },
+      /*parallel=*/false);
 }
 
 template <typename NativeT>

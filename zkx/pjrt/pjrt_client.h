@@ -1345,7 +1345,8 @@ class PjRtBuffer {
 
   // Blocks the host until the buffer's value has been computed and is ready for
   // immediate use on the device. Useful in particular for timing benchmarks.
-  ABSL_DEPRECATED("Use GetReadyFuture().Await() instead")
+  // TODO(chokobole): Uncomment this.
+  // ABSL_DEPRECATED("Use GetReadyFuture().Await() instead")
   absl::Status BlockHostUntilReady() {
     auto s = GetReadyFuture().Await();
     // Fix up error string because some clients rely on it.

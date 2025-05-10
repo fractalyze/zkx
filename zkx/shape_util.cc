@@ -21,13 +21,15 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
+#include "absl/synchronization/blocking_counter.h"
 
+#include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
+#include "xla/tsl/platform/thread_pool.h"
 #include "zkx/base/logging.h"
 #include "zkx/index_util.h"
-#include "zkx/layout_util.h"
 #include "zkx/permutation_util.h"
 #include "zkx/printer.h"
 
@@ -1340,6 +1342,178 @@ bool ShapeUtil::DynamicShapeIsCompatible(const Shape& dynamic_shape,
 }
 
 // static
+absl::Status ShapeUtil::ForEachIndexWithStatus(
+    const Shape& shape, absl::Span<const int64_t> base,
+    absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+    const ForEachVisitorFunction& visitor_function) {
+  return ForEachIndexInternal(shape, base, count, incr, visitor_function);
+}
+
+// static
+void ShapeUtil::ForEachIndex(const Shape& shape, absl::Span<const int64_t> base,
+                             absl::Span<const int64_t> count,
+                             absl::Span<const int64_t> incr,
+                             const ForEachVisitorFunction& visitor_function) {
+  ForEachIndexWithStatus(shape, base, count, incr, visitor_function)
+      .IgnoreError();
+}
+
+// static
+void ShapeUtil::ForEachIndexNoStatus(
+    const Shape& shape, absl::Span<const int64_t> base,
+    absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+    const ForEachVisitorFunctionNoStatus& visitor_function) {
+  ForEachIndexInternalNoStatus(shape, base, count, incr, visitor_function);
+}
+
+// static
+void ShapeUtil::ForEachIndexParallel(
+    const Shape& shape, absl::Span<const int64_t> base,
+    absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+    const ForEachParallelVisitorFunction& visitor_function) {
+  // The parallel version of ForEachIndexInternal can never fail.
+  TF_CHECK_OK(ForEachIndexParallelWithStatus(shape, base, count, incr,
+                                             visitor_function));
+}
+
+// static
+absl::Status ShapeUtil::ForEachIndexParallelWithStatus(
+    const Shape& shape, absl::Span<const int64_t> base,
+    absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+    const ForEachParallelVisitorFunction& visitor_function) {
+  // The parallel version of ForEachIndexInternal can never fail.
+  return ForEachIndexInternalParallel(shape, base, count, incr,
+                                      visitor_function);
+}
+
+// static
+void ShapeUtil::ForEachIndexParallel(
+    const Shape& shape,
+    const ForEachParallelVisitorFunction& visitor_function) {
+  TF_CHECK_OK(ForEachIndexParallelWithStatus(shape, visitor_function));
+}
+
+// static
+absl::Status ShapeUtil::ForEachIndexParallelWithStatus(
+    const Shape& shape,
+    const ForEachParallelVisitorFunction& visitor_function) {
+  std::vector<int64_t> base(shape.dimensions_size());
+  std::vector<int64_t> incr(shape.dimensions_size(), 1);
+  return ForEachIndexParallelWithStatus(shape, base,
+                                        /*count=*/shape.dimensions(), incr,
+                                        visitor_function);
+}
+
+// static
+absl::Status ShapeUtil::ForEachIndexInternal(
+    const Shape& shape, absl::Span<const int64_t> base,
+    absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+    const ForEachVisitorFunction& visitor_function) {
+  ForEachState s(shape, base, count, incr);
+  if (s.IsZeroElementArray()) {
+    return absl::OkStatus();
+  }
+  // Allows handling R0 arrays, such that the visitor function will be called
+  // once with the proper empty indexes.
+  int64_t n = -1;
+  int64_t rank = s.rank;
+  while (n < rank) {
+    TF_ASSIGN_OR_RETURN(bool should_continue, visitor_function(s.indexes_span));
+    if (ABSL_PREDICT_FALSE(!should_continue)) {
+      break;
+    }
+    // Increments dimensions in minor to major order.
+    n = s.IncrementDim();
+  }
+  return absl::OkStatus();
+}
+
+// static
+void ShapeUtil::ForEachIndexInternalNoStatus(
+    const Shape& shape, absl::Span<const int64_t> base,
+    absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+    const ForEachVisitorFunctionNoStatus& visitor_function) {
+  ForEachState s(shape, base, count, incr);
+  if (s.IsZeroElementArray()) {
+    return;
+  }
+  // Allows handling R0 arrays, such that the visitor function will be called
+  // once with the proper empty indexes.
+  int64_t n = -1;
+  int64_t rank = s.rank;
+  while (n < rank) {
+    bool should_continue = visitor_function(s.indexes_span);
+    if (ABSL_PREDICT_FALSE(!should_continue)) {
+      break;
+    }
+    // Increments dimensions in minor to major order.
+    n = s.IncrementDim();
+  }
+}
+
+namespace {
+
+struct ParallelState {
+  explicit ParallelState(int64_t task_count) : counter(task_count) {
+    // If this method is changed, please remember to change
+    // GetForEachIndexParallelThreadCount() as well.
+    static auto* global_pool = new tsl::thread::ThreadPool(
+        tsl::Env::Default(), "foreach", tsl::port::MaxParallelism());
+    pool = global_pool;
+  }
+  ~ParallelState() = default;
+  void Wait() { counter.Wait(); }
+  void TaskComplete() { counter.DecrementCount(); }
+
+  absl::Mutex mu;
+  tsl::thread::ThreadPool* pool;
+  absl::Status status;  // Guarded by mu
+  absl::BlockingCounter counter;
+};
+
+}  // namespace
+
+// static
+absl::Status ShapeUtil::ForEachIndexInternalParallel(
+    const Shape& shape, absl::Span<const int64_t> base,
+    absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
+    const ForEachParallelVisitorFunction& visitor_function) {
+  ForEachState s(shape, base, count, incr);
+  ParallelState pstate(s.CalculateNumSteps());
+  if (s.IsZeroElementArray()) {
+    return pstate.status;
+  }
+  // Allows handling R0 arrays, such that the visitor function will be called
+  // once with the proper empty indexes.
+  int64_t n = -1;
+  while (n < s.rank) {
+    auto indexes_copy = s.indexes;
+    pstate.pool->Schedule([indexes_copy, &visitor_function, &pstate] {
+      const int thread_id = pstate.pool->CurrentThreadId();
+      absl::StatusOr<bool> result = visitor_function(indexes_copy, thread_id);
+      if (!result.ok()) {
+        absl::MutexLock lock(&pstate.mu);
+        if (pstate.status.ok()) {
+          pstate.status = result.status();
+        }
+      }
+      pstate.TaskComplete();
+    });
+    // Increments dimensions in minor to major order.
+    n = s.IncrementDim();
+  }
+
+  pstate.Wait();
+  return pstate.status;
+}
+
+// static
+int ShapeUtil::GetForEachIndexParallelThreadCount() {
+  ParallelState pstate(/*task_count=*/0);
+  return pstate.pool->NumThreads();
+}
+
+// static
 Shape ShapeUtil::DeviceShapeToHostShape(Shape s) {
   ForEachMutableSubshape(&s, [](Shape* subshape, const ShapeIndex& index) {
     if (subshape->IsArray() && subshape->has_layout()) {
@@ -1435,6 +1609,25 @@ int64_t ShapeUtil::ArrayDataSize(const Shape& shape) {
     return CeilOfRatio<int64_t>(num_bits, CHAR_BIT);
   }
   return size * ByteSizeOfPrimitiveType(shape.element_type());
+}
+
+int64_t ShapeUtil::ForEachState::CalculateNumSteps() const {
+  if (IsZeroElementArray()) return 0;
+
+  int64_t size = 1;
+  // This works for rank = 0 as well.
+  for (int64_t i = 0; i < rank; ++i) {
+    // When the count is zero, it can mean that the given dimension is fixed,
+    // but we still iterate over the others.
+    if (count[i] == 0) {
+      continue;
+    }
+
+    CHECK_NE(incr[i], 0);
+    int64_t dim = 1 + (count[i] - 1) / incr[i];
+    size *= dim;
+  }
+  return size;
 }
 
 // static
