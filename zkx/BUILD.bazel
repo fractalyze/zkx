@@ -9,6 +9,7 @@ proto_library(
     srcs = ["zkx.proto"],
     deps = [
         ":zkx_data_proto",
+        "//zkx/service:hlo_proto",
         "@com_google_protobuf//:any_proto",
     ],
 )

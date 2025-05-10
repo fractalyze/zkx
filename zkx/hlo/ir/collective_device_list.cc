@@ -46,6 +46,7 @@ IotaReplicaGroupListProto IotaReplicaGroupList::ToProto() const {
   return proto;
 }
 
+// static
 IotaReplicaGroupList IotaReplicaGroupList::FromProto(
     const IotaReplicaGroupListProto& proto) {
   return IotaReplicaGroupList(
@@ -109,6 +110,7 @@ CollectiveDeviceListProto CollectiveDeviceList::ToProto() const {
   return proto;
 }
 
+// static
 CollectiveDeviceList CollectiveDeviceList::FromProto(
     const CollectiveDeviceListProto& proto) {
   if (proto.has_iota_replica_group_list()) {
@@ -122,6 +124,26 @@ CollectiveDeviceList CollectiveDeviceList::FromProto(
   }
 
   return CollectiveDeviceList();
+}
+
+// static
+CollectiveDeviceList CollectiveDeviceList::FromProto(
+    const HloInstructionProto& proto) {
+  // Create CollectiveDeviceList from legacy field (replica_groups) if it is
+  // populated.
+  if (proto.replica_groups_size() > 0) {
+    VLOG(10) << "Creating collective device list from proto using legacy "
+                "replica groups field.";
+    return CollectiveDeviceList(proto.replica_groups().begin(),
+                                proto.replica_groups().end());
+  }
+
+  if (!proto.has_collective_device_list()) {
+    return CollectiveDeviceList();
+  }
+
+  // Create CollectiveDeviceList from non-legacy field (collective_device_list).
+  return FromProto(proto.collective_device_list());
 }
 
 }  // namespace zkx

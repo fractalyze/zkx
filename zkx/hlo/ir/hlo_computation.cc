@@ -932,6 +932,93 @@ absl::Cord HloComputation::ToCord(
   return std::move(printer).ToCord();
 }
 
+HloComputationProto HloComputation::ToProto() const {
+  HloComputationProto proto;
+  CHECK_NE(unique_id_, -1)
+      << "This computation does not have a valid id. Please make sure the "
+         "computation is inside a module before dumping it.";
+  proto.set_id(unique_id_);
+  proto.set_name(name_);
+  for (const HloInstruction* instruction : MakeInstructionPostOrder()) {
+    HloInstructionProto instruction_proto = instruction->ToProto();
+    proto.add_instructions()->Swap(&instruction_proto);
+  }
+  proto.set_root_id(root_instruction()->unique_id());
+  *proto.mutable_program_shape() = ComputeProgramShape().ToProto();
+  proto.set_is_fusion_computation(IsFusionComputation());
+  proto.set_execution_thread(IsMainThread() ? ""
+                                            : std::string(execution_thread()));
+  return proto;
+}
+
+// static
+absl::StatusOr<std::unique_ptr<HloComputation>> HloComputation::CreateFromProto(
+    const HloComputationProto& proto,
+    const absl::flat_hash_map<int64_t, HloComputation*>& computation_map,
+    bool prohibit_empty_literal) {
+  absl::flat_hash_map<int64_t, HloInstruction*> instruction_map;
+  absl::flat_hash_map<HloInstruction*, int64_t> to_proto_id;
+  std::vector<std::unique_ptr<HloInstruction>> instructions;
+  int64_t parameter_count = 0;
+  for (const HloInstructionProto& instruction_proto : proto.instructions()) {
+    TF_ASSIGN_OR_RETURN(std::unique_ptr<HloInstruction> instruction,
+                        HloInstruction::CreateFromProto(
+                            instruction_proto, instruction_map, computation_map,
+                            prohibit_empty_literal));
+    if (instruction->opcode() == HloOpcode::kParameter) {
+      parameter_count++;
+    }
+    TF_RET_CHECK(!ContainsKey(instruction_map, instruction_proto.id()));
+    instruction_map[instruction_proto.id()] = instruction.get();
+    to_proto_id[instruction.get()] = instruction_proto.id();
+    instructions.push_back(std::move(instruction));
+  }
+
+  TF_RET_CHECK(proto.root_id() != -1);
+  TF_RET_CHECK(ContainsKey(instruction_map, proto.root_id()));
+  HloInstruction* root = instruction_map.at(proto.root_id());
+
+  // Sort the instructions in the proto id's order.
+  absl::c_sort(instructions, [&](const std::unique_ptr<HloInstruction>& a,
+                                 const std::unique_ptr<HloInstruction>& b) {
+    return to_proto_id[a.get()] < to_proto_id[b.get()];
+  });
+
+  TF_RETURN_IF_ERROR([&]() -> absl::Status {
+    std::vector<bool> parameters_seen(parameter_count);
+    int parameters_seen_count = 0;
+    for (auto& instruction : instructions) {
+      if (instruction->opcode() == HloOpcode::kParameter) {
+        int64_t param_no = instruction->parameter_number();
+        TF_RET_CHECK(param_no >= 0 && param_no < parameter_count)
+            << "Invalid parameter number. Expected [0, " << parameter_count
+            << "), got " << param_no;
+        TF_RET_CHECK(!parameters_seen[param_no])
+            << "Parameter number " << param_no
+            << " already allocated in this computation";
+        parameters_seen[param_no] = true;
+        parameters_seen_count++;
+      }
+    }
+    TF_RET_CHECK(parameters_seen_count == parameter_count)
+        << "Not all parameters in range [0, " << parameter_count
+        << ") were referenced";
+    return absl::OkStatus();
+  }());
+
+  auto computation = absl::WrapUnique(
+      new HloComputation(proto.name(), parameter_count, &instructions, root));
+  computation->unique_id_ = proto.id();
+  if (proto.is_fusion_computation()) {
+    computation->instruction_and_type_ =
+        static_cast<uintptr_t>(InstructionType::kFusion);
+  }
+  if (!proto.execution_thread().empty()) {
+    computation->SetExecutionThread(proto.execution_thread());
+  }
+  return std::move(computation);
+}
+
 absl::StatusOr<HloInstruction*> HloComputation::CreateAsyncInstructions(
     HloInstruction* instruction, absl::Span<const Shape> context_shapes,
     std::string_view async_execution_thread, bool replace,

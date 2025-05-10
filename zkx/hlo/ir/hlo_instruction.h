@@ -32,6 +32,7 @@
 #include "zkx/hlo/ir/ptr_vec.h"
 #include "zkx/literal.h"
 #include "zkx/printer.h"
+#include "zkx/service/hlo.pb.h"
 #include "zkx/service/mapped_ptr_container_sorter.h"
 #include "zkx/service/name_uniquer.h"
 #include "zkx/shape.h"
@@ -264,6 +265,20 @@ class HloInstruction {
   // Detaches an instruction from its operands and users. That is, remove the
   // instruction from each operand's user set and user's operand set.
   void DetachFromOperandsAndUsers();
+
+  // Creates an instruction from the given proto. Arguments:
+  //
+  //   proto: the proto to convert from.
+  //   instruction_map: a map from instruction id to HloInstruction*. This map
+  //     must contain all operands of the newly constructed instruction.
+  //   computation_map: a map from computation id to HloComputation*. This map
+  //     must contain all computations which the newly constructed instruction
+  //     calls.
+  static absl::StatusOr<std::unique_ptr<HloInstruction>> CreateFromProto(
+      const HloInstructionProto& proto,
+      const absl::flat_hash_map<int64_t, HloInstruction*>& instruction_map,
+      const absl::flat_hash_map<int64_t, HloComputation*>& computation_map = {},
+      bool prohibit_empty_literal = true);
 
   // Creates a parameter-retrieving instruction.
   static std::unique_ptr<HloInstruction> CreateParameter(
@@ -1015,6 +1030,9 @@ class HloInstruction {
                                  const HloPrintOptions& options,
                                  CanonicalNameMap* canonical_name_map) const;
 
+  // Returns a serialized representation of this instruction.
+  virtual HloInstructionProto ToProto() const;
+
   // Returns the sharding applied to this operator.
   // REQUIRES: has_sharding() is true.
   const HloSharding& sharding() const {
@@ -1262,6 +1280,17 @@ class HloInstruction {
     }
     return it->second;
   }
+
+  void set_is_composite(bool is_composite) {
+    if (!has_rare() && !is_composite) {
+      return;
+    }
+    mutable_rare()->is_composite = is_composite;
+  }
+
+  // Return the is_composite attribute. This attribute is only relevant for
+  // kCall instructions used as a Composite op.
+  bool is_composite() const { return has_rare() && rare()->is_composite; }
 
   // Whether this specific instruction has statistics
   bool has_statistics() const { return !statistics_viz().statistics().empty(); }

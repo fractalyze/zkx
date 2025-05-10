@@ -45,8 +45,7 @@ class HloDimensionsInstruction : public HloInstruction {
 
   std::vector<int64_t>* mutable_dimensions() override { return &dimensions_; }
 
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     switch (hlo->opcode()) {
@@ -97,10 +96,9 @@ class HloAsyncInstruction : public HloInstruction {
   virtual std::string_view async_execution_thread() const;
   virtual void set_async_execution_thread(
       std::string_view async_execution_thread) {}
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override {
-  //   return HloInstruction::ToProto();
-  // }
+  HloInstructionProto ToProto() const override {
+    return HloInstruction::ToProto();
+  }
 
   static bool ClassOf(const HloInstruction* hlo) {
     switch (hlo->opcode()) {
@@ -170,8 +168,7 @@ class HloAsyncStartInstruction : public HloAsyncInstruction {
   };
   void set_async_execution_thread(
       std::string_view async_execution_thread) override;
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     switch (hlo->opcode()) {
@@ -203,8 +200,7 @@ class HloCopyStartInstruction : public HloInstruction {
   std::optional<int> cross_program_prefetch_index() const {
     return cross_program_prefetch_index_;
   }
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kCopyStart;
@@ -242,8 +238,7 @@ class HloCompareInstruction : public HloInstruction {
   ComparisonDirection direction() const { return compare_.GetDirection(); }
   ComparisonOrder order() const { return compare_.GetOrder(); }
   PrimitiveType primitive_type() const { return compare_.GetPrimitiveType(); }
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kCompare;
@@ -293,8 +288,7 @@ class HloChannelInstruction : public HloInstruction {
   explicit HloChannelInstruction(HloOpcode opcode, const Shape& shape,
                                  const std::optional<int64_t>& channel_id);
 
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
   // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
   // void PrintExtraAttributesImpl(AttributePrinter& printer,
   //                               const HloPrintOptions& options) const
@@ -316,8 +310,7 @@ class HloSendRecvInstruction : public HloChannelInstruction {
   bool is_host_transfer() const { return is_host_transfer_; }
 
   // Returns a serialized representation of this instruction.
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     switch (hlo->opcode()) {
@@ -452,8 +445,7 @@ class HloCollectiveInstruction : public HloChannelInstruction {
       const CollectiveDeviceList& collective_device_list, bool constrain_layout,
       const std::optional<int64_t>& channel_id);
 
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
   // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
   // void PrintExtraAttributesImpl(AttributePrinter& printer,
   //                               const HloPrintOptions& options) const
@@ -505,8 +497,7 @@ class HloAllGatherInstruction : public HloCollectiveInstruction {
   // void PrintExtraAttributesImpl(AttributePrinter& printer,
   //                               const HloPrintOptions& options) const
   //                               override;
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
  private:
   bool IdenticalSlowPathIgnoringChannelIdValues(
@@ -553,8 +544,7 @@ class HloAllReduceInstructionBase : public HloCollectiveInstruction {
   // void PrintExtraAttributesImpl(AttributePrinter& printer,
   //                               const HloPrintOptions& options) const
   //                               override;
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   bool IdenticalSlowPathIgnoringChannelIdValues(
       const HloInstruction& other,
@@ -618,8 +608,7 @@ class HloReduceScatterInstruction : public HloAllReduceInstructionBase {
   //                               const HloPrintOptions& options) const
   //                               override;
 
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
  private:
   bool IdenticalSlowPathIgnoringChannelIdValues(
@@ -669,8 +658,7 @@ class HloAllToAllInstruction : public HloCollectiveInstruction {
   // void PrintExtraAttributesImpl(AttributePrinter& printer,
   //                               const HloPrintOptions& options) const
   //                               override;
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
  private:
   bool IdenticalSlowPathIgnoringChannelIdValues(
@@ -710,8 +698,7 @@ class HloRaggedAllToAllInstruction : public HloCollectiveInstruction {
   //                               const HloPrintOptions& options) const
   //                               override;
 
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
  private:
   // Implementation for non-common logic of CloneWithNewOperands.
@@ -736,8 +723,7 @@ class HloCollectiveBroadcastInstruction : public HloCollectiveInstruction {
       const std::optional<int64_t>& channel_id);
 
   // Returns a serialized representation of this instruction.
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kCollectiveBroadcast;
@@ -775,8 +761,7 @@ class HloCollectivePermuteInstruction : public HloChannelInstruction {
   }
 
   // Returns a serialized representation of this instruction.
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kCollectivePermute ||
@@ -881,8 +866,7 @@ class HloConstantInstruction : public HloInstruction {
   // Returns whether there is literal associated with this instruction.
   bool HasLiteral() const { return static_cast<bool>(literal_); }
   // Returns a serialized representation of this instruction.
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kConstant;
@@ -954,8 +938,7 @@ class HloParameterInstruction : public HloInstruction {
   }
 
   // Returns a serialized representation of this instruction.
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kParameter;
@@ -1002,8 +985,7 @@ class HloGetTupleElementInstruction : public HloInstruction {
     tuple_index_ = new_tuple_index;
   }
   // Returns a serialized representation of this instruction.
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kGetTupleElement;
@@ -1044,8 +1026,7 @@ class HloInfeedInstruction : public HloInstruction {
     return ShapeUtil::GetSubshape(shape(), {0});
   }
   // Returns a serialized representation of this instruction.
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kInfeed;
@@ -1085,8 +1066,7 @@ class HloOutfeedInstruction : public HloInstruction {
     outfeed_config_ = config;
   }
   // Returns a serialized representation of this instruction.
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-  // HloInstructionProto ToProto() const override;
+  HloInstructionProto ToProto() const override;
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kOutfeed;

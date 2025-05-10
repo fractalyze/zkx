@@ -29,6 +29,7 @@ zkx_cc_library(
         "//zkx:array",
         "//zkx:zkx_data_cc_proto",
         "//zkx/base:logging",
+        "//zkx/service:hlo_cc_proto",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",

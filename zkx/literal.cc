@@ -15,6 +15,9 @@ limitations under the License.
 
 #include "zkx/literal.h"
 
+#include <string.h>
+
+#include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/mem.h"
 #include "xla/tsl/platform/status.h"
 #include "zkx/primitive_util.h"
@@ -22,6 +25,34 @@ limitations under the License.
 namespace zkx {
 
 namespace {
+
+constexpr bool kLittleEndian = absl::little_endian::IsLittleEndian();
+
+// Converts between little and big endian.
+//
+// Precondition: size % 2 == 0 (elements in the array are 16 bits long)
+void ConvertEndianShort(std::string* bytes) {
+  CHECK_EQ(bytes->size() % 2, 0);
+  for (int64_t i = 0, end = bytes->size(); i < end; i += 2) {
+    std::swap((*bytes)[i], (*bytes)[i + 1]);
+  }
+}
+
+void ConvertEndianShort(char* bytes, int64_t size) {
+  CHECK_EQ(size % 2, 0);
+  for (int64_t i = 0; i < size; i += 2) {
+    std::swap(bytes[i], bytes[i + 1]);
+  }
+}
+
+bool LiteralProtoHasValues(const LiteralProto& proto) {
+  return !proto.s1s().empty() || !proto.s2s().empty() || !proto.s4s().empty() ||
+         !proto.s8s().empty() || !proto.s16s().empty() || proto.s32s_size() ||
+         proto.s64s_size() || !proto.u1s().empty() || !proto.u2s().empty() ||
+         !proto.u4s().empty() || !proto.u8s().empty() ||
+         !proto.u16s().empty() || proto.u32s_size() || proto.u64s_size() ||
+         proto.preds_size() || proto.tuple_literals_size();
+}
 
 // TODO(chokobole): Update the comment below if we don't have HloEvaluator in
 // the end.
@@ -688,6 +719,65 @@ void LiteralBase::BuildPieceSubtree(const Shape& shape, Piece* piece) {
   }
 }
 
+// static
+absl::StatusOr<Literal> MutableLiteralBase::CreateFromProto(
+    const LiteralProto& proto, bool prohibit_empty_literal) {
+  if (!proto.has_shape()) {
+    return absl::InvalidArgumentError("LiteralProto has no shape");
+  }
+  Shape shape(proto.shape());
+  if (ShapeUtil::HasPrimitiveType(shape, OPAQUE_TYPE)) {
+    return absl::InvalidArgumentError(
+        "Literal shape cannot include OPAQUE_TYPE sub-shape");
+  }
+  if (!LayoutUtil::HasLayout(shape)) {
+    return absl::InvalidArgumentError("LiteralProto has no layout");
+  }
+  if (LayoutUtil::IsSparseArray(shape)) {
+    return absl::UnimplementedError("Sparse literals are not supported");
+  }
+
+  TF_RETURN_IF_ERROR(ShapeUtil::ValidateShapeWithOptionalLayout(shape));
+
+  Literal literal(shape);
+
+  TF_RETURN_IF_ERROR(literal.root_piece_.ForEachMutableSubpieceWithStatus(
+      [&](const ShapeIndex& index, Piece* piece) -> absl::Status {
+        const LiteralProto* proto_element = &proto;
+        for (int64_t i : index) {
+          CHECK(i < proto_element->tuple_literals_size());
+          proto_element = &proto_element->tuple_literals(i);
+        }
+
+        if (piece->subshape().IsTuple()) {
+          if (proto_element->tuple_literals_size() !=
+              ShapeUtil::TupleElementCount(piece->subshape())) {
+            return absl::InvalidArgumentError(absl::StrFormat(
+                "Expected %d tuple elements in LiteralProto, has %d",
+                ShapeUtil::TupleElementCount(piece->subshape()),
+                proto_element->tuple_literals_size()));
+          }
+          return absl::OkStatus();
+        }
+        if (piece->subshape().element_type() == TOKEN) {
+          return absl::OkStatus();
+        }
+
+        CHECK(piece->subshape().IsArray());
+
+        // When prohibit_empty_literal is false (allowing literal with no
+        // values), only copy from proto if the literal proto has values. This
+        // mode is used for a learned cost model.
+        if (prohibit_empty_literal || LiteralProtoHasValues(*proto_element)) {
+          TF_RETURN_IF_ERROR(piece->CopyFromProto(*proto_element));
+        }
+
+        return absl::OkStatus();
+      }));
+
+  return std::move(literal);
+}
+
 namespace {
 
 // Copies the elements in 'src' to 'dest'. The shape and layout of the data in
@@ -837,6 +927,123 @@ absl::Status LiteralBase::Piece::CopyFrom(const LiteralBase::Piece& src,
   return absl::OkStatus();
 }
 
+namespace {
+
+template <typename RepeatedFieldT, typename NativeT>
+void CopyToRepeatedField(RepeatedFieldT* dest,
+                         const absl::Span<const NativeT> src) {
+  *dest = RepeatedFieldT(src.begin(), src.end());
+}
+
+}  // namespace
+
+void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
+  *proto->mutable_shape() = subshape().ToProto();
+  switch (subshape().element_type()) {
+    case PRED:
+      CopyToRepeatedField(proto->mutable_preds(), data<bool>());
+      break;
+    case U1:
+      // TODO(chokobole): Uncomment this. Dependency: u1
+      // *proto->mutable_u1s() =
+      //     std::string(reinterpret_cast<const char*>(data<u8>().data()),
+      //                 size_bytes_dense());
+      *proto->mutable_u1s() =
+          std::string(reinterpret_cast<const char*>(data<uint8_t>().data()),
+                      size_bytes_dense());
+      break;
+    case U2:
+      // TODO(chokobole): Uncomment this. Dependency: u2
+      // *proto->mutable_u2s() = std::string(
+      //     reinterpret_cast<const char*>(data<u2>().data()),
+      //     size_bytes_dense());
+      *proto->mutable_u2s() =
+          std::string(reinterpret_cast<const char*>(data<uint8_t>().data()),
+                      size_bytes_dense());
+      break;
+    case U4:
+      // TODO(chokobole): Uncomment this. Dependency: u1
+      // *proto->mutable_u4s() =
+      //     std::string(reinterpret_cast<const char*>(data<u4>().data()),
+      //                 size_bytes_dense());
+      *proto->mutable_u4s() =
+          std::string(reinterpret_cast<const char*>(data<uint8_t>().data()),
+                      size_bytes_dense());
+      break;
+    case U8:
+      proto->set_u8s(static_cast<const unsigned char*>(data<uint8_t>().data()),
+                     element_count());
+      break;
+    case U16:
+      *proto->mutable_u16s() =
+          std::string(reinterpret_cast<const char*>(data<uint16_t>().data()),
+                      size_bytes_dense());
+      if (!kLittleEndian) {
+        ConvertEndianShort(proto->mutable_u16s());
+      }
+      break;
+    case U32:
+      CopyToRepeatedField(proto->mutable_u32s(), data<uint32_t>());
+      break;
+    case U64:
+      CopyToRepeatedField(proto->mutable_u64s(), data<uint64_t>());
+      break;
+    case S1:
+      // TODO(chokobole): Uncomment this. Dependency: s1
+      // *proto->mutable_s1s() = std::string(
+      //     reinterpret_cast<const char*>(data<s1>().data()),
+      //     size_bytes_dense());
+      *proto->mutable_s1s() =
+          std::string(reinterpret_cast<const char*>(data<int8_t>().data()),
+                      size_bytes_dense());
+      break;
+    case S2:
+      // TODO(chokobole): Uncomment this. Dependency: s2
+      // *proto->mutable_s2s() =
+      //       std::string(reinterpret_cast<const char*>(data<s2>().data()),
+      //                   size_bytes_dense());
+      *proto->mutable_s2s() =
+          std::string(reinterpret_cast<const char*>(data<int8_t>().data()),
+                      size_bytes_dense());
+      break;
+    case S4:
+      // TODO(chokobole): Uncomment this. Dependency: s4
+      // *proto->mutable_s4s() = std::string(
+      //     reinterpret_cast<const char*>(data<s4>().data()),
+      //     size_bytes_dense());
+      *proto->mutable_s4s() =
+          std::string(reinterpret_cast<const char*>(data<int8_t>().data()),
+                      size_bytes_dense());
+      break;
+    case S8:
+      proto->set_s8s(static_cast<const signed char*>(data<int8_t>().data()),
+                     element_count());
+      break;
+    case S16:
+      *proto->mutable_s16s() =
+          std::string(reinterpret_cast<const char*>(data<int16_t>().data()),
+                      size_bytes_dense());
+      if (!kLittleEndian) {
+        ConvertEndianShort(proto->mutable_s16s());
+      }
+      break;
+    case S32:
+      CopyToRepeatedField(proto->mutable_s32s(), data<int32_t>());
+      break;
+    case S64:
+      CopyToRepeatedField(proto->mutable_s64s(), data<int64_t>());
+      break;
+    case TUPLE:
+    case TOKEN:
+      // Nothing to do but assign the shape which is done above.
+      return;
+    default:
+      // TODO(b/111551621): Support serializing more PrimitiveTypes.
+      LOG(FATAL) << "Unhandled primitive type "
+                 << PrimitiveType_Name(subshape().element_type());
+  }
+}
+
 const void* LiteralBase::Piece::untyped_data() const {
   DCHECK(LayoutUtil::IsDenseArray(subshape()))
       << ShapeUtil::HumanString(subshape());
@@ -867,6 +1074,120 @@ bool LiteralBase::Piece::IsDetermined() const {
   return true;
 }
 
+namespace {
+
+template <typename RepeatedFieldT, typename NativeT>
+absl::Status CopyFromRepeatedField(absl::Span<NativeT> dest,
+                                   const RepeatedFieldT& src) {
+  if (dest.size() != src.size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Expected %lu elements in LiteralProto repeated field, has %d",
+        dest.size(), src.size()));
+  }
+  std::copy(src.begin(), src.end(), dest.begin());
+  return absl::OkStatus();
+}
+
+}  // namespace
+
+absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
+  // These conditions should have been checked in
+  // MutableLiteralBase::CreateFromProto.
+  TF_RET_CHECK(proto.has_shape());
+  Shape shape(proto.shape());
+  TF_RET_CHECK(LayoutUtil::HasLayout(shape));
+  TF_RET_CHECK(ShapeUtil::Equal(shape, subshape()));
+
+  switch (subshape().element_type()) {
+    case PRED:
+      TF_RETURN_IF_ERROR(CopyFromRepeatedField(data<bool>(), proto.preds()));
+      break;
+    case S2: {
+      const std::string& s(proto.s2s());
+      // TODO(chokobole): Uncomment this. Dependency: s2
+      // TF_RET_CHECK(data<s2>().size() * sizeof(s2) == s.size());
+      TF_RET_CHECK(data<uint8_t>().size() * sizeof(uint8_t) == s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case S4: {
+      const std::string& s(proto.s4s());
+      // TODO(chokobole): Uncomment this. Dependency: s4
+      // TF_RET_CHECK(data<s4>().size() * sizeof(s4) == s.size());
+      TF_RET_CHECK(data<uint8_t>().size() * sizeof(uint8_t) == s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case S8: {
+      auto s8_data = data<int8_t>();
+      TF_RET_CHECK(proto.s8s().size() == s8_data.size());
+      std::copy(proto.s8s().begin(), proto.s8s().end(), s8_data.begin());
+      break;
+    }
+    case S16: {
+      const std::string& s(proto.s16s());
+      TF_RET_CHECK(data<int16_t>().size() * sizeof(int16_t) == s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      if (!kLittleEndian) {
+        ConvertEndianShort(reinterpret_cast<char*>(untyped_data()), s.size());
+      }
+      break;
+    }
+    case S32:
+      TF_RETURN_IF_ERROR(CopyFromRepeatedField(data<int32_t>(), proto.s32s()));
+      break;
+    case S64:
+      TF_RETURN_IF_ERROR(CopyFromRepeatedField(data<int64_t>(), proto.s64s()));
+      break;
+    case U2: {
+      const std::string& s(proto.u2s());
+      // TODO(chokobole): Uncomment this. Dependency: u2
+      // TF_RET_CHECK(data<u2>().size() * sizeof(u2) == s.size());
+      TF_RET_CHECK(data<uint8_t>().size() * sizeof(uint8_t) == s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case U4: {
+      const std::string& s(proto.u4s());
+      // TODO(chokobole): Uncomment this. Dependency: u4
+      // TF_RET_CHECK(data<u4>().size() * sizeof(u4) == s.size());
+      TF_RET_CHECK(data<uint8_t>().size() * sizeof(uint8_t) == s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case U8: {
+      auto u8_data = data<uint8_t>();
+      TF_RET_CHECK(proto.u8s().size() == u8_data.size());
+      std::copy(proto.u8s().begin(), proto.u8s().end(), u8_data.begin());
+      break;
+    }
+    case U16: {
+      const std::string& s(proto.u16s());
+      TF_RET_CHECK(data<uint16_t>().size() * sizeof(uint16_t) == s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      if (!kLittleEndian) {
+        ConvertEndianShort(reinterpret_cast<char*>(untyped_data()), s.size());
+      }
+      break;
+    }
+    case U32:
+      TF_RETURN_IF_ERROR(CopyFromRepeatedField(data<uint32_t>(), proto.u32s()));
+      break;
+    case U64:
+      TF_RETURN_IF_ERROR(CopyFromRepeatedField(data<uint64_t>(), proto.u64s()));
+      break;
+    case TUPLE:
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Should not be called on tuple shapes: %s",
+                          ShapeUtil::HumanString(subshape())));
+    default:
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Is called on unsupported shape: %s",
+                          ShapeUtil::HumanString(subshape())));
+  }
+  return absl::OkStatus();
+}
+
 bool LiteralBase::Piece::IsKnown() const {
   if (array_value_state_ != ArrayValueState::kKnown) {
     return false;
@@ -883,6 +1204,23 @@ bool LiteralBase::Piece::IsKnown() const {
     return are_all_leaf_arrays_known;
   }
   return true;
+}
+
+LiteralProto LiteralBase::ToProto() const {
+  LiteralProto proto;
+  root_piece().ForEachSubpiece(
+      [&](const ShapeIndex& index, const Piece& piece) {
+        LiteralProto* proto_piece = &proto;
+        for (int64_t i : index) {
+          while (proto_piece->tuple_literals_size() <= i) {
+            proto_piece->add_tuple_literals();
+          }
+          proto_piece = proto_piece->mutable_tuple_literals(i);
+        }
+        piece.WriteToProto(proto_piece);
+      });
+
+  return proto;
 }
 
 const void* LiteralBase::untyped_data(const ShapeIndex& shape_index) const {

@@ -386,33 +386,28 @@ class HloModule {
   absl::Cord ToCord(const HloPrintOptions& options) const;
 
   // Convert an HloModule to or from a proto.
-  // TODO(chokobole): Uncomment this. Dependency: HloModuleProto
-  // HloModuleProto ToProto() const;
-  // static absl::StatusOr<std::unique_ptr<HloModule>> CreateFromProto(
-  //     const HloModuleProto& proto, const HloModuleConfig& module_config,
-  //     bool prohibit_empty_literal = true);
+  HloModuleProto ToProto() const;
+  static absl::StatusOr<std::unique_ptr<HloModule>> CreateFromProto(
+      const HloModuleProto& proto, const HloModuleConfig& module_config,
+      bool prohibit_empty_literal = true);
 
   // Convert an HloModule to or from a proto that includes module configuration
-  // TODO(chokobole): Uncomment this. Dependency: HloModuleProtoWithConfig
-  // HloModuleProtoWithConfig ToProtoWithConfig() const;
-  // static absl::StatusOr<std::unique_ptr<HloModule>>
-  // CreateFromProtoWithConfig(
-  //     const HloModuleProtoWithConfig& proto,
-  //     bool prohibit_empty_literal = true);
+  HloModuleProtoWithConfig ToProtoWithConfig() const;
+  static absl::StatusOr<std::unique_ptr<HloModule>> CreateFromProtoWithConfig(
+      const HloModuleProtoWithConfig& proto,
+      bool prohibit_empty_literal = true);
 
   // Creates and returns an HloModuleConfig with an appropriate program shape
   // for the HLO module in the given proto.
-  // TODO(chokobole): Uncomment this. Dependency: HloModuleProto
-  // static absl::StatusOr<HloModuleConfig> CreateModuleConfigFromProto(
-  //     const HloModuleProto& module, const DebugOptions& debug_options,
-  //     const ExecutionOptions* execution_options = nullptr);
+  static absl::StatusOr<HloModuleConfig> CreateModuleConfigFromProto(
+      const HloModuleProto& module, const DebugOptions& debug_options,
+      const ExecutionOptions* execution_options = nullptr);
 
   // Creates and returns an HloModuleConfig with an appropriate program shape
   // for the HLO module in the given proto.
-  // TODO(chokobole): Uncomment this. Dependency: ExecutionOptions
-  // static absl::StatusOr<HloModuleConfig> CreateModuleConfigFromShape(
-  //     const ProgramShape& program_shape, const DebugOptions& debug_options,
-  //     const ExecutionOptions* execution_options = nullptr);
+  static absl::StatusOr<HloModuleConfig> CreateModuleConfigFromShape(
+      const ProgramShape& program_shape, const DebugOptions& debug_options,
+      const ExecutionOptions* execution_options = nullptr);
 
   // Returns a randomly generated uint64_t.
   uint64_t RandomNew64() const;
@@ -582,41 +577,40 @@ class HloModule {
     profile_version_ = profile_version;
   }
 
-  // TODO(chokobole): Uncomment this. Dependency: HloModuleProto
-  // void add_profile_info(const HloModuleProto::ProfileInfo& profile_info) {
-  //   profile_info_list_.push_back(profile_info);
-  // }
+  void add_profile_info(const HloModuleProto::ProfileInfo& profile_info) {
+    profile_info_list_.push_back(profile_info);
+  }
 
-  // void set_profile_info(
-  //     const std::vector<HloModuleProto::ProfileInfo>& profile_info) {
-  //   profile_info_list_ = profile_info;
-  // }
+  void set_profile_info(
+      const std::vector<HloModuleProto::ProfileInfo>& profile_info) {
+    profile_info_list_ = profile_info;
+  }
 
-  // const std::vector<HloModuleProto::ProfileInfo>& profile_info() const {
-  //   return profile_info_list_;
-  // }
+  const std::vector<HloModuleProto::ProfileInfo>& profile_info() const {
+    return profile_info_list_;
+  }
 
-  // void set_autofdo_profile_key(HloModuleProto::ProfileType profile_type,
-  //                              std::string_view profile_key) {
-  //   autofdo_profile_keys_[profile_type] = std::string(profile_key);
-  // }
+  void set_autofdo_profile_key(HloModuleProto::ProfileType profile_type,
+                               std::string_view profile_key) {
+    autofdo_profile_keys_[profile_type] = std::string(profile_key);
+  }
 
-  // void set_autofdo_profile_keys(
-  //     const absl::flat_hash_map<HloModuleProto::ProfileType, std::string>&
-  //         profile_keys) {
-  //   for (const auto& [profile_type, profile_key] : profile_keys) {
-  //     autofdo_profile_keys_[profile_type] = profile_key;
-  //   }
-  // }
+  void set_autofdo_profile_keys(
+      const absl::flat_hash_map<HloModuleProto::ProfileType, std::string>&
+          profile_keys) {
+    for (const auto& [profile_type, profile_key] : profile_keys) {
+      autofdo_profile_keys_[profile_type] = profile_key;
+    }
+  }
 
-  // const absl::flat_hash_map<HloModuleProto::ProfileType, std::string>&
-  // autofdo_profile_keys() const {
-  //   return autofdo_profile_keys_;
-  // }
+  const absl::flat_hash_map<HloModuleProto::ProfileType, std::string>&
+  autofdo_profile_keys() const {
+    return autofdo_profile_keys_;
+  }
 
-  // bool has_module_autofdo_profiles() const {
-  //   return !profile_info_list_.empty();
-  // }
+  bool has_module_autofdo_profiles() const {
+    return !profile_info_list_.empty();
+  }
 
   void set_relative_speedup(double relative_speedup) {
     relative_speedup_ = relative_speedup;
@@ -728,8 +722,7 @@ class HloModule {
 
   // An array of ProfileInfo specifying what optimization profiles this module
   // contains, along with the relative speedups.
-  // TODO(chokobole): Uncomment this. Dependency: HloModuleProto
-  // std::vector<HloModuleProto::ProfileInfo> profile_info_list_;
+  std::vector<HloModuleProto::ProfileInfo> profile_info_list_;
 
   // Relative speedup of best config compared to default config.
   double relative_speedup_;
@@ -739,9 +732,8 @@ class HloModule {
 
   // The keys used to retrieve the optimization profiles this module is compiled
   // with, per profile type.
-  // TODO(chokobole): Uncomment this. Dependency: HloModuleProto
-  // absl::flat_hash_map<HloModuleProto::ProfileType, std::string>
-  //     autofdo_profile_keys_;
+  absl::flat_hash_map<HloModuleProto::ProfileType, std::string>
+      autofdo_profile_keys_;
 
   bool use_auto_spmd_partitioning_ = false;
 

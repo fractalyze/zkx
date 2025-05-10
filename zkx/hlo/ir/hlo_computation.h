@@ -355,8 +355,7 @@ class HloComputation {
       absl::Span<const HloInstruction* const> instruction_order) const;
 
   // Returns a serialized representation of this computation.
-  // TODO(chokobole): Uncomment this. Dependency: HloComputationProto
-  // HloComputationProto ToProto() const;
+  HloComputationProto ToProto() const;
 
   // Creates a computation from the given proto. Arguments:
   //
@@ -364,11 +363,10 @@ class HloComputation {
   //   computation_map: a map from computation id to HloComputation*. This map
   //     must contain all computations which the newly constructed computation
   //     calls.
-  // TODO(chokobole): Uncomment this. Dependency: HloComputationProto
-  // static absl::StatusOr<std::unique_ptr<HloComputation>> CreateFromProto(
-  //     const HloComputationProto& proto,
-  //     const absl::flat_hash_map<int64_t, HloComputation*>& computation_map,
-  //     bool prohibit_empty_literal = true);
+  static absl::StatusOr<std::unique_ptr<HloComputation>> CreateFromProto(
+      const HloComputationProto& proto,
+      const absl::flat_hash_map<int64_t, HloComputation*>& computation_map,
+      bool prohibit_empty_literal = true);
 
   using InstructionSequence = tsl::gtl::iterator_range<
       UnwrappingIterator<HloInstructionList::iterator>>;

@@ -28,6 +28,7 @@ limitations under the License.
 
 #include "zkx/array.h"
 #include "zkx/hlo/ir/tile_assignment.h"
+#include "zkx/service/hlo.pb.h"
 #include "zkx/zkx_data.pb.h"
 
 namespace zkx {
@@ -120,6 +121,8 @@ class CollectiveDeviceList {
   CollectiveDeviceListProto ToProto() const;
 
   static CollectiveDeviceList FromProto(const CollectiveDeviceListProto& proto);
+
+  static CollectiveDeviceList FromProto(const HloInstructionProto& proto);
 
  private:
   // Construct collective device list from protobuf replica group start and end

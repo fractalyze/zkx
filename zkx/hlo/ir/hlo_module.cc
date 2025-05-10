@@ -287,6 +287,82 @@ absl::Cord HloModule::ToCord(const HloPrintOptions& options) const {
   return std::move(printer).ToCord();
 }
 
+HloModuleProto HloModule::ToProto() const {
+  HloModuleProto proto;
+  proto.set_id(unique_id_);
+  proto.set_name(name_);
+  if (entry_computation_) {
+    *proto.mutable_entry_computation_name() =
+        std::string(entry_computation_->name());
+    proto.set_entry_computation_id(entry_computation_->unique_id());
+    *proto.mutable_host_program_shape() =
+        entry_computation_layout().ComputeProgramShape().ToProto();
+  }
+  for (const HloComputation* computation : MakeComputationPostOrder()) {
+    HloComputationProto computation_proto = computation->ToProto();
+    proto.add_computations()->Swap(&computation_proto);
+  }
+  if (has_schedule()) {
+    *proto.mutable_schedule() = schedule().ToProto().value();
+  }
+  *proto.mutable_input_output_alias() = input_output_alias_config().ToProto();
+  *proto.mutable_buffer_donor() = buffer_donor_config().ToProto();
+  for (const auto& [parameter, indices, alt_memory_offset] :
+       CrossProgramPrefetches()) {
+    auto* prefetch = proto.mutable_cross_program_prefetches()->Add();
+    prefetch->set_parameter(parameter);
+    for (auto index : indices) {
+      prefetch->add_index(index);
+    }
+    if (alt_memory_offset) {
+      prefetch->set_offset(*alt_memory_offset);
+    }
+  }
+  proto.set_is_dynamic(is_dynamic_);
+  if (has_spmd_output_sharding()) {
+    *proto.mutable_spmd_output_sharding() = spmd_output_sharding().ToProto();
+  }
+
+  *proto.mutable_frontend_attributes() = frontend_attributes_;
+
+  if (has_spmd_parameters_shardings()) {
+    for (const auto& parameter_sharding : spmd_parameters_shardings()) {
+      *proto.add_spmd_parameters_shardings() = parameter_sharding.ToProto();
+    }
+  }
+
+  proto.set_use_auto_spmd_partitioning(use_auto_spmd_partitioning_);
+
+  for (const HloModuleProto::ProfileInfo& profile_info : profile_info_list_) {
+    HloModuleProto::ProfileInfo& profile_info_proto =
+        *proto.mutable_profile_info()->Add();
+    profile_info_proto.set_profile_type(profile_info.profile_type());
+    profile_info_proto.set_relative_speedup(profile_info.relative_speedup());
+    profile_info_proto.set_profile_source(profile_info.profile_source());
+    profile_info_proto.set_compilation_event(profile_info.compilation_event());
+    profile_info_proto.set_fingerprint(profile_info.fingerprint());
+    profile_info_proto.set_profile_generation_strategy(
+        profile_info.profile_generation_strategy());
+  }
+  if (config().has_static_device_assignment()) {
+    DeviceAssignmentProto device_assignment;
+    config().static_device_assignment().Serialize(&device_assignment);
+    (*proto.mutable_device_assignment()) = device_assignment;
+  }
+
+  if (stack_frame_index_.has_value()) {
+    (*proto.mutable_stack_frame_index()) = *stack_frame_index_;
+  }
+  return proto;
+}
+
+HloModuleProtoWithConfig HloModule::ToProtoWithConfig() const {
+  HloModuleProtoWithConfig result;
+  *result.mutable_config() = config().ToProto();
+  *result.mutable_hlo_module() = ToProto();
+  return result;
+}
+
 absl::Status HloModule::CheckUniqueNamesAndIdsForComputationsAndInstructions()
     const {
   absl::flat_hash_set<std::string_view> computation_names;
@@ -314,6 +390,250 @@ absl::Status HloModule::CheckUniqueNamesAndIdsForComputationsAndInstructions()
     }
   }
   return absl::OkStatus();
+}
+
+// static
+absl::StatusOr<std::unique_ptr<HloModule>> HloModule::CreateFromProto(
+    const HloModuleProto& proto, const HloModuleConfig& module_config,
+    bool prohibit_empty_literal) {
+  VLOG(2) << "CreateFromProto()";
+  ZKX_VLOG_LINES(3, proto.DebugString());
+
+  // The ProgramShape in the passed in module config must match the shapes of
+  // the entry parameters and root.
+  TF_RET_CHECK(proto.has_host_program_shape())
+      << "No program shape found in the proto";
+  ProgramShape expected_program_shape(proto.host_program_shape());
+  TF_RET_CHECK(expected_program_shape.parameters_size() ==
+               module_config.entry_computation_layout().parameter_count());
+  for (int i = 0; i < expected_program_shape.parameters_size(); ++i) {
+    const Shape& parameter_shape =
+        module_config.entry_computation_layout().parameter_layout(i).shape();
+    TF_RET_CHECK(ShapeUtil::Compatible(expected_program_shape.parameters(i),
+                                       parameter_shape))
+        << "HloModuleConfig has different shape for parameter " << i
+        << " than the HLO module. Expected: "
+        << ShapeUtil::HumanStringWithLayout(
+               expected_program_shape.parameters(i))
+        << ", actual: " << ShapeUtil::HumanStringWithLayout(parameter_shape);
+  }
+  const Shape& result_shape =
+      module_config.entry_computation_layout().result_layout().shape();
+  TF_RET_CHECK(
+      ShapeUtil::Compatible(expected_program_shape.result(), result_shape))
+      << "HloModuleConfig has different result shape than the HLO module. "
+         "Expected: "
+      << ShapeUtil::HumanStringWithLayout(expected_program_shape.result())
+      << ", actual: " << ShapeUtil::HumanStringWithLayout(result_shape);
+
+  absl::flat_hash_map<int64_t, HloComputation*> computation_map;
+  absl::flat_hash_map<HloComputation*, int64_t> to_proto_id;
+  std::vector<std::unique_ptr<HloComputation>> computations;
+  HloComputation* entry = nullptr;
+  for (const HloComputationProto& computation_proto : proto.computations()) {
+    TF_ASSIGN_OR_RETURN(
+        std::unique_ptr<HloComputation> computation,
+        HloComputation::CreateFromProto(computation_proto, computation_map,
+                                        prohibit_empty_literal));
+    CHECK_NE(computation.get(), nullptr);
+    int64_t computation_id = computation_proto.id();
+    TF_RET_CHECK(computation_id != -1);
+    TF_RET_CHECK(!ContainsKey(computation_map, computation_id));
+    computation_map[computation_id] = computation.get();
+    to_proto_id[computation.get()] = computation_id;
+    if (computation_id == proto.entry_computation_id()) {
+      entry = computation.get();
+    }
+    computations.push_back(std::move(computation));
+  }
+  TF_RET_CHECK(entry != nullptr);
+
+  auto module = std::make_unique<HloModule>(proto.name(), module_config);
+
+  // Sort the computations in the proto id's order.
+  absl::c_sort(computations, [&](const std::unique_ptr<HloComputation>& a,
+                                 const std::unique_ptr<HloComputation>& b) {
+    return to_proto_id[a.get()] < to_proto_id[b.get()];
+  });
+
+  // Add sorted computations to the module.
+  for (auto& computation : computations) {
+    bool is_entry = computation.get() == entry;
+    // Don't uniquify names because we want names to be stable across
+    // serialization and deserialization.
+    module->AddComputationInternal(std::move(computation), is_entry,
+                                   /*uniquify_identifiers=*/false,
+                                   /*preserve_entry_layouts=*/false);
+  }
+  TF_RET_CHECK(module->entry_computation_ != nullptr);
+  TF_ASSIGN_OR_RETURN(
+      module->input_output_alias_config_,
+      HloInputOutputAliasConfig::CreateFromProto(
+          entry->ComputeProgramShape().result(), proto.input_output_alias()));
+  TF_ASSIGN_OR_RETURN(
+      module->buffer_donor_config_,
+      HloBufferDonorConfig::CreateFromProto(proto.buffer_donor()));
+
+  TF_RETURN_IF_ERROR(
+      module->CheckUniqueNamesAndIdsForComputationsAndInstructions());
+
+  if (proto.has_schedule()) {
+    TF_ASSIGN_OR_RETURN(
+        HloSchedule schedule,
+        HloSchedule::CreateFromProto(module.get(), proto.schedule()));
+    TF_RETURN_IF_ERROR(module->set_schedule(std::move(schedule)));
+  }
+
+  for (const auto& prefetch : proto.cross_program_prefetches()) {
+    module->AddCrossProgramPrefetch(
+        prefetch.parameter(),
+        ShapeIndex(prefetch.index().begin(), prefetch.index().end()),
+        prefetch.offset());
+  }
+
+  module->set_is_dynamic(proto.is_dynamic());
+
+  if (proto.has_frontend_attributes()) {
+    module->set_frontend_attributes(proto.frontend_attributes());
+  }
+
+  if (proto.has_spmd_output_sharding()) {
+    TF_ASSIGN_OR_RETURN(HloSharding hlo_sharding,
+                        HloSharding::FromProto(proto.spmd_output_sharding()));
+    module->set_spmd_output_sharding(hlo_sharding);
+  }
+
+  std::vector<HloSharding> param_shardings;
+  for (const auto& sharding_proto : proto.spmd_parameters_shardings()) {
+    TF_ASSIGN_OR_RETURN(HloSharding sharding,
+                        HloSharding::FromProto(sharding_proto));
+    param_shardings.push_back(sharding);
+  }
+  if (!param_shardings.empty()) {
+    module->set_spmd_parameters_shardings(param_shardings);
+  }
+
+  module->set_use_auto_spmd_partitioning(proto.use_auto_spmd_partitioning());
+
+  for (const auto& profile_info : proto.profile_info()) {
+    module->add_profile_info(profile_info);
+  }
+  if (proto.has_device_assignment()) {
+    if (!module->config().has_static_device_assignment()) {
+      TF_ASSIGN_OR_RETURN(
+          std::unique_ptr<DeviceAssignment> device_assignment,
+          DeviceAssignment::Deserialize(proto.device_assignment()));
+      module->mutable_config().set_static_device_assignment(*device_assignment);
+    }
+  }
+
+  if (proto.has_stack_frame_index()) {
+    if (!module->stack_frame_index_.has_value()) {
+      module->stack_frame_index_ = std::move(proto.stack_frame_index());
+    }
+  }
+  return std::move(module);
+}
+
+// static
+absl::StatusOr<HloModuleConfig> HloModule::CreateModuleConfigFromShape(
+    const ProgramShape& program_shape, const DebugOptions& debug_options,
+    const ExecutionOptions* execution_options) {
+  HloModuleConfig module_config(ProgramShape{program_shape});
+  module_config.set_debug_options(debug_options);
+  if (execution_options) {
+    if (execution_options->num_replicas() > 0) {
+      module_config.set_replica_count(execution_options->num_replicas());
+    }
+    if (execution_options->num_partitions() > 0) {
+      module_config.set_num_partitions(execution_options->num_partitions());
+    }
+    module_config.set_use_spmd_partitioning(
+        execution_options->use_spmd_partitioning());
+    module_config.set_use_auto_spmd_partitioning(
+        execution_options->use_auto_spmd_partitioning());
+    module_config.set_auto_spmd_partitioning_mesh_shape(std::vector<int64_t>(
+        execution_options->auto_spmd_partitioning_mesh_shape().begin(),
+        execution_options->auto_spmd_partitioning_mesh_shape().end()));
+    module_config.set_auto_spmd_partitioning_mesh_ids(std::vector<int64_t>(
+        execution_options->auto_spmd_partitioning_mesh_ids().begin(),
+        execution_options->auto_spmd_partitioning_mesh_ids().end()));
+    module_config.set_exec_time_optimization_effort(
+        execution_options->exec_time_optimization_effort());
+    module_config.set_memory_fitting_effort(
+        execution_options->memory_fitting_effort());
+    module_config.set_deduplicate_hlo(execution_options->deduplicate_hlo());
+    if (!execution_options->allow_spmd_sharding_propagation_to_parameters()
+             .empty()) {
+      module_config.set_allow_spmd_sharding_propagation_to_parameters(
+          execution_options->allow_spmd_sharding_propagation_to_parameters());
+    }
+    if (!execution_options->allow_spmd_sharding_propagation_to_output()
+             .empty()) {
+      module_config.set_allow_spmd_sharding_propagation_to_output(
+          execution_options->allow_spmd_sharding_propagation_to_output());
+    }
+    if (execution_options->has_device_assignment()) {
+      TF_ASSIGN_OR_RETURN(std::unique_ptr<DeviceAssignment> device_assignment,
+                          DeviceAssignment::Deserialize(
+                              execution_options->device_assignment()));
+      module_config.set_static_device_assignment(*device_assignment);
+      if (execution_options->num_replicas() > 0) {
+        CHECK_EQ(module_config.static_device_assignment().replica_count(),
+                 module_config.replica_count());
+      }
+      if (execution_options->num_partitions() > 0) {
+        CHECK_EQ(module_config.static_device_assignment().computation_count(),
+                 module_config.num_partitions());
+      }
+    }
+    module_config.set_param_requires_broadcast_via_collectives(std::vector<
+                                                               bool>(
+        execution_options->param_requires_broadcast_via_collectives().begin(),
+        execution_options->param_requires_broadcast_via_collectives().end()));
+    module_config.set_allow_separate_sharding_programs(
+        execution_options->allow_separate_sharding_programs());
+    HloModuleConfig::AssignStructShardableValueUpdatePairs(
+        module_config, execution_options->shardable_value_update_pairs());
+    module_config.set_use_shardy_partitioner(
+        execution_options->use_shardy_partitioner());
+  }
+
+  // The module config is constructed with default layouts regardless of what is
+  // passed in via the ProgramShape. Set the layouts to the appropriate values.
+  ComputationLayout* entry_layout =
+      module_config.mutable_entry_computation_layout();
+  for (int64_t i = 0; i < entry_layout->parameter_count(); ++i) {
+    TF_RETURN_IF_ERROR(
+        entry_layout->mutable_parameter_layout(i)->CopyLayoutFromShape(
+            program_shape.parameters(i)));
+  }
+  TF_RETURN_IF_ERROR(entry_layout->mutable_result_layout()->CopyLayoutFromShape(
+      program_shape.result()));
+  return module_config;
+}
+
+// static
+absl::StatusOr<HloModuleConfig> HloModule::CreateModuleConfigFromProto(
+    const HloModuleProto& module, const DebugOptions& debug_options,
+    const ExecutionOptions* execution_options) {
+  if (!module.has_host_program_shape()) {
+    return absl::FailedPreconditionError("No program shape found in the proto");
+  }
+  ProgramShape program_shape(module.host_program_shape());
+  TF_ASSIGN_OR_RETURN(HloModuleConfig config,
+                      CreateModuleConfigFromShape(program_shape, debug_options,
+                                                  execution_options));
+  if (!config.has_static_device_assignment()) {
+    if (module.has_device_assignment()) {
+      // Get the proto from the execution options rather than the module proto.
+      TF_ASSIGN_OR_RETURN(
+          std::unique_ptr<DeviceAssignment> device_assignment,
+          DeviceAssignment::Deserialize(module.device_assignment()));
+      config.set_static_device_assignment(*device_assignment);
+    }
+  }
+  return config;
 }
 
 int64_t HloModule::instruction_count() const {

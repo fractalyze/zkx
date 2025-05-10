@@ -55,6 +55,7 @@ namespace zkx {
 // - HloInstruction::CreateUnary
 // - HloInstruction::CreateBinary
 // - HloInstruction::has_to_apply
+// - HloInstruction::CreateFromProto
 // - GetInstructionCallContext
 // - GatherComputationsByAllocationType
 // - ZKX_UNOP_PATTERN

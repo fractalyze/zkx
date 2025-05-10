@@ -53,6 +53,14 @@ bool HloDimensionsInstruction::IdenticalSlowPath(
   return dimensions() == casted_other.dimensions();
 }
 
+HloInstructionProto HloDimensionsInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  for (int64_t dimension : dimensions_) {
+    proto.add_dimensions(dimension);
+  }
+  return proto;
+}
+
 HloAsyncInstruction::HloAsyncInstruction(
     HloOpcode opcode, const Shape& shape,
     absl::Span<HloInstruction* const> operands, HloOpcode async_wrapped_opcode)
@@ -190,15 +198,14 @@ void HloAsyncStartInstruction::set_async_execution_thread(
                 /*skip_async_execution_thread_overwrite=*/false);
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloAsyncStartInstruction::ToProto() const {
-//   HloInstructionProto proto = HloInstruction::ToProto();
-//   proto.set_async_execution_thread(async_execution_thread_ ==
-//                                            HloInstruction::kMainExecutionThread
-//                                        ? ""
-//                                        : async_execution_thread_);
-//   return proto;
-// }
+HloInstructionProto HloAsyncStartInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.set_async_execution_thread(async_execution_thread_ ==
+                                           HloInstruction::kMainExecutionThread
+                                       ? ""
+                                       : async_execution_thread_);
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloAsyncStartInstruction::PrintExtraAttributesImpl(
@@ -245,14 +252,13 @@ HloCopyStartInstruction::HloCopyStartInstruction(
   AppendOperand(operand);
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloCopyStartInstruction::ToProto() const {
-//   HloInstructionProto proto = HloInstruction::ToProto();
-//   if (cross_program_prefetch_index_.has_value()) {
-//     proto.set_cross_program_prefetch_index(*cross_program_prefetch_index_);
-//   }
-//   return proto;
-// }
+HloInstructionProto HloCopyStartInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  if (cross_program_prefetch_index_.has_value()) {
+    proto.set_cross_program_prefetch_index(*cross_program_prefetch_index_);
+  }
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloCopyStartInstruction::PrintExtraAttributesImpl(
@@ -296,14 +302,13 @@ HloCompareInstruction::HloCompareInstruction(const Shape& shape,
   AppendOperand(rhs);
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloCompareInstruction::ToProto() const {
-//   HloInstructionProto proto = HloInstruction::ToProto();
-//   proto.set_comparison_direction(
-//       ComparisonDirectionToString(compare_.GetDirection()));
-//   proto.set_comparison_type(ComparisonTypeToString(compare_.GetType()));
-//   return proto;
-// }
+HloInstructionProto HloCompareInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.set_comparison_direction(
+      ComparisonDirectionToString(compare_.GetDirection()));
+  proto.set_comparison_primitive_type(compare_.GetPrimitiveType());
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloCompareInstruction::PrintExtraAttributesImpl(
@@ -348,14 +353,13 @@ void HloChannelInstruction::set_channel_id(
   channel_id_ = channel_id;
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloChannelInstruction::ToProto() const {
-//   HloInstructionProto proto = HloInstruction::ToProto();
-//   if (channel_id_) {
-//     proto.set_channel_id(*channel_id_);
-//   }
-//   return proto;
-// }
+HloInstructionProto HloChannelInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  if (channel_id_) {
+    proto.set_channel_id(*channel_id_);
+  }
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloChannelInstruction::PrintExtraAttributesImpl(
@@ -383,12 +387,11 @@ HloSendRecvInstruction::HloSendRecvInstruction(
     : HloChannelInstruction(opcode, shape, channel_id),
       is_host_transfer_(is_host_transfer) {}
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloSendRecvInstruction::ToProto() const {
-//   HloInstructionProto proto = HloChannelInstruction::ToProto();
-//   proto.set_is_host_transfer(is_host_transfer_);
-//   return proto;
-// }
+HloInstructionProto HloSendRecvInstruction::ToProto() const {
+  HloInstructionProto proto = HloChannelInstruction::ToProto();
+  proto.set_is_host_transfer(is_host_transfer_);
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloSendRecvInstruction::PrintExtraAttributesImpl(
@@ -532,13 +535,12 @@ HloCollectiveInstruction::HloCollectiveInstruction(
   }
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloCollectiveInstruction::ToProto() const {
-//   HloInstructionProto proto = HloChannelInstruction::ToProto();
-//   *proto.mutable_collective_device_list() = device_list_.ToProto();
-//   proto.set_constrain_layout(constrain_layout_);
-//   return proto;
-// }
+HloInstructionProto HloCollectiveInstruction::ToProto() const {
+  HloInstructionProto proto = HloChannelInstruction::ToProto();
+  *proto.mutable_collective_device_list() = device_list_.ToProto();
+  proto.set_constrain_layout(constrain_layout_);
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloCollectiveInstruction::PrintExtraAttributesImpl(
@@ -616,13 +618,12 @@ HloAllGatherInstruction::CloneWithNewOperandsImpl(
       constrain_layout(), channel_id(), use_global_device_ids());
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloAllGatherInstruction::ToProto() const {
-//   HloInstructionProto proto = HloCollectiveInstruction::ToProto();
-//   proto.add_dimensions(all_gather_dimension_);
-//   proto.set_use_global_device_ids(use_global_device_ids_);
-//   return proto;
-// }
+HloInstructionProto HloAllGatherInstruction::ToProto() const {
+  HloInstructionProto proto = HloCollectiveInstruction::ToProto();
+  proto.add_dimensions(all_gather_dimension_);
+  proto.set_use_global_device_ids(use_global_device_ids_);
+  return proto;
+}
 
 bool HloAllGatherInstruction::IdenticalSlowPathIgnoringChannelIdValues(
     const HloInstruction& other,
@@ -648,12 +649,11 @@ HloAllReduceInstructionBase::HloAllReduceInstructionBase(
   reduce_computation->SetCollectiveCallInstruction(this);
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloAllReduceInstructionBase::ToProto() const {
-//   HloInstructionProto proto = HloCollectiveInstruction::ToProto();
-//   proto.set_use_global_device_ids(use_global_device_ids_);
-//   return proto;
-// }
+HloInstructionProto HloAllReduceInstructionBase::ToProto() const {
+  HloInstructionProto proto = HloCollectiveInstruction::ToProto();
+  proto.set_use_global_device_ids(use_global_device_ids_);
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloAllReduceInstructionBase::PrintExtraAttributesImpl(
@@ -730,12 +730,11 @@ HloReduceScatterInstruction::HloReduceScatterInstruction(
 //   });
 // }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloReduceScatterInstruction::ToProto() const {
-//   HloInstructionProto proto = HloAllReduceInstructionBase::ToProto();
-//   proto.add_dimensions(scatter_dimension_);
-//   return proto;
-// }
+HloInstructionProto HloReduceScatterInstruction::ToProto() const {
+  HloInstructionProto proto = HloAllReduceInstructionBase::ToProto();
+  proto.add_dimensions(scatter_dimension_);
+  return proto;
+}
 
 bool HloReduceScatterInstruction::IdenticalSlowPathIgnoringChannelIdValues(
     const HloInstruction& other,
@@ -784,14 +783,13 @@ HloAllToAllInstruction::CloneWithNewOperandsImpl(
       split_dimension());
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloAllToAllInstruction::ToProto() const {
-//   HloInstructionProto proto = HloCollectiveInstruction::ToProto();
-//   if (split_dimension_) {
-//     proto.add_dimensions(*split_dimension_);
-//   }
-//   return proto;
-// }
+HloInstructionProto HloAllToAllInstruction::ToProto() const {
+  HloInstructionProto proto = HloCollectiveInstruction::ToProto();
+  if (split_dimension_) {
+    proto.add_dimensions(*split_dimension_);
+  }
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloAllToAllInstruction::PrintExtraAttributesImpl(
@@ -838,10 +836,9 @@ HloRaggedAllToAllInstruction::CloneWithNewOperandsImpl(
       shape, new_operands, device_list(), channel_id());
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloRaggedAllToAllInstruction::ToProto() const {
-//   return HloCollectiveInstruction::ToProto();
-// }
+HloInstructionProto HloRaggedAllToAllInstruction::ToProto() const {
+  return HloCollectiveInstruction::ToProto();
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloRaggedAllToAllInstruction::PrintExtraAttributesImpl(
@@ -866,10 +863,9 @@ HloCollectiveBroadcastInstruction::HloCollectiveBroadcastInstruction(
                                         CollectiveDeviceList(replica_groups),
                                         constrain_layout, channel_id) {}
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloCollectiveBroadcastInstruction::ToProto() const {
-//   return HloCollectiveInstruction::ToProto();
-// }
+HloInstructionProto HloCollectiveBroadcastInstruction::ToProto() const {
+  return HloCollectiveInstruction::ToProto();
+}
 
 std::unique_ptr<HloInstruction>
 HloCollectiveBroadcastInstruction::CloneWithNewOperandsImpl(
@@ -909,21 +905,20 @@ HloCollectivePermuteInstruction::HloCollectivePermuteInstruction(
   inplace_ = true;
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloCollectivePermuteInstruction::ToProto() const {
-//   HloInstructionProto proto = HloChannelInstruction::ToProto();
-//   for (const auto& pair : source_target_pairs()) {
-//     auto* proto_pair = proto.add_source_target_pairs();
-//     proto_pair->set_source(pair.first);
-//     proto_pair->set_target(pair.second);
-//   }
-//   for (const auto& slice_size : dynamic_slice_sizes_list()) {
-//     for (const auto& dimension_slice_size : slice_size) {
-//       proto.add_dynamic_slice_sizes(dimension_slice_size);
-//     }
-//   }
-//   return proto;
-// }
+HloInstructionProto HloCollectivePermuteInstruction::ToProto() const {
+  HloInstructionProto proto = HloChannelInstruction::ToProto();
+  for (const auto& pair : source_target_pairs()) {
+    auto* proto_pair = proto.add_source_target_pairs();
+    proto_pair->set_source(pair.first);
+    proto_pair->set_target(pair.second);
+  }
+  for (const auto& slice_size : dynamic_slice_sizes_list()) {
+    for (const auto& dimension_slice_size : slice_size) {
+      proto.add_dynamic_slice_sizes(dimension_slice_size);
+    }
+  }
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloCollectivePermuteInstruction::PrintExtraAttributesImpl(
@@ -1042,14 +1037,13 @@ HloConstantInstruction::HloConstantInstruction(std::shared_ptr<Literal> literal,
 HloConstantInstruction::HloConstantInstruction(const Shape& shape)
     : HloInstruction(HloOpcode::kConstant, shape) {}
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloConstantInstruction::ToProto() const {
-//   HloInstructionProto proto = HloInstruction::ToProto();
-//   if (literal_) {
-//     *proto.mutable_literal() = literal_->ToProto();
-//   }
-//   return proto;
-// }
+HloInstructionProto HloConstantInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  if (literal_) {
+    *proto.mutable_literal() = literal_->ToProto();
+  }
+  return proto;
+}
 
 bool HloConstantInstruction::IsElementwiseImpl(
     const std::optional<int64_t>& operand_idx) const {
@@ -1135,18 +1129,17 @@ HloParameterInstruction::HloParameterInstruction(int64_t parameter_number,
   SetAndSanitizeName(name);
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloParameterInstruction::ToProto() const {
-//   HloInstructionProto proto = HloInstruction::ToProto();
-//   proto.set_parameter_number(parameter_number_);
-//   if (parameter_replicated_at_leaf_buffers_) {
-//     for (bool replicated : *parameter_replicated_at_leaf_buffers_) {
-//       proto.mutable_parameter_replication()->add_replicated_at_leaf_buffers(
-//           replicated);
-//     }
-//   }
-//   return proto;
-// }
+HloInstructionProto HloParameterInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.set_parameter_number(parameter_number_);
+  if (parameter_replicated_at_leaf_buffers_) {
+    for (bool replicated : *parameter_replicated_at_leaf_buffers_) {
+      proto.mutable_parameter_replication()->add_replicated_at_leaf_buffers(
+          replicated);
+    }
+  }
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloParameterInstruction::PrintExtraAttributesImpl(
@@ -1200,12 +1193,11 @@ HloGetTupleElementInstruction::HloGetTupleElementInstruction(
   AppendOperand(operand);
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloGetTupleElementInstruction::ToProto() const {
-//   HloInstructionProto proto = HloInstruction::ToProto();
-//   proto.set_tuple_index(tuple_index_);
-//   return proto;
-// }
+HloInstructionProto HloGetTupleElementInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.set_tuple_index(tuple_index_);
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloGetTupleElementInstruction::PrintExtraAttributesImpl(
@@ -1243,12 +1235,11 @@ HloInfeedInstruction::HloInfeedInstruction(const Shape& infeed_shape,
   AppendOperand(token_operand);
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloInfeedInstruction::ToProto() const {
-//   HloInstructionProto proto = HloInstruction::ToProto();
-//   proto.set_infeed_config(infeed_config_);
-//   return proto;
-// }
+HloInstructionProto HloInfeedInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.set_infeed_config(infeed_config_);
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloInfeedInstruction::PrintExtraAttributesImpl(
@@ -1288,13 +1279,12 @@ HloOutfeedInstruction::HloOutfeedInstruction(const Shape& outfeed_shape,
   AppendOperand(token_operand);
 }
 
-// TODO(chokobole): Uncomment this. Dependency: HloInstructionProto
-// HloInstructionProto HloOutfeedInstruction::ToProto() const {
-//   HloInstructionProto proto = HloInstruction::ToProto();
-//   proto.set_outfeed_config(outfeed_config());
-//   *proto.mutable_outfeed_shape() = outfeed_shape().ToProto();
-//   return proto;
-// }
+HloInstructionProto HloOutfeedInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.set_outfeed_config(outfeed_config());
+  *proto.mutable_outfeed_shape() = outfeed_shape().ToProto();
+  return proto;
+}
 
 // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
 // void HloOutfeedInstruction::PrintExtraAttributesImpl(

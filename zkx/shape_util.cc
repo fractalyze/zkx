@@ -562,6 +562,20 @@ int64_t ShapeUtil::SubshapeCount(const Shape& shape) {
 }
 
 // static
+bool ShapeUtil::HasPrimitiveType(const Shape& shape,
+                                 PrimitiveType primitive_type) {
+  if (shape.element_type() == primitive_type) {
+    return true;
+  }
+  for (const Shape& element_shape : shape.tuple_shapes()) {
+    if (HasPrimitiveType(element_shape, primitive_type)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// static
 bool ShapeUtil::IsZeroElementArray(const Shape& shape) {
   return shape.IsArray() && absl::c_linear_search(shape.dimensions(), 0);
 }

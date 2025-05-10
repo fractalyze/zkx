@@ -74,6 +74,9 @@ class LiteralBase {
   // Returns the shape of the literal.
   const Shape& shape() const;
 
+  // Serialize to proto.
+  LiteralProto ToProto() const;
+
   // Returns a Span of the array for this literal for the given NativeT
   // (e.g., float). CHECKs if the subshape of the literal at the given
   // ShapeIndex is not array. See primitive_util.h for the mapping from ZKX type
@@ -576,10 +579,17 @@ class LiteralBase {
     // shape, comparison is done only for the valid elements.
     bool EqualElements(const Piece& other) const;
 
+    // Writes the shape and data (if array-shaped) into the given proto.
+    void WriteToProto(LiteralProto* proto) const;
+
     // Copy the data from 'src' into this piece's buffer. Shapes of this piece
     // and src must be compatible. If only_dynamic_bound is true, only elements
     // within dynamic bounds will be copied.
     absl::Status CopyFrom(const Piece& src, bool only_dynamic_bound);
+
+    // Copies the data from the given proto into this piece. The shape of this
+    // piece must be equal (not just compatible) to the shape of the proto.
+    absl::Status CopyFromProto(const LiteralProto& proto);
 
     // See comments on ArrayValueState for detailed explanation.
     bool IsDetermined() const;
@@ -777,6 +787,10 @@ class MutableLiteralBase : public LiteralBase {
   // Fills this literal with the given value.
   template <typename NativeT>
   void PopulateWithValue(NativeT value);
+
+  // Serialize from a proto.
+  static absl::StatusOr<Literal> CreateFromProto(
+      const LiteralProto& proto, bool prohibit_empty_literal = true);
 
  protected:
   friend class LiteralBase;

@@ -18,6 +18,7 @@ syntax = "proto3";
 package zkx;
 
 import "google/protobuf/any.proto";
+import "zkx/service/hlo.proto";
 import "zkx/zkx_data.proto";
 
 // Proto version of `zkx::CompilationEnvironments`.
@@ -303,6 +304,11 @@ message HloModuleConfigProto {
   int64 device_memory_size = 34;
   bool use_shardy_partitioner = 35;
   ShardingConfigProto sharding_config = 36;
+}
+
+message HloModuleProtoWithConfig {
+  HloModuleProto hlo_module = 1;
+  HloModuleConfigProto config = 2;
 }
 
 // Message that captures sharding configuration of an HLO op.
