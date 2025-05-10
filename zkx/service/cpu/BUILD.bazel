@@ -237,10 +237,18 @@ zkx_cc_binary(
 
 zkx_cc_unittest(
     name = "cpu_unittests",
-    srcs = ["cpu_runtime_unittest.cc"],
+    srcs = [
+        "cpu_runtime_unittest.cc",
+        "xfeed_manager_unittest.cc",
+    ],
     deps = [
         ":cpu_runtime",
         ":runtime_custom_call_status",
+        ":xfeed_manager",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "//zkx:shape_util",
         "//zkx/service:custom_call_status",
+        "@com_google_absl//absl/log:check",
     ],
 )
