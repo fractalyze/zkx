@@ -37,6 +37,7 @@ limitations under the License.
 #include "zkx/service/cpu/cpu_compiler.h"
 #include "zkx/service/cpu/cpu_executable.h"
 #include "zkx/service/cpu/cpu_executable_run_options.h"
+#include "zkx/service/cpu/cpu_runtime.h"
 #include "zkx/service/custom_call_status.h"
 #include "zkx/service/custom_call_status_internal.h"
 #include "zkx/service/hlo_module_util.h"
@@ -1543,10 +1544,12 @@ absl::StatusOr<PjRtLoadedExecutable::Result> TfrtCpuExecutable::ExecuteHelper(
           run_options.intra_op_thread_pool()->getPool());
 
       cpu::Thunk::ExecuteParams execute_params = {
-          cpu_executable->function_library(), &allocations,
-          // TODO(chokobole): Uncomment this. Dependency: XfeedManager
-          // cpu::runtime::GetXfeedManager(run_options.device_ordinal()),
-          run_options.intra_op_thread_pool(), &task_runner, &collective_params,
+          cpu_executable->function_library(),
+          &allocations,
+          cpu::runtime::GetXfeedManager(run_options.device_ordinal()),
+          run_options.intra_op_thread_pool(),
+          &task_runner,
+          &collective_params,
           // clang-format off
             // TODO(chokobole): Uncomment this. Dependency: CustomCallExecuteParams
           // clang-format on
@@ -1683,10 +1686,11 @@ absl::StatusOr<PjRtLoadedExecutable::Result> TfrtCpuExecutable::ExecuteHelper(
 
             if (collective_params.ok()) {
               cpu::Thunk::ExecuteParams execute_params = {
-                  cpu_executable->function_library(), &allocations,
-                  // TODO(chokobole): Uncomment this. Dependency: XfeedManager
-                  // cpu::runtime::GetXfeedManager(run_options.device_ordinal()),
-                  run_options.intra_op_thread_pool(), &task_runner,
+                  cpu_executable->function_library(),
+                  &allocations,
+                  cpu::runtime::GetXfeedManager(run_options.device_ordinal()),
+                  run_options.intra_op_thread_pool(),
+                  &task_runner,
                   &*collective_params,
                   // clang-format off
                   // TODO(chokobole): Uncomment this. Dependency: CustomCallExecuteParams

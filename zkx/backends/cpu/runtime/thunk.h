@@ -36,6 +36,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/resource_use.h"
 #include "zkx/executable_run_options.h"
 #include "zkx/runtime/buffer_use.h"
+#include "zkx/service/cpu/xfeed_manager.h"
 #include "zkx/service/global_device_id.h"
 
 namespace Eigen {
@@ -71,6 +72,7 @@ class Thunk {
     kAllToAll,
     kCollectivePermute,
     kKernel,
+    kOutfeed,
     kReduceScatter,
   };
 
@@ -219,8 +221,7 @@ class Thunk {
   struct ExecuteParams {
     FunctionLibrary* function_library = nullptr;
     const BufferAllocations* buffer_allocations = nullptr;
-    // TODO(chokobole): Uncomment this. Dependency: XfeedManager
-    // runtime::XfeedManager* xfeed = nullptr;
+    runtime::XfeedManager* xfeed = nullptr;
     const Eigen::ThreadPoolDevice* intra_op_threadpool = nullptr;
     TaskRunner* task_runner = nullptr;
     CollectiveExecuteParams* collective_params = nullptr;

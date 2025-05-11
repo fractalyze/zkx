@@ -7,6 +7,7 @@
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/runtime/thread_pool_task_runner.h"
 #include "zkx/base/logging.h"
+#include "zkx/service/cpu/cpu_runtime.h"
 #include "zkx/service/custom_call_status_internal.h"
 #include "zkx/stream_executor/host/host_stream.h"
 
@@ -244,10 +245,12 @@ absl::Status CpuExecutable::ExecuteThunks(
       intra_op_thread_pool ? intra_op_thread_pool->getPool() : nullptr);
 
   Thunk::ExecuteParams execute_params = {
-      &*function_library_, &allocations,
-      // TODO(chokobole): Uncomment this. Dependency: GetXfeedManager
-      // runtime::GetXfeedManager(runtime::GetDeviceOrdinal(run_options)),
-      intra_op_thread_pool, &task_runner, &collective_execute_params,
+      &*function_library_,
+      &allocations,
+      runtime::GetXfeedManager(runtime::GetDeviceOrdinal(run_options)),
+      intra_op_thread_pool,
+      &task_runner,
+      &collective_execute_params,
       // TODO(chokobole): Uncomment this. Dependency: CustomCallExecuteParams
       // &custom_call_execute_params
   };

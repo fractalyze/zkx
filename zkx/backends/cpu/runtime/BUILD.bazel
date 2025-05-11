@@ -178,6 +178,25 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "outfeed_thunk",
+    srcs = ["outfeed_thunk.cc"],
+    hdrs = ["outfeed_thunk.h"],
+    deps = [
+        ":thunk",
+        "//xla/tsl/concurrency:async_value",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/base:logging",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service/cpu:xfeed_manager",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "reduce_scatter_thunk",
     srcs = ["reduce_scatter_thunk.cc"],
     hdrs = ["reduce_scatter_thunk.h"],
@@ -232,6 +251,7 @@ zkx_cc_library(
         "//zkx/runtime:buffer_use",
         "//zkx/service:global_device_id",
         "//zkx/service/cpu:cpu_executable_run_options",
+        "//zkx/service/cpu:xfeed_manager",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -302,6 +322,7 @@ zkx_cc_unittest(
     name = "runtime_unittests",
     srcs = [
         "kernel_thunk_unittest.cc",
+        "outfeed_thunk_unittest.cc",
         "resource_use_unittest.cc",
         "thunk_executor_unittest.cc",
         "thunk_unittest.cc",
@@ -310,6 +331,7 @@ zkx_cc_unittest(
     deps = [
         ":function_library",
         ":kernel_thunk",
+        ":outfeed_thunk",
         ":resource_use",
         ":thunk",
         ":thunk_executor",
@@ -317,6 +339,7 @@ zkx_cc_unittest(
         ":work_queue",
         "//xla/tsl/concurrency:async_value",
         "//xla/tsl/platform:env",
+        "//xla/tsl/platform:statusor",
         "//zkx:literal_util",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/synchronization",

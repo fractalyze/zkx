@@ -62,6 +62,7 @@ zkx_cc_library(
         "//zkx/service:custom_call_status",
         "//zkx/service:executable",
         "//zkx/service:maybe_owning_device_memory",
+        "//zkx/service/cpu:cpu_runtime",
         "//zkx/stream_executor:device_memory",
         "//zkx/stream_executor:device_memory_allocator",
         "//zkx/stream_executor/host:host_stream",
