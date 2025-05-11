@@ -71,6 +71,7 @@ class Thunk {
     kAllReduce,
     kAllToAll,
     kCollectivePermute,
+    kInfeed,
     kKernel,
     kOutfeed,
     kReduceScatter,

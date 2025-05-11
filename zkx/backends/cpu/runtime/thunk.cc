@@ -30,6 +30,8 @@ std::string_view Thunk::KindToString(Kind kind) {
       return "all-to-all";
     case Kind::kCollectivePermute:
       return "collective-permute";
+    case Kind::kInfeed:
+      return "infeed";
     case Kind::kKernel:
       return "kernel";
     case Kind::kOutfeed:
