@@ -23,6 +23,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
+#include "zkx/backends/cpu/runtime/copy_thunk.h"
 #include "zkx/backends/cpu/runtime/infeed_thunk.h"
 #include "zkx/backends/cpu/runtime/kernel_thunk.h"
 #include "zkx/backends/cpu/runtime/outfeed_thunk.h"
@@ -158,6 +159,8 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
       return EmitInfeedThunk(instr);
     case HloOpcode::kOutfeed:
       return EmitOutfeedThunk(instr);
+    case HloOpcode::kCopy:
+      return EmitCopyThunk(instr);
 
     default:
       return absl::InternalError(
@@ -374,6 +377,16 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitOutfeedThunk(
 
   return ThunkSequence::Of<OutfeedThunk>(
       ThunkInfo(instruction), outfeed_buffers, std::move(outfeed_resources));
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitCopyThunk(
+    const HloInstruction* instruction) {
+  const HloInstruction* source = instruction->operand(0);
+  TF_ASSIGN_OR_RETURN(auto source_buffer, GetAllocationSlice(source));
+  TF_ASSIGN_OR_RETURN(auto destination_buffer, GetAllocationSlice(instruction));
+  return ThunkSequence::Of<CopyThunk>(ThunkInfo(instruction), source_buffer,
+                                      source->shape(), destination_buffer,
+                                      instruction->shape());
 }
 
 // static
