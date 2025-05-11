@@ -23,6 +23,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
+#include "zkx/backends/cpu/runtime/infeed_thunk.h"
 #include "zkx/backends/cpu/runtime/kernel_thunk.h"
 #include "zkx/backends/cpu/runtime/outfeed_thunk.h"
 #include "zkx/backends/cpu/runtime/reduce_scatter_thunk.h"
@@ -153,6 +154,8 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
       return EmitCollectivePermuteThunk(instr);
     case HloOpcode::kReduceScatter:
       return EmitReduceScatterThunk(instr);
+    case HloOpcode::kInfeed:
+      return EmitInfeedThunk(instr);
     case HloOpcode::kOutfeed:
       return EmitOutfeedThunk(instr);
 
@@ -310,6 +313,37 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitReduceScatterThunk(
   return ThunkSequence::Of<ReduceScatterThunk>(
       ThunkInfo(reduce_scatter), reduction_kind, std::move(op_params),
       std::move(op_buffers), std::move(op_resources));
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitInfeedThunk(
+    const HloInstruction* instruction) {
+  auto* infeed = Cast<HloInfeedInstruction>(instruction);
+  const Shape& infeed_shape = infeed->infeed_shape();
+
+  // Collect buffer allocation slices corresponding to data buffers produced by
+  // the infeed instruction;
+  std::vector<InfeedThunk::InfeedBuffer> infeed_buffers;
+  for (auto& infeed_leaf : ShapeUtil::GetLeafShapes(infeed_shape)) {
+    infeed_leaf.index.push_front(0);  // prepend infeed tuple index
+
+    TF_ASSIGN_OR_RETURN(BufferAllocation::Slice infeed_slice,
+                        GetAllocationSlice(infeed, infeed_leaf.index));
+
+    infeed_buffers.push_back(InfeedThunk::InfeedBuffer{
+        infeed_slice,
+        infeed_leaf.shape,
+    });
+  }
+
+  // Collect resources for consumed and produced tokens.
+  InfeedThunk::InfeedResources infeed_resources;
+  TF_ASSIGN_OR_RETURN(infeed_resources.consume_token,
+                      GetTokenResource(infeed->operand(0)));
+  TF_ASSIGN_OR_RETURN(infeed_resources.produce_token,
+                      GetTokenResource(infeed, {1}));
+
+  return ThunkSequence::Of<InfeedThunk>(ThunkInfo(instruction), infeed_buffers,
+                                        std::move(infeed_resources));
 }
 
 absl::StatusOr<ThunkSequence> ThunkEmitter::EmitOutfeedThunk(
