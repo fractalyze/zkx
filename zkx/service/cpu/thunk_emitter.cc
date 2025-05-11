@@ -24,6 +24,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
 #include "zkx/backends/cpu/runtime/kernel_thunk.h"
+#include "zkx/backends/cpu/runtime/outfeed_thunk.h"
 #include "zkx/backends/cpu/runtime/reduce_scatter_thunk.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
 #include "zkx/cpu_function_runtime.h"
@@ -152,12 +153,30 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
       return EmitCollectivePermuteThunk(instr);
     case HloOpcode::kReduceScatter:
       return EmitReduceScatterThunk(instr);
+    case HloOpcode::kOutfeed:
+      return EmitOutfeedThunk(instr);
 
     default:
       return absl::InternalError(
           absl::StrFormat("Unsupported instruction opcode: %s",
                           HloOpcodeString(instr->opcode())));
   }
+}
+
+absl::StatusOr<BufferAllocation::Slice> ThunkEmitter::GetAllocationSlice(
+    const HloInstruction* instruction, const ShapeIndex& index) {
+  return buffer_assignment_->GetUniqueSlice(instruction, index);
+}
+
+absl::StatusOr<std::shared_ptr<Resource>> ThunkEmitter::GetTokenResource(
+    const HloInstruction* instruction, const ShapeIndex& index) {
+  DCHECK(ShapeUtil::GetSubshape(instruction->shape(), index).IsToken());
+  TF_ASSIGN_OR_RETURN(BufferAllocation::Slice slice,
+                      GetAllocationSlice(instruction, index));
+  if (auto it = token_resources_.find(slice); it != token_resources_.end()) {
+    return it->second;
+  }
+  return token_resources_[slice] = Resource::Create(Resource::kToken);
 }
 
 absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloComputation(
@@ -291,6 +310,36 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitReduceScatterThunk(
   return ThunkSequence::Of<ReduceScatterThunk>(
       ThunkInfo(reduce_scatter), reduction_kind, std::move(op_params),
       std::move(op_buffers), std::move(op_resources));
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitOutfeedThunk(
+    const HloInstruction* instruction) {
+  auto* outfeed = Cast<HloOutfeedInstruction>(instruction);
+  const Shape& outfeed_shape = outfeed->outfeed_shape();
+
+  // Collect buffer allocation slices corresponding to data buffers fed into the
+  // outfeed instruction as first operand.
+  std::vector<OutfeedThunk::OutfeedBuffer> outfeed_buffers;
+  for (auto& outfeed_leaf : ShapeUtil::GetLeafShapes(outfeed_shape)) {
+    TF_ASSIGN_OR_RETURN(
+        BufferAllocation::Slice outfeed_slice,
+        GetAllocationSlice(outfeed->operand(0), outfeed_leaf.index));
+
+    outfeed_buffers.push_back(OutfeedThunk::OutfeedBuffer{
+        outfeed_slice,
+        outfeed_leaf.shape,
+    });
+  }
+
+  // Collect resources for consumed and produced tokens.
+  OutfeedThunk::OutfeedResources outfeed_resources;
+  TF_ASSIGN_OR_RETURN(outfeed_resources.consume_token,
+                      GetTokenResource(outfeed->operand(1)));
+  TF_ASSIGN_OR_RETURN(outfeed_resources.produce_token,
+                      GetTokenResource(outfeed));
+
+  return ThunkSequence::Of<OutfeedThunk>(
+      ThunkInfo(instruction), outfeed_buffers, std::move(outfeed_resources));
 }
 
 // static

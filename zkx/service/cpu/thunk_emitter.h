@@ -16,9 +16,11 @@ limitations under the License.
 #ifndef ZKX_SERVICE_CPU_THUNK_EMITTER_H_
 #define ZKX_SERVICE_CPU_THUNK_EMITTER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
 #include "mlir/IR/MLIRContext.h"
@@ -50,6 +52,15 @@ class ThunkEmitter {
     std::vector<BufferAllocation::Slice> results;
   };
 
+  // Returns the buffer allocation slice assigned to the given instruction at
+  // the given shape index. Instruction must have a unique slice assigned to it!
+  absl::StatusOr<BufferAllocation::Slice> GetAllocationSlice(
+      const HloInstruction* instruction, const ShapeIndex& index = {});
+
+  // Returns a token resource corresponding to the given instruction result.
+  absl::StatusOr<std::shared_ptr<Resource>> GetTokenResource(
+      const HloInstruction* instruction, const ShapeIndex& index = {});
+
   absl::StatusOr<ThunkSequence> EmitHloComputation(
       const HloComputation* computation);
   absl::StatusOr<ThunkSequence> EmitHloInstruction(const HloInstruction* instr);
@@ -64,6 +75,8 @@ class ThunkEmitter {
       const HloInstruction* instruction);
   absl::StatusOr<ThunkSequence> EmitReduceScatterThunk(
       const HloInstruction* instruction);
+  absl::StatusOr<ThunkSequence> EmitOutfeedThunk(
+      const HloInstruction* instruction);
   absl::StatusOr<ThunkSequence> EmitElementalKernelThunk(
       const HloInstruction* instruction);
 
@@ -73,6 +86,13 @@ class ThunkEmitter {
 
   const BufferAssignment* const buffer_assignment_;
   mlir::MLIRContext* const mlir_context_;
+
+  // Token resources that correspond to the token buffer allocation slices. We
+  // rely on buffer assignment to assign unique "identity" to each token, and
+  // create a separate resource for each unique allocation slice.
+  absl::flat_hash_map<BufferAllocation::Slice, std::shared_ptr<Resource>>
+      token_resources_;
+
   std::vector<EmittedKernel> kernels_;
 
   // A global resource that is used to order all collective operations.
