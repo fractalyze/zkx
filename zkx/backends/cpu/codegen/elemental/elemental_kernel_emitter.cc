@@ -65,8 +65,8 @@ std::unique_ptr<llvm::Module> TranslateMLIRToLLVM(
   std::unique_ptr<llvm::Module> llvm_module =
       mlir::translateModuleToLLVMIR(module, *llvm_context);
   CHECK(llvm_module) << "Failed to translate module to LLVM IR.";
-  VLOG(1) << "After translation to LLVM: "
-          << llvm_ir::DumpToString(llvm_module.get());
+  VLOG(2) << "LLVM module after translation";
+  ZKX_VLOG_LINES(2, llvm_ir::DumpToString(llvm_module.get()));
   return llvm_module;
 }
 
@@ -80,13 +80,15 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
   mlir::LLVM::registerInlinerInterface(registry);
   module->getContext()->appendDialectRegistry(registry);
 
-  VLOG(1) << "Before optimization: " << llvm_ir::DumpToString(module);
+  VLOG(2) << "MLIR before optimizations";
+  ZKX_VLOG_LINES(2, llvm_ir::DumpToString(module));
   mlir::PassManager pm(mlir_context);
   AddPasses(pm);
 
   CHECK(mlir::succeeded(pm.run(module)));
 
-  VLOG(1) << "After optimization: " << llvm_ir::DumpToString(module);
+  VLOG(2) << "MLIR after optimizations";
+  ZKX_VLOG_LINES(2, llvm_ir::DumpToString(module));
 
   return TranslateMLIRToLLVM(module, llvm_context);
 }
