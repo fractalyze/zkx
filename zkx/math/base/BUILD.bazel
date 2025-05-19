@@ -71,6 +71,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "extension_field",
+    hdrs = ["extension_field.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:logging",
+        "//zkx/base/strings:string_util",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "prime_field",
     hdrs = ["prime_field.h"],
     deps = [
@@ -98,6 +110,7 @@ zkx_cc_unittest(
         "big_int_unittest.cc",
         "bit_iterator_unittest.cc",
         "byinverter_unittest.cc",
+        "extension_field_unittest.cc",
         "prime_field_unittest.cc",
     ],
     deps = [
@@ -105,10 +118,12 @@ zkx_cc_unittest(
         ":big_int",
         ":bit_iterator",
         ":byinverter",
+        ":extension_field",
         ":prime_field",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
+        "//zkx/math/elliptic_curves/bn/bn254:fq2",
         "//zkx/math/elliptic_curves/bn/bn254:fr",
         "@com_google_absl//absl/strings",
     ],
