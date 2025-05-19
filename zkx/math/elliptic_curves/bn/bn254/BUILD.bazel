@@ -9,6 +9,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "fq2",
+    hdrs = ["fq2.h"],
+    deps = [
+        ":fq",
+        "//zkx/math/base:extension_field",
+    ],
+)
+
+zkx_cc_library(
     name = "fr",
     hdrs = ["fr.h"],
     deps = ["//zkx/math/base:prime_field"],
@@ -19,6 +28,19 @@ zkx_cc_library(
     hdrs = ["g1.h"],
     deps = [
         ":fq",
+        ":fr",
+        "//zkx/math/elliptic_curves/short_weierstrass:affine_point",
+        "//zkx/math/elliptic_curves/short_weierstrass:jacobian_point",
+        "//zkx/math/elliptic_curves/short_weierstrass:point_xyzz",
+        "//zkx/math/elliptic_curves/short_weierstrass:sw_curve",
+    ],
+)
+
+zkx_cc_library(
+    name = "g2",
+    hdrs = ["g2.h"],
+    deps = [
+        ":fq2",
         ":fr",
         "//zkx/math/elliptic_curves/short_weierstrass:affine_point",
         "//zkx/math/elliptic_curves/short_weierstrass:jacobian_point",

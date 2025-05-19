@@ -51,6 +51,8 @@ class PrimeField {
     operator*=(PrimeField::FromUnchecked(Config::kRSquared));
   }
 
+  constexpr static uint32_t ExtensionDegree() { return 1; }
+
   constexpr static PrimeField Zero() { return PrimeField(); }
 
   constexpr static PrimeField One() {
