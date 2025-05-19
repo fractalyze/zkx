@@ -1,0 +1,358 @@
+#ifndef ZKX_MATH_BASE_BIG_INT_H_
+#define ZKX_MATH_BASE_BIG_INT_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include <initializer_list>
+#include <ostream>
+#include <string>
+#include <type_traits>
+
+#include "absl/base/internal/endian.h"
+#include "absl/base/optimization.h"
+#include "absl/log/check.h"
+#include "absl/status/statusor.h"
+
+#include "xla/tsl/platform/errors.h"
+#include "xla/tsl/platform/statusor.h"
+#include "zkx/math/base/arithmetics.h"
+#include "zkx/math/base/bit_traits_forward.h"
+#include "zkx/math/base/endian_utils.h"
+
+namespace zkx::math {
+namespace internal {
+
+absl::Status StringToLimbs(std::string_view str, uint64_t* limbs,
+                           size_t limb_nums);
+absl::Status HexStringToLimbs(std::string_view str, uint64_t* limbs,
+                              size_t limb_nums);
+
+std::string LimbsToString(const uint64_t* limbs, size_t limb_nums);
+std::string LimbsToHexString(const uint64_t* limbs, size_t limb_nums,
+                             bool pad_zero);
+
+}  // namespace internal
+
+// BigInt is a fixed size array of uint64_t, capable of holding up to N limbs.
+template <size_t N>
+class BigInt {
+ public:
+#if ABSL_IS_LITTLE_ENDIAN
+  constexpr static size_t kSmallestLimbIdx = 0;
+#else
+  constexpr static size_t kSmallestLimbIdx = N - 1;
+#endif
+  constexpr static size_t kLimbNums = N;
+  constexpr static size_t kBitWidth = N * 64;
+
+  constexpr BigInt() : BigInt(0) {}
+  template <typename T, std::enable_if_t<std::is_signed_v<T>>* = nullptr>
+  constexpr BigInt(T value) : limbs_{0} {
+    DCHECK_GE(value, 0);
+    limbs_[kSmallestLimbIdx] = value;
+  }
+  template <typename T, std::enable_if_t<std::is_unsigned_v<T>>* = nullptr>
+  constexpr BigInt(T value) : limbs_{0} {
+    limbs_[kSmallestLimbIdx] = value;
+  }
+  template <typename T, std::enable_if_t<std::is_signed_v<T>>* = nullptr>
+  constexpr BigInt(std::initializer_list<T> values) : limbs_{0} {
+    DCHECK_LE(values.size(), N);
+    auto it = values.begin();
+    for (size_t i = 0; i < values.size(); ++i, ++it) {
+      DCHECK_GE(*it, 0);
+      limbs_[i] = *it;
+    }
+  }
+  template <typename T, std::enable_if_t<std::is_unsigned_v<T>>* = nullptr>
+  constexpr BigInt(std::initializer_list<T> values) : limbs_{0} {
+    DCHECK_LE(values.size(), N);
+    auto it = values.begin();
+    for (size_t i = 0; i < values.size(); ++i, ++it) {
+      limbs_[i] = *it;
+    }
+  }
+
+  // Convert a decimal string to a BigInt.
+  static absl::StatusOr<BigInt> FromDecString(std::string_view str) {
+    BigInt ret(0);
+    TF_RETURN_IF_ERROR(internal::StringToLimbs(str, ret.limbs_, N));
+    return ret;
+  }
+
+  // Convert a hexadecimal string to a BigInt.
+  static absl::StatusOr<BigInt> FromHexString(std::string_view str) {
+    BigInt ret(0);
+    TF_RETURN_IF_ERROR(internal::HexStringToLimbs(str, ret.limbs_, N));
+    return ret;
+  }
+
+  constexpr static BigInt Zero() { return BigInt(0); }
+
+  constexpr static BigInt One() { return BigInt(1); }
+
+  constexpr bool IsZero() const {
+    for (size_t i = 0; i < N; ++i) {
+      if (limbs_[i] != 0) return false;
+    }
+    return true;
+  }
+
+  constexpr bool IsOne() const {
+    for (size_t i = 1; i < N - 1; ++i) {
+      if (limbs_[i] != 0) {
+        return false;
+      }
+    }
+#if ABSL_IS_LITTLE_ENDIAN
+    return limbs_[0] == 1 && limbs_[N - 1] == 0;
+#else
+    return limbs_[0] == 0 && limbs_[N - 1] == 1;
+#endif
+  }
+
+  constexpr BigInt operator+(const BigInt& other) const {
+    BigInt ret;
+    Add(*this, other, ret);
+    return ret;
+  }
+
+  constexpr BigInt& operator+=(const BigInt& other) {
+    Add(*this, other, *this);
+    return *this;
+  }
+
+  constexpr BigInt operator-(const BigInt& other) const {
+    BigInt ret;
+    Sub(*this, other, ret);
+    return ret;
+  }
+
+  constexpr BigInt& operator-=(const BigInt& other) {
+    Sub(*this, other, *this);
+    return *this;
+  }
+
+  constexpr BigInt operator*(const BigInt& other) const {
+    return Mul(*this, other).lo;
+  }
+
+  constexpr BigInt& operator*=(const BigInt& other) {
+    return *this = Mul(*this, other).lo;
+  }
+
+  constexpr BigInt operator<<(uint64_t shift) const {
+    BigInt ret;
+    ShiftLeft(*this, ret, shift);
+    return ret;
+  }
+
+  constexpr BigInt& operator<<=(uint64_t shift) {
+    ShiftLeft(*this, *this, shift);
+    return *this;
+  }
+
+  constexpr BigInt operator>>(uint64_t shift) const {
+    BigInt ret;
+    ShiftRight(*this, ret, shift);
+    return ret;
+  }
+
+  constexpr BigInt& operator>>=(uint64_t shift) {
+    ShiftRight(*this, *this, shift);
+    return *this;
+  }
+
+  constexpr absl::StatusOr<BigInt> operator/(const BigInt& other) const {
+    TF_ASSIGN_OR_RETURN(internal::DivResult<BigInt> div_result,
+                        Div(*this, other));
+    return div_result.quotient;
+  }
+
+  constexpr absl::StatusOr<BigInt> operator%(const BigInt& other) const {
+    TF_ASSIGN_OR_RETURN(internal::DivResult<BigInt> div_result,
+                        Div(*this, other));
+    return div_result.remainder;
+  }
+
+  constexpr uint64_t& operator[](size_t i) {
+    DCHECK_LT(i, N);
+    return limbs_[i];
+  }
+  constexpr const uint64_t operator[](size_t i) const {
+    DCHECK_LT(i, N);
+    return limbs_[i];
+  }
+
+  constexpr bool operator==(const BigInt& other) const {
+    for (size_t i = 0; i < N; ++i) {
+      if (limbs_[i] != other.limbs_[i]) return false;
+    }
+    return true;
+  }
+
+  constexpr bool operator!=(const BigInt& other) const {
+    return !operator==(other);
+  }
+
+  constexpr bool operator<(const BigInt& other) const {
+    FOR_FROM_BIGGEST(i, 0, N) {
+      if (limbs_[i] == other.limbs_[i]) continue;
+      return limbs_[i] < other.limbs_[i];
+    }
+    return false;
+  }
+
+  constexpr bool operator>(const BigInt& other) const {
+    FOR_FROM_BIGGEST(i, 0, N) {
+      if (limbs_[i] == other.limbs_[i]) continue;
+      return limbs_[i] > other.limbs_[i];
+    }
+    return false;
+  }
+
+  constexpr bool operator<=(const BigInt& other) const {
+    FOR_FROM_BIGGEST(i, 0, N) {
+      if (limbs_[i] == other.limbs_[i]) continue;
+      return limbs_[i] < other.limbs_[i];
+    }
+    return true;
+  }
+
+  constexpr bool operator>=(const BigInt& other) const {
+    FOR_FROM_BIGGEST(i, 0, N) {
+      if (limbs_[i] == other.limbs_[i]) continue;
+      return limbs_[i] > other.limbs_[i];
+    }
+    return true;
+  }
+
+  std::string ToString() const { return internal::LimbsToString(limbs_, N); }
+  std::string ToHexString(bool pad_zero = false) const {
+    return internal::LimbsToHexString(limbs_, N, pad_zero);
+  }
+
+  constexpr static uint64_t Add(const BigInt& a, const BigInt& b, BigInt& c) {
+    internal::AddResult<uint64_t> add_result;
+    FOR_FROM_SMALLEST(i, 0, N) {
+      add_result = internal::AddWithCarry(a[i], b[i], add_result.carry);
+      c[i] = add_result.value;
+    }
+    return add_result.carry;
+  }
+
+  constexpr static uint64_t Sub(const BigInt& a, const BigInt& b, BigInt& c) {
+    internal::SubResult<uint64_t> sub_result;
+    FOR_FROM_SMALLEST(i, 0, N) {
+      sub_result = internal::SubWithBorrow(a[i], b[i], sub_result.borrow);
+      c[i] = sub_result.value;
+    }
+    return sub_result.borrow;
+  }
+
+  constexpr static internal::MulResult<BigInt> Mul(const BigInt& a,
+                                                   const BigInt& b) {
+    internal::MulResult<BigInt> ret;
+    internal::MulResult<uint64_t> mul_result;
+    FOR_FROM_SMALLEST(i, 0, N) {
+      FOR_FROM_SMALLEST(j, 0, N) {
+        uint64_t& limb = (i + j) >= N ? ret.hi[(i + j) - N] : ret.lo[i + j];
+        mul_result = internal::MulAddWithCarry(limb, a[i], b[j], mul_result.hi);
+        limb = mul_result.lo;
+      }
+      ret.hi[i] = mul_result.hi;
+      mul_result.hi = 0;
+    }
+    return ret;
+  }
+
+  constexpr static uint64_t ShiftLeft(const BigInt& a, BigInt& b,
+                                      uint64_t shift) {
+    CHECK_LT(shift, 64);
+    uint64_t carry = 0;
+    FOR_FROM_SMALLEST(i, 0, N) {
+      uint64_t temp = a[i] >> (64 - shift);
+      b[i] = a[i] << shift;
+      b[i] |= carry;
+      carry = temp;
+    }
+    return carry;
+  }
+
+  constexpr static uint64_t ShiftRight(const BigInt& a, BigInt& b,
+                                       uint64_t shift) {
+    CHECK_LT(shift, 64);
+    uint64_t borrow = 0;
+    FOR_FROM_BIGGEST(i, 0, N) {
+      uint64_t temp = a[i] << (64 - shift);
+      b[i] = a[i] >> shift;
+      b[i] |= borrow;
+      borrow = temp;
+    }
+    return borrow;
+  }
+
+  constexpr static absl::StatusOr<internal::DivResult<BigInt>> Div(
+      const BigInt<N>& a, const BigInt<N>& b) {
+    if (b.IsZero()) return absl::InvalidArgumentError("Division by zero");
+
+    // Stupid slow base-2 long division taken from
+    // https://en.wikipedia.org/wiki/Division_algorithm
+    internal::DivResult<BigInt> ret;
+    size_t bits = BitTraits<BigInt>::GetNumBits(a);
+    uint64_t& smallest_bit = ret.remainder[kSmallestLimbIdx];
+    FOR_FROM_BIGGEST(i, 0, bits) {
+      uint64_t carry = ShiftLeft(ret.remainder, ret.remainder, 1);
+      smallest_bit |= BitTraits<BigInt>::TestBit(a, i);
+      if (ret.remainder >= b || carry) {
+        uint64_t borrow = Sub(ret.remainder, b, ret.remainder);
+        if (ABSL_PREDICT_FALSE(borrow != carry))
+          return absl::InternalError("Division error: borrow/carry mismatch");
+        BitTraits<BigInt>::SetBit(ret.quotient, i, 1);
+      }
+    }
+    return ret;
+  }
+
+ private:
+  uint64_t limbs_[N];
+};
+
+template <size_t N>
+std::ostream& operator<<(std::ostream& os, const BigInt<N>& big_int) {
+  return os << big_int.ToHexString(true);
+}
+
+template <size_t N>
+class BitTraits<BigInt<N>> {
+ public:
+  constexpr static bool kIsDynamic = false;
+
+  constexpr static size_t GetNumBits(const BigInt<N>& _) { return N * 64; }
+
+  constexpr static bool TestBit(const BigInt<N>& bigint, size_t index) {
+    size_t limb_index = index >> 6;
+    if (limb_index >= N) return false;
+    size_t bit_index = index & 63;
+    uint64_t bit_index_value = uint64_t{1} << bit_index;
+    return (bigint[limb_index] & bit_index_value) == bit_index_value;
+  }
+
+  constexpr static void SetBit(BigInt<N>& bigint, size_t index,
+                               bool bit_value) {
+    size_t limb_index = index >> 6;
+    if (limb_index >= N) return;
+    size_t bit_index = index & 63;
+    uint64_t bit_index_value = uint64_t{1} << bit_index;
+    if (bit_value) {
+      bigint[limb_index] |= bit_index_value;
+    } else {
+      bigint[limb_index] &= ~bit_index_value;
+    }
+  }
+};
+
+}  // namespace zkx::math
+
+#endif  // ZKX_MATH_BASE_BIG_INT_H_
