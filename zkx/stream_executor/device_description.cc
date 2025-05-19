@@ -16,7 +16,7 @@ limitations under the License.
 #include "zkx/stream_executor/device_description.h"
 
 #include "xla/tsl/lib/math/math_util.h"
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 
 namespace stream_executor {
 // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability

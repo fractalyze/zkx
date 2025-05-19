@@ -21,10 +21,10 @@ limitations under the License.
 #include <memory>
 #include <string_view>
 
-#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
+#include "zkx/base/logging.h"
 #include "zkx/core/collectives/collectives.h"
 
 namespace zkx {

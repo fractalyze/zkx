@@ -54,8 +54,8 @@ zkx_cc_library(
     deps = [
         ":primitive_util",
         ":zkx_data_proto",
+        "//zkx/base:logging",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -101,7 +101,7 @@ zkx_cc_library(
     hdrs = ["literal_pool.h"],
     deps = [
         ":literal",
-        "//zkx/base:vlog",
+        "//zkx/base:logging",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/synchronization",
     ],
@@ -137,6 +137,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "overflow_util",
+    hdrs = ["overflow_util.h"],
+    deps = ["@com_google_absl//absl/base:core_headers"],
+)
+
+zkx_cc_library(
     name = "primitive_util",
     srcs = ["primitive_util.cc"],
     hdrs = ["primitive_util.h"],
@@ -144,9 +150,9 @@ zkx_cc_library(
         ":types",
         ":zkx_data_proto",
         "//xla/tsl/lib/math:math_util",
+        "//zkx/base:logging",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
     ],
@@ -201,13 +207,12 @@ zkx_cc_library(
         ":zkx_data_proto",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:status",
-        "//zkx/base:vlog",
+        "//zkx/base:logging",
         "//zkx/base/strings:string_util",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/hash",
-        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -234,22 +239,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
-    name = "types",
-    hdrs = ["types.h"],
-)
-
-zkx_cc_library(
     name = "status_macros",
     srcs = ["status_macros.cc"],
     hdrs = ["status_macros.h"],
     deps = [
+        "//zkx/base:logging",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/base:log_severity",
-        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
+)
+
+zkx_cc_library(
+    name = "types",
+    hdrs = ["types.h"],
 )
 
 zkx_cc_library(
@@ -266,12 +271,6 @@ zkx_cc_library(
     ],
 )
 
-zkx_cc_library(
-    name = "overflow_util",
-    hdrs = ["overflow_util.h"],
-    deps = ["@com_google_absl//absl/base:core_headers"],
-)
-
 zkx_cc_unittest(
     name = "zkx_unittests",
     srcs = [
@@ -283,6 +282,7 @@ zkx_cc_unittest(
         "iterator_util_unittest.cc",
         "layout_unittest.cc",
         "layout_util_unittest.cc",
+        "maybe_owning_unittest.cc",
         "status_macros_unittest.cc",
     ],
     deps = [
@@ -291,6 +291,7 @@ zkx_cc_unittest(
         ":array3d",
         ":comparison_util",
         ":iterator_util",
+        ":maybe_owning",
         ":shape_util",
         ":status_macros",
         "//xla/tsl/platform:errors",

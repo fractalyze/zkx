@@ -16,9 +16,8 @@ limitations under the License.
 #include "zkx/shape.h"
 
 #include "absl/algorithm/container.h"
-#include "absl/log/log.h"
 
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 #include "zkx/layout_util.h"
 #include "zkx/shape_util.h"
 

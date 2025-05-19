@@ -32,7 +32,7 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/status_macros.h"

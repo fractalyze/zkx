@@ -9,16 +9,62 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
-    name = "env",
-    srcs = ["env.cc"] + if_posix(["env_posix.cc"]),
-    hdrs = ["env.h"],
+    name = "cord",
+    hdrs = ["cord.h"],
+    deps = ["@com_google_absl//absl/strings"],
+)
+
+zkx_cc_library(
+    name = "cpu_info",
+    srcs = ["cpu_info.cc"],
+    hdrs = ["cpu_info.h"],
     deps = [
+        ":platform",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base",
+    ],
+)
+
+zkx_cc_library(
+    name = "env",
+    srcs = [
+        "env.cc",
+        "file_system.cc",
+        "file_system_helper.cc",
+        "file_system_helper.h",
+        "thread_pool.cc",
+    ] + if_posix([
+        "file_system_posix.cc",
+        "file_system_posix.h",
+        "env_posix.cc",
+    ]),
+    hdrs = [
+        "env.h",
+        "file_system.h",
+        "thread_pool.h",
+    ],
+    deps = [
+        ":cord",
+        ":cpu_info",
         ":env_time",
+        ":errors",
+        ":file_statistics",
+        ":host_info",
+        ":path",
+        ":platform",
+        ":scanner",
+        "//zkx/base:logging",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
+        "@com_google_protobuf//:protobuf",
+        "@eigen_archive//:eigen3",
     ],
 )
 
@@ -40,12 +86,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "file_statistics",
+    hdrs = ["file_statistics.h"],
+)
+
+zkx_cc_library(
     name = "fingerprint",
     hdrs = ["fingerprint.h"],
     deps = [
         "@com_google_absl//absl/numeric:int128",
         "@farmhash_archive//:farmhash",
     ],
+)
+
+zkx_cc_library(
+    name = "host_info",
+    srcs = if_posix(["host_info_posix.cc"]),
+    hdrs = ["host_info.h"],
 )
 
 zkx_cc_library(
@@ -63,6 +120,29 @@ zkx_cc_library(
     name = "mem",
     srcs = if_posix(["mem_posix.cc"]),
     hdrs = ["mem.h"],
+)
+
+zkx_cc_library(
+    name = "path",
+    srcs = ["path.cc"],
+    hdrs = ["path.h"],
+    deps = [
+        ":scanner",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "platform",
+    hdrs = ["platform.h"],
+)
+
+zkx_cc_library(
+    name = "scanner",
+    srcs = ["scanner.cc"],
+    hdrs = ["scanner.h"],
+    deps = ["@com_google_absl//absl/strings"],
 )
 
 zkx_cc_library(
@@ -84,21 +164,19 @@ zkx_cc_library(
     ],
 )
 
-zkx_cc_library(
-    name = "thread_pool",
-    srcs = ["thread_pool.cc"],
-    hdrs = ["thread_pool.h"],
-    deps = [
-        ":env",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/synchronization",
-        "@eigen_archive//:eigen3",
-    ],
-)
-
 zkx_cc_unittest(
     name = "platform_unittests",
-    srcs = ["fingerprint_unittest.cc"],
-    deps = [":fingerprint"],
+    srcs = [
+        "cpu_info_unittest.cc",
+        "fingerprint_unittest.cc",
+        "path_unittest.cc",
+        "scanner_unittest.cc",
+    ],
+    deps = [
+        ":cpu_info",
+        ":env",
+        ":fingerprint",
+        ":path",
+        ":scanner",
+    ],
 )

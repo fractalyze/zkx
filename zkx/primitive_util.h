@@ -27,9 +27,9 @@ limitations under the License.
 #include <utility>
 
 #include "absl/base/optimization.h"
-#include "absl/log/log.h"
 
 #include "xla/tsl/lib/math/math_util.h"
+#include "zkx/base/logging.h"
 #include "zkx/types.h"
 #include "zkx/zkx_data.pb.h"
 

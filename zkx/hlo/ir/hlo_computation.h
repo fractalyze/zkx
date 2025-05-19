@@ -38,7 +38,7 @@ limitations under the License.
 
 #include "xla/tsl/lib/gtl/iterator_range.h"
 #include "xla/tsl/platform/errors.h"
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/dfs_hlo_visitor.h"
 #include "zkx/hlo/ir/hlo_clone_context.h"
 #include "zkx/hlo/ir/hlo_instruction.h"

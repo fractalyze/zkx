@@ -25,4 +25,13 @@ int64_t Product(absl::Span<const int64_t> xs) {
                          std::multiplies<int64_t>());
 }
 
+std::string SanitizeFileName(std::string file_name) {
+  for (char& c : file_name) {
+    if (c == '/' || c == '\\' || c == '[' || c == ']' || c == ' ') {
+      c = '_';
+    }
+  }
+  return file_name;
+}
+
 }  // namespace zkx

@@ -27,7 +27,7 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_clique.h"
-#include "zkx/base/vlog.h"
+#include "zkx/base/logging.h"
 
 namespace zkx::cpu {
 

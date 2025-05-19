@@ -13,21 +13,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include <fnmatch.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+
 #include <map>
 #include <string>
 #include <thread>
 #include <utility>
 
+#ifdef __FreeBSD__
+#include <pthread_np.h>
+#endif
+
+#include "absl/base/attributes.h"
+#include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
 
 #include "xla/tsl/platform/env.h"
+#include "xla/tsl/platform/file_system_posix.h"
 
 namespace tsl {
 
-absl::Mutex g_name_mutex;
+ABSL_CONST_INIT absl::Mutex g_name_mutex(absl::kConstInit);
 
 std::map<std::thread::id, std::string>& GetThreadNameRegistry()
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(g_name_mutex) {
@@ -81,11 +94,15 @@ class PThread : public Thread {
   pthread_t thread_;
 };
 
-class PosixEnv : public Env {
+class EnvPosix : public Env {
  public:
-  PosixEnv() {}
+  EnvPosix() {}
 
-  ~PosixEnv() override { LOG(FATAL) << "Env::Default() must not be destroyed"; }
+  ~EnvPosix() override { LOG(FATAL) << "Env::Default() must not be destroyed"; }
+
+  bool MatchPath(const std::string& path, const std::string& pattern) override {
+    return fnmatch(pattern.c_str(), path.c_str(), FNM_PATHNAME) == 0;
+  }
 
   Thread* StartThread(const ThreadOptions& thread_options,
                       std::string_view name,
@@ -113,11 +130,140 @@ class PosixEnv : public Env {
       }
     }
   }
+
+  int64_t GetCurrentThreadId() override {
+    static thread_local int64_t current_thread_id =
+        GetCurrentThreadIdInternal();
+    return current_thread_id;
+  }
+
+  bool GetCurrentThreadName(std::string* name) override {
+    {
+      absl::MutexLock l(&g_name_mutex);
+      auto thread_name =
+          GetThreadNameRegistry().find(std::this_thread::get_id());
+      if (thread_name != GetThreadNameRegistry().end()) {
+        *name = absl::StrCat(thread_name->second, "/", GetCurrentThreadId());
+        return true;
+      }
+    }
+#if defined(__GLIBC__) || defined(__FreeBSD__)
+    char buf[100];
+#ifdef __FreeBSD__
+    int res = 0;
+    pthread_get_name_np(pthread_self(), buf, static_cast<size_t>(100));
+#else
+    int res = pthread_getname_np(pthread_self(), buf, static_cast<size_t>(100));
+#endif
+    if (res != 0) {
+      return false;
+    }
+    *name = buf;
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  std::string GetRunfilesDir() override {
+    std::string bin_path = this->GetExecutablePath();
+    std::string runfiles_suffix = ".runfiles/org_tensorflow";
+    std::size_t pos = bin_path.find(runfiles_suffix);
+
+    // Sometimes (when executing under python) bin_path returns the full path to
+    // the python scripts under runfiles. Get the substring.
+    if (pos != std::string::npos) {
+      return bin_path.substr(0, pos + runfiles_suffix.length());
+    }
+
+    // See if we have the executable path. if executable.runfiles exists, return
+    // that folder.
+    std::string runfiles_path = bin_path + runfiles_suffix;
+    absl::Status s = this->IsDirectory(runfiles_path);
+    if (s.ok()) {
+      return runfiles_path;
+    }
+
+    // If nothing can be found, return something close.
+    return bin_path.substr(0, bin_path.find_last_of("/\\"));
+  }
+
+ private:
+  void GetLocalTempDirectories(std::vector<std::string>* list) override;
+
+  int64_t GetCurrentThreadIdInternal() {
+#ifdef __APPLE__
+    uint64_t tid64;
+    pthread_threadid_np(nullptr, &tid64);
+    return static_cast<int64_t>(tid64);
+#elif defined(__FreeBSD__)
+    return pthread_getthreadid_np();
+#elif defined(__NR_gettid)
+    return static_cast<int64_t>(syscall(__NR_gettid));
+#else
+    return std::hash<std::thread::id>()(std::this_thread::get_id());
+#endif
+  }
 };
 
+REGISTER_FILE_SYSTEM("", FileSystemPosix);
+REGISTER_FILE_SYSTEM("file", LocalFileSystemPosix);
+
 Env* Env::Default() {
-  static Env* default_env = new PosixEnv;
+  static Env* default_env = new EnvPosix;
   return default_env;
 }
+
+void EnvPosix::GetLocalTempDirectories(std::vector<std::string>* list) {
+  list->clear();
+  // Directories, in order of preference. If we find a dir that
+  // exists, we stop adding other less-preferred dirs
+  const char* candidates[] = {
+      // Non-null only during unittest/regtest
+      getenv("TEST_TMPDIR"),
+
+      // Explicitly-supplied temp dirs
+      getenv("TMPDIR"),
+      getenv("TMP"),
+
+#if defined(__ANDROID__)
+      "/data/local/tmp",
+#endif
+
+      // If all else fails
+      "/tmp",
+  };
+
+  std::vector<std::string> paths;  // Only in case of errors.
+  for (const char* d : candidates) {
+    if (!d || d[0] == '\0') continue;  // Empty env var
+    paths.push_back(d);
+    // Make sure we don't surprise anyone who's expecting a '/'
+    std::string dstr = d;
+    if (dstr[dstr.size() - 1] != '/') {
+      dstr += "/";
+    }
+
+    struct stat statbuf;
+    if (!stat(d, &statbuf) && S_ISDIR(statbuf.st_mode) &&
+        !access(dstr.c_str(), 0)) {
+      // We found a dir that exists and is accessible - we're done.
+      list->push_back(dstr);
+      return;
+    }
+  }
+  LOG(WARNING) << "We are not able to find a directory for temporary files.\n"
+               << "Verify the directory access and available space under: "
+               << absl::StrJoin(paths, ",") << ". "
+               << "You can also provide a directory for temporary files with"
+               << " the environment variable TMP or TMPDIR. "
+               << "Example under bash: `export TMP=/my_new_temp_directory;`";
+}
+
+int setenv(const char* name, const char* value, int overwrite) {
+  return ::setenv(name, value, overwrite);
+}
+
+int unsetenv(const char* name) { return ::unsetenv(name); }
 
 }  // namespace tsl

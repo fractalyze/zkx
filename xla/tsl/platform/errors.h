@@ -51,6 +51,9 @@ absl::Status CreateWithUpdatedMessage(const absl::Status& status,
 
 }  // namespace internal
 
+// Maps UNIX errors into a Status.
+absl::Status IOError(std::string_view context, int err_number);
+
 // Append some context to an error message.  Each time we append
 // context put it on a new line, since it is possible for there
 // to be several layers of additional context.

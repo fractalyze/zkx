@@ -15,10 +15,10 @@ limitations under the License.
 
 #include "zkx/service/computation_placer.h"
 
-#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/logging.h"
 #include "zkx/status_macros.h"
 #include "zkx/stream_executor/host/host_platform_id.h"
 
