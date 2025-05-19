@@ -41,6 +41,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "bit_iterator",
+    hdrs = ["bit_iterator.h"],
+    deps = [
+        ":bit_traits_forward",
+        "@com_google_absl//absl/base",
+    ],
+)
+
+zkx_cc_library(
     name = "bit_traits_forward",
     hdrs = ["bit_traits_forward.h"],
 )
@@ -73,22 +82,34 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "scalar_mul",
+    hdrs = ["scalar_mul.h"],
+    deps = [
+        ":big_int",
+        ":bit_iterator",
+    ],
+)
+
 zkx_cc_unittest(
     name = "base_unittests",
     srcs = [
         "batch_inverse_unittest.cc",
         "big_int_unittest.cc",
+        "bit_iterator_unittest.cc",
         "byinverter_unittest.cc",
         "prime_field_unittest.cc",
     ],
     deps = [
         ":batch_inverse",
         ":big_int",
+        ":bit_iterator",
         ":byinverter",
         ":prime_field",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx/math/elliptic_curves/bn/bn254:fr",
+        "@com_google_absl//absl/strings",
     ],
 )

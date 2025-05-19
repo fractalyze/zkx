@@ -1,0 +1,13 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "curve_type",
+    hdrs = ["curve_type.h"],
+)
+
+zkx_cc_library(
+    name = "point_declarations",
+    hdrs = ["point_declarations.h"],
+)

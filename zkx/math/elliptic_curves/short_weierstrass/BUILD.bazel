@@ -1,0 +1,78 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "affine_point",
+    hdrs = ["affine_point.h"],
+    deps = [
+        "//zkx/math/base:scalar_mul",
+        "//zkx/math/geometry:curve_type",
+        "//zkx/math/geometry:point_declarations",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "jacobian_point",
+    hdrs = [
+        "jacobian_point.h",
+        "jacobian_point_impl.h",
+    ],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:template_util",
+        "//zkx/base/containers:container_util",
+        "//zkx/math/base:batch_inverse",
+        "//zkx/math/base:scalar_mul",
+        "//zkx/math/geometry:curve_type",
+        "//zkx/math/geometry:point_declarations",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "point_xyzz",
+    hdrs = [
+        "point_xyzz.h",
+        "point_xyzz_impl.h",
+    ],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:template_util",
+        "//zkx/base/containers:container_util",
+        "//zkx/math/base:batch_inverse",
+        "//zkx/math/base:scalar_mul",
+        "//zkx/math/geometry:curve_type",
+        "//zkx/math/geometry:point_declarations",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "sw_curve",
+    hdrs = ["sw_curve.h"],
+    deps = [
+        "//zkx/math/geometry:curve_type",
+        "//zkx/math/geometry:point_declarations",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "short_weierstrass_unittests",
+    srcs = [
+        "affine_point_unittest.cc",
+        "jacobian_point_unittest.cc",
+        "point_xyzz_unittest.cc",
+    ],
+    deps = [
+        ":affine_point",
+        ":jacobian_point",
+        ":point_xyzz",
+        "//zkx/math/elliptic_curves/short_weierstrass/test:sw_curve_config",
+    ],
+)
