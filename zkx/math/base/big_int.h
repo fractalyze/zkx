@@ -40,8 +40,10 @@ class BigInt {
  public:
 #if ABSL_IS_LITTLE_ENDIAN
   constexpr static size_t kSmallestLimbIdx = 0;
+  constexpr static size_t kBiggestLimbIdx = N - 1;
 #else
   constexpr static size_t kSmallestLimbIdx = N - 1;
+  constexpr static size_t kBiggestLimbIdx = 0;
 #endif
   constexpr static size_t kLimbNums = N;
   constexpr static size_t kBitWidth = N * 64;
@@ -91,6 +93,9 @@ class BigInt {
   constexpr static BigInt Zero() { return BigInt(0); }
 
   constexpr static BigInt One() { return BigInt(1); }
+
+  constexpr const uint64_t* limbs() const { return limbs_; }
+  constexpr uint64_t* limbs() { return limbs_; }
 
   constexpr bool IsZero() const {
     for (size_t i = 0; i < N; ++i) {

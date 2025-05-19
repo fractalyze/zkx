@@ -33,17 +33,47 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "byinverter",
+    hdrs = ["byinverter.h"],
+    deps = [
+        ":big_int",
+        "@com_google_absl//absl/numeric:bits",
+        "@com_google_absl//absl/numeric:int128",
+    ],
+)
+
+zkx_cc_library(
     name = "endian_utils",
     hdrs = ["endian_utils.h"],
     deps = ["@com_google_absl//absl/base"],
 )
 
-zkx_cc_unittest(
-    name = "base_unittests",
-    srcs = ["big_int_unittest.cc"],
+zkx_cc_library(
+    name = "prime_field",
+    hdrs = ["prime_field.h"],
     deps = [
         ":big_int",
+        ":byinverter",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "base_unittests",
+    srcs = [
+        "big_int_unittest.cc",
+        "byinverter_unittest.cc",
+        "prime_field_unittest.cc",
+    ],
+    deps = [
+        ":big_int",
+        ":byinverter",
+        ":prime_field",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:status_matchers",
+        "//xla/tsl/platform:statusor",
+        "//zkx/math/elliptic_curves/bn/bn254:fr",
     ],
 )
