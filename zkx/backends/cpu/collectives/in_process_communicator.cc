@@ -46,13 +46,9 @@ T GetInitialValue(ReductionKind reduction_kind) {
     case ReductionKind::kProduct:
       return T{1};
     case ReductionKind::kMin:
-      return std::numeric_limits<T>::has_infinity
-                 ? std::numeric_limits<T>::infinity()
-                 : std::numeric_limits<T>::max();
+      return std::numeric_limits<T>::max();
     case ReductionKind::kMax:
-      return std::numeric_limits<T>::has_infinity
-                 ? -std::numeric_limits<T>::infinity()
-                 : std::numeric_limits<T>::lowest();
+      return std::numeric_limits<T>::lowest();
   }
 }
 
