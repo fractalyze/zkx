@@ -393,8 +393,7 @@ class ShapeUtil {
   // the specified number of bits.
   static bool ElementIsIntegralWithBits(const Shape& shape, int bits);
 
-  // Returns whether the element type of the shape is signed. Note
-  // that floating point numbers are signed.
+  // Returns whether the element type of the shape is signed.
   static bool ElementIsSigned(const Shape& shape);
 
   // Returns whether the shape is a tuple with at least one element which is
