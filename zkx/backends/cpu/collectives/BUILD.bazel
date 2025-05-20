@@ -117,6 +117,7 @@ zkx_cc_library(
     deps = [
         ":cpu_collectives",
         ":in_process_communicator",
+        "//zkx/base:logging",
         "//zkx/core/collectives:clique_id",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",

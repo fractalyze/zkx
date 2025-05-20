@@ -52,6 +52,13 @@ bool CollectiveThunk::IsDataTypeSupportedByCollectiveReduce(
     case U32:
     case S64:
     case U64:
+    case BN254_SCALAR:
+    case BN254_G1_AFFINE:
+    case BN254_G1_JACOBIAN:
+    case BN254_G1_XYZZ:
+    case BN254_G2_AFFINE:
+    case BN254_G2_JACOBIAN:
+    case BN254_G2_XYZZ:
       return true;
     default:
       return false;

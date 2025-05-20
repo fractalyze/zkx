@@ -55,7 +55,7 @@ constexpr void CLASS::Add(const PointXyzz& a, const PointXyzz& b,
 
 // static
 template <typename Curve>
-constexpr void CLASS::Add(const PointXyzz& a, const AffinePoint<Curve>& b,
+constexpr void CLASS::Add(const PointXyzz& a, const AffinePoint& b,
                           PointXyzz& c) {
   // https://hyperelliptic.org/EFD/g1p/auto-shortw-xyzz.html#addition-madd-2008-s
 
