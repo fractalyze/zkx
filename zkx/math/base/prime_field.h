@@ -26,6 +26,7 @@ class PrimeField {
   constexpr static size_t kModulusBits = _Config::kModulusBits;
   constexpr static size_t kLimbNums = (kModulusBits + 63) / 64;
   constexpr static size_t N = kLimbNums;
+  constexpr static size_t kBitWidth = N * 64;
 
   using Config = _Config;
 
@@ -355,6 +356,19 @@ template <typename Config>
 std::ostream& operator<<(std::ostream& os, const PrimeField<Config>& pf) {
   return os << pf.ToHexString(true);
 }
+
+template <typename T>
+struct IsPrimeFieldImpl {
+  constexpr static bool value = false;
+};
+
+template <typename Config>
+struct IsPrimeFieldImpl<PrimeField<Config>> {
+  constexpr static bool value = true;
+};
+
+template <typename T>
+constexpr bool IsPrimeField = IsPrimeFieldImpl<T>::value;
 
 }  // namespace zkx::math
 

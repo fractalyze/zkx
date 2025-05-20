@@ -27,6 +27,11 @@ class PointXyzz<_Curve,
   using BaseField = typename Curve::BaseField;
   using ScalarField = typename Curve::ScalarField;
 
+  using AffinePoint = math::AffinePoint<Curve>;
+  using JacobianPoint = math::JacobianPoint<Curve>;
+
+  constexpr static size_t kBitWidth = BaseField::kBitWidth * 4;
+
   constexpr PointXyzz()
       : PointXyzz(BaseField::One(), BaseField::One(), BaseField::Zero(),
                   BaseField::Zero()) {}
@@ -115,7 +120,7 @@ class PointXyzz<_Curve,
     return *this;
   }
 
-  constexpr PointXyzz operator+(const AffinePoint<Curve>& other) const {
+  constexpr PointXyzz operator+(const AffinePoint& other) const {
     if (IsZero()) {
       return other.ToXyzz();
     }
@@ -129,7 +134,7 @@ class PointXyzz<_Curve,
     return ret;
   }
 
-  constexpr PointXyzz& operator+=(const AffinePoint<Curve>& other) {
+  constexpr PointXyzz& operator+=(const AffinePoint& other) {
     if (IsZero()) {
       return *this = other.ToXyzz();
     }
@@ -152,11 +157,11 @@ class PointXyzz<_Curve,
     return *this = operator-(other);
   }
 
-  constexpr PointXyzz operator-(const AffinePoint<Curve>& other) const {
+  constexpr PointXyzz operator-(const AffinePoint& other) const {
     return operator+(-other);
   }
 
-  constexpr PointXyzz& operator-=(const AffinePoint<Curve>& other) {
+  constexpr PointXyzz& operator-=(const AffinePoint& other) {
     return *this = operator-(other);
   }
 
@@ -176,17 +181,17 @@ class PointXyzz<_Curve,
 
   // The xyzz point X, Y, ZZ, ZZZ is represented in the affine
   // coordinates as X/ZZ, Y/ZZZ.
-  constexpr absl::StatusOr<AffinePoint<Curve>> ToAffine() const {
+  constexpr absl::StatusOr<AffinePoint> ToAffine() const {
     if (IsZero()) {
-      return AffinePoint<Curve>::Zero();
+      return AffinePoint::Zero();
     } else if (zz_.IsOne()) {
-      return AffinePoint<Curve>(x_, y_);
+      return AffinePoint(x_, y_);
     } else {
       // NOTE(ashjeong): if `zzz_` is 0, `IsZero()` will also evaluate to true,
       // and this block will not be executed
       TF_ASSIGN_OR_RETURN(BaseField z_inv_cubic, zzz_.Inverse());
       BaseField z_inv_square = (z_inv_cubic * zz_).Square();
-      return AffinePoint<Curve>(x_ * z_inv_square, y_ * z_inv_cubic);
+      return AffinePoint(x_ * z_inv_square, y_ * z_inv_cubic);
     }
   }
 
@@ -208,7 +213,7 @@ class PointXyzz<_Curve,
     for (size_t i = 0; i < std::size(*affine_points); ++i) {
       const PointXyzz& point_xyzz = point_xyzzs[i];
       if (point_xyzz.zz_.IsZero()) {
-        (*affine_points)[i] = AffinePoint<Curve>::Zero();
+        (*affine_points)[i] = AffinePoint::Zero();
       } else if (point_xyzz.zz_.IsOne()) {
         (*affine_points)[i] = {point_xyzz.x_, point_xyzz.y_};
       } else {
@@ -234,7 +239,7 @@ class PointXyzz<_Curve,
  private:
   constexpr static void Add(const PointXyzz& a, const PointXyzz& b,
                             PointXyzz& c);
-  constexpr static void Add(const PointXyzz& a, const AffinePoint<Curve>& b,
+  constexpr static void Add(const PointXyzz& a, const AffinePoint& b,
                             PointXyzz& c);
 
   BaseField x_;

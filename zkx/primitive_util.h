@@ -29,10 +29,14 @@ limitations under the License.
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 
 #include "xla/tsl/lib/math/math_util.h"
 #include "zkx/base/logging.h"
+#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curves/bn/bn254/g1.h"
+#include "zkx/math/elliptic_curves/bn/bn254/g2.h"
 #include "zkx/types.h"
 #include "zkx/util.h"
 #include "zkx/zkx_data.pb.h"
@@ -137,6 +141,41 @@ constexpr PrimitiveType NativeToPrimitiveType<int64_t>() {
   return S64;
 }
 
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<math::bn254::Fr>() {
+  return BN254_SCALAR;
+}
+
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G1AffinePoint>() {
+  return BN254_G1_AFFINE;
+}
+
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G1JacobianPoint>() {
+  return BN254_G1_JACOBIAN;
+}
+
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G1PointXyzz>() {
+  return BN254_G1_XYZZ;
+}
+
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G2AffinePoint>() {
+  return BN254_G2_AFFINE;
+}
+
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G2JacobianPoint>() {
+  return BN254_G2_JACOBIAN;
+}
+
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G2PointXyzz>() {
+  return BN254_G2_XYZZ;
+}
+
 // Returns the native type (eg, uint32_t) corresponding to the given template
 // parameter ZKX primitive type (eg, U32).
 template <PrimitiveType>
@@ -239,6 +278,41 @@ struct PrimitiveTypeToNative<TOKEN> {
   using type = void;
 };
 
+template <>
+struct PrimitiveTypeToNative<BN254_SCALAR> {
+  using type = math::bn254::Fr;
+};
+
+template <>
+struct PrimitiveTypeToNative<BN254_G1_AFFINE> {
+  using type = math::bn254::G1AffinePoint;
+};
+
+template <>
+struct PrimitiveTypeToNative<BN254_G1_JACOBIAN> {
+  using type = math::bn254::G1JacobianPoint;
+};
+
+template <>
+struct PrimitiveTypeToNative<BN254_G1_XYZZ> {
+  using type = math::bn254::G1PointXyzz;
+};
+
+template <>
+struct PrimitiveTypeToNative<BN254_G2_AFFINE> {
+  using type = math::bn254::G2AffinePoint;
+};
+
+template <>
+struct PrimitiveTypeToNative<BN254_G2_JACOBIAN> {
+  using type = math::bn254::G2JacobianPoint;
+};
+
+template <>
+struct PrimitiveTypeToNative<BN254_G2_XYZZ> {
+  using type = math::bn254::G2PointXyzz;
+};
+
 template <PrimitiveType kType>
 using NativeTypeOf = typename PrimitiveTypeToNative<kType>::type;
 
@@ -269,6 +343,14 @@ constexpr bool IsIntegralType(PrimitiveType type) {
 
 constexpr bool Is8BitIntegralType(PrimitiveType type) {
   return type == S8 || type == U8;
+}
+
+constexpr bool IsFieldType(PrimitiveType type) { return type == BN254_SCALAR; }
+
+constexpr bool IsEcPointType(PrimitiveType type) {
+  return type == BN254_G1_AFFINE || type == BN254_G1_JACOBIAN ||
+         type == BN254_G1_XYZZ || type == BN254_G2_AFFINE ||
+         type == BN254_G2_JACOBIAN || type == BN254_G2_XYZZ;
 }
 
 template <typename R, typename F>
@@ -311,10 +393,59 @@ constexpr R IntegralTypeSwitch(F&& f, PrimitiveType type) {
 }
 
 template <typename R, typename F>
+constexpr R FieldTypeSwitch(F&& f, PrimitiveType type) {
+  if (ABSL_PREDICT_TRUE(IsFieldType(type))) {
+    switch (type) {
+      case BN254_SCALAR:
+        return std::forward<F>(f)(
+            PrimitiveTypeConstant<PrimitiveType::BN254_SCALAR>());
+      default:
+        ABSL_UNREACHABLE();
+    }
+  }
+  LOG(FATAL) << "Not a prime field data type " << type;
+}
+
+template <typename R, typename F>
+constexpr R EcPointTypeSwitch(F&& f, PrimitiveType type) {
+  if (ABSL_PREDICT_TRUE(IsEcPointType(type))) {
+    switch (type) {
+      case BN254_G1_AFFINE:
+        return std::forward<F>(f)(
+            PrimitiveTypeConstant<PrimitiveType::BN254_G1_AFFINE>());
+      case BN254_G1_JACOBIAN:
+        return std::forward<F>(f)(
+            PrimitiveTypeConstant<PrimitiveType::BN254_G1_JACOBIAN>());
+      case BN254_G1_XYZZ:
+        return std::forward<F>(f)(
+            PrimitiveTypeConstant<PrimitiveType::BN254_G1_XYZZ>());
+      case BN254_G2_AFFINE:
+        return std::forward<F>(f)(
+            PrimitiveTypeConstant<PrimitiveType::BN254_G2_AFFINE>());
+      case BN254_G2_JACOBIAN:
+        return std::forward<F>(f)(
+            PrimitiveTypeConstant<PrimitiveType::BN254_G2_JACOBIAN>());
+      case BN254_G2_XYZZ:
+        return std::forward<F>(f)(
+            PrimitiveTypeConstant<PrimitiveType::BN254_G2_XYZZ>());
+      default:
+        ABSL_UNREACHABLE();
+    }
+  }
+  LOG(FATAL) << "Not an elliptic curve point data type " << type;
+}
+
+template <typename R, typename F>
 constexpr R ArrayTypeSwitch(F&& f, PrimitiveType type) {
   if (ABSL_PREDICT_TRUE(IsArrayType(type))) {
     if (IsIntegralType(type)) {
       return IntegralTypeSwitch<R>(std::forward<F>(f), type);
+    }
+    if (IsFieldType(type)) {
+      return FieldTypeSwitch<R>(std::forward<F>(f), type);
+    }
+    if (IsEcPointType(type)) {
+      return EcPointTypeSwitch<R>(std::forward<F>(f), type);
     }
     if (type == PRED) {
       return std::forward<F>(f)(PrimitiveTypeConstant<PrimitiveType::PRED>());
@@ -354,6 +485,10 @@ inline constexpr int PrimitiveTypeBitWidth() {
       static_assert(std::numeric_limits<NativeT>::radix == 2);
       return std::numeric_limits<NativeT>::digits +
              (IsSignedIntegralType(primitive_type) ? 1 : 0);
+    }
+    if constexpr (IsFieldType(primitive_type) ||
+                  IsEcPointType(primitive_type)) {
+      return NativeT::kBitWidth;
     }
     if constexpr (primitive_type == PRED) {
       return std::numeric_limits<NativeT>::digits;
@@ -456,6 +591,13 @@ bool IsCanonicalRepresentation(PrimitiveType type) {
                  !std::numeric_limits<T>::is_signed &&
                  BitWidth(primitive_type) <= std::numeric_limits<T>::digits;
         }
+        if constexpr (IsFieldType(primitive_type) ||
+                      IsEcPointType(primitive_type)) {
+          // TODO(chokobole): Maybe we need to consider binary field packing
+          // here.
+          using NativeT = NativeTypeOf<primitive_type>;
+          return std::is_same_v<T, NativeT>;
+        }
         return false;
       },
       type);
@@ -473,6 +615,15 @@ inline void PackIntN(PrimitiveType input_type, absl::Span<const char> input,
 inline void UnpackIntN(PrimitiveType input_type, absl::Span<const char> input,
                        absl::Span<char> output) {
   zkx::UnpackIntN(BitWidth(input_type), input, output);
+}
+
+template <typename NativeT>
+std::string NativeTypeToString(NativeT value) {
+  if constexpr (math::IsPrimeField<NativeT> || math::IsEcPoint<NativeT>) {
+    return value.ToString();
+  } else {
+    return absl::StrCat(value);
+  }
 }
 
 }  // namespace zkx::primitive_util

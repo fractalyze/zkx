@@ -37,6 +37,63 @@ limitations under the License.
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/status_macros.h"
 
+namespace gloo {
+
+template <typename T>
+void EcPointSum(void* c_, const void* a_, const void* b_, size_t n) {
+  absl::Span<T> c = absl::MakeSpan(static_cast<T*>(c_), n);
+  absl::Span<const T> a = absl::MakeConstSpan(static_cast<const T*>(a_), n);
+  absl::Span<const T> b = absl::MakeConstSpan(static_cast<const T*>(b_), n);
+  if constexpr (zkx::math::IsAffinePoint<T>) {
+    using JacobianPoint = typename T::JacobianPoint;
+    std::vector<JacobianPoint> jacobian_points;
+    jacobian_points.reserve(n);
+    for (auto i = 0; i < n; i++) {
+      jacobian_points.push_back(a[i] + b[i]);
+    }
+    CHECK(JacobianPoint::BatchToAffine(jacobian_points, &c).ok());
+  } else {
+    for (auto i = 0; i < n; i++) {
+      c[i] = a[i] + b[i];
+    }
+  }
+}
+
+template <typename T>
+void EcPointSum(T* a, const T* b, size_t n) {
+  EcPointSum<T>(a, a, b, n);
+}
+
+#define ADD_EC_REDUCTION_FUNCTION(Type)                                 \
+  template <>                                                           \
+  class ReductionFunction<Type> {                                       \
+   public:                                                              \
+    using Function = void(Type*, const Type*, size_t n);                \
+                                                                        \
+    static const ReductionFunction<Type>* sum;                          \
+                                                                        \
+    ReductionFunction(ReductionType type, Function* fn)                 \
+        : type_(type), fn_(fn) {}                                       \
+                                                                        \
+    ReductionType type() const { return type_; }                        \
+                                                                        \
+    void call(Type* x, const Type* y, size_t n) const { fn_(x, y, n); } \
+                                                                        \
+   protected:                                                           \
+    ReductionType type_;                                                \
+    Function* fn_;                                                      \
+  };                                                                    \
+                                                                        \
+  const ReductionFunction<Type>* ReductionFunction<Type>::sum =         \
+      new ReductionFunction<Type>(SUM, &EcPointSum<Type>)
+
+ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G1AffinePoint);
+ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G2AffinePoint);
+
+#undef ADD_EC_REDUCTION_FUNCTION
+
+}  // namespace gloo
+
 namespace zkx::cpu {
 namespace {
 
@@ -57,22 +114,34 @@ absl::Status SetAllReduceOptions(ReductionKind reduction_kind,
 
   using ReductionFn = void (*)(void*, const void*, const void*, size_t);
 
-  switch (reduction_kind) {
-    case ReductionKind::kSum:
-      options.setReduceFunction(static_cast<ReductionFn>(&gloo::sum<T>));
-      break;
-    case ReductionKind::kProduct:
-      options.setReduceFunction(static_cast<ReductionFn>(&gloo::product<T>));
-      break;
-    case ReductionKind::kMin:
-      options.setReduceFunction(static_cast<ReductionFn>(&gloo::min<T>));
-      break;
-    case ReductionKind::kMax:
-      options.setReduceFunction(static_cast<ReductionFn>(&gloo::max<T>));
-      break;
-    default:
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
+  if constexpr (math::IsEcPoint<T>) {
+    switch (reduction_kind) {
+      case ReductionKind::kSum:
+        options.setReduceFunction(
+            static_cast<ReductionFn>(&gloo::EcPointSum<T>));
+        break;
+      default:
+        return absl::InvalidArgumentError(absl::StrCat(
+            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
+    }
+  } else {
+    switch (reduction_kind) {
+      case ReductionKind::kSum:
+        options.setReduceFunction(static_cast<ReductionFn>(&gloo::sum<T>));
+        break;
+      case ReductionKind::kProduct:
+        options.setReduceFunction(static_cast<ReductionFn>(&gloo::product<T>));
+        break;
+      case ReductionKind::kMin:
+        options.setReduceFunction(static_cast<ReductionFn>(&gloo::min<T>));
+        break;
+      case ReductionKind::kMax:
+        options.setReduceFunction(static_cast<ReductionFn>(&gloo::max<T>));
+        break;
+      default:
+        return absl::InvalidArgumentError(absl::StrCat(
+            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
+    }
   }
   return absl::OkStatus();
 }
@@ -83,22 +152,33 @@ absl::Status ReduceScatterHelper(std::shared_ptr<gloo::Context> context,
                                  size_t chunk_elems) {
   const gloo::ReductionFunction<T>* reduction_function = nullptr;
 
-  switch (reduction_kind) {
-    case ReductionKind::kSum:
-      reduction_function = gloo::ReductionFunction<T>::sum;
-      break;
-    case ReductionKind::kProduct:
-      reduction_function = gloo::ReductionFunction<T>::product;
-      break;
-    case ReductionKind::kMax:
-      reduction_function = gloo::ReductionFunction<T>::max;
-      break;
-    case ReductionKind::kMin:
-      reduction_function = gloo::ReductionFunction<T>::min;
-      break;
-    default:
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
+  if constexpr (math::IsEcPoint<T>) {
+    switch (reduction_kind) {
+      case ReductionKind::kSum:
+        reduction_function = gloo::ReductionFunction<T>::sum;
+        break;
+      default:
+        return absl::InvalidArgumentError(absl::StrCat(
+            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
+    }
+  } else {
+    switch (reduction_kind) {
+      case ReductionKind::kSum:
+        reduction_function = gloo::ReductionFunction<T>::sum;
+        break;
+      case ReductionKind::kProduct:
+        reduction_function = gloo::ReductionFunction<T>::product;
+        break;
+      case ReductionKind::kMax:
+        reduction_function = gloo::ReductionFunction<T>::max;
+        break;
+      case ReductionKind::kMin:
+        reduction_function = gloo::ReductionFunction<T>::min;
+        break;
+      default:
+        return absl::InvalidArgumentError(absl::StrCat(
+            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
+    }
   }
   try {
     std::vector<int> recv_elems(context->size, chunk_elems);
@@ -157,6 +237,34 @@ absl::Status GlooCommunicator::AllReduce(se::DeviceMemoryBase send_buffer,
       break;
     case U64:
       TF_RETURN_IF_ERROR(SetAllReduceOptions<uint64_t>(
+          reduction_kind, send_buffer, recv_buffer, count, options));
+      break;
+    case BN254_SCALAR:
+      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::Fr>(
+          reduction_kind, send_buffer, recv_buffer, count, options));
+      break;
+    case BN254_G1_AFFINE:
+      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G1AffinePoint>(
+          reduction_kind, send_buffer, recv_buffer, count, options));
+      break;
+    case BN254_G1_JACOBIAN:
+      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G1JacobianPoint>(
+          reduction_kind, send_buffer, recv_buffer, count, options));
+      break;
+    case BN254_G1_XYZZ:
+      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G1PointXyzz>(
+          reduction_kind, send_buffer, recv_buffer, count, options));
+      break;
+    case BN254_G2_AFFINE:
+      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G2AffinePoint>(
+          reduction_kind, send_buffer, recv_buffer, count, options));
+      break;
+    case BN254_G2_JACOBIAN:
+      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G2JacobianPoint>(
+          reduction_kind, send_buffer, recv_buffer, count, options));
+      break;
+    case BN254_G2_XYZZ:
+      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G2PointXyzz>(
           reduction_kind, send_buffer, recv_buffer, count, options));
       break;
     default:
@@ -347,6 +455,34 @@ absl::Status GlooCommunicator::ReduceScatter(se::DeviceMemoryBase send_buffer,
     case U64:
       TF_RETURN_IF_ERROR(ReduceScatterHelper<uint64_t>(context_, reduction_kind,
                                                        temp.get(), count));
+      break;
+    case BN254_SCALAR:
+      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::Fr>(
+          context_, reduction_kind, temp.get(), count));
+      break;
+    case BN254_G1_AFFINE:
+      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G1AffinePoint>(
+          context_, reduction_kind, temp.get(), count));
+      break;
+    case BN254_G1_JACOBIAN:
+      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G1JacobianPoint>(
+          context_, reduction_kind, temp.get(), count));
+      break;
+    case BN254_G1_XYZZ:
+      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G1PointXyzz>(
+          context_, reduction_kind, temp.get(), count));
+      break;
+    case BN254_G2_AFFINE:
+      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G2AffinePoint>(
+          context_, reduction_kind, temp.get(), count));
+      break;
+    case BN254_G2_JACOBIAN:
+      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G2JacobianPoint>(
+          context_, reduction_kind, temp.get(), count));
+      break;
+    case BN254_G2_XYZZ:
+      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G2PointXyzz>(
+          context_, reduction_kind, temp.get(), count));
       break;
     default:
       return absl::InvalidArgumentError("Unknown datatype in reduce-scatter");

@@ -37,6 +37,20 @@ class PrimitiveTypeNameGenerator {
       PrimitiveType t = static_cast<PrimitiveType>(idx + PrimitiveType_MIN);
       if (t == OPAQUE_TYPE) {
         lowercase_name_[idx] = "opaque";
+      } else if (t == BN254_SCALAR) {
+        lowercase_name_[idx] = "bn254.sf";
+      } else if (t == BN254_G1_AFFINE) {
+        lowercase_name_[idx] = "bn254.g1_affine";
+      } else if (t == BN254_G1_JACOBIAN) {
+        lowercase_name_[idx] = "bn254.g1_jacobian";
+      } else if (t == BN254_G1_XYZZ) {
+        lowercase_name_[idx] = "bn254.g1_xyzz";
+      } else if (t == BN254_G2_AFFINE) {
+        lowercase_name_[idx] = "bn254.g2_affine";
+      } else if (t == BN254_G2_JACOBIAN) {
+        lowercase_name_[idx] = "bn254.g2_jacobian";
+      } else if (t == BN254_G2_XYZZ) {
+        lowercase_name_[idx] = "bn254.g2_xyzz";
       } else if (PrimitiveType_IsValid(t)) {
         lowercase_name_[idx] = absl::AsciiStrToLower(PrimitiveType_Name(t));
       }

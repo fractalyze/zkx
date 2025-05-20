@@ -69,7 +69,7 @@ constexpr void CLASS::Add(const JacobianPoint& a, const JacobianPoint& b,
 
 // static
 template <typename Curve>
-constexpr void CLASS::Add(const JacobianPoint& a, const AffinePoint<Curve>& b,
+constexpr void CLASS::Add(const JacobianPoint& a, const AffinePoint& b,
                           JacobianPoint& c) {
   // http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-madd-2007-bl
   // Z1Z1 = Z1²

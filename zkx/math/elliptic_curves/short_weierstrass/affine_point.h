@@ -6,6 +6,7 @@
 
 #include "absl/strings/substitute.h"
 
+#include "zkx/base/logging.h"
 #include "zkx/math/base/scalar_mul.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
@@ -20,6 +21,11 @@ class AffinePoint<
   using Curve = _Curve;
   using BaseField = typename Curve::BaseField;
   using ScalarField = typename Curve::ScalarField;
+
+  using JacobianPoint = math::JacobianPoint<Curve>;
+  using PointXyzz = math::PointXyzz<Curve>;
+
+  constexpr static size_t kBitWidth = BaseField::kBitWidth * 2;
 
   constexpr AffinePoint() : AffinePoint(BaseField::Zero(), BaseField::Zero()) {}
   // NOTE(chokobole): This method is provided for testing purposes.
@@ -61,23 +67,27 @@ class AffinePoint<
     return !operator==(other);
   }
 
-  constexpr JacobianPoint<Curve> operator+(const AffinePoint& other) const {
+  constexpr JacobianPoint operator+(const AffinePoint& other) const {
     return ToJacobian() + other;
   }
-  constexpr JacobianPoint<Curve> operator+(
-      const JacobianPoint<Curve>& other) const {
+  constexpr JacobianPoint operator+(const JacobianPoint& other) const {
     return other + *this;
   }
-  constexpr JacobianPoint<Curve> operator-(const AffinePoint& other) const {
+  constexpr AffinePoint& operator+=(const AffinePoint& other) {
+    LOG(FATAL) << "Invalid call to operator+=; this exists only to allow "
+                  "compilation with reduction. See in_process_communicator.cc "
+                  "for details";
+    return *this;
+  }
+  constexpr JacobianPoint operator-(const AffinePoint& other) const {
     return ToJacobian() - other;
   }
-  constexpr JacobianPoint<Curve> operator-(
-      const JacobianPoint<Curve>& other) const {
+  constexpr JacobianPoint operator-(const JacobianPoint& other) const {
     return -(other - *this);
   }
   constexpr AffinePoint operator-() const { return {x_, -y_}; }
 
-  constexpr JacobianPoint<Curve> operator*(const ScalarField& v) const {
+  constexpr JacobianPoint operator*(const ScalarField& v) const {
     if constexpr (ScalarField::kUseMontgomery) {
       return ScalarMul(ToJacobian(), v.MontReduce());
     } else {
@@ -85,13 +95,13 @@ class AffinePoint<
     }
   }
 
-  constexpr JacobianPoint<Curve> ToJacobian() const {
-    if (IsZero()) return JacobianPoint<Curve>::Zero();
+  constexpr JacobianPoint ToJacobian() const {
+    if (IsZero()) return JacobianPoint::Zero();
     return {x_, y_, BaseField::One()};
   }
 
-  constexpr PointXyzz<Curve> ToXyzz() const {
-    if (IsZero()) return PointXyzz<Curve>::Zero();
+  constexpr PointXyzz ToXyzz() const {
+    if (IsZero()) return PointXyzz::Zero();
     return {x_, y_, BaseField::One(), BaseField::One()};
   }
 

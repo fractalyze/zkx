@@ -14,6 +14,49 @@ class JacobianPoint;
 template <typename Curve, typename SFINAE = void>
 class PointXyzz;
 
+template <typename T>
+struct IsAffinePointImpl {
+  constexpr static bool value = false;
+};
+
+template <typename Curve>
+struct IsAffinePointImpl<AffinePoint<Curve>> {
+  constexpr static bool value = true;
+};
+
+template <typename T>
+constexpr bool IsAffinePoint = IsAffinePointImpl<T>::value;
+
+template <typename T>
+struct IsJacobianPointImpl {
+  constexpr static bool value = false;
+};
+
+template <typename Curve>
+struct IsJacobianPointImpl<JacobianPoint<Curve>> {
+  constexpr static bool value = true;
+};
+
+template <typename T>
+constexpr bool IsJacobianPoint = IsJacobianPointImpl<T>::value;
+
+template <typename T>
+struct IsPointXyzzImpl {
+  constexpr static bool value = false;
+};
+
+template <typename Curve>
+struct IsPointXyzzImpl<PointXyzz<Curve>> {
+  constexpr static bool value = true;
+};
+
+template <typename T>
+constexpr bool IsPointXyzz = IsPointXyzzImpl<T>::value;
+
+template <typename T>
+constexpr bool IsEcPoint =
+    IsAffinePoint<T> || IsJacobianPoint<T> || IsPointXyzz<T>;
+
 template <typename ScalarField, typename Curve,
           std::enable_if_t<std::is_same_v<
               ScalarField, typename Curve::ScalarField>>* = nullptr>

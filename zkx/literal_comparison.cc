@@ -48,8 +48,9 @@ absl::Status MakeErrorStatus(NativeT lhs, NativeT rhs,
   return absl::InvalidArgumentError(absl::StrFormat(
       "first mismatch at array index %s:\n  expected value: %s\n  actual "
       "value:   %s",
-      LiteralUtil::MultiIndexAsString(multi_index), absl::StrCat(lhs),
-      absl::StrCat(rhs)));
+      LiteralUtil::MultiIndexAsString(multi_index),
+      primitive_util::NativeTypeToString(lhs),
+      primitive_util::NativeTypeToString(rhs)));
 }
 
 // A recursive function which iterates through every index of expected and

@@ -27,6 +27,11 @@ class JacobianPoint<
   using BaseField = typename Curve::BaseField;
   using ScalarField = typename Curve::ScalarField;
 
+  using AffinePoint = math::AffinePoint<Curve>;
+  using PointXyzz = math::PointXyzz<Curve>;
+
+  constexpr static size_t kBitWidth = BaseField::kBitWidth * 3;
+
   constexpr JacobianPoint()
       : JacobianPoint(BaseField::One(), BaseField::One(), BaseField::Zero()) {}
   // NOTE(chokobole): This method is provided for testing purposes.
@@ -113,7 +118,7 @@ class JacobianPoint<
     return *this;
   }
 
-  constexpr JacobianPoint operator+(const AffinePoint<Curve>& other) const {
+  constexpr JacobianPoint operator+(const AffinePoint& other) const {
     if (IsZero()) {
       return other.ToJacobian();
     }
@@ -127,7 +132,7 @@ class JacobianPoint<
     return ret;
   }
 
-  constexpr JacobianPoint& operator+=(const AffinePoint<Curve>& other) {
+  constexpr JacobianPoint& operator+=(const AffinePoint& other) {
     if (IsZero()) {
       return *this = other.ToJacobian();
     }
@@ -150,11 +155,11 @@ class JacobianPoint<
     return *this = operator-(other);
   }
 
-  constexpr JacobianPoint operator-(const AffinePoint<Curve>& other) const {
+  constexpr JacobianPoint operator-(const AffinePoint& other) const {
     return operator+(-other);
   }
 
-  constexpr JacobianPoint& operator-=(const AffinePoint<Curve>& other) {
+  constexpr JacobianPoint& operator-=(const AffinePoint& other) {
     return *this = operator-(other);
   }
 
@@ -174,17 +179,17 @@ class JacobianPoint<
 
   // The jacobian point X, Y, Z is represented in the affine
   // coordinates as X/Z², Y/Z³.
-  constexpr absl::StatusOr<AffinePoint<Curve>> ToAffine() const {
+  constexpr absl::StatusOr<AffinePoint> ToAffine() const {
     if (IsZero()) {
-      return AffinePoint<Curve>::Zero();
+      return AffinePoint::Zero();
     } else if (z_.IsOne()) {
-      return AffinePoint<Curve>(x_, y_);
+      return AffinePoint(x_, y_);
     } else {
       // NOTE(ashjeong): if `z_` is 0, `IsZero()` will also evaluate to true,
       // and this block will not be executed
       TF_ASSIGN_OR_RETURN(BaseField z_inv, z_.Inverse());
       BaseField z_inv_square = z_inv.Square();
-      return AffinePoint<Curve>(x_ * z_inv_square, y_ * z_inv_square * z_inv);
+      return AffinePoint(x_ * z_inv_square, y_ * z_inv_square * z_inv);
     }
   }
 
@@ -206,7 +211,7 @@ class JacobianPoint<
     for (size_t i = 0; i < std::size(*affine_points); ++i) {
       const BaseField& z_inv = z_inverses[i];
       if (z_inv.IsZero()) {
-        (*affine_points)[i] = AffinePoint<Curve>::Zero();
+        (*affine_points)[i] = AffinePoint::Zero();
       } else if (z_inv.IsOne()) {
         (*affine_points)[i] = {jacobian_points[i].x_, jacobian_points[i].y_};
       } else {
@@ -230,7 +235,7 @@ class JacobianPoint<
  private:
   constexpr static void Add(const JacobianPoint& a, const JacobianPoint& b,
                             JacobianPoint& c);
-  constexpr static void Add(const JacobianPoint& a, const AffinePoint<Curve>& b,
+  constexpr static void Add(const JacobianPoint& a, const AffinePoint& b,
                             JacobianPoint& c);
 
   BaseField x_;
