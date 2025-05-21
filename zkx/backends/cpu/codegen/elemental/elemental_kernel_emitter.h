@@ -49,6 +49,10 @@ class ElementalKernelEmitter final : public KernelEmitter {
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       mlir::Value lhs_value, mlir::Value rhs_value, bool is_signed);
 
+  static absl::StatusOr<mlir::Value> EmitFieldBinaryOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b,
+      mlir::Value lhs_value, mlir::Value rhs_value);
+
   mlir::MLIRContext* const mlir_context_;
   const HloInstruction* const instr_;
 

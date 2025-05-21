@@ -22,6 +22,7 @@ limitations under the License.
 
 #include "zkx/base/logging.h"
 #include "zkx/layout_util.h"
+#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
 
 namespace zkx::llvm_ir {
 namespace {
@@ -111,6 +112,8 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
       // Tokens do not have a physical representation, but the compiler needs
       // some placeholder type, so use int8_t*.
       return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
+    case BN254_SCALAR:
+      return GetMLIRPrimeFieldType<math::bn254::Fr>(context);
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }

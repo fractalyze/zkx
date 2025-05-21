@@ -24,6 +24,8 @@ limitations under the License.
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"
+#include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
@@ -35,6 +37,7 @@ limitations under the License.
 #include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
+#include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OwningOpRef.h"
 #include "mlir/InitAllExtensions.h"
@@ -44,6 +47,11 @@ limitations under the License.
 #include "mlir/Transforms/Passes.h"
 
 #include "xla/tsl/platform/statusor.h"
+#include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
+#include "zkir/Dialect/Field/IR/FieldDialect.h"
+#include "zkir/Dialect/Field/IR/FieldOps.h"
+#include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
+#include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
 #include "zkx/backends/cpu/codegen/kernel_api_ir_builder.h"
 #include "zkx/base/logging.h"
 #include "zkx/codegen/emitter_loc_op_builder.h"
@@ -64,7 +72,9 @@ void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
       mlir::cf::ControlFlowDialect,
       mlir::func::FuncDialect,
       mlir::LLVM::LLVMDialect,
-      mlir::memref::MemRefDialect
+      mlir::memref::MemRefDialect,
+      mlir::zkir::field::FieldDialect,
+      mlir::zkir::mod_arith::ModArithDialect
       // clang-format on
       >();
 }
@@ -88,6 +98,9 @@ void OneShotBufferize(mlir::OpPassManager& pm) {
 }
 
 void AddPasses(mlir::OpPassManager& pm) {
+  pm.addPass(mlir::zkir::field::createFieldToModArith());
+  pm.addPass(mlir::zkir::mod_arith::createModArithToArith());
+
   pm.addPass(mlir::createLowerAffinePass());
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::createConvertElementwiseToLinalgPass());
@@ -117,10 +130,13 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
   mlir::registerBuiltinDialectTranslation(registry);
   mlir::registerLLVMDialectTranslation(registry);
   mlir::registerAllExtensions(registry);
+  mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
       registry);
   mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::LLVM::registerInlinerInterface(registry);
+  mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
   module->getContext()->appendDialectRegistry(registry);
 
   VLOG(2) << "MLIR before optimizations";
@@ -282,6 +298,23 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitIntegerBinaryOp(
 }
 
 // static
+absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitFieldBinaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
+    mlir::Value rhs_value) {
+  switch (instr->opcode()) {
+    case HloOpcode::kAdd:
+      return b.create<mlir::zkir::field::AddOp>(lhs_value, rhs_value);
+    case HloOpcode::kSubtract:
+      return b.create<mlir::zkir::field::SubOp>(lhs_value, rhs_value);
+    case HloOpcode::kMultiply: {
+      return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
+    }
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled binary field op: %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
 absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
@@ -291,6 +324,8 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitBinaryOp(
     return EmitIntegerBinaryOp(
         instr, b, lhs_value, rhs_value,
         primitive_util::IsSignedIntegralType(operand_type));
+  } else if (ShapeUtil::ElementIsField(shape)) {
+    return EmitFieldBinaryOp(instr, b, lhs_value, rhs_value);
   }
   return absl::UnimplementedError(absl::StrFormat(
       "Unhandled primitive type: %s",
