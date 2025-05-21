@@ -21,11 +21,17 @@ limitations under the License.
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 
+#include "zkir/Dialect/Field/IR/FieldAttributes.h"
+#include "zkir/Dialect/Field/IR/FieldTypes.h"
+#include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
+#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkx/hlo/ir/hlo_instruction.h"
 #include "zkx/shape.h"
 #include "zkx/zkx_data.pb.h"
@@ -63,6 +69,61 @@ std::string DumpToString(mlir::Value value);
 std::string IrName(std::string_view a);
 std::string IrName(std::string_view a, std::string_view b);
 std::string IrName(const HloInstruction* a, std::string_view b = "");
+
+template <typename T>
+llvm::APInt ConvertBigIntToAPInt(const T& value) {
+  return {T::kBitWidth, T::kLimbNums, value.limbs()};
+}
+
+template <typename T>
+mlir::zkir::mod_arith::ModArithType GetMLIRModArithType(
+    mlir::MLIRContext* context) {
+  auto type = mlir::IntegerType::get(context, T::kBitWidth);
+  auto modulus =
+      mlir::IntegerAttr::get(type, ConvertBigIntToAPInt(T::Config::kModulus));
+  return mlir::zkir::mod_arith::ModArithType::get(context, modulus);
+}
+
+template <typename T>
+mlir::zkir::mod_arith::MontgomeryAttr GetMLIRMontgomeryAttr(
+    mlir::MLIRContext* context) {
+  return mlir::zkir::mod_arith::MontgomeryAttr::get(
+      context, GetMLIRModArithType<T>(context));
+}
+
+template <typename T>
+mlir::zkir::field::PrimeFieldType GetMLIRPrimeFieldType(
+    mlir::MLIRContext* context, bool use_montgomery = T::kUseMontgomery) {
+  if constexpr (!T::kUseMontgomery) {
+    DCHECK(!use_montgomery);
+  }
+  auto type = mlir::IntegerType::get(context, T::kBitWidth);
+  auto modulus =
+      mlir::IntegerAttr::get(type, ConvertBigIntToAPInt(T::Config::kModulus));
+  return mlir::zkir::field::PrimeFieldType::get(context, modulus,
+                                                use_montgomery);
+}
+
+template <typename T>
+mlir::zkir::field::PrimeFieldAttr GetMLIRPrimeFieldAttr(
+    mlir::MLIRContext* context, const T& value, bool use_montgomery) {
+  if constexpr (T::kUseMontgomery) {
+    if (use_montgomery) {
+      return mlir::zkir::field::PrimeFieldAttr::get(
+          GetMLIRPrimeFieldType<T>(context, true),
+          ConvertBigIntToAPInt(value.value()));
+    } else {
+      return mlir::zkir::field::PrimeFieldAttr::get(
+          GetMLIRPrimeFieldType<T>(context, false),
+          ConvertBigIntToAPInt(value.MontReduce()));
+    }
+  } else {
+    DCHECK(!use_montgomery);
+    return mlir::zkir::field::PrimeFieldAttr::get(
+        GetMLIRPrimeFieldType<T>(context, false),
+        ConvertBigIntToAPInt(value.value()));
+  }
+}
 
 mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
                                    mlir::MLIRContext* context);

@@ -39,6 +39,10 @@ zkx_cc_library(
         "@llvm-project//mlir:MemRefTransforms",
         "@llvm-project//mlir:SCFToControlFlow",
         "@llvm-project//mlir:Transforms",
+        "@zkir//zkir/Dialect/Field/Conversions/FieldToModArith",
+        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@zkir//zkir/Dialect/ModArith/Conversions/ModArithToArith",
+        "@zkir//zkir/Dialect/ModArith/IR:ModArith",
     ],
 )
 

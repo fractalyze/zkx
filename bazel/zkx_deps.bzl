@@ -58,3 +58,16 @@ def zkx_deps():
         system_build_file = "@zkx//third_party/systemlibs:zlib.BUILD",
         urls = tf_mirror_urls("https://zlib.net/zlib-1.3.1.tar.gz"),
     )
+
+    ZKIR_COMMIT = "c8c1699d779790574d09df4c48ec26ad8d38bc99"
+    tf_http_archive(
+        name = "zkir",
+        sha256 = "1aed792ac50b49dc183465eda59a2a2e686687f6ea8ccb2ec77d7ea7128d4f2c",
+        strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
+        urls = tf_mirror_urls("https://github.com/zk-rabbit/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
+    )
+    # Uncomment this for development!
+    # native.local_repository(
+    #     name = "zkir",
+    #     path = "../zkir",
+    # )
