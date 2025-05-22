@@ -16,6 +16,7 @@ limitations under the License.
 #ifndef ZKX_BACKENDS_CPU_CODEGEN_ELEMENTAL_ELEMENTAL_KERNEL_EMITTER_H_
 #define ZKX_BACKENDS_CPU_CODEGEN_ELEMENTAL_ELEMENTAL_KERNEL_EMITTER_H_
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "mlir/IR/MLIRContext.h"
 
@@ -23,7 +24,6 @@ limitations under the License.
 #include "zkx/codegen/kernel_emitter.h"
 #include "zkx/hlo/ir/hlo_instruction.h"
 #include "zkx/service/buffer_assignment.h"
-#include "zkx/service/llvm_ir/mlir_loop_emitter.h"
 
 namespace zkx::cpu {
 
@@ -36,15 +36,19 @@ class ElementalKernelEmitter final : public KernelEmitter {
   absl::StatusOr<KernelDefinition> EmitKernelDefinition() override;
 
  private:
-  // Emits MLIR IR using elemental loop emitter and the given element generator.
-  // If the instruction is parallelized, it will emit a parallel loop partition
-  // and return the requested number of execution threads.
-  absl::StatusOr<se::ThreadDim> EmitElementalLoops(
-      EmitterLocOpBuilder& b, const HloInstruction* instr,
-      const llvm_ir::MlirArray& result,
-      const llvm_ir::ElementGenerator& element_generator);
+  static absl::StatusOr<mlir::Value> EmitOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b,
+      absl::flat_hash_map<const HloInstruction*, mlir::Value>& values);
 
- private:
+  static absl::StatusOr<mlir::Value> EmitBinaryOp(const HloInstruction* instr,
+                                                  EmitterLocOpBuilder& b,
+                                                  mlir::Value lhs_value,
+                                                  mlir::Value rhs_value);
+
+  static absl::StatusOr<mlir::Value> EmitIntegerBinaryOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b,
+      mlir::Value lhs_value, mlir::Value rhs_value, bool is_signed);
+
   mlir::MLIRContext* const mlir_context_;
   const HloInstruction* const instr_;
 

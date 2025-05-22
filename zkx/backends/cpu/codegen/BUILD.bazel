@@ -124,7 +124,6 @@ zkx_cc_library(
         "//zkx/runtime:buffer_use",
         "//zkx/service:buffer_assignment",
         "//zkx/service:hlo_module_config",
-        "//zkx/service/llvm_ir:llvm_array",
         "//zkx/service/llvm_ir:llvm_util",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_set",

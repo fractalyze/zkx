@@ -3,20 +3,6 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
-    name = "llvm_array",
-    srcs = ["llvm_array.cc"],
-    hdrs = ["llvm_array.h"],
-    deps = [
-        ":llvm_util",
-        "//xla/tsl/platform:status",
-        "//zkx:map_util",
-        "//zkx:shape_util",
-        "@com_google_absl//absl/log:check",
-        "@llvm-project//llvm:Core",
-    ],
-)
-
-zkx_cc_library(
     name = "llvm_command_line_options",
     srcs = ["llvm_command_line_options.cc"],
     hdrs = ["llvm_command_line_options.h"],
@@ -47,56 +33,6 @@ zkx_cc_library(
         "@llvm-project//llvm:Core",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LLVMDialect",
-    ],
-)
-
-zkx_cc_library(
-    name = "mlir_array",
-    srcs = ["mlir_array.cc"],
-    hdrs = ["mlir_array.h"],
-    deps = [
-        "//xla/tsl/platform:status",
-        "//zkx:shape_util",
-        "//zkx/codegen:emitter_loc_op_builder",
-        "@com_google_absl//absl/types:span",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LLVMDialect",
-    ],
-)
-
-zkx_cc_library(
-    name = "mlir_loop_emitter",
-    srcs = ["mlir_loop_emitter.cc"],
-    hdrs = ["mlir_loop_emitter.h"],
-    deps = [
-        ":mlir_array",
-        ":mlir_for_loop",
-        "//xla/tsl/platform:statusor",
-        "//zkx:shape_util",
-        "//zkx/base:logging",
-        "//zkx/codegen:emitter_loc_op_builder",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings:str_format",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LLVMDialect",
-    ],
-)
-
-zkx_cc_library(
-    name = "mlir_for_loop",
-    srcs = ["mlir_for_loop.cc"],
-    hdrs = ["mlir_for_loop.h"],
-    deps = [
-        ":llvm_util",
-        ":mlir_array",
-        "//zkx:shape_util",
-        "//zkx/codegen:emitter_loc_op_builder",
-        "@com_google_absl//absl/algorithm:container",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/strings",
-        "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:MemRefDialect",
     ],
 )
