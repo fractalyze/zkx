@@ -45,60 +45,6 @@ namespace zkx::cpu {
 
 namespace {
 
-class MemoryDependencyAnalyzer {
- public:
-  MemoryDependencyAnalyzer(
-      llvm::LLVMContext& context, std::string_view name,
-      absl::Span<const KernelApiIrBuilder::KernelParameter> results)
-      : context_(context), mb_(context) {
-    // Create an alias domain for the host kernel function.
-    llvm::MDNode* domain = mb_.createAliasScopeDomain(
-        absl::StrFormat("ZKX host kernel %s AA domain", name));
-
-    result_slices_.reserve(results.size());
-    for (const KernelApiIrBuilder::KernelParameter& result : results) {
-      result_slices_.insert(result.slice);
-
-      // Skip result buffers that are aliased with entry parameters as we don't
-      // know if they can alias with any other buffers.
-      if (result.slice.allocation()->is_parameter_aliased_with_output()) {
-        continue;
-      }
-      alias_scopes_[result.slice] = mb_.createAliasScope(
-          absl::StrFormat("result slice: %s", result.slice.ToString()), domain);
-    }
-  }
-
-  // Returns alias scope for the given buffer slice.
-  llvm::MDNode* GetAliasScope(BufferAllocation::Slice slice) {
-    auto it = alias_scopes_.find(slice);
-    return it == alias_scopes_.end() ? nullptr
-                                     : llvm::MDNode::get(context_, it->second);
-  };
-
-  // Construct !noalias metadata for buffer slice.
-  llvm::MDNode* GetNoAlias(BufferAllocation::Slice slice) {
-    llvm::SmallVector<llvm::Metadata*> scopes;
-    for (const auto& [alias_slice, alias_scope] : alias_scopes_) {
-      if (!slice.OverlapsWith(alias_slice)) {
-        scopes.push_back(alias_scope);
-      }
-    }
-    return scopes.empty() ? nullptr : llvm::MDNode::get(context_, scopes);
-  };
-
-  bool ResultContainsSlice(BufferAllocation::Slice slice) {
-    return result_slices_.contains(slice);
-  }
-
- private:
-  llvm::LLVMContext& context_;
-  llvm::MDBuilder mb_;
-
-  absl::btree_map<BufferAllocation::Slice, llvm::MDNode*> alias_scopes_;
-  absl::flat_hash_set<BufferAllocation::Slice> result_slices_;
-};
-
 // Following struct types correspond to HostKernel C API.
 // See: zkx/backends/cpu/runtime/kernel_c_api.h
 
@@ -118,7 +64,9 @@ llvm::StructType* KernelThreadTy(llvm::LLVMContext& ctx) {
 llvm::StructType* KernelArgTy(llvm::LLVMContext& ctx) {
   llvm::PointerType* ptr = llvm::PointerType::getUnqual(ctx);
   llvm::IntegerType* i64 = llvm::IntegerType::getInt64Ty(ctx);
-  return llvm::StructType::create("ZKX_CPU_KernelArg", ptr, i64);
+  llvm::ArrayType* array = llvm::ArrayType::get(i64, 1);
+  return llvm::StructType::create("ZKX_CPU_KernelArg", ptr, ptr, i64, array,
+                                  array);
 }
 
 llvm::StructType* KernelCallFrameTy(llvm::LLVMContext& ctx) {
@@ -310,8 +258,6 @@ auto KernelApiIrBuilder::EmitKernelPrototype(
 
   TF_RETURN_IF_ERROR(VerifyKernelParameters(arguments, results));
 
-  MemoryDependencyAnalyzer memory_dependency_analyzer(context_, name, results);
-
   llvm::IRBuilder<> b(context_);
 
   // Create a kernel function with HostKernel API.
@@ -333,37 +279,18 @@ auto KernelApiIrBuilder::EmitKernelPrototype(
   absl::flat_hash_set<int64_t> invariant_arguments;
 
   // LlvmArrays for the parameters.
-  std::vector<llvm_ir::LlvmArray> llvm_arguments;
+  std::vector<llvm::Value*> llvm_arguments;
   for (int64_t i = 0; i < arguments.size(); ++i) {
     const KernelParameter& argument = arguments[i];
-    auto llvm_argument =
-        EmitKernelArgument(b, call_frame, idx++, argument.shape);
-    if (auto* noalias = memory_dependency_analyzer.GetNoAlias(argument.slice)) {
-      llvm_argument.AddNoaliasMetadata(noalias);
-    }
-
-    // If a buffer slice is not a part of result set, then it must be invariant
-    // (read-only).
-    if (!memory_dependency_analyzer.ResultContainsSlice(argument.slice)) {
-      llvm_argument.MarkInvariantOverWholeProgram(&context_);
-      invariant_arguments.insert(i);
-    }
-
-    llvm_arguments.push_back(std::move(llvm_argument));
+    llvm_arguments.push_back(
+        EmitKernelArgument(b, call_frame, idx++, argument.shape));
   }
 
   // LlvmArrays for the results.
-  std::vector<llvm_ir::LlvmArray> llvm_results;
+  std::vector<llvm::Value*> llvm_results;
   for (const KernelParameter& result : results) {
-    auto llvm_result = EmitKernelArgument(b, call_frame, idx++, result.shape);
-    if (auto* noalias = memory_dependency_analyzer.GetNoAlias(result.slice)) {
-      llvm_result.AddNoaliasMetadata(noalias);
-    }
-    if (auto* alias_scope =
-            memory_dependency_analyzer.GetAliasScope(result.slice)) {
-      llvm_result.AddAliasScopeMetadata(alias_scope);
-    }
-    llvm_results.push_back(std::move(llvm_result));
+    llvm_results.push_back(
+        EmitKernelArgument(b, call_frame, idx++, result.shape));
   }
 
   // Return null pointer to signal success as we do not support error handling
@@ -437,7 +364,7 @@ auto KernelApiIrBuilder::EmitKernelThread(llvm::IRBuilderBase& builder,
           builder.CreateLoad(builder.getInt64Ty(), z_gep, "tid_z")};
 }
 
-llvm_ir::LlvmArray KernelApiIrBuilder::EmitKernelArgument(
+llvm::Value* KernelApiIrBuilder::EmitKernelArgument(
     llvm::IRBuilderBase& builder, llvm::Value* call_frame, int64_t index,
     const Shape& shape) {
   llvm::LLVMContext& ctx = builder.getContext();
@@ -448,28 +375,12 @@ llvm_ir::LlvmArray KernelApiIrBuilder::EmitKernelArgument(
   llvm::Value* args_gep =
       builder.CreateStructGEP(call_frame_ty_, call_frame, 3, "args_gep");
   llvm::LoadInst* args = builder.CreateLoad(ptr, args_gep, "args");
-  llvm::Value* data_gep =
-      builder.CreateConstGEP2_32(arg_ty_, args, index, 0, name + "_gep");
-  llvm::LoadInst* data = builder.CreateLoad(ptr, data_gep, name);
+  llvm::Value* index_val = llvm::ConstantInt::get(builder.getInt32Ty(), index);
+  llvm::Value* arg_gep =
+      builder.CreateInBoundsGEP(arg_ty_, args, {index_val}, name + "_gep");
+  // llvm::LoadInst* arg = builder.CreateLoad(ptr, arg_gep, name);
 
-  // All buffers passed to host kernels are expected to be properly aligned,
-  // emit metadata to allow LLVM to use that information for optimization.
-  llvm_ir::SetAlignmentMetadataForLoad(data, cpu_function_runtime::MinAlign());
-
-  // All buffers pointers passed to host kernels are expected to be
-  // dereferenceable.
-  llvm_ir::SetDereferenceableMetadataForLoad(data,
-                                             ShapeUtil::ByteSizeOf(shape));
-
-  // All buffers pointers passed to host kernels are expected to be invariant
-  // over the whole program. Note the metadata is attached only to loading
-  // buffer pointers, not to loading actual buffers.
-  if (options_.enable_invariant_load_metadata) {
-    data->setMetadata(llvm::LLVMContext::MD_invariant_load,
-                      llvm::MDNode::get(data->getContext(), /*MDs=*/{}));
-  }
-
-  return llvm_ir::LlvmArray(data, llvm_ir::ShapeToLLVMType(shape, ctx), shape);
+  return arg_gep;
 }
 
 llvm::Function* KernelApiIrBuilder::EmitKernelFunction(llvm::Module& module,

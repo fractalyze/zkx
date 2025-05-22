@@ -42,12 +42,12 @@ absl::Status CheckBufferAlignment(
   if (min_alignment == 0) return absl::OkStatus();
 
   for (int64_t i = 0; i < kernel_args.size(); ++i) {
-    auto ptr = reinterpret_cast<uintptr_t>(kernel_args[i].data);
+    auto ptr = reinterpret_cast<uintptr_t>(kernel_args[i].aligned);
     if (ABSL_PREDICT_FALSE((ptr & (min_alignment - 1)) != 0)) {
       return absl::InternalError(absl::StrFormat(
           "Host kernel %s buffer argument #%d (%p) is not aligned to a "
           "required minimum alignment of %d bytes",
-          info.op_name, i, kernel_args[i].data, min_alignment));
+          info.op_name, i, kernel_args[i].aligned, min_alignment));
     }
   }
 
@@ -61,12 +61,12 @@ void VlogKernelArgs(absl::Span<const BufferAllocation::Slice> arguments_buffers,
   for (int64_t i = 0; i < arguments_buffers.size(); ++i) {
     VLOG(3) << absl::StreamFormat("  arg #%d: %s (%p)", i,
                                   arguments_buffers[i].ToString(),
-                                  kernel_args[i].data);
+                                  kernel_args[i].aligned);
   }
   for (int64_t i = 0; i < results_buffers.size(); ++i) {
     VLOG(3) << absl::StreamFormat(
         "  res #%d: %s (%p)", i, results_buffers[i].ToString(),
-        kernel_args[arguments_buffers.size() + i].data);
+        kernel_args[arguments_buffers.size() + i].aligned);
   }
 }
 
@@ -125,11 +125,21 @@ KernelThunk<num_arguments, num_results>::KernelThunk(
   // We'll use them as a template to resolve buffer addresses at run time.
   for (size_t i = 0; i < arguments_buffers.size(); ++i) {
     kernel_args_[i] = ZKX_CPU_KernelArg{
-        nullptr, static_cast<size_t>(arguments_buffers_[i].size())};
+        /*allocated=*/nullptr,
+        /*aligned=*/nullptr,
+        /*offset=*/0,
+        /*sizes=*/{static_cast<size_t>(arguments_buffers_[i].size())},
+        /*strides=*/{1},
+    };
   }
   for (size_t i = 0; i < results_buffers.size(); ++i) {
     kernel_args_[arguments_buffers_.size() + i] = ZKX_CPU_KernelArg{
-        nullptr, static_cast<size_t>(results_buffers_[i].size())};
+        /*allocated=*/nullptr,
+        /*aligned=*/nullptr,
+        /*offset=*/0,
+        /*sizes=*/{static_cast<size_t>(results_buffers_[i].size())},
+        /*strides=*/{1},
+    };
   }
 }
 
@@ -154,20 +164,24 @@ KernelThunk<num_arguments, num_results>::ExecuteInternal(
   for (BufferAllocation::Slice& buffer : arguments_buffers_) {
     if constexpr (ShouldCheckBufferSlices()) {
       TF_ASSIGN_OR_RETURN(auto mem, allocations->GetDeviceAddress(buffer));
-      kernel_args_ptr++->data = mem.opaque();
+      kernel_args_ptr->allocated = mem.opaque();
+      kernel_args_ptr++->aligned = mem.opaque();
     } else {
       auto mem = allocations->GetDeviceAddressUnchecked(buffer);
-      kernel_args_ptr++->data = mem.opaque();
+      kernel_args_ptr->allocated = mem.opaque();
+      kernel_args_ptr++->aligned = mem.opaque();
     }
   }
 
   for (BufferAllocation::Slice& buffer : results_buffers_) {
     if constexpr (ShouldCheckBufferSlices()) {
       TF_ASSIGN_OR_RETURN(auto mem, allocations->GetDeviceAddress(buffer));
-      kernel_args_ptr++->data = mem.opaque();
+      kernel_args_ptr->allocated = mem.opaque();
+      kernel_args_ptr++->aligned = mem.opaque();
     } else {
       auto mem = allocations->GetDeviceAddressUnchecked(buffer);
-      kernel_args_ptr++->data = mem.opaque();
+      kernel_args_ptr->allocated = mem.opaque();
+      kernel_args_ptr++->aligned = mem.opaque();
     }
   }
 
@@ -224,7 +238,8 @@ KernelThunk<num_arguments, num_results>::ExecuteInternal(
 static bool Contains(absl::Span<const ZKX_CPU_KernelArg> container,
                      const ZKX_CPU_KernelArg& memory) {
   return absl::c_any_of(container, [&](const ZKX_CPU_KernelArg& element) {
-    return element.data == memory.data && element.size == memory.size;
+    return element.aligned == memory.aligned &&
+           element.sizes[0] == memory.sizes[0];
   });
 }
 
