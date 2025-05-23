@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef ZKX_BACKENDS_CPU_CODEGEN_ELEMENTAL_ELEMENTAL_KERNEL_EMITTER_H_
-#define ZKX_BACKENDS_CPU_CODEGEN_ELEMENTAL_ELEMENTAL_KERNEL_EMITTER_H_
+#ifndef ZKX_BACKENDS_CPU_CODEGEN_CPU_KERNEL_EMITTER_H_
+#define ZKX_BACKENDS_CPU_CODEGEN_CPU_KERNEL_EMITTER_H_
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
@@ -27,11 +27,10 @@ limitations under the License.
 
 namespace zkx::cpu {
 
-class ElementalKernelEmitter final : public KernelEmitter {
+class CpuKernelEmitter final : public KernelEmitter {
  public:
-  ElementalKernelEmitter(mlir::MLIRContext* context,
-                         const HloInstruction* instr,
-                         const BufferAssignment* buffer_assignment);
+  CpuKernelEmitter(mlir::MLIRContext* context, const HloInstruction* instr,
+                   const BufferAssignment* buffer_assignment);
 
   absl::StatusOr<KernelDefinition> EmitKernelDefinition() override;
 
@@ -65,4 +64,4 @@ class ElementalKernelEmitter final : public KernelEmitter {
 
 }  // namespace zkx::cpu
 
-#endif  // ZKX_BACKENDS_CPU_CODEGEN_ELEMENTAL_ELEMENTAL_KERNEL_EMITTER_H_
+#endif  // ZKX_BACKENDS_CPU_CODEGEN_CPU_KERNEL_EMITTER_H_

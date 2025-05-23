@@ -46,6 +46,52 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cpu_kernel_emitter",
+    srcs = ["cpu_kernel_emitter.cc"],
+    hdrs = ["cpu_kernel_emitter.h"],
+    deps = [
+        ":kernel_api_ir_builder",
+        "//xla/tsl/platform:statusor",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx/base:logging",
+        "//zkx/codegen:emitter_loc_op_builder",
+        "//zkx/codegen:kernel_emitter",
+        "//zkx/codegen:llvm_ir_kernel_source",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service/llvm_ir:llvm_util",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineToStandard",
+        "@llvm-project//mlir:AllExtensions",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:BufferizationToMemRef",
+        "@llvm-project//mlir:BufferizationTransforms",
+        "@llvm-project//mlir:BuiltinToLLVMIRTranslation",
+        "@llvm-project//mlir:ControlFlowDialect",
+        "@llvm-project//mlir:ConvertToLLVM",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:LLVMIRTransforms",
+        "@llvm-project//mlir:LLVMToLLVMIRTranslation",
+        "@llvm-project//mlir:LinalgTransforms",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:MemRefTransforms",
+        "@llvm-project//mlir:SCFToControlFlow",
+        "@llvm-project//mlir:Transforms",
+        "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField",
+        "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@zkir//zkir/Dialect/Field/Conversions/FieldToModArith",
+        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@zkir//zkir/Dialect/ModArith/Conversions/ModArithToArith",
+        "@zkir//zkir/Dialect/ModArith/IR:ModArith",
+    ],
+)
+
+zkx_cc_library(
     name = "execution_engine",
     srcs = ["execution_engine.cc"],
     hdrs = ["execution_engine.h"],
@@ -134,8 +180,8 @@ zkx_cc_library(
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
         "@llvm-project//llvm:Core",
-        "@zkir//zkir/Dialect/Field/IR:Field",
         "@llvm-project//llvm:Support",
+        "@zkir//zkir/Dialect/Field/IR:Field",
     ],
 )
 
@@ -180,6 +226,7 @@ zkx_cc_unittest(
         "jit_compiler_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: HloTestBase
         # "kernel_api_ir_builder_unittest.cc",
+        # TODO(chokobole): Add elemental_kernel_emitter_unittest.cc Dependency: HloTestBase
         "object_loader_unittest.cc",
     ],
     deps = [

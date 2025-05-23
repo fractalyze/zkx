@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "zkx/backends/cpu/codegen/elemental/elemental_kernel_emitter.h"
+#include "zkx/backends/cpu/codegen/cpu_kernel_emitter.h"
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -182,16 +182,15 @@ void Postprocess(std::unique_ptr<llvm::Module> llvm_module,
 
 }  // namespace
 
-ElementalKernelEmitter::ElementalKernelEmitter(
-    mlir::MLIRContext* context, const HloInstruction* instr,
-    const BufferAssignment* buffer_assignment)
+CpuKernelEmitter::CpuKernelEmitter(mlir::MLIRContext* context,
+                                   const HloInstruction* instr,
+                                   const BufferAssignment* buffer_assignment)
     : mlir_context_(context),
       instr_(instr),
       buffer_assignment_(buffer_assignment) {}
 
-absl::StatusOr<KernelDefinition>
-ElementalKernelEmitter::EmitKernelDefinition() {
-  VLOG(2) << "Emit elemental host kernel: " << instr_->name();
+absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
+  VLOG(2) << "Emit host kernel: " << instr_->name();
 
   auto llvm_context = std::make_unique<llvm::LLVMContext>();
 
@@ -264,8 +263,7 @@ ElementalKernelEmitter::EmitKernelDefinition() {
 
   std::unique_ptr<llvm::Module> new_llvm_module =
       KernelApiIrBuilder::CreateModule(
-          absl::StrCat(instr_->name(), "_elemental_kernel_module"),
-          *llvm_context);
+          absl::StrCat(instr_->name(), "_kernel_module"), *llvm_context);
 
   TF_ASSIGN_OR_RETURN(
       KernelApiIrBuilder::KernelPrototype kernel_prototype,
@@ -285,7 +283,7 @@ ElementalKernelEmitter::EmitKernelDefinition() {
 }
 
 // static
-absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitIntegerBinaryOp(
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value, bool is_signed) {
   switch (instr->opcode()) {
@@ -303,7 +301,7 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitIntegerBinaryOp(
 }
 
 // static
-absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitFieldBinaryOp(
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
   switch (instr->opcode()) {
@@ -320,7 +318,7 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitFieldBinaryOp(
 }
 
 // static
-absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitEcPointBinaryOp(
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
   mlir::Type ret_type = llvm_ir::PrimitiveTypeToMLIRType(
@@ -345,7 +343,7 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitEcPointBinaryOp(
 }
 
 // static
-absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitBinaryOp(
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
   Shape shape = instr->operand(0)->shape();
@@ -366,7 +364,7 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitBinaryOp(
 }
 
 // static
-absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitOp(
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
   switch (instr->opcode()) {
@@ -378,7 +376,7 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitOp(
     }
     default:
       return absl::UnimplementedError(
-          absl::StrFormat("Unhandled opcode for elemental IR emission: %s",
+          absl::StrFormat("Unhandled opcode for IR emission: %s",
                           HloOpcodeString(instr->opcode())));
   }
 }
