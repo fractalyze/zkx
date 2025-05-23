@@ -27,6 +27,18 @@ struct FqConfig {
       UINT64_C(493319470278259999),
   };
   constexpr static uint64_t kNPrime = UINT64_C(9786893198990664585);
+
+  constexpr static uint32_t kTwoAdicity = 1;
+
+  constexpr static bool kHasTwoAdicRootOfUnity = true;
+  constexpr static BigInt<4> kTwoAdicRootOfUnity = {
+      UINT64_C(7548957153968385962),
+      UINT64_C(10162512645738643279),
+      UINT64_C(5900175412809962033),
+      UINT64_C(2475245527108272378),
+  };
+
+  constexpr static bool kHasLargeSubgroupRootOfUnity = false;
 };
 
 using Fq = PrimeField<FqConfig>;
