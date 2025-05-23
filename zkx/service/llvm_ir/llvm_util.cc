@@ -23,6 +23,7 @@ limitations under the License.
 #include "zkx/base/logging.h"
 #include "zkx/layout_util.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curves/bn/bn254/g1.h"
 
 namespace zkx::llvm_ir {
 namespace {
@@ -114,6 +115,12 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
       return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
     case BN254_SCALAR:
       return GetMLIRPrimeFieldType<math::bn254::Fr>(context);
+    case BN254_G1_AFFINE:
+      return GetMLIRAffinePointType<math::bn254::G1AffinePoint>(context);
+    case BN254_G1_JACOBIAN:
+      return GetMLIRJacobianPointType<math::bn254::G1JacobianPoint>(context);
+    case BN254_G1_XYZZ:
+      return GetMLIRPointXyzzType<math::bn254::G1PointXyzz>(context);
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }

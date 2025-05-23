@@ -28,6 +28,7 @@ limitations under the License.
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 
+#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
 #include "zkir/Dialect/Field/IR/FieldAttributes.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
@@ -121,6 +122,43 @@ mlir::zkir::field::PrimeFieldAttr GetMLIRPrimeFieldAttr(
     return mlir::zkir::field::PrimeFieldAttr::get(
         GetMLIRPrimeFieldType<T>(context), ConvertBigIntToAPInt(value.value()));
   }
+}
+
+template <typename T>
+mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMLIRShortWeierstrassAttr(
+    mlir::MLIRContext* context) {
+  using BaseField = typename T::BaseField;
+  mlir::zkir::field::PrimeFieldAttr a = GetMLIRPrimeFieldAttr(
+      context, T::Curve::Config::kA, BaseField::kUseMontgomery);
+  mlir::zkir::field::PrimeFieldAttr b = GetMLIRPrimeFieldAttr(
+      context, T::Curve::Config::kB, BaseField::kUseMontgomery);
+  mlir::zkir::field::PrimeFieldAttr x = GetMLIRPrimeFieldAttr(
+      context, T::Curve::Config::kX, BaseField::kUseMontgomery);
+  mlir::zkir::field::PrimeFieldAttr y = GetMLIRPrimeFieldAttr(
+      context, T::Curve::Config::kY, BaseField::kUseMontgomery);
+  return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(context, a, b, x,
+                                                               y);
+}
+
+template <typename T>
+mlir::zkir::elliptic_curve::AffineType GetMLIRAffinePointType(
+    mlir::MLIRContext* context) {
+  return mlir::zkir::elliptic_curve::AffineType::get(
+      context, GetMLIRShortWeierstrassAttr<T>(context));
+}
+
+template <typename T>
+mlir::zkir::elliptic_curve::JacobianType GetMLIRJacobianPointType(
+    mlir::MLIRContext* context) {
+  return mlir::zkir::elliptic_curve::JacobianType::get(
+      context, GetMLIRShortWeierstrassAttr<T>(context));
+}
+
+template <typename T>
+mlir::zkir::elliptic_curve::XYZZType GetMLIRPointXyzzType(
+    mlir::MLIRContext* context) {
+  return mlir::zkir::elliptic_curve::XYZZType::get(
+      context, GetMLIRShortWeierstrassAttr<T>(context));
 }
 
 mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,

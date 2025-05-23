@@ -47,6 +47,9 @@ limitations under the License.
 #include "mlir/Transforms/Passes.h"
 
 #include "xla/tsl/platform/statusor.h"
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
+#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
+#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
 #include "zkir/Dialect/Field/IR/FieldDialect.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
@@ -73,6 +76,7 @@ void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
       mlir::func::FuncDialect,
       mlir::LLVM::LLVMDialect,
       mlir::memref::MemRefDialect,
+      mlir::zkir::elliptic_curve::EllipticCurveDialect,
       mlir::zkir::field::FieldDialect,
       mlir::zkir::mod_arith::ModArithDialect
       // clang-format on
@@ -98,6 +102,7 @@ void OneShotBufferize(mlir::OpPassManager& pm) {
 }
 
 void AddPasses(mlir::OpPassManager& pm) {
+  pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
   pm.addPass(mlir::zkir::field::createFieldToModArith());
   pm.addPass(mlir::zkir::mod_arith::createModArithToArith());
 
@@ -315,6 +320,33 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitFieldBinaryOp(
   }
 }
 
+// static
+absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitEcPointBinaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
+    mlir::Value rhs_value) {
+  mlir::Type ret_type = llvm_ir::PrimitiveTypeToMLIRType(
+      instr->shape().element_type(), b.getContext());
+  switch (instr->opcode()) {
+    case HloOpcode::kAdd:
+      return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
+                                                         rhs_value);
+      break;
+    case HloOpcode::kSubtract:
+      return b.create<mlir::zkir::elliptic_curve::SubOp>(ret_type, lhs_value,
+                                                         rhs_value);
+      break;
+    case HloOpcode::kMultiply:
+      return b.create<mlir::zkir::elliptic_curve::ScalarMulOp>(
+          ret_type, lhs_value, rhs_value);
+      break;
+
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled binary ec point op %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
+// static
 absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
@@ -324,6 +356,9 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitBinaryOp(
     return EmitIntegerBinaryOp(
         instr, b, lhs_value, rhs_value,
         primitive_util::IsSignedIntegralType(operand_type));
+  } else if (ShapeUtil::ElementIsEcPoint(shape) ||
+             ShapeUtil::ElementIsEcPoint(instr->operand(1)->shape())) {
+    return EmitEcPointBinaryOp(instr, b, lhs_value, rhs_value);
   } else if (ShapeUtil::ElementIsField(shape)) {
     return EmitFieldBinaryOp(instr, b, lhs_value, rhs_value);
   }
