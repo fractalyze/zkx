@@ -18,7 +18,7 @@ limitations under the License.
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/casts.h"
-#include "zkx/backends/cpu/codegen/elemental/elemental_kernel_emitter.h"
+#include "zkx/backends/cpu/codegen/cpu_kernel_emitter.h"
 #include "zkx/backends/cpu/runtime/all_gather_thunk.h"
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
@@ -144,7 +144,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kAdd:
     case HloOpcode::kMultiply:
     case HloOpcode::kSubtract:
-      return EmitElementalKernelThunk(instr);
+      return EmitKernelThunk(instr);
     case HloOpcode::kAllGather:
       return EmitAllGatherThunk(instr);
     case HloOpcode::kAllReduce:
@@ -213,10 +213,9 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitEntryComputation(
   return EmitHloComputation(module.entry_computation());
 }
 
-absl::StatusOr<ThunkSequence> ThunkEmitter::EmitElementalKernelThunk(
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitKernelThunk(
     const HloInstruction* instruction) {
-  ElementalKernelEmitter emitter(mlir_context_, instruction,
-                                 buffer_assignment_);
+  CpuKernelEmitter emitter(mlir_context_, instruction, buffer_assignment_);
   TF_ASSIGN_OR_RETURN(KernelDefinition kernel_definition,
                       emitter.EmitKernelDefinition());
 
