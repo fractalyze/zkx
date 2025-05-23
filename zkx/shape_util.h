@@ -389,6 +389,9 @@ class ShapeUtil {
   // Returns whether the element type of the shape is field.
   static bool ElementIsField(const Shape& shape);
 
+  // Returns whether the element type of the shape is elliptic curve point.
+  static bool ElementIsEcPoint(const Shape& shape);
+
   // Returns whether the element type has the given bit width.
   static bool ElementHasBitWidth(const Shape& shape, int bits);
 

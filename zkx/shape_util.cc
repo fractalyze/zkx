@@ -518,6 +518,11 @@ bool ShapeUtil::ElementIsField(const Shape& shape) {
 }
 
 // static
+bool ShapeUtil::ElementIsEcPoint(const Shape& shape) {
+  return primitive_util::IsEcPointType(shape.element_type());
+}
+
+// static
 bool ShapeUtil::ElementHasBitWidth(const Shape& shape, int bits) {
   if (!shape.IsArray()) {
     return false;
