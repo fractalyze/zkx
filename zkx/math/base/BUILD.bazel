@@ -83,11 +83,21 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "pow",
+    hdrs = ["pow.h"],
+    deps = [
+        ":big_int",
+        ":bit_iterator",
+    ],
+)
+
+zkx_cc_library(
     name = "prime_field",
     hdrs = ["prime_field.h"],
     deps = [
         ":big_int",
         ":byinverter",
+        ":pow",
         "//xla/tsl/platform:statusor",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
