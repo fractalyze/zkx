@@ -15,6 +15,7 @@
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/math/base/big_int.h"
 #include "zkx/math/base/byinverter.h"
+#include "zkx/math/base/pow.h"
 
 namespace zkx::math {
 
@@ -157,6 +158,15 @@ class PrimeField {
     PrimeField ret;
     FastSquare(*this, ret);
     return ret;
+  }
+
+  template <typename T>
+  constexpr PrimeField Pow(const T& exponent) const {
+    if constexpr (std::is_same_v<T, PrimeField>) {
+      return math::Pow(*this, exponent.MontReduce());
+    } else {
+      return math::Pow(*this, BigInt<N>(exponent));
+    }
   }
 
   constexpr absl::StatusOr<PrimeField> Inverse() const {

@@ -30,6 +30,7 @@ TEST(PrimeFieldTest, Operations) {
   EXPECT_EQ(a - b, *Fr::FromHexString("0x2d2a64b58ad80b975952e044097bb7911bf85bc655c62b4c895843f5740bed41"));
   EXPECT_EQ(a * b, *Fr::FromHexString("0x30593207bceeeba352060f9f1a3ae9d2214f428a90ad235867aabd7a10640d44"));
   EXPECT_EQ(a.Square(), *Fr::FromHexString("0x2e3797fa80f1e71d9b23f1a6a2572f6aa2de416a1b31ceca88ef28944fd292a"));
+  EXPECT_EQ(a.Pow(30), *Fr::FromHexString("0xa5c969115bc5da7d6bfe244ec24b7e244d454561569de7acf0980633533fcca"));
   TF_ASSERT_OK_AND_ASSIGN(Fr a_inverse, a.Inverse());
   EXPECT_TRUE((a * a_inverse).IsOne());
   // clang-format on
