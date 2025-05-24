@@ -9,6 +9,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "batch_inverse",
+    hdrs = ["batch_inverse.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:template_util",
+        "//zkx/base/containers:adapters",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "big_int",
     srcs = ["big_int.cc"],
     hdrs = ["big_int.h"],
@@ -63,11 +76,13 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "base_unittests",
     srcs = [
+        "batch_inverse_unittest.cc",
         "big_int_unittest.cc",
         "byinverter_unittest.cc",
         "prime_field_unittest.cc",
     ],
     deps = [
+        ":batch_inverse",
         ":big_int",
         ":byinverter",
         ":prime_field",
