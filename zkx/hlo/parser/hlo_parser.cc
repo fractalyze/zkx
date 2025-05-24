@@ -77,6 +77,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kDivide:
     case HloOpcode::kDomain:
     case HloOpcode::kDot:
+    case HloOpcode::kFft:
     case HloOpcode::kGather:
     case HloOpcode::kGetDimensionSize:
     case HloOpcode::kSetDimensionSize:
@@ -181,6 +182,7 @@ class HloParserImpl : public HloParser {
     kBracedInt64ListList,
     kHloComputation,
     kBracedHloComputationList,
+    kFftType,
     kComparisonDirection,
     kPrimitiveType,
     kComparisonOrder,
@@ -434,6 +436,7 @@ class HloParserImpl : public HloParser {
   bool ParsePhysicalShape(Shape* physical_shape);
   bool ParseOpcode(HloOpcode* opcode,
                    std::optional<HloOpcode>* async_wrapped_opcode);
+  bool ParseFftType(FftType* result);
   bool ParsePrimitiveType(PrimitiveType* result);
   bool ParseComparisonDirection(ComparisonDirection* result);
   bool ParseComparisonOrder(ComparisonOrder* result);
@@ -1989,6 +1992,26 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       // clang-format on
       return nullptr;
     }
+    case HloOpcode::kFft: {
+      std::optional<FftType> fft_type;
+      std::optional<int64_t> fft_length;
+      attrs["fft_type"] = {/*required=*/true, AttrTy::kFftType, &fft_type};
+      attrs["fft_length"] = {/*required=*/true, AttrTy::kInt64, &fft_length};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferFftShape(operands[0]->shape(),
+                                                 *fft_type);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateFft(
+          *shape, operands[0], *fft_type, *fft_length));
+    }
+
     case HloOpcode::kCompare: {
       std::optional<ComparisonDirection> direction;
       std::optional<PrimitiveType> type;
@@ -3553,6 +3576,14 @@ bool HloParserImpl::ParseAttributeHelper(
             ->emplace(result);
         return true;
       }
+      case AttrTy::kFftType: {
+        FftType result;
+        if (!ParseFftType(&result)) {
+          return false;
+        }
+        static_cast<std::optional<FftType>*>(attr_out_ptr)->emplace(result);
+        return true;
+      }
       case AttrTy::kComparisonDirection: {
         ComparisonDirection result;
         if (!ParseComparisonDirection(&result)) {
@@ -4890,6 +4921,19 @@ bool HloParserImpl::ParseOpcode(
     }
   } else {
     *opcode = status_or_result.value();
+  }
+  lexer_.Lex();
+  return true;
+}
+
+bool HloParserImpl::ParseFftType(FftType* result) {
+  VLOG(kDebugLevel) << "ParseFftType";
+  if (lexer_.GetKind() != TokKind::kIdent) {
+    return TokenError("expects fft type");
+  }
+  std::string val = lexer_.GetStrVal();
+  if (!FftType_Parse(val, result) || !FftType_IsValid(*result)) {
+    return TokenError(absl::StrFormat("expects fft type but sees: %s", val));
   }
   lexer_.Lex();
   return true;

@@ -476,6 +476,14 @@ message LiteralProto {
   bytes bn254_g2_xyzzs = 25;
 }
 
+enum FftType {
+  // Forward FFT
+  FFT = 0;
+  // Inverse FFT
+  IFFT = 1;
+}
+
+
 enum SparsityType {
   SPARSITY_INVALID = 0;
 

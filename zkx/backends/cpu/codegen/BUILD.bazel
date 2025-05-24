@@ -58,6 +58,7 @@ zkx_cc_library(
         "//zkx/codegen:emitter_loc_op_builder",
         "//zkx/codegen:kernel_emitter",
         "//zkx/codegen:llvm_ir_kernel_source",
+        "//zkx/math/poly:root_of_unity",
         "//zkx/service:buffer_assignment",
         "//zkx/service/llvm_ir:llvm_util",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -88,6 +89,8 @@ zkx_cc_library(
         "@zkir//zkir/Dialect/Field/IR:Field",
         "@zkir//zkir/Dialect/ModArith/Conversions/ModArithToArith",
         "@zkir//zkir/Dialect/ModArith/IR:ModArith",
+        "@zkir//zkir/Dialect/Poly/Conversions/PolyToField",
+        "@zkir//zkir/Dialect/Poly/IR:Poly",
     ],
 )
 

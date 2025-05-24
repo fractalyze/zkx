@@ -61,6 +61,52 @@ HloInstructionProto HloDimensionsInstruction::ToProto() const {
   return proto;
 }
 
+HloFftInstruction::HloFftInstruction(const Shape& shape,
+                                     HloInstruction* operand, FftType fft_type,
+                                     int64_t fft_length)
+    : HloInstruction(HloOpcode::kFft, shape),
+      fft_type_(fft_type),
+      fft_length_(fft_length) {
+  AppendOperand(operand);
+}
+
+HloInstructionProto HloFftInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.set_fft_type(fft_type_);
+  proto.set_fft_length(fft_length_);
+  return proto;
+}
+
+// TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+// void HloFftInstruction::PrintExtraAttributesImpl(
+//     AttributePrinter& printer, const HloPrintOptions& options) const {
+//   printer.Next([this](Printer* printer) {
+//     AppendCat(printer, "fft_type=", FftType_Name(fft_type()));
+//   });
+//   printer.Next([this](Printer* printer) {
+//     printer->Append("fft_length={");
+//     AppendJoin(printer, fft_length(), ",");
+//     printer->Append("}");
+//   });
+// }
+
+bool HloFftInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloFftInstruction&>(other);
+  return fft_type() == casted_other.fft_type() &&
+         fft_length() == casted_other.fft_length();
+}
+
+std::unique_ptr<HloInstruction> HloFftInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), 1);
+  return std::make_unique<HloFftInstruction>(shape, new_operands[0], fft_type_,
+                                             fft_length_);
+}
+
 HloAsyncInstruction::HloAsyncInstruction(
     HloOpcode opcode, const Shape& shape,
     absl::Span<HloInstruction* const> operands, HloOpcode async_wrapped_opcode)

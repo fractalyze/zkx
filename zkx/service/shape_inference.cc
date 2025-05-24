@@ -513,6 +513,17 @@ switch (opcode) {
     }
   }
 
+// static
+absl::StatusOr<Shape> ShapeInference::InferFftShape(
+    const Shape& in, FftType fft_type) {
+  switch (fft_type) {
+    case FFT:
+    case IFFT:
+      return in;
+    default:
+      LOG(FATAL) << "Unexpected fft_type: " << fft_type;
+  }
+}
 
 // static
 absl::StatusOr<Shape> ShapeInference::InferAllGatherShape(
