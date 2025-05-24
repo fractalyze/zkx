@@ -1,0 +1,14 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "adapters",
+    hdrs = ["adapters.h"],
+)
+
+zkx_cc_unittest(
+    name = "containers_unittests",
+    srcs = ["adapters_unittest.cc"],
+    deps = [":adapters"],
+)
