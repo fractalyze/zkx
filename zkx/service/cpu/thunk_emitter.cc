@@ -139,8 +139,28 @@ ThunkEmitter::ThunkEmitter(const BufferAssignment* buffer_assignment,
 absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     const HloInstruction* instr) {
   switch (instr->opcode()) {
+    // Instructions that do not have a thunk implementation and instead fully
+    // defined by the corresponding buffer assignment.
+    case HloOpcode::kBitcast:
+    case HloOpcode::kGetTupleElement:
     case HloOpcode::kParameter:
+    case HloOpcode::kTuple:
       return ThunkSequence::Empty();
+
+    // No-op operations that are used to provide more metadata about the HLO
+    // dataflow graph.
+    case HloOpcode::kAfterAll:             // Defines an execution order.
+    case HloOpcode::kAddDependency:        // Defines an execution order.
+    case HloOpcode::kDomain:               // Defines an HLO domain.
+    case HloOpcode::kOptimizationBarrier:  // Prevents moving ops past barrier.
+      return ThunkSequence::Empty();
+
+    // Allocations for constants owned by the executable, and resolved at run
+    // time according to the buffer assignment (using allocation index). We do
+    // not need to emit any thunks for constant instructions.
+    case HloOpcode::kConstant:
+      return ThunkSequence::Empty();
+
     case HloOpcode::kAdd:
     case HloOpcode::kFft:
     case HloOpcode::kMultiply:
