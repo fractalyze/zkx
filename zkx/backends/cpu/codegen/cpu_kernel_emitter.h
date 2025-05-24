@@ -44,6 +44,10 @@ class CpuKernelEmitter final : public KernelEmitter {
                                                   mlir::Value lhs_value,
                                                   mlir::Value rhs_value);
 
+  static absl::StatusOr<mlir::Value> EmitFftOp(const HloInstruction* instr,
+                                               EmitterLocOpBuilder& b,
+                                               mlir::Value value);
+
   static absl::StatusOr<mlir::Value> EmitIntegerBinaryOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       mlir::Value lhs_value, mlir::Value rhs_value, bool is_signed);

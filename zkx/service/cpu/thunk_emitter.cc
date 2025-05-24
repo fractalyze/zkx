@@ -142,6 +142,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kParameter:
       return ThunkSequence::Empty();
     case HloOpcode::kAdd:
+    case HloOpcode::kFft:
     case HloOpcode::kMultiply:
     case HloOpcode::kSubtract:
       return EmitKernelThunk(instr);

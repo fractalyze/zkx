@@ -1640,7 +1640,7 @@ bool HloDataflowAnalysis::DoesNotUseOperandBuffer(
 // static
 bool HloDataflowAnalysis::IsInPlaceOperation(HloOpcode opcode) {
   return opcode == HloOpcode::kDynamicUpdateSlice ||
-         opcode == HloOpcode::kScatter;
+         opcode == HloOpcode::kScatter || opcode == HloOpcode::kFft;
 }
 
 // static
@@ -1679,7 +1679,7 @@ HloDataflowAnalysis::GetInPlaceInputOutputPairs(
     //   }
     //   return pairs;
     // }
-    // return {{HloOperandIndex{0, {}}, {}}};
+    return {{HloOperandIndex{0, {}}, {}}};
   } else if (instruction->opcode() == HloOpcode::kCollectivePermute &&
              instruction->operands().size() == 4) {
     if (instruction->operand(1)->shape().IsTuple()) {
@@ -1910,6 +1910,10 @@ bool HloDataflowAnalysis::CanShareOperandBufferWithUser(
   // ops inside these computations.
   if (user->opcode() == HloOpcode::kWhile ||
       user->opcode() == HloOpcode::kConditional) {
+    return true;
+  }
+
+  if (user->opcode() == HloOpcode::kFft) {
     return true;
   }
 

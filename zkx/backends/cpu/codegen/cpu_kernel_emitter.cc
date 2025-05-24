@@ -37,6 +37,8 @@ limitations under the License.
 #include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
+#include "mlir/Dialect/SCF/Transforms/BufferDeallocationOpInterfaceImpl.h"
+#include "mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OwningOpRef.h"
@@ -55,10 +57,14 @@ limitations under the License.
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
 #include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
+#include "zkir/Dialect/Poly/Conversions/PolyToField/PolyToField.h"
+#include "zkir/Dialect/Poly/IR/PolyDialect.h"
+#include "zkir/Dialect/Poly/IR/PolyOps.h"
 #include "zkx/backends/cpu/codegen/kernel_api_ir_builder.h"
 #include "zkx/base/logging.h"
 #include "zkx/codegen/emitter_loc_op_builder.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
+#include "zkx/math/poly/root_of_unity.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/llvm_ir/llvm_util.h"
 #include "zkx/shape_util.h"
@@ -66,6 +72,22 @@ limitations under the License.
 namespace zkx::cpu {
 
 namespace {
+
+template <typename T>
+absl::StatusOr<mlir::zkir::poly::PrimitiveRootAttr> GetPrimitiveRootAttr(
+    mlir::MLIRContext* mlir_context, int64_t fft_length) {
+  TF_ASSIGN_OR_RETURN(T root_of_unity, math::GetRootOfUnity<T>(fft_length));
+  auto root_of_unity_attr = mlir::zkir::field::RootOfUnityAttr::get(
+      mlir_context, /*root=*/
+      llvm_ir::GetMLIRPrimeFieldAttr(mlir_context, root_of_unity,
+                                     /*use_montgomery=*/false),
+      /*degree=*/
+      mlir::IntegerAttr::get(mlir::IntegerType::get(mlir_context, 64),
+                             fft_length));
+  return mlir::zkir::poly::PrimitiveRootAttr::get(
+      mlir_context, root_of_unity_attr,
+      /*montgomery=*/llvm_ir::GetMLIRMontgomeryAttr<T>(mlir_context));
+}
 
 void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
   mlir_context->loadDialect<
@@ -78,7 +100,8 @@ void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
       mlir::memref::MemRefDialect,
       mlir::zkir::elliptic_curve::EllipticCurveDialect,
       mlir::zkir::field::FieldDialect,
-      mlir::zkir::mod_arith::ModArithDialect
+      mlir::zkir::mod_arith::ModArithDialect,
+      mlir::zkir::poly::PolyDialect
       // clang-format on
       >();
 }
@@ -102,6 +125,7 @@ void OneShotBufferize(mlir::OpPassManager& pm) {
 }
 
 void AddPasses(mlir::OpPassManager& pm) {
+  pm.addPass(mlir::zkir::poly::createPolyToField());
   pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
   pm.addPass(mlir::zkir::field::createFieldToModArith());
   pm.addPass(mlir::zkir::mod_arith::createModArithToArith());
@@ -141,6 +165,8 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
       registry);
   mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::LLVM::registerInlinerInterface(registry);
+  mlir::scf::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  mlir::scf::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
   module->getContext()->appendDialectRegistry(registry);
 
@@ -366,6 +392,39 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
 }
 
 // static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+  // TODO(chokobole): Support out-of-place FFT.
+  PrimitiveType operand_type = instr->operand(0)->shape().element_type();
+  mlir::zkir::poly::PrimitiveRootAttr root_attr;
+  switch (operand_type) {
+    case BN254_SCALAR: {
+      absl::StatusOr<mlir::zkir::poly::PrimitiveRootAttr> root =
+          GetPrimitiveRootAttr<math::bn254::Fr>(value.getContext(),
+                                                instr->fft_length());
+      if (!root.ok()) return root.status();
+      root_attr = root.value();
+      break;
+    }
+    default:
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Invalid primitive type: %s",
+          primitive_util::LowercasePrimitiveTypeName(operand_type)));
+  }
+
+  switch (instr->fft_type()) {
+    case FftType::FFT:
+      return b.create<mlir::zkir::poly::NTTOp>(value, root_attr);
+    case FftType::IFFT:
+      return b.create<mlir::zkir::poly::INTTOp>(value, root_attr);
+
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled fft type: %s", FftType_Name(instr->fft_type())));
+  }
+}
+
+// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
@@ -376,6 +435,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitBinaryOp(instr, b, values[instr->operand(0)],
                           values[instr->operand(1)]);
     }
+    case HloOpcode::kFft: {
+      return EmitFftOp(instr, b, values[instr->operand(0)]);
+    }
+
     default:
       return absl::UnimplementedError(
           absl::StrFormat("Unhandled opcode for IR emission: %s",

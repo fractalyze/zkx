@@ -236,6 +236,11 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
   }
 
   switch (opcode) {
+    case HloOpcode::kFft: {
+      instruction =
+          CreateFft(shape, operands(0), proto.fft_type(), proto.fft_length());
+      break;
+    }
     case HloOpcode::kAsyncStart: {
       TF_RET_CHECK(proto.called_computation_ids_size() == 1)
           << "Async start instruction should have 1 called computation but "
@@ -1238,6 +1243,14 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateVariadic(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateFft(
+    const Shape& shape, HloInstruction* operand, FftType fft_type,
+    int64_t fft_length) {
+  return std::make_unique<HloFftInstruction>(shape, operand, fft_type,
+                                             fft_length);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateAsyncStart(
     const Shape& shape, absl::Span<HloInstruction* const> operands,
     HloComputation* async_computation,
@@ -1734,6 +1747,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
   switch (opcode_) {
     // Ops migrated to subclasses.
     // TODO(b/80131774): Remove this switch when migration is complete.
+    case HloOpcode::kFft:
     case HloOpcode::kCompare:
     case HloOpcode::kAsyncStart:
     case HloOpcode::kAsyncUpdate:
@@ -2086,6 +2100,7 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kAsyncStart:
     case HloOpcode::kAsyncUpdate:
     case HloOpcode::kAsyncDone:
+    case HloOpcode::kFft:
     case HloOpcode::kCompare:
     case HloOpcode::kSend:
     case HloOpcode::kSendDone:
@@ -2833,6 +2848,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandlePower(this);
     case HloOpcode::kSelect:
       return visitor->HandleSelect(this);
+    case HloOpcode::kFft:
+      return visitor->HandleFft(this);
     case HloOpcode::kAllGather:
       return visitor->HandleAllGather(this);
     case HloOpcode::kAllGatherStart:
@@ -3141,6 +3158,14 @@ HloModule* HloInstruction::GetModule() const {
 
 void HloInstruction::UniquifyName(HloModule* module) {
   UniquifyName(&module->instruction_name_uniquer());
+}
+
+FftType HloInstruction::fft_type() const {
+  return Cast<HloFftInstruction>(this)->fft_type();
+}
+
+int64_t HloInstruction::fft_length() const {
+  return Cast<HloFftInstruction>(this)->fft_length();
 }
 
 int64_t HloInstruction::concatenate_dimension() const {

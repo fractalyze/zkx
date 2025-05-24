@@ -322,6 +322,12 @@ class HloInstruction {
       const Shape& shape, HloOpcode opcode,
       absl::Span<HloInstruction* const> operands);
 
+  // Creates an FFT op, of the type indicated by fft_type.
+  static std::unique_ptr<HloInstruction> CreateFft(const Shape& shape,
+                                                   HloInstruction* operand,
+                                                   FftType fft_type,
+                                                   int64_t fft_length);
+
   // Creates an asynchronous start, update, and done op.
   static std::unique_ptr<HloInstruction> CreateAsyncStart(
       const Shape& shape, absl::Span<HloInstruction* const> operands,
@@ -1357,6 +1363,12 @@ class HloInstruction {
 
   // Returns the module for this instruction.
   HloModule* GetModule() const;
+
+  // Delegates to HloFftInstruction::fft_type.
+  FftType fft_type() const;
+
+  // Delegates to HloFftInstruction::fft_length.
+  int64_t fft_length() const;
 
   // Delegates to HloChannelInstruction::channel_id.
   std::optional<int64_t> channel_id() const;
