@@ -7,8 +7,20 @@ zkx_cc_library(
     hdrs = ["adapters.h"],
 )
 
+zkx_cc_library(
+    name = "container_util",
+    hdrs = ["container_util.h"],
+    deps = ["//zkx/base/functional:functor_traits"],
+)
+
 zkx_cc_unittest(
     name = "containers_unittests",
-    srcs = ["adapters_unittest.cc"],
-    deps = [":adapters"],
+    srcs = [
+        "adapters_unittest.cc",
+        "container_util_unittest.cc",
+    ],
+    deps = [
+        ":adapters",
+        ":container_util",
+    ],
 )
