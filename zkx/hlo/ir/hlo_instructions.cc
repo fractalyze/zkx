@@ -61,6 +61,23 @@ HloInstructionProto HloDimensionsInstruction::ToProto() const {
   return proto;
 }
 
+HloBroadcastInstruction::HloBroadcastInstruction(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> broadcast_dimension)
+    : HloDimensionsInstruction(HloOpcode::kBroadcast, shape,
+                               broadcast_dimension) {
+  AppendOperand(operand);
+}
+
+std::unique_ptr<HloInstruction>
+HloBroadcastInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), 1);
+  return std::make_unique<HloBroadcastInstruction>(shape, new_operands[0],
+                                                   dimensions());
+}
+
 HloFftInstruction::HloFftInstruction(const Shape& shape,
                                      HloInstruction* operand, FftType fft_type,
                                      int64_t fft_length)

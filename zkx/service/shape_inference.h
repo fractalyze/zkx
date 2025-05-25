@@ -149,6 +149,16 @@ class ShapeInference {
   static absl::StatusOr<Shape> InferCollectivePermuteDoneShape(
       const Shape& operand_shape);
 
+  // Infers the shape produced by a broadcast operation.
+  static absl::StatusOr<Shape> InferBroadcastShape(
+      const Shape& operand, absl::Span<const int64_t> broadcast_sizes);
+
+  // Checks whether the given parameters can form a broadcast. Returns the same
+  // output_shape if it's legal.
+  static absl::StatusOr<Shape> InferBroadcastShape(
+      const Shape& operand_shape, const Shape& output_shape,
+      absl::Span<const int64_t> broadcast_dimensions);
+
  private:
   // Helper that infers the shape produced by performing an element-wise binary
   // operation with the given LHS and RHS shapes.

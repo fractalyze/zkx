@@ -80,6 +80,23 @@ class HloDimensionsInstruction : public HloInstruction {
   std::vector<int64_t> dimensions_;
 };
 
+class HloBroadcastInstruction : public HloDimensionsInstruction {
+ public:
+  explicit HloBroadcastInstruction(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<const int64_t> broadcast_dimension);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kBroadcast;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
+
 class HloFftInstruction : public HloInstruction {
  public:
   explicit HloFftInstruction(const Shape& shape, HloInstruction* operand,
