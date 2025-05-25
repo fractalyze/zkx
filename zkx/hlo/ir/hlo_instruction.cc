@@ -446,13 +446,10 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           "HloInstruction::CreateFromProto: Transpose not implemented");
       break;
     case HloOpcode::kBroadcast:
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateBroadcast
-      // instruction =
-      //     CreateBroadcast(shape, operands(0),
-      //                     std::vector<int64_t>(proto.dimensions().begin(),
-      //                                          proto.dimensions().end()));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Broadcast not implemented");
+      instruction =
+          CreateBroadcast(shape, operands(0),
+                          std::vector<int64_t>(proto.dimensions().begin(),
+                                               proto.dimensions().end()));
       break;
     case HloOpcode::kMap:
       // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateMap
@@ -1567,6 +1564,14 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateAddDependency(
   instruction->AppendOperand(data_operand);
   instruction->AppendOperand(token_operand);
   return instruction;
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateBroadcast(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> broadcast_dimensions) {
+  return std::make_unique<HloBroadcastInstruction>(shape, operand,
+                                                   broadcast_dimensions);
 }
 
 void HloInstruction::set_single_sharding(const HloSharding& sharding) {

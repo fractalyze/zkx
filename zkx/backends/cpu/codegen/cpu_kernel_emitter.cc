@@ -33,6 +33,7 @@ limitations under the License.
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -64,6 +65,7 @@ limitations under the License.
 #include "zkx/base/logging.h"
 #include "zkx/codegen/emitter_loc_op_builder.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/math/poly/root_of_unity.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/llvm_ir/llvm_util.h"
@@ -96,6 +98,7 @@ void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
       mlir::bufferization::BufferizationDialect,
       mlir::cf::ControlFlowDialect,
       mlir::func::FuncDialect,
+      mlir::linalg::LinalgDialect,
       mlir::LLVM::LLVMDialect,
       mlir::memref::MemRefDialect,
       mlir::zkir::elliptic_curve::EllipticCurveDialect,
@@ -425,6 +428,75 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
 }
 
 // static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
+    absl::Span<const int64_t> source_dimensions) {
+  int64_t rank = instr->shape().rank();
+  auto target_dimensions = [source_dimensions, rank]() {
+    std::unordered_set<int64_t> source_set(source_dimensions.begin(),
+                                           source_dimensions.end());
+    std::vector<int64_t> target_dimensions;
+
+    if (source_dimensions.empty()) {
+      // If no source dims, return all dims in order
+      for (int64_t i = 0; i < rank; ++i) {
+        target_dimensions.push_back(i);
+      }
+      return target_dimensions;
+    }
+
+    int64_t pivot = source_dimensions[0];
+
+    // Step 1: dims > pivot (after)
+    for (int64_t i = pivot + 1; i < rank; ++i) {
+      if (source_set.count(i) == 0) {
+        target_dimensions.push_back(i);
+      }
+    }
+
+    // Step 2: dims < pivot (before)
+    for (int64_t i = 0; i < pivot; ++i) {
+      if (source_set.count(i) == 0) {
+        target_dimensions.push_back(i);
+      }
+    }
+
+    return target_dimensions;
+  };
+
+  auto init = b.create<mlir::tensor::EmptyOp>(
+      llvm_ir::ShapeToMLIRTensorType(instr->shape(), b.getContext()),
+      mlir::ValueRange{});
+
+  switch (instr->opcode()) {
+    case HloOpcode::kBroadcast: {
+      if (ShapeUtil::IsScalar(instr->operand(0)->shape())) {
+        const HloInstruction* input_instr = instr->operand(0);
+        if (ShapeUtil::IsScalar(input_instr->shape())) {
+          mlir::memref::LoadOp load =
+              mlir::dyn_cast<mlir::memref::LoadOp>(input.getDefiningOp());
+          if (!load) {
+            return absl::InternalError("input is not a memref");
+          }
+          input = b.create<mlir::bufferization::ToTensorOp>(
+              llvm_ir::ShapeToMLIRTensorType(input_instr->shape(),
+                                             b.getContext()),
+              load.getMemref(),
+              /*restrict=*/true,
+              /*writable=*/false);
+        }
+      }
+      auto broadcast =
+          b.create<mlir::linalg::BroadcastOp>(input, init, target_dimensions());
+      return broadcast.getResult()[0];
+    }
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled dimensions op: %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
+// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
@@ -437,6 +509,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     }
     case HloOpcode::kFft: {
       return EmitFftOp(instr, b, values[instr->operand(0)]);
+    }
+    case HloOpcode::kBroadcast: {
+      return EmitDimensionsOp(instr, b, values[instr->operand(0)],
+                              instr->dimensions());
     }
 
     default:

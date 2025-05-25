@@ -664,6 +664,11 @@ class HloInstruction {
       HloInstruction* operand, std::optional<int64_t> channel_id,
       bool is_host_transfer);
 
+  // Creates a broadcast instruction.
+  static std::unique_ptr<HloInstruction> CreateBroadcast(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<const int64_t> broadcast_dimensions);
+
   // Creates a tuple instruction with the given elements. This is a convenience
   // wrapper around CreateVariadic.
   static std::unique_ptr<HloInstruction> CreateTuple(

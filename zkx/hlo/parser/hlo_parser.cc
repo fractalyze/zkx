@@ -2033,10 +2033,32 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           *shape, operands[0], operands[1], *direction, type));
     }
     case HloOpcode::kBroadcast: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateBroadcast
-      // clang-format on
-      return nullptr;
+      if (!preset_operands &&
+          !ParseOperands(&operands, builder, /*expected_size=*/1)) {
+        return nullptr;
+      }
+
+      // The `dimensions` attr is optional if the broadcasted operand is a
+      // scalar; in that case we can infer it to be {}.
+      bool operand_is_scalar = ShapeUtil::IsScalar(operands[0]->shape());
+      std::optional<std::vector<int64_t>> broadcast_dimensions;
+      attrs["dimensions"] = {/*required=*/!operand_is_scalar,
+                             AttrTy::kBracedInt64List, &broadcast_dimensions};
+      if (!ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (operand_is_scalar && !broadcast_dimensions.has_value()) {
+        broadcast_dimensions.emplace();
+      }
+
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferBroadcastShape(operands[0]->shape(),
+                                                       *broadcast_dimensions);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateBroadcast(
+          *shape, operands[0], *broadcast_dimensions));
     }
     case HloOpcode::kConcatenate: {
       // clang-format off

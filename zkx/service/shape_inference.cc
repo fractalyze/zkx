@@ -770,6 +770,95 @@ absl::StatusOr<Shape> ShapeInference::InferCollectivePermuteDoneShape(
 }
 
 // static
+ absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
+    const Shape& operand, absl::Span<const int64_t> broadcast_sizes) {
+  // This method is used to infer shape for zkx::BroadcastInDim.
+  TF_RETURN_IF_ERROR(ExpectArray(operand, "operand of broadcast"));
+  TF_RET_CHECK(!operand.is_unbounded_dynamic());
+  for (int64_t size : broadcast_sizes) {
+    if (size == Shape::kUnboundedSize) {
+      return absl::InvalidArgumentError("Non-broadcast dimensions must not be dynamic.");
+    }
+    if (size < 0) {
+      return absl::InvalidArgumentError(absl::StrFormat("Broadcast with negative dimension size %d.",
+                             size));
+    }
+  }
+
+  std::vector<int64_t> dimensions(operand.dimensions_size() +
+                                  broadcast_sizes.size());
+  std::copy(broadcast_sizes.begin(), broadcast_sizes.end(), dimensions.begin());
+  std::copy(operand.dimensions().begin(), operand.dimensions().end(),
+            dimensions.begin() + broadcast_sizes.size());
+
+  TF_ASSIGN_OR_RETURN(Shape result, ShapeUtil::MakeValidatedShape(
+                                        operand.element_type(), dimensions));
+  for (int64_t i = 0; i < operand.dimensions_size(); ++i) {
+    result.set_dynamic_dimension(broadcast_sizes.size() + i,
+                                 operand.is_dynamic_dimension(i));
+  }
+  return result;
+}
+
+absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
+    const Shape& operand_shape, const Shape& output_shape,
+    absl::Span<const int64_t> broadcast_dimensions) {
+  // This method is used to infer shape for zkx::BroadcastInDim.
+  TF_RETURN_IF_ERROR(ExpectArray(operand_shape, "operand of broadcast"));
+  TF_RETURN_IF_ERROR(ExpectArray(output_shape, "operand of broadcast"));
+  TF_RET_CHECK(!output_shape.is_unbounded_dynamic());
+  const int64_t operand_rank = operand_shape.rank();
+  const int64_t output_rank = output_shape.rank();
+  if (operand_rank > output_rank) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "InDim style broadcast must be to an equal or higher ranked shape; "
+        "operand rank: %lld; output rank: %lld",
+        operand_rank, output_rank));
+  }
+  if (operand_rank != broadcast_dimensions.size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Size of broadcast_dimensions has to match operand's rank; operand "
+        "rank: %lld, size of broadcast_dimensions %u.",
+        operand_rank, broadcast_dimensions.size())
+    );
+  }
+  for (int64_t i = 0; i < operand_rank; i++) {
+    if (broadcast_dimensions[i] < 0 || broadcast_dimensions[i] >= output_rank) {
+      return absl::InvalidArgumentError(absl::StrFormat("Broadcast dimension %lld is out of bound",
+                             broadcast_dimensions[i]));
+    }
+    if (!operand_shape.is_unbounded_dynamic_dimension(i) &&
+        operand_shape.dimensions(i) !=
+            output_shape.dimensions(broadcast_dimensions[i]) &&
+        operand_shape.dimensions(i) != 1) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Input dimension should be either 1 or equal to the output dimension "
+          "it is broadcasting into; the %lldth operand dimension is %lld, the "
+          "%lldth output dimension is %lld.",
+          i, operand_shape.dimensions(i), broadcast_dimensions[i],
+          output_shape.dimensions(broadcast_dimensions[i])));
+    }
+    if (!operand_shape.is_unbounded_dynamic_dimension(i) &&
+        operand_shape.is_bounded_dynamic_dimension(i) !=
+            output_shape.is_bounded_dynamic_dimension(
+                broadcast_dimensions[i])) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Broadcast input and output dynamism mismatch: %s and %s",
+          operand_shape.ToString(), output_shape.ToString()));
+    }
+    // Make sure the broadcast dimensions are listed in a strictly increasing
+    // order.
+    if (i > 0 && broadcast_dimensions[i - 1] >= broadcast_dimensions[i]) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Broadcast dimensions order is wrong: %d comes after %d.",
+          broadcast_dimensions[i], broadcast_dimensions.at(i - 1)));
+    }
+  }
+
+  return output_shape;
+}
+
+// static
 absl::StatusOr<Shape> ShapeInference::InferSelectShape(
   const Shape& pred, const Shape& on_true, const Shape& on_false) {
     TF_RETURN_IF_ERROR(ExpectArray(pred, "select pred"));
