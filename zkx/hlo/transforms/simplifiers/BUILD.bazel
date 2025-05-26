@@ -1,0 +1,25 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "hlo_memory_scheduler",
+    srcs = ["hlo_memory_scheduler.cc"],
+    hdrs = ["hlo_memory_scheduler.h"],
+    deps = [
+        "//xla/tsl/platform:numbers",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:logging",
+        "//zkx/hlo/analysis:hlo_alias_analysis",
+        "//zkx/hlo/analysis:tuple_points_to_analysis",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "//zkx/service:logical_buffer",
+        "//zkx/service/heap_simulator",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+# TODO(chokobole): Add hlo_memory_scheduler_unittest.cc. Dependency: HloHardwareIndependentTestBase

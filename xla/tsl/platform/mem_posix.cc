@@ -15,6 +15,12 @@ limitations under the License.
 
 #include <stdlib.h>
 
+#if defined(__linux__)
+#include <sys/sysinfo.h>
+#else
+#include <sys/syscall.h>
+#endif
+
 #include "xla/tsl/platform/mem.h"
 
 namespace tsl::port {
@@ -52,5 +58,23 @@ void* Malloc(size_t size) { return malloc(size); }
 void* Realloc(void* ptr, size_t size) { return realloc(ptr, size); }
 
 void Free(void* ptr) { free(ptr); }
+
+MemoryInfo GetMemoryInfo() {
+  MemoryInfo mem_info = {INT64_MAX, INT64_MAX};
+#if defined(__linux__)
+  struct sysinfo info;
+  int err = sysinfo(&info);
+  if (err == 0) {
+    mem_info.free = info.freeram;
+    mem_info.total = info.totalram;
+  }
+#endif
+  return mem_info;
+}
+
+MemoryBandwidthInfo GetMemoryBandwidthInfo() {
+  MemoryBandwidthInfo membw_info = {INT64_MAX};
+  return membw_info;
+}
 
 }  // namespace tsl::port

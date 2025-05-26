@@ -1,0 +1,45 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "hlo_lexer",
+    srcs = ["hlo_lexer.cc"],
+    hdrs = ["hlo_lexer.h"],
+    deps = [
+        "//zkx:primitive_util",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/strings",
+        "@com_googlesource_code_re2//:re2",
+    ],
+)
+
+zkx_cc_library(
+    name = "hlo_parser",
+    srcs = ["hlo_parser.cc"],
+    hdrs = ["hlo_parser.h"],
+    deps = [
+        ":hlo_lexer",
+        "//xla/tsl/lib/gtl:map_util",
+        "//zkx:comparison_util",
+        "//zkx:literal",
+        "//zkx:literal_util",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/hlo/ir:collective_device_list",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_domain_metadata",
+        "//zkx/hlo/ir:hlo_sharding_metadata",
+        "//zkx/service:shape_inference",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+# TODO(chokobole): Add heap_parser_unittest.cc. Dependency: VerifiedHloModule

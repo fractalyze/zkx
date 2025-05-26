@@ -188,10 +188,8 @@ TEST_P(ThunkExecutorStressTest, Execute) {
 
   BufferAllocations allocations =
       CreateBufferAllocations(absl::MakeSpan(g->literals));
-  // TODO(chokobole): Uncomment this. Dependency: FunctionLibrary, XfeedManager
-  // Thunk::ExecuteParams params = {nullptr, &allocations, nullptr, device(),
-  //                                task_runner()};
-  Thunk::ExecuteParams params = {&allocations, device(), task_runner()};
+  Thunk::ExecuteParams params = {nullptr, &allocations, nullptr, device(),
+                                 task_runner()};
 
   InitSharedResource();
 

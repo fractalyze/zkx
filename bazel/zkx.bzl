@@ -53,6 +53,12 @@ def if_posix(a, b = []):
         "//conditions:default": a,
     })
 
+def if_android(a, b = []):
+    return select({
+        "@platforms//os:android": a,
+        "//conditions:default": b,
+    })
+
 def if_has_exception(a, b = []):
     return select({
         "@zkx//:zkx_has_exception": a,

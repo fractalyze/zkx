@@ -3,11 +3,58 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "emitter_loc_op_builder",
+    srcs = ["emitter_loc_op_builder.cc"],
+    hdrs = ["emitter_loc_op_builder.h"],
+    deps = [
+        "//xla/tsl/platform",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+zkx_cc_library(
+    name = "kernel_definition",
+    hdrs = ["kernel_definition.h"],
+    deps = [
+        ":kernel_source",
+        ":kernel_spec",
+        "//zkx/base:logging",
+    ],
+)
+
+zkx_cc_library(
+    name = "kernel_emitter",
+    hdrs = ["kernel_emitter.h"],
+    deps = [
+        ":kernel_definition",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
+    name = "kernel_source",
+    hdrs = ["kernel_source.h"],
+)
+
+zkx_cc_library(
     name = "kernel_spec",
     hdrs = ["kernel_spec.h"],
     deps = [
         "//zkx/runtime:buffer_use",
         "//zkx/stream_executor:launch_dim",
         "@com_google_absl//absl/container:inlined_vector",
+    ],
+)
+
+zkx_cc_library(
+    name = "llvm_ir_kernel_source",
+    srcs = ["llvm_ir_kernel_source.cc"],
+    hdrs = ["llvm_ir_kernel_source.h"],
+    deps = [
+        ":kernel_source",
+        "//zkx/service/llvm_ir:llvm_util",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:ExecutionEngine",
     ],
 )

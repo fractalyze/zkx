@@ -85,6 +85,16 @@ GetPrimitiveTypeStringMap() {
 
 }  // namespace
 
+absl::StatusOr<PrimitiveType> StringToPrimitiveType(std::string_view name) {
+  const auto& map = GetPrimitiveTypeStringMap();
+  auto found = map.find(name);
+  if (found == map.end()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Invalid element type string: \"%s\".", name));
+  }
+  return found->second;
+}
+
 bool IsPrimitiveTypeName(std::string_view name) {
   const auto& map = GetPrimitiveTypeStringMap();
   auto found = map.find(name);

@@ -63,6 +63,7 @@ zkx_cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
         "@com_google_protobuf//:protobuf",
         "@eigen_archive//:eigen3",
     ],
@@ -100,6 +101,38 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "net",
+    srcs = if_posix(["net_posix.cc"]),
+    hdrs = ["net.h"],
+    deps = [
+        "//zkx/base:logging",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "numbers",
+    srcs = ["numbers.cc"],
+    hdrs = ["numbers.h"],
+    deps = [
+        "//zkx/base:logging",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "hash",
+    srcs = ["hash.cc"],
+    hdrs = ["hash.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:endian",
+    ],
+)
+
+zkx_cc_library(
     name = "host_info",
     srcs = if_posix(["host_info_posix.cc"]),
     hdrs = ["host_info.h"],
@@ -127,6 +160,7 @@ zkx_cc_library(
     srcs = ["path.cc"],
     hdrs = ["path.h"],
     deps = [
+        ":platform",
         ":scanner",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
@@ -136,6 +170,26 @@ zkx_cc_library(
 zkx_cc_library(
     name = "platform",
     hdrs = ["platform.h"],
+)
+
+zkx_cc_library(
+    name = "random",
+    srcs = ["random.cc"],
+    hdrs = ["random.h"],
+    deps = [
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "refcount",
+    hdrs = ["refcount.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/synchronization",
+    ],
 )
 
 zkx_cc_library(
@@ -150,8 +204,24 @@ zkx_cc_library(
     srcs = ["status.cc"],
     hdrs = ["status.h"],
     deps = [
-        "@com_google_absl//absl/log",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "status_matchers",
+    testonly = True,
+    srcs = ["status_matchers.cc"],
+    hdrs = ["status_matchers.h"],
+    deps = [
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -164,19 +234,74 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "str_util",
+    srcs = ["str_util.cc"],
+    hdrs = ["str_util.h"],
+)
+
+zkx_cc_library(
+    name = "subprocess",
+    srcs = if_posix([
+        "subprocess_posix.cc",
+        "subprocess_posix.h",
+    ]),
+    hdrs = ["subprocess.h"],
+    deps = [
+        ":platform",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "test_util",
+    testonly = True,
+    srcs = ["test_util.cc"],
+    hdrs = ["test_util.h"],
+    deps = [
+        ":path",
+        "//zkx/base:logging",
+    ],
+)
+
 zkx_cc_unittest(
     name = "platform_unittests",
     srcs = [
         "cpu_info_unittest.cc",
         "fingerprint_unittest.cc",
+        "hash_unittest.cc",
+        "net_unittest.cc",
+        "numbers_unittest.cc",
         "path_unittest.cc",
+        "random_unittest.cc",
+        "refcount_unittest.cc",
         "scanner_unittest.cc",
+        "status_matchers_unittest.cc",
+        "str_util_unittest.cc",
+        "subprocess_unittest.cc",
+    ],
+    data = [
+        "//xla/tsl/platform/testdata:test_echo",
+        "//xla/tsl/platform/testdata:test_echo_argv_1",
+        "//xla/tsl/platform/testdata:test_noop",
+        "//xla/tsl/platform/testdata:test_stderr",
     ],
     deps = [
         ":cpu_info",
         ":env",
         ":fingerprint",
+        ":hash",
+        ":net",
+        ":numbers",
         ":path",
+        ":random",
+        ":refcount",
         ":scanner",
+        ":status_matchers",
+        ":str_util",
+        ":subprocess",
+        ":test_util",
     ],
 )

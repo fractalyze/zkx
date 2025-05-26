@@ -1,0 +1,84 @@
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "memory_space_assignment_proto",
+    srcs = ["memory_space_assignment.proto"],
+)
+
+cc_proto_library(
+    name = "memory_space_assignment_cc_proto",
+    deps = [":memory_space_assignment_proto"],
+)
+
+zkx_cc_library(
+    name = "allocation",
+    srcs = ["allocation.cc"],
+    hdrs = ["allocation.h"],
+    deps = [
+        ":slice",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:time_utils",
+        "//zkx/service:tuple_util",
+        "//zkx/service/heap_simulator",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "allocation_value",
+    hdrs = ["allocation_value.h"],
+    deps = [
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "memory_space_assignment",
+    hdrs = ["memory_space_assignment.h"],
+    deps = [
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:hlo_value",
+        "//zkx/service/heap_simulator",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "slice",
+    srcs = ["slice.cc"],
+    hdrs = ["slice.h"],
+    deps = [
+        ":memory_space_assignment_cc_proto",
+        "//zkx:shape_util",
+        "//zkx/base:logging",
+        "//zkx/service:time_utils",
+        "//zkx/service/heap_simulator",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "memory_space_assignment_unittests",
+    srcs = ["slice_unittest.cc"],
+    deps = [
+        ":slice",
+        "//zkx/service:time_utils",
+    ],
+)
+
+# TODO(chokobole): Add allocation_unittest.cc. Dependency: HloTestBase

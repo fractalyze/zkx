@@ -33,6 +33,30 @@ std::string ReplicaGroupsToString(
   return absl::StrCat("{", absl::StrJoin(replica_group_str, ","), "}");
 }
 
+IotaReplicaGroupListProto IotaReplicaGroupList::ToProto() const {
+  IotaReplicaGroupListProto proto;
+  proto.set_num_replica_groups(num_replica_groups_);
+  proto.set_num_devices_per_group(num_devices_per_group_);
+  proto.mutable_iota_reshape_dims()->Assign(
+      iota_tile_assignment_.reshape_dims().begin(),
+      iota_tile_assignment_.reshape_dims().end());
+  proto.mutable_iota_transpose_perm()->Assign(
+      iota_tile_assignment_.transpose_perm().begin(),
+      iota_tile_assignment_.transpose_perm().end());
+  return proto;
+}
+
+// static
+IotaReplicaGroupList IotaReplicaGroupList::FromProto(
+    const IotaReplicaGroupListProto& proto) {
+  return IotaReplicaGroupList(
+      proto.num_replica_groups(), proto.num_devices_per_group(),
+      std::vector<int64_t>(proto.iota_reshape_dims().begin(),
+                           proto.iota_reshape_dims().end()),
+      std::vector<int>(proto.iota_transpose_perm().begin(),
+                       proto.iota_transpose_perm().end()));
+}
+
 void CollectiveDeviceList::MaybeMaterializeFullReplicaGroupList() const {
   if (replica_groups_ != nullptr && !replica_groups_->empty()) {
     VLOG(10) << "Replica group list already materialized.";
@@ -71,6 +95,55 @@ std::string CollectiveDeviceList::ToString(
   }
 
   return ReplicaGroupsToString(replica_groups());
+}
+
+CollectiveDeviceListProto CollectiveDeviceList::ToProto() const {
+  CollectiveDeviceListProto proto;
+  if (iota_replica_group_list_.has_value()) {
+    *(proto.mutable_iota_replica_group_list()) =
+        iota_replica_group_list_->ToProto();
+    return proto;
+  }
+
+  proto.mutable_replica_groups()->Assign(replica_groups().begin(),
+                                         replica_groups().end());
+  return proto;
+}
+
+// static
+CollectiveDeviceList CollectiveDeviceList::FromProto(
+    const CollectiveDeviceListProto& proto) {
+  if (proto.has_iota_replica_group_list()) {
+    return CollectiveDeviceList(
+        IotaReplicaGroupList::FromProto(proto.iota_replica_group_list()));
+  }
+
+  if (proto.replica_groups_size() > 0) {
+    return CollectiveDeviceList(proto.replica_groups().begin(),
+                                proto.replica_groups().end());
+  }
+
+  return CollectiveDeviceList();
+}
+
+// static
+CollectiveDeviceList CollectiveDeviceList::FromProto(
+    const HloInstructionProto& proto) {
+  // Create CollectiveDeviceList from legacy field (replica_groups) if it is
+  // populated.
+  if (proto.replica_groups_size() > 0) {
+    VLOG(10) << "Creating collective device list from proto using legacy "
+                "replica groups field.";
+    return CollectiveDeviceList(proto.replica_groups().begin(),
+                                proto.replica_groups().end());
+  }
+
+  if (!proto.has_collective_device_list()) {
+    return CollectiveDeviceList();
+  }
+
+  // Create CollectiveDeviceList from non-legacy field (collective_device_list).
+  return FromProto(proto.collective_device_list());
 }
 
 }  // namespace zkx

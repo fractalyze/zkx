@@ -28,6 +28,7 @@ limitations under the License.
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/env.h"
+#include "xla/tsl/platform/numbers.h"
 #include "zkx/backends/cpu/runtime/resource_use.h"
 #include "zkx/base/logging.h"
 #include "zkx/base/strings/string_util.h"
@@ -269,7 +270,7 @@ ThunkExecutor::ExecuteSequential(const Thunk::ExecuteParams& params) {
       VLOG(2) << absl::StreamFormat(
           "  thunk[%d] took %s (op_name: %s)",
           std::distance(thunk_sequence_.begin(), it),
-          base::HumanReadableElapsedTime(
+          tsl::strings::HumanReadableElapsedTime(
               (tsl::Env::Default()->NowMicros() - start_us) / 1000000.0),
           thunk.info().op_name);
     }

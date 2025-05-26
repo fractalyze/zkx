@@ -110,7 +110,8 @@ class EnvPosix : public Env {
     return new PThread(thread_options, name, std::move(fn));
   }
 
-  void SleepForMicroseconds(int64_t micros) override {
+  void Sleep(absl::Duration duration) override {
+    int64_t micros = absl::ToInt64Microseconds(duration);
     while (micros > 0) {
       timespec sleep_time;
       sleep_time.tv_sec = 0;
@@ -163,6 +164,25 @@ class EnvPosix : public Env {
 #else
     return false;
 #endif
+  }
+
+  void SchedClosure(absl::AnyInvocable<void()> closure) override {
+    // TODO(b/27290852): Spawning a new thread here is wasteful, but
+    // needed to deal with the fact that many `closure` functions are
+    // blocking in the current codebase.
+    std::thread closure_thread(std::move(closure));
+    closure_thread.detach();
+  }
+
+  void SchedClosureAfter(absl::Duration duration,
+                         absl::AnyInvocable<void()> closure) override {
+    // TODO(b/27290852): Consuming a thread here is wasteful, but this
+    // code is (currently) only used in the case where a step fails
+    // (AbortStep). This could be replaced by a timer thread
+    SchedClosure([this, duration, closure = std::move(closure)]() mutable {
+      Sleep(duration);
+      closure();
+    });
   }
 
   std::string GetRunfilesDir() override {

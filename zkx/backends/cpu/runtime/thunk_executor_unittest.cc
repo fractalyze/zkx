@@ -383,9 +383,7 @@ TEST(ThunkExecutorTest, Execute) {
       // Always return current worker id as 0.
       [] { return 0; });
 
-  // TODO(chokobole): Uncomment this. Dependency: FunctionLibrary
-  // Thunk::ExecuteParams params = {nullptr, &allocations};
-  Thunk::ExecuteParams params = {&allocations};
+  Thunk::ExecuteParams params = {nullptr, &allocations};
   params.task_runner = &task_runner;
   params.session =
       Thunk::ExecuteSession(/*max_workers=*/8, /*split_threshold=*/0);
@@ -426,7 +424,7 @@ class NoOpAsyncThunk : public Thunk {
   tsl::AsyncValueRef<ExecuteEvent> Execute(const ExecuteParams&) final {
     auto ret = tsl::MakeConstructedAsyncValueRef<ExecuteEvent>();
     ThreadPool()->Schedule([ret] {
-      tsl::Env::Default()->SleepForMicroseconds(10 * 1000);
+      tsl::Env::Default()->Sleep(absl::Microseconds(10 * 1000));
       ret.SetStateConcrete();
     });
     return ret;
@@ -477,9 +475,7 @@ TEST(ThunkExecutorTest, ExecuteOnCorrectThreadPool) {
     task();
   });
 
-  // TODO(chokobole): Uncomment this. Dependency: FunctionLibrary
-  // Thunk::ExecuteParams params = {nullptr, &allocations};
-  Thunk::ExecuteParams params = {&allocations};
+  Thunk::ExecuteParams params = {nullptr, &allocations};
   params.task_runner = &task_runner;
   params.session =
       Thunk::ExecuteSession(/*max_workers=*/1, /*split_threshold=*/1000);

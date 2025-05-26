@@ -32,9 +32,11 @@ limitations under the License.
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
 #include "zkx/backends/cpu/runtime/buffer_allocations.h"
+#include "zkx/backends/cpu/runtime/function_library.h"
 #include "zkx/backends/cpu/runtime/resource_use.h"
 #include "zkx/executable_run_options.h"
 #include "zkx/runtime/buffer_use.h"
+#include "zkx/service/cpu/xfeed_manager.h"
 #include "zkx/service/global_device_id.h"
 
 namespace Eigen {
@@ -69,7 +71,10 @@ class Thunk {
     kAllReduce,
     kAllToAll,
     kCollectivePermute,
+    kCopy,
+    kInfeed,
     kKernel,
+    kOutfeed,
     kReduceScatter,
   };
 
@@ -216,11 +221,9 @@ class Thunk {
   // Parameters passed to Execute. Execute is responsible for launching "work"
   // on device, i.e., it launches host kernels, calls into libraries, etc.
   struct ExecuteParams {
-    // TODO(chokobole): Uncomment this. Dependency: FunctionLibrary
-    // FunctionLibrary* function_library = nullptr;
+    FunctionLibrary* function_library = nullptr;
     const BufferAllocations* buffer_allocations = nullptr;
-    // TODO(chokobole): Uncomment this. Dependency: XfeedManager
-    // runtime::XfeedManager* xfeed = nullptr;
+    runtime::XfeedManager* xfeed = nullptr;
     const Eigen::ThreadPoolDevice* intra_op_threadpool = nullptr;
     TaskRunner* task_runner = nullptr;
     CollectiveExecuteParams* collective_params = nullptr;

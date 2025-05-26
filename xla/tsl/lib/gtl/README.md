@@ -47,44 +47,37 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 39,40d9
 < # Todo(bmzhao): Remaining targets to add to this BUILD file are: all tests.
 <
-42,89d10
-<     name = "compactptrset",
-<     hdrs = ["compactptrset.h"],
+44c13,16
 <     deps = [":flatset"],
-< )
-<
-< cc_library(
-<     name = "flatmap",
-<     hdrs = ["flatmap.h"],
-<     deps = [
-<         ":flatrep",
+---
+>     deps = [
+>         ":flatset",
+>         "@com_google_absl//absl/log:check",
+>     ],
+52,54c24,26
 <         "//xla/tsl/platform:logging",
 <         "//xla/tsl/platform:types",
 <         "@tsl//tsl/platform:hash",
-<     ],
-< )
-<
-< cc_library(
-<     name = "flatrep",
-<     hdrs = ["flatrep.h"],
+---
+>         "//xla/tsl/platform:hash",
+>         "//zkx/base:logging",
+>         "@com_google_absl//absl/log:check",
+61,64c33
 <     deps = [
 <         "//xla/tsl/platform:types",
 <         "@com_google_absl//absl/base:prefetch",
 <     ],
-< )
-<
-< cc_library(
-<     name = "flatset",
-<     hdrs = ["flatset.h"],
-<     deps = [
-<         ":flatrep",
+---
+>     deps = ["@com_google_absl//absl/base:prefetch"],
+72,74c41,43
 <         "//xla/tsl/platform:logging",
 <         "//xla/tsl/platform:types",
 <         "@tsl//tsl/platform:hash",
-<     ],
-< )
-<
-< cc_library(
+---
+>         "//xla/tsl/platform:hash",
+>         "//zkx/base:logging",
+>         "@com_google_absl//absl/log:check",
+79,89d47
 <     name = "inlined_vector",
 <     hdrs = ["inlined_vector.h"],
 <     deps = [
@@ -96,24 +89,24 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 < )
 <
 < cc_library(
-93,94c14,15
+93,94c51,52
 <         "//xla/tsl/platform:macros",
 <         "//xla/tsl/platform:types",
 ---
 >         "@com_google_absl//absl/base:core_headers",
 >         "@com_google_absl//absl/hash",
-100a22,25
+100a59,62
 >     deps = [
 >         "@com_google_absl//absl/base:core_headers",
 >         "@com_google_absl//absl/hash",
 >     ],
-105c30
+105c67
 <     srcs = [
 ---
 >     hdrs = [
-109d33
+109d70
 <     hdrs = ["map_util.h"],
-112,208c36
+112,208c73
 < filegroup(
 <     name = "legacy_lib_gtl_headers",
 <     srcs = [
@@ -213,28 +206,295 @@ diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/BUILD xla/tsl/lib/gtl/BUILD
 < tsl_cc_test(
 ---
 > zkx_cc_unittest(
-211,213d38
-<         "compactptrset_test.cc",
-<         "flatmap_test.cc",
-<         "flatset_test.cc",
-219,221d43
-<         ":compactptrset",
-<         ":flatmap",
-<         ":flatset",
-225,229d46
+225,229d89
 <         "//xla/tsl/platform:macros",
 <         "//xla/tsl/platform:test",
 <         "//xla/tsl/platform:types",
 <         "@com_google_googletest//:gtest_main",
 <         "@tsl//tsl/platform:hash",
 Only in xla/tsl/lib/gtl: README.md
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: compactptrset.h
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: compactptrset_test.cc
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: flatmap.h
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: flatmap_test.cc
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: flatrep.h
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: flatset.h
-Only in /path/to/openxla/xla/xla/tsl/lib/gtl: flatset_test.cc
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/compactptrset.h xla/tsl/lib/gtl/compactptrset.h
+18a19
+> #include <iterator>
+19a21,22
+>
+> #include "absl/log/check.h"
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/compactptrset_test.cc xla/tsl/lib/gtl/compactptrset_test.cc
+18,20c18,19
+< #include "xla/tsl/platform/test.h"
+< #include "xla/tsl/platform/types.h"
+< #include "tsl/platform/hash.h"
+---
+> #include <algorithm>
+> #include <vector>
+21a21,22
+> #include "gtest/gtest.h"
+>
+36c37
+<   string data = "ABCDEFG";
+---
+>   std::string data = "ABCDEFG";
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/flatmap.h xla/tsl/lib/gtl/flatmap.h
+25a26,27
+> #include "absl/log/check.h"
+>
+27,29c29,30
+< #include "xla/tsl/platform/logging.h"
+< #include "xla/tsl/platform/types.h"
+< #include "tsl/platform/hash.h"
+---
+> #include "xla/tsl/platform/hash.h"
+> #include "zkx/base/logging.h"
+136c137
+<     iterator(Bucket* b, Bucket* end, uint32 i) : b_(b), end_(end), i_(i) {
+---
+>     iterator(Bucket* b, Bucket* end, uint32_t i) : b_(b), end_(end), i_(i) {
+163c164
+<     uint32 i_;
+---
+>     uint32_t i_;
+195c196
+<     const_iterator(Bucket* b, Bucket* end, uint32 i) : rep_(b, end, i) {}
+---
+>     const_iterator(Bucket* b, Bucket* end, uint32_t i) : rep_(b, end, i) {}
+324c325
+<     uint8 marker[Rep::kWidth];
+---
+>     uint8_t marker[Rep::kWidth];
+336c337
+<     Key& key(uint32 i) {
+---
+>     Key& key(uint32_t i) {
+340c341
+<     Val& val(uint32 i) {
+---
+>     Val& val(uint32_t i) {
+345c346
+<     void InitVal(uint32 i, V&& v) {
+---
+>     void InitVal(uint32_t i, V&& v) {
+348c349
+<     void Destroy(uint32 i) {
+---
+>     void Destroy(uint32_t i) {
+352c353
+<     void MoveFrom(uint32 i, Bucket* src, uint32 src_index) {
+---
+>     void MoveFrom(uint32_t i, Bucket* src, uint32_t src_index) {
+356c357
+<     void CopyFrom(uint32 i, Bucket* src, uint32 src_index) {
+---
+>     void CopyFrom(uint32_t i, Bucket* src, uint32_t src_index) {
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/flatmap_test.cc xla/tsl/lib/gtl/flatmap_test.cc
+25,27c25
+< #include "xla/tsl/platform/test.h"
+< #include "xla/tsl/platform/types.h"
+< #include "tsl/platform/hash.h"
+---
+> #include "gtest/gtest.h"
+33c31
+< typedef FlatMap<int64_t, int32> NumMap;
+---
+> typedef FlatMap<int64_t, int32_t> NumMap;
+36c34
+< int32 Get(const NumMap& map, int64_t k, int32_t def = -1) {
+---
+> int32_t Get(const NumMap& map, int64_t k, int32_t def = -1) {
+50c48
+< typedef std::vector<std::pair<int64_t, int32>> NumMapContents;
+---
+> typedef std::vector<std::pair<int64_t, int32_t>> NumMapContents;
+149,150c147,148
+<   FlatMap<int64_t, std::unique_ptr<string>> smap;
+<   smap.emplace(1, std::make_unique<string>("hello"));
+---
+>   FlatMap<int64_t, std::unique_ptr<std::string>> smap;
+>   smap.emplace(1, std::make_unique<std::string>("hello"));
+347c345
+<   typedef std::unordered_map<int64_t, int32> StdNumMap;
+---
+>   typedef std::unordered_map<int64_t, int32_t> StdNumMap;
+594,597c592,595
+<   FlatMap<string, string> map;
+<   string k1 = "the quick brown fox jumped over the lazy dog";
+<   string k2 = k1 + k1;
+<   string k3 = k1 + k2;
+---
+>   FlatMap<std::string, std::string> map;
+>   std::string k1 = "the quick brown fox jumped over the lazy dog";
+>   std::string k2 = k1 + k1;
+>   std::string k3 = k1 + k2;
+604c602
+<   EXPECT_EQ(string(), map[k3]);
+---
+>   EXPECT_EQ(std::string(), map[k3]);
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/flatrep.h xla/tsl/lib/gtl/flatrep.h
+18a19,20
+> #include <stddef.h>
+> #include <stdint.h>
+24d25
+< #include "xla/tsl/platform/types.h"
+50,51c51,52
+<   static constexpr uint32 kBase = 3;
+<   static constexpr uint32 kWidth = (1 << kBase);
+---
+>   static constexpr uint32_t kBase = 3;
+>   static constexpr uint32_t kWidth = (1 << kBase);
+105c106
+<       for (uint32 i = 0; i < kWidth; i++) {
+---
+>       for (uint32_t i = 0; i < kWidth; i++) {
+137c138
+<     uint32 index;
+---
+>     uint32_t index;
+148c149
+<     const uint32 marker = Marker(h & 0xff);
+---
+>     const uint32_t marker = Marker(h & 0xff);
+150c151
+<     uint32 num_probes = 1;            // Needed for quadratic probing
+---
+>     uint32_t num_probes = 1;          // Needed for quadratic probing
+152c153
+<       uint32 bi = index & (kWidth - 1);
+---
+>       uint32_t bi = index & (kWidth - 1);
+154c155
+<       const uint32 x = b->marker[bi];
+---
+>       const uint32_t x = b->marker[bi];
+173c174
+<     const uint32 marker = Marker(h & 0xff);
+---
+>     const uint32_t marker = Marker(h & 0xff);
+175c176
+<     uint32 num_probes = 1;            // Needed for quadratic probing
+---
+>     uint32_t num_probes = 1;          // Needed for quadratic probing
+177c178
+<     uint32 di = 0;
+---
+>     uint32_t di = 0;
+179c180
+<       uint32 bi = index & (kWidth - 1);
+---
+>       uint32_t bi = index & (kWidth - 1);
+181c182
+<       const uint32 x = b->marker[bi];
+---
+>       const uint32_t x = b->marker[bi];
+206c207
+<   void Erase(Bucket* b, uint32 i) {
+---
+>   void Erase(Bucket* b, uint32_t i) {
+216c217
+<     uint32 bi = index & (kWidth - 1);
+---
+>     uint32_t bi = index & (kWidth - 1);
+250c251
+<   uint8 lglen_;       // lg(#buckets)
+---
+>   uint8_t lglen_;     // lg(#buckets)
+261c262
+<   static uint32 Marker(uint32 hb) { return hb + (hb < 2 ? 2 : 0); }
+---
+>   static uint32_t Marker(uint32_t hb) { return hb + (hb < 2 ? 2 : 0); }
+293c294,295
+<     inline void operator()(Bucket* dst, uint32 dsti, Bucket* src, uint32 srci) {
+---
+>     inline void operator()(Bucket* dst, uint32_t dsti, Bucket* src,
+>                            uint32_t srci) {
+300c302,303
+<     inline void operator()(Bucket* dst, uint32 dsti, Bucket* src, uint32 srci) {
+---
+>     inline void operator()(Bucket* dst, uint32_t dsti, Bucket* src,
+>                            uint32_t srci) {
+310c313
+<       for (uint32 i = 0; i < kWidth; i++) {
+---
+>       for (uint32_t i = 0; i < kWidth; i++) {
+323c326
+<   void FreshInsert(Bucket* src, uint32 src_index, Copier copier) {
+---
+>   void FreshInsert(Bucket* src, uint32_t src_index, Copier copier) {
+325c328
+<     const uint32 marker = Marker(h & 0xff);
+---
+>     const uint32_t marker = Marker(h & 0xff);
+327c330
+<     uint32 num_probes = 1;            // Needed for quadratic probing
+---
+>     uint32_t num_probes = 1;          // Needed for quadratic probing
+329c332
+<       uint32 bi = index & (kWidth - 1);
+---
+>       uint32_t bi = index & (kWidth - 1);
+331c334
+<       const uint32 x = b->marker[bi];
+---
+>       const uint32_t x = b->marker[bi];
+343c346
+<   inline size_t NextIndex(size_t i, uint32 num_probes) const {
+---
+>   inline size_t NextIndex(size_t i, uint32_t num_probes) const {
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/flatset.h xla/tsl/lib/gtl/flatset.h
+21,22d20
+< #include <functional>
+< #include <initializer_list>
+25a24,25
+> #include "absl/log/check.h"
+>
+27,29c27,28
+< #include "xla/tsl/platform/logging.h"
+< #include "xla/tsl/platform/types.h"
+< #include "tsl/platform/hash.h"
+---
+> #include "xla/tsl/platform/hash.h"
+> #include "zkx/base/logging.h"
+121c120
+<     const_iterator(Bucket* b, Bucket* end, uint32 i)
+---
+>     const_iterator(Bucket* b, Bucket* end, uint32_t i)
+146c145
+<     uint32 i_;
+---
+>     uint32_t i_;
+260c259
+<     uint8 marker[Rep::kWidth];
+---
+>     uint8_t marker[Rep::kWidth];
+269c268
+<     Key& key(uint32 i) {
+---
+>     Key& key(uint32_t i) {
+273,274c272,273
+<     void Destroy(uint32 i) { storage.key[i].Key::~Key(); }
+<     void MoveFrom(uint32 i, Bucket* src, uint32 src_index) {
+---
+>     void Destroy(uint32_t i) { storage.key[i].Key::~Key(); }
+>     void MoveFrom(uint32_t i, Bucket* src, uint32_t src_index) {
+277c276
+<     void CopyFrom(uint32 i, Bucket* src, uint32 src_index) {
+---
+>     void CopyFrom(uint32_t i, Bucket* src, uint32_t src_index) {
+diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/flatset_test.cc xla/tsl/lib/gtl/flatset_test.cc
+23,25c23
+< #include "xla/tsl/platform/test.h"
+< #include "xla/tsl/platform/types.h"
+< #include "tsl/platform/hash.h"
+---
+> #include "gtest/gtest.h"
+490,493c488,491
+<   FlatSet<string> set;
+<   string k1 = "the quick brown fox jumped over the lazy dog";
+<   string k2 = k1 + k1;
+<   string k3 = k1 + k2;
+---
+>   FlatSet<std::string> set;
+>   std::string k1 = "the quick brown fox jumped over the lazy dog";
+>   std::string k2 = k1 + k1;
+>   std::string k3 = k1 + k2;
 Only in /path/to/openxla/xla/xla/tsl/lib/gtl: inlined_vector.h
 diff --color -r /path/to/openxla/xla/xla/tsl/lib/gtl/int_type.h xla/tsl/lib/gtl/int_type.h
 162,163c162,163

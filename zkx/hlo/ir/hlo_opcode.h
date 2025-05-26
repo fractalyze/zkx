@@ -55,9 +55,20 @@ namespace zkx {
 // - HloInstruction::CreateUnary
 // - HloInstruction::CreateBinary
 // - HloInstruction::has_to_apply
+// - HloInstruction::CreateFromProto
+// - GetInstructionCallContext
+// - GatherComputationsByAllocationType
+// - ZKX_UNOP_PATTERN
+// - ZKX_BINOP_PATTERN
+// - ZKX_COMMUTATIVE_BINOP_PATTERN
+// - ZKX_NULLOP_PATTERN
+// - ZKX_TERNOP_PATTERN
+// - ZKX_VARIADIC_OP_PATTERN
+// - MatchReductionInstruction
 #define HLO_OPCODE_LIST(V)                                                     \
   /* go/keep-sorted start */                                                   \
   V(kAdd, "add", 2)                                                            \
+  V(kAddDependency, "add-dependency", 2)                                       \
   V(kAfterAll, "after-all", kHloOpcodeIsVariadic)                              \
   V(kAllGather, "all-gather", kHloOpcodeIsVariadic)                            \
   V(kAllGatherDone, "all-gather-done", 1)                                      \
@@ -69,19 +80,62 @@ namespace zkx {
   V(kAsyncDone, "async-done", 1)                                               \
   V(kAsyncStart, "async-start", kHloOpcodeIsVariadic)                          \
   V(kAsyncUpdate, "async-update", 1)                                           \
+  V(kBitcast, "bitcast", 1)                                                    \
+  V(kBitcastConvert, "bitcast-convert", 1)                                     \
+  V(kBroadcast, "broadcast", 1)                                                \
+  V(kCall, "call", kHloOpcodeIsVariadic)                                       \
   V(kCollectiveBroadcast, "collective-broadcast", kHloOpcodeIsVariadic)        \
   V(kCollectivePermute, "collective-permute", kHloOpcodeIsVariadic)            \
   V(kCollectivePermuteDone, "collective-permute-done", 1)                      \
   V(kCollectivePermuteStart, "collective-permute-start", kHloOpcodeIsVariadic) \
   V(kCompare, "compare", 2)                                                    \
+  V(kConcatenate, "concatenate", kHloOpcodeIsVariadic)                         \
+  V(kConditional, "conditional", kHloOpcodeIsVariadic)                         \
   V(kConstant, "constant", 0)                                                  \
+  V(kCopy, "copy", 1)                                                          \
+  V(kCopyDone, "copy-done", 1)                                                 \
+  V(kCopyStart, "copy-start", 1)                                               \
+  V(kCustomCall, "custom-call", kHloOpcodeIsVariadic)                          \
   V(kDivide, "divide", 2)                                                      \
+  V(kDomain, "domain", 1)                                                      \
+  V(kDot, "dot", kHloOpcodeIsVariadic)                                         \
+  V(kDynamicReshape, "dynamic-reshape", kHloOpcodeIsVariadic)                  \
+  V(kDynamicSlice, "dynamic-slice", kHloOpcodeIsVariadic)                      \
+  V(kDynamicUpdateSlice, "dynamic-update-slice", kHloOpcodeIsVariadic)         \
+  V(kFusion, "fusion", kHloOpcodeIsVariadic)                                   \
+  V(kGather, "gather", 2)                                                      \
+  V(kGetDimensionSize, "get-dimension-size", 1)                                \
+  V(kGetTupleElement, "get-tuple-element", 1)                                  \
+  V(kInfeed, "infeed", 1)                                                      \
+  V(kMap, "map", kHloOpcodeIsVariadic)                                         \
+  V(kMaximum, "maximum", 2)                                                    \
+  V(kMinimum, "minimum", 2)                                                    \
   V(kMultiply, "multiply", 2)                                                  \
   V(kNegate, "negate", 1)                                                      \
+  V(kOptimizationBarrier, "opt-barrier", 1)                                    \
+  V(kOutfeed, "outfeed", 2)                                                    \
   V(kParameter, "parameter", 0)                                                \
+  V(kPartitionId, "partition-id", 0)                                           \
+  V(kPower, "power", 2)                                                        \
   V(kRaggedAllToAll, "ragged-all-to-all", 6)                                   \
+  V(kRaggedDot, "ragged-dot", 3)                                               \
+  V(kRecv, "recv", 1)                                                          \
+  V(kRecvDone, "recv-done", 1)                                                 \
+  V(kReduce, "reduce", kHloOpcodeIsVariadic)                                   \
   V(kReduceScatter, "reduce-scatter", kHloOpcodeIsVariadic)                    \
+  V(kReplicaId, "replica-id", 0)                                               \
+  V(kReshape, "reshape", 1)                                                    \
+  V(kReverse, "reverse", 1)                                                    \
+  V(kScatter, "scatter", kHloOpcodeIsVariadic)                                 \
+  V(kSelect, "select", 3)                                                      \
+  V(kSend, "send", 2)                                                          \
+  V(kSendDone, "send-done", 1)                                                 \
+  V(kSetDimensionSize, "set-dimension-size", 2)                                \
   V(kSubtract, "subtract", 2)                                                  \
+  V(kSlice, "slice", 1)                                                        \
+  V(kTranspose, "transpose", 1)                                                \
+  V(kTuple, "tuple", kHloOpcodeIsVariadic)                                     \
+  V(kWhile, "while", 1)                                                        \
   /* go/keep-sorted end */
 
 // Upto 256 opcodes. Increase the base type if/when needed.
@@ -126,11 +180,11 @@ inline bool HloOpcodeIsBinaryCommutative(HloOpcode opcode) {
   switch (opcode) {
     case HloOpcode::kAdd:
     case HloOpcode::kMultiply:
+    case HloOpcode::kMaximum:
+    case HloOpcode::kMinimum:
       // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kMaximum, HloOpcode::kMinimum, HloOpcode::kAnd, HloOpcode::kOr, HloOpcode::kXor
+      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAnd, HloOpcode::kOr, HloOpcode::kXor
       // clang-format on
-      // case HloOpcode::kMaximum:
-      // case HloOpcode::kMinimum:
       // case HloOpcode::kAnd:
       // case HloOpcode::kOr:
       // case HloOpcode::kXor:

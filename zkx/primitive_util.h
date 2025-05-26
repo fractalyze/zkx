@@ -27,10 +27,14 @@ limitations under the License.
 #include <utility>
 
 #include "absl/base/optimization.h"
+#include "absl/log/check.h"
+#include "absl/status/statusor.h"
+#include "absl/types/span.h"
 
 #include "xla/tsl/lib/math/math_util.h"
 #include "zkx/base/logging.h"
 #include "zkx/types.h"
+#include "zkx/util.h"
 #include "zkx/zkx_data.pb.h"
 
 namespace zkx::primitive_util {
@@ -397,8 +401,37 @@ inline constexpr int ByteWidth(PrimitiveType type) {
   return internal::WidthForType<internal::kByteWidths>(type);
 }
 
+// Returns the higher-precision element type if a and b are both floating
+// point types; otherwise, checks that they have the same element type
+// and returns it.
+inline PrimitiveType HigherPrecisionType(PrimitiveType a, PrimitiveType b) {
+  // Returns a tuple where the elements are lexicographically ordered in terms
+  // of importance.
+  auto type_properties = [](PrimitiveType type) {
+    return std::make_tuple(
+        // Prefer wider types over narrower types.
+        BitWidth(type),
+        // Prefer signed integer types over unsigned integer types.
+        IsSignedIntegralType(type));
+  };
+  auto a_properties = type_properties(a);
+  auto b_properties = type_properties(b);
+  if (a_properties > b_properties) {
+    return a;
+  }
+  if (b_properties > a_properties) {
+    return b;
+  }
+  CHECK_EQ(a, b);
+  return a;
+}
+
 // Returns the lower-case name of the given primitive type.
 std::string_view LowercasePrimitiveTypeName(PrimitiveType s);
+
+// Returns the PrimitiveType matching the given name. The given name is expected
+// to be lower-case.
+absl::StatusOr<PrimitiveType> StringToPrimitiveType(std::string_view name);
 
 // Returns true if the given name is a primitive type string (lower-case).
 bool IsPrimitiveTypeName(std::string_view name);
@@ -411,13 +444,13 @@ template <typename T>
 bool IsCanonicalRepresentation(PrimitiveType type) {
   return PrimitiveTypeSwitch<bool>(
       [](auto primitive_type) -> bool {
-        if constexpr (primitive_util::IsSignedIntegralType(primitive_type)) {
+        if constexpr (IsSignedIntegralType(primitive_type)) {
           return std::numeric_limits<T>::is_integer &&
                  std::numeric_limits<T>::is_signed &&
                  BitWidth(primitive_type) <=
                      (std::numeric_limits<T>::digits + 1);
         }
-        if constexpr (primitive_util::IsUnsignedIntegralType(primitive_type) ||
+        if constexpr (IsUnsignedIntegralType(primitive_type) ||
                       primitive_type == PRED) {
           return std::numeric_limits<T>::is_integer &&
                  !std::numeric_limits<T>::is_signed &&
@@ -430,6 +463,16 @@ bool IsCanonicalRepresentation(PrimitiveType type) {
 
 constexpr bool IsSubByteNonPredType(PrimitiveType type) {
   return IsArrayType(type) && type != PRED && BitWidth(type) < 8;
+}
+
+inline void PackIntN(PrimitiveType input_type, absl::Span<const char> input,
+                     absl::Span<char> output) {
+  zkx::PackIntN(BitWidth(input_type), input, output);
+}
+
+inline void UnpackIntN(PrimitiveType input_type, absl::Span<const char> input,
+                       absl::Span<char> output) {
+  zkx::UnpackIntN(BitWidth(input_type), input, output);
 }
 
 }  // namespace zkx::primitive_util

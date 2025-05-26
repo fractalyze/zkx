@@ -1,0 +1,84 @@
+/* Copyright 2020 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#ifndef ZKX_PJRT_UTILS_H_
+#define ZKX_PJRT_UTILS_H_
+
+#include <stdint.h>
+
+#include <functional>
+#include <memory>
+#include <optional>
+#include <vector>
+
+#include "absl/container/flat_hash_map.h"
+#include "absl/status/statusor.h"
+#include "absl/types/span.h"
+
+#include "zkx/client/executable_build_options.h"
+#include "zkx/hlo/builder/zkx_computation.h"
+#include "zkx/hlo/ir/hlo_module.h"
+#include "zkx/service/computation_placer.h"
+#include "zkx/zkx_data.pb.h"
+
+namespace zkx {
+
+// Returns the num_replicas, num_partitions and device assignment given a
+// ExecutableBuildOptions and whether we want a portable executable.
+absl::Status ParseDeviceAssignmentCompileOptions(
+    bool compile_portable_executable, ExecutableBuildOptions* build_options,
+    std::function<absl::StatusOr<DeviceAssignment>(int, int)>
+        GetDefaultDeviceAssignmentFunction,
+    int* num_replicas, int* num_partitions,
+    std::shared_ptr<DeviceAssignment>* device_assignment);
+
+// Returns pointers to the argument layouts given an ZkxComputation and
+// ExecutableBuildOptions.
+absl::Status DetermineArgumentLayoutsFromCompileOptions(
+    const ZkxComputation& computation,
+    std::function<absl::StatusOr<Shape>(Shape)>
+        choose_compact_layout_for_shape_function,
+    std::optional<std::vector<Shape>>& argument_layouts,
+    ExecutableBuildOptions* build_options,
+    std::vector<const Shape*>* argument_layout_pointers);
+
+// Return max parallelism level.
+int DefaultThreadPoolSize();
+
+// Executables can donate buffers so that buffers can be aliased from inputs
+// to outputs. This function returns a sorted vector of parameters that must be
+// donated when executable is run. tuple_inputs reflects the option that
+// executable was compiled with.
+absl::StatusOr<std::vector<int>> ComputeParametersThatMustBeDonated(
+    const HloModule& hlo_module, bool tuple_inputs);
+
+// Returns true if the striding of an array corresponds to a major-to-minor
+// layout.
+bool HasMajorToMinorLayout(PrimitiveType type, absl::Span<const int64_t> dims,
+                           absl::Span<const int64_t> byte_strides);
+
+// If a buffer `is_donated`, then it can only be used once. This function
+// records the use into donation_clashes and tests for incompatible uses.
+// Multiple uses are valid iff they are all not donations.  The provided map
+// stores the opaque buffer identity, a bool to denote if the previous use is a
+// donation, and the index of the previous use for better error messages.
+absl::Status TestBufferDonationClashes(
+    void* opaque_key,
+    absl::flat_hash_map<const void*, std::pair<bool, int>>& donation_clashes,
+    bool is_donated, int arg_idx, int replica, int partition);
+
+}  // namespace zkx
+
+#endif  // ZKX_PJRT_UTILS_H_

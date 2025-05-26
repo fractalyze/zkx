@@ -20,6 +20,7 @@ limitations under the License.
 #include <stdint.h>
 
 #include <algorithm>
+#include <initializer_list>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -28,14 +29,21 @@ limitations under the License.
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/functional/function_ref.h"
 #include "absl/log/check.h"
 
+#include "zkx/array.h"
+#include "zkx/array2d.h"
+#include "zkx/array3d.h"
 #include "zkx/index_util.h"
 #include "zkx/layout_util.h"
 #include "zkx/maybe_owning.h"
 #include "zkx/primitive_util.h"
+#include "zkx/printer.h"
 #include "zkx/shape.h"
+#include "zkx/shape_tree.h"
 #include "zkx/shape_util.h"
+#include "zkx/status_macros.h"
 #include "zkx/util.h"
 
 namespace zkx {
@@ -68,6 +76,9 @@ class LiteralBase {
   // Returns the shape of the literal.
   const Shape& shape() const;
 
+  // Serialize to proto.
+  LiteralProto ToProto() const;
+
   // Returns a Span of the array for this literal for the given NativeT
   // (e.g., float). CHECKs if the subshape of the literal at the given
   // ShapeIndex is not array. See primitive_util.h for the mapping from ZKX type
@@ -80,6 +91,56 @@ class LiteralBase {
   // the given ShapeIndex is not array.
   const void* untyped_data(const ShapeIndex& shape_index = {}) const;
   int64_t size_bytes(const ShapeIndex& shape_index = {}) const;
+
+  // Prints a string representation of the literal value. The Shape of the
+  // literal is a prefix of the literal value in the string.
+  //
+  // Warning: this function can take minutes for multi-million element Literals.
+  void Print(Printer* printer) const;
+
+  // Similar to Print, but prints the result in a compact one-line form.
+  void PrintOneline(Printer* printer) const;
+
+  // Prints a string representation of the literal value which does *not*
+  // include the shape string.
+  void PrintWithoutShape(Printer* printer) const;
+
+  // Similar to PrintWithoutShape, but prints the result in a compact one-line
+  // form.
+  void PrintWithoutShapeOneline(Printer* printer) const;
+
+  // Prints a string representation of the literal value which includes the
+  // shape string with its layout.does *not* include the shape string.
+  void PrintWithLayout(Printer* printer) const;
+
+  // Similar to PrintWithLayout, but prints the result in a compact one-line
+  // form.
+  void PrintWithLayoutOneline(Printer* printer) const;
+
+  // Returns a string representation of the literal value. The Shape of the
+  // literal is a prefix of the literal value in the string.
+  //
+  // Warning: this function can take minutes for multi-million element Literals.
+  std::string ToString() const;
+
+  // Similar to ToString, but return the result in a compact one-line form.
+  std::string ToStringOneline() const;
+
+  // Returns a string representation of the literal value which does *not*
+  // include the shape string.
+  std::string ToStringWithoutShape() const;
+
+  // Similar to ToStringWithoutShape, but return the result in a compact
+  // one-line form.
+  std::string ToStringWithoutShapeOneline() const;
+
+  // Returns a string representation of the literal value which includes the
+  // shape string with its layout.does *not* include the shape string.
+  std::string ToStringWithLayout() const;
+
+  // Similar to ToStringWithLayout, but return the result in a compact one-line
+  // form.
+  std::string ToStringWithLayoutOneline() const;
 
   // Gets an element in the literal at the given index. The multi_index is
   // CHECKed against the dimension sizes.
@@ -103,6 +164,26 @@ class LiteralBase {
 
   // As above but returns any integer type casted to an int64_t.
   std::optional<int64_t> GetFirstInteger() const;
+
+  // As Get(), but determines the correct type and converts the value
+  // into text.
+  std::string GetAsString(absl::Span<const int64_t> multi_index,
+                          const ShapeIndex& shape_index = {}) const;
+
+  // Return whether the value at the specified index is equal to the provided
+  // generic `value` (T must be an arithmetic type).
+  //
+  // Precondition: must be an array.
+  template <typename T>
+  typename std::enable_if<std::numeric_limits<T>::is_specialized, bool>::type
+  IsEqualAt(absl::Span<const int64_t> multi_index, T value) const {
+    return *GetIntegralAsS64(multi_index) == value;
+  }
+
+  // As Get(), but determines the correct type and converts the value into
+  // int64_t.  This literal must be an array.
+  std::optional<int64_t> GetIntegralAsS64(
+      absl::Span<const int64_t> multi_index) const;
 
   // Checks whether all of this literal's values are equal to the given scalar
   // literal.
@@ -217,6 +298,68 @@ class LiteralBase {
   Literal Clone() const;
   std::unique_ptr<Literal> CloneToUnique() const;
 
+  // TODO(b/67651157): The methods below which perform computation on Literals
+  // (Reshape, Slice, etc) should be moved elsewhere, and perhaps combined with
+  // evaluator code which operates on Literals.
+  //
+  // Creates a new value that has the equivalent value as this
+  // literal, but conforms to new_layout; e.g. a literal matrix that was in {0,
+  // 1} minor-to-major dimension layout can be re-layed-out as {1, 0}
+  // minor-to-major dimension layout and the value in the cell at any given
+  // logical index (i0, i1) will be the same.
+  //
+  // For tuple shaped literals, shape_index should be used to select the inner
+  // array that the new layout applies to.
+  //
+  // Note: this is useful when the client wants to ensure that a value placed in
+  // the ZKX allocation tracker has a particular layout; for efficiency
+  // purposes or avoiding unimplemented operation/layout combinations.
+  Literal Relayout(const Layout& new_layout,
+                   const ShapeIndex& shape_index = {}) const;
+
+  // An overload of Relayout which changes the layout of the entire shape rather
+  // than being limited to a single array within the shape.
+  Literal Relayout(const Shape& shape_with_layout) const;
+
+  // Returns true if the leaf arrays of the literal within the given shape index
+  // are all determined.
+  // See comments on ArrayValueState for detailed explanation.
+  bool IsDetermined(const ShapeIndex& shape_index = {}) const;
+
+  // Returns true if the leaf arrays of the literal within the given shape index
+  // are all known.
+  // See comments on ArrayValueState for detailed explanation.
+  bool IsKnown(const ShapeIndex& shape_index = {}) const;
+
+  // Creates a new Literal object with the shape specified as parameter.
+  // The content of the literal values is the default value of the primitive
+  // type of literal itself (0 for numeric types, and false for predicates).
+  //
+  // Note: It's an antipattern to use this method then immediately call
+  // MutableLiteralBase::Populate on the result (since that results in zero
+  // initialization, then reinitialization. Consider if a call to
+  // std::make_unique<Literal>(shape), followed by the call to
+  // MutableLiteralBase::Populate can be used instead.
+  static Literal CreateFromShape(const Shape& shape);
+
+  // WARNING: These two functions are only supposed to be used by
+  // HloEvaluator. The rest of ZKX assumes all literals are known. Similar to
+  // CreateFromShape() but marks all leaf arrays as unknown.
+  static Literal CreateFromShapeWithUnknownLeafArrays(const Shape& shape);
+  // Similar to CreateFromShape() but marks all leaf arrays as undetermined.
+  static Literal CreateFromShapeWithUndeterminedLeafArrays(const Shape& shape);
+
+ protected:
+  // LiteralSlice and Literal must access Pieces of other Literals.
+  friend class MutableLiteralBase;
+  friend class LiteralSlice;
+  friend class BorrowingLiteral;
+
+  class Piece;
+  // Recursively builds the subtree for the given piece and sets the subshapes
+  // of the given piece with the given shape.
+  void BuildPieceSubtree(const Shape& shape, Piece* piece);
+
   // Array literals could be in one of the following three states:
   //   1) Known: we have evaluated and known the value of the array literal.
   //   2) Unknown: we have tried to evaluate the array literal, but its value
@@ -271,6 +414,18 @@ class LiteralBase {
                             : GetDenseRep();
       DCHECK(dense_rep);
       dense_rep->data = buffer;
+    }
+
+    void MoveDataFrom(Piece& from) {
+      DCHECK(!std::holds_alternative<DenseRep>(rep_));
+      DCHECK(!std::holds_alternative<TupleRep>(rep_));
+      if (auto* dense_rep = from.GetDenseRep()) {
+        rep_.emplace<DenseRep>().data = dense_rep->data;
+      } else if (auto* inlined_rep = from.GetDenseInlinedRep()) {
+        std::memcpy(rep_.emplace<DenseInlinedRep>().data, inlined_rep->data,
+                    from.total_bytes_dense());
+      }
+      from.rep_.emplace<Uninitialized>();
     }
 
     // Gets/sets the buffer holding dynamic sizes.
@@ -426,10 +581,22 @@ class LiteralBase {
     // shape, comparison is done only for the valid elements.
     bool EqualElements(const Piece& other) const;
 
+    // Writes the shape and data (if array-shaped) into the given proto.
+    void WriteToProto(LiteralProto* proto) const;
+
     // Copy the data from 'src' into this piece's buffer. Shapes of this piece
     // and src must be compatible. If only_dynamic_bound is true, only elements
     // within dynamic bounds will be copied.
     absl::Status CopyFrom(const Piece& src, bool only_dynamic_bound);
+
+    // Copies the data from the given proto into this piece. The shape of this
+    // piece must be equal (not just compatible) to the shape of the proto.
+    absl::Status CopyFromProto(const LiteralProto& proto);
+
+    // See comments on ArrayValueState for detailed explanation.
+    bool IsDetermined() const;
+
+    bool IsKnown() const;
 
    private:
     // Uninitialized state representation.
@@ -594,14 +761,54 @@ class MutableLiteralBase : public LiteralBase {
   template <typename NativeT>
   void Set(absl::Span<const int64_t> multi_index, NativeT value);
 
+  // Populate this literal with the given values. Examples:
+  //
+  //   // Populate with floats.
+  //   Array2D<float> float_values = ...
+  //   literal.PopulateR2FromArray2D(values);
+  //
+  //   // Populate with int32s.
+  //   literal.PopulateR2<int32_t>({{1, 2}, {3, 4}});
+  //
+  // The shape and element type of this literal must match given values. For
+  // example, in the call above to literal.PopulateR2(), 'literal' must be a 2x2
+  // array of S32.
   template <typename NativeT>
   void PopulateR1(absl::Span<const NativeT> values);
+  // TODO(chokobole): Uncomment this. Dependency: Bitmap
+  // void PopulateR1(const tsl::core::Bitmap& values);
+  template <typename NativeT>
+  void PopulateR2(std::initializer_list<std::initializer_list<NativeT>> values);
+  template <typename NativeT>
+  void PopulateFromArray(const Array<NativeT>& values);
+  template <typename NativeT>
+  void PopulateR2FromArray2D(const Array2D<NativeT>& values);
+  template <typename NativeT>
+  void PopulateR3FromArray3D(const Array3D<NativeT>& values);
+
+  // Populates literal values by calling the generator function for every cell
+  // in this literal object.
+  //
+  // generator must be a callable of the type
+  // NativeT(absl::Span<const int64_t> indexes) or compatible.
+  //
+  // This literal must have a dense layout.
+  template <typename NativeT>
+  absl::Status Populate(
+      absl::FunctionRef<NativeT(absl::Span<const int64_t>)> generator);
 
   // Fills this literal with the given value.
   template <typename NativeT>
   void PopulateWithValue(NativeT value);
 
+  // Serialize from a proto.
+  static absl::StatusOr<Literal> CreateFromProto(
+      const LiteralProto& proto, bool prohibit_empty_literal = true);
+
  protected:
+  friend class LiteralBase;
+  friend class MutableBorrowingLiteral;
+
   // Returns the piece at the given ShapeIndex.
   Piece& piece(const ShapeIndex& shape_index) {
     return const_cast<Piece&>(LiteralBase::piece(shape_index));
@@ -616,6 +823,17 @@ class MutableLiteralBase : public LiteralBase {
 
   // The parent class borrows this shape.
   MaybeOwningShapePtr shape_;
+
+  // Implementation details shared between Populate() and PopulateParallel()
+  //  template <typename NativeT, typename FnType>
+  //  absl::Status PopulateInternal(const FnType& generator, bool parallel);
+  template <typename NativeT>
+  absl::Status PopulateInternal(
+      absl::FunctionRef<NativeT(absl::Span<const int64_t>, int)> generator,
+      bool parallel);
+  void PopulateInplaceInternal(
+      absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator,
+      bool parallel);
 };
 
 // The underlying buffer and shape is always owned by this class.
@@ -641,6 +859,27 @@ class Literal : public MutableLiteralBase {
           ArrayValueState leaf_array_value_state = ArrayValueState::kKnown);
   Literal& operator=(Literal&& other);
 
+  // Similar to CopyFrom, but with move semantics. The subshape of this literal
+  // rooted at 'dest_shape_index' must be *equal* to the shape 'src_literal'
+  // (layouts and shapes must match), but need not be arrays. The memory
+  // allocated in this literal for the subshape at dest_shape_index is
+  // deallocated, and the respective buffers are replaced with those in
+  // src_literal. Upon return, src_literal is set to a nil shape (empty tuple).
+  virtual absl::Status MoveFrom(Literal&& src_literal,
+                                const ShapeIndex& dest_shape_index);
+  absl::Status MoveFrom(Literal&& src_literal) {
+    return MoveFrom(std::move(src_literal), /*dest_shape_index=*/{});
+  }
+
+  // Returns a vector containing the tuple elements of this Literal as separate
+  // Literals. This Literal must be tuple-shaped and can be a nested tuple. The
+  // elements are moved into the new Literals; no data is copied. Upon return
+  // this Literal is set to a nil shape (empty tuple)
+  //
+  // TODO(jlebar): Because this function invalidates `this`, it should be
+  // ref-qualified with &&.
+  std::vector<Literal> DecomposeTuple();
+
  private:
   friend class LiteralBase;
   friend class MutableLiteralBase;
@@ -662,6 +901,47 @@ class Literal : public MutableLiteralBase {
   Piece root_piece_;
 };
 
+// The underlying buffer is not owned by this class and is always owned by
+// others. The shape is not owned by this class and not mutable.
+class MutableBorrowingLiteral : public MutableLiteralBase {
+ public:
+  ~MutableBorrowingLiteral() override;
+
+  MutableBorrowingLiteral() : MutableLiteralBase() {}
+
+  MutableBorrowingLiteral(const MutableBorrowingLiteral& literal);
+  MutableBorrowingLiteral& operator=(const MutableBorrowingLiteral& literal);
+
+  // Implicit conversion constructors.
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  MutableBorrowingLiteral(MutableLiteralBase* literal);
+  MutableBorrowingLiteral(MutableBorrowingLiteral literal,
+                          const ShapeIndex& view_root);
+
+  // 'src_buf_ptr' is not owned by this class and must outlive the
+  // lifetime of this class. It points to an appropriately sized buffer with
+  // data interpreted as indicated by 'shape'.
+  // This constructor is only used for array shapes.
+  MutableBorrowingLiteral(const char* src_buf_ptr, const Shape& shape);
+
+  // Similar as above, except to be used for constructing non-nested tuples.
+  MutableBorrowingLiteral(absl::Span<char*> src_buf_ptrs, const Shape& shape);
+
+  // Similar as above, except to be used for constructing literals with
+  // potentially nested tuples (same shape as `src_buf_ptrs`) with borrowed
+  // buffers for each shape index.
+  explicit MutableBorrowingLiteral(ShapeTree<char*> src_buf_ptrs);
+
+ private:
+  const Piece& root_piece() const override { return *root_piece_; };
+  // Recursively copies the subtree from the `src_piece` at the given child
+  // index to the `dest_piece`. For buffers only the pointers are copied, but
+  // not the content.
+  void CopyPieceSubtree(const Shape& shape, const Piece* src_piece,
+                        Piece* dest_piece);
+  Piece* root_piece_ = nullptr;
+};
+
 // A read-only view of a Literal. A LiteralSlice contains pointers to shape and
 // literal buffers always owned by others.
 class LiteralSlice : public LiteralBase {
@@ -679,6 +959,38 @@ class LiteralSlice : public LiteralBase {
   const Piece& root_piece() const override { return *root_piece_; };
 
   const Piece* root_piece_;  // Not owned.
+};
+
+// A read-only Literal where the underlying buffers are never owned by this
+// class.
+class BorrowingLiteral : public LiteralBase {
+ public:
+  BorrowingLiteral() : LiteralBase() {}
+
+  // 'src_buf_ptr' is not owned by this class and must outlive the
+  // lifetime of this class. It points to an appropriately sized buffer with
+  // data interpreted as indicated by 'shape'.
+  // This constructor is only used for array shapes.
+  BorrowingLiteral(const char* src_buf_ptr, const Shape& shape);
+
+  // Similar as above, except to be used for constructing non-nested tuples.
+  BorrowingLiteral(absl::Span<const char* const> src_buf_ptrs,
+                   const Shape& shape);
+
+  // Similar as above, except to be used for constructing literals with
+  // potentially nested tuples (same shape as `src_buf_ptrs`) with borrowed
+  // buffers for each shape index.
+  explicit BorrowingLiteral(ShapeTree<const char*> src_buf_ptrs);
+
+ private:
+  // Accessor for the root piece of this literal.
+  const Piece& root_piece() const override { return root_piece_; };
+  Piece root_piece_;
+
+  // Shape of this literal. Stored as unique_ptr such that the (default) move
+  // construction of this class would be trivially correct: the pointer to Shape
+  // root_piece_ stores will still point to the correct address.
+  std::unique_ptr<Shape> shape_;
 };
 
 template <typename NativeT>
@@ -791,6 +1103,102 @@ ABSL_ATTRIBUTE_NOINLINE void MutableLiteralBase::PopulateR1(
            primitive_util::NativeToPrimitiveType<NativeT>());
   auto data_span = data<NativeT>();
   std::copy(values.begin(), values.end(), data_span.begin());
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE void MutableLiteralBase::PopulateR2(
+    std::initializer_list<std::initializer_list<NativeT>> values) {
+  CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  CHECK_EQ(shape().rank(), 2);
+  CHECK_EQ(shape().element_type(),
+           primitive_util::NativeToPrimitiveType<NativeT>());
+
+  const int64_t values_dim0_size = values.size();
+  const int64_t values_dim1_size = values.begin()->size();
+  const int64_t literal_dim0_size = shape().is_dynamic_dimension(0)
+                                        ? GetDynamicSize(0)
+                                        : shape().dimensions(0);
+  const int64_t literal_dim1_size = shape().is_dynamic_dimension(1)
+                                        ? GetDynamicSize(1)
+                                        : shape().dimensions(1);
+
+  CHECK_EQ(values_dim0_size, literal_dim0_size);
+  CHECK_EQ(values_dim1_size, literal_dim1_size);
+
+  int64_t dim0 = 0;
+  for (auto inner_list : values) {
+    int64_t dim1 = 0;
+    for (auto value : inner_list) {
+      Set({dim0, dim1}, value);
+      ++dim1;
+    }
+    CHECK_EQ(values_dim1_size, dim1);
+    ++dim0;
+  }
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE void MutableLiteralBase::PopulateFromArray(
+    const Array<NativeT>& values) {
+  CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  CHECK(shape().IsArray());
+  CHECK_EQ(shape().element_type(),
+           primitive_util::NativeToPrimitiveType<NativeT>());
+  CHECK_EQ(shape().rank(), values.num_dimensions());
+  for (int dim = 0; dim < values.num_dimensions(); ++dim) {
+    int64_t shape_size = shape().is_dynamic_dimension(dim)
+                             ? GetDynamicSize(dim)
+                             : shape().dimensions(dim);
+    CHECK_EQ(values.dim(dim), shape_size);
+  }
+  values.Each([this](absl::Span<const int64_t> indices, NativeT value) {
+    this->Set(indices, value);
+  });
+}
+
+template <typename NativeT>
+void MutableLiteralBase::PopulateR2FromArray2D(const Array2D<NativeT>& values) {
+  PopulateFromArray(values);
+}
+
+template <typename NativeT>
+void MutableLiteralBase::PopulateR3FromArray3D(const Array3D<NativeT>& values) {
+  PopulateFromArray(values);
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE absl::Status MutableLiteralBase::PopulateInternal(
+    absl::FunctionRef<NativeT(absl::Span<const int64_t>, int)> generator,
+    bool parallel) {
+  const Shape& this_shape = shape();
+  DCHECK(LayoutUtil::IsDenseArray(this_shape));
+  TF_RET_CHECK(this_shape.element_type() ==
+               primitive_util::NativeToPrimitiveType<NativeT>())
+      << "Failing to populate literal with element type "
+      << primitive_util::LowercasePrimitiveTypeName(this_shape.element_type())
+      << " using data of type "
+      << primitive_util::LowercasePrimitiveTypeName(
+             primitive_util::NativeToPrimitiveType<NativeT>());
+  PopulateInplaceInternal(
+      [&](void* dest, absl::Span<const int64_t> indices, int thread_id) {
+        *static_cast<NativeT*>(dest) = generator(indices, thread_id);
+      },
+      parallel);
+  return absl::OkStatus();
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE absl::Status MutableLiteralBase::Populate(
+    absl::FunctionRef<NativeT(absl::Span<const int64_t>)> generator) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  return PopulateInternal<NativeT>(
+      [&](absl::Span<const int64_t> indexes, int /*thread_id*/) {
+        return generator(indexes);
+      },
+      /*parallel=*/false);
 }
 
 template <typename NativeT>

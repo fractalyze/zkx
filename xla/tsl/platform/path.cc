@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "absl/strings/str_cat.h"
 
+#include "xla/tsl/platform/platform.h"
 #include "xla/tsl/platform/scanner.h"
 
 namespace tsl::io {
@@ -247,6 +248,13 @@ bool GetTestUndeclaredOutputsDir(std::string* dir) {
     *dir = outputs_dir;
   }
   return true;
+}
+
+[[maybe_unused]] std::string& AppendDotExeIfWindows(std::string& path) {
+#ifdef PLATFORM_WINDOWS
+  path.append(".exe");
+#endif  // PLATFORM_WINDOWS
+  return path;
 }
 
 }  // namespace tsl::io

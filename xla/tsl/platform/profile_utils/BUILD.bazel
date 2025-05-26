@@ -1,0 +1,46 @@
+load("//bazel:zkx.bzl", "if_android")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "clock_cycle_profiler",
+    srcs = ["clock_cycle_profiler.cc"],
+    hdrs = ["clock_cycle_profiler.h"],
+    deps = [
+        ":cpu_utils",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "cpu_utils",
+    srcs = [
+        "android_armv7a_cpu_utils_helper.cc",
+        "android_armv7a_cpu_utils_helper.h",
+        "cpu_utils.cc",
+    ],
+    hdrs = ["cpu_utils.h"],
+    deps = [
+        ":i_cpu_utils_helper",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base",
+    ] + if_android([
+        "@com_google_absl//absl/strings:str_format",
+    ]),
+)
+
+zkx_cc_library(
+    name = "i_cpu_utils_helper",
+    hdrs = ["i_cpu_utils_helper.h"],
+)
+
+zkx_cc_unittest(
+    name = "profile_utils_unittests",
+    srcs = ["cpu_utils_unittest.cc"],
+    deps = [
+        ":clock_cycle_profiler",
+        ":cpu_utils",
+    ],
+)

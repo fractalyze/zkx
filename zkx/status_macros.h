@@ -197,7 +197,7 @@ class StatusAdaptorForMacros {
       .with_log_stack_trace()                                                 \
       .add_ret_check_failure(#condition)
 
-#define ZKX_RET_CHECK_FAIL()                                                  \
+#define TF_RET_CHECK_FAIL()                                                   \
   return ::zkx::status_macros::MakeErrorStream(__FILE__, __LINE__,            \
                                                ::absl::StatusCode::kInternal) \
       .with_log_stack_trace()

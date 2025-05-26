@@ -1,9 +1,259 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "cpu_compiler",
+    srcs = ["cpu_compiler.cc"],
+    hdrs = ["cpu_compiler.h"],
+    deps = [
+        ":cpu_executable",
+        ":cpu_options",
+        ":runtime_symbol_generator",
+        ":thunk_emitter",
+        "//xla/tsl/platform:cpu_info",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/backends/cpu/codegen:cpu_features",
+        "//zkx/backends/cpu/codegen:jit_compiler",
+        "//zkx/backends/cpu/codegen:target_machine_features",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/transforms/simplifiers:hlo_memory_scheduler",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:buffer_value",
+        "//zkx/service:llvm_compiler",
+        "//zkx/service/llvm_ir:llvm_command_line_options",
+        "//zkx/stream_executor/host:host_platform_id",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@llvm-project//llvm:BitReader",
+        "@llvm-project//llvm:BitWriter",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:TransformUtils",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+zkx_cc_library(
+    name = "cpu_event",
+    hdrs = ["cpu_event.h"],
+)
+
+zkx_cc_library(
+    name = "cpu_executable",
+    srcs = ["cpu_executable.cc"],
+    hdrs = ["cpu_executable.h"],
+    deps = [
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx/backends/cpu/runtime:function_library",
+        "//zkx/backends/cpu/runtime:thread_pool_task_runner",
+        "//zkx/backends/cpu/runtime:thunk",
+        "//zkx/backends/cpu/runtime:thunk_executor",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:custom_call_status",
+        "//zkx/service:executable",
+        "//zkx/service:maybe_owning_device_memory",
+        "//zkx/service/cpu:cpu_runtime",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:device_memory_allocator",
+        "//zkx/stream_executor/host:host_stream",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
 
 zkx_cc_library(
     name = "cpu_executable_run_options",
     hdrs = ["cpu_executable_run_options.h"],
     deps = ["//zkx/backends/cpu/collectives:cpu_collectives"],
+)
+
+zkx_cc_library(
+    name = "cpu_options",
+    srcs = ["cpu_options.cc"],
+    hdrs = ["cpu_options.h"],
+    deps = ["//zkx/service:hlo_module_config"],
+)
+
+zkx_cc_library(
+    name = "cpu_runtime",
+    srcs = ["cpu_runtime.cc"],
+    hdrs = ["cpu_runtime.h"],
+    deps = [
+        ":cpu_executable_run_options",
+        ":xfeed_manager",
+        "//xla/tsl/platform:status",
+        "//zkx:executable_run_options",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx/backends/cpu/collectives:cpu_clique_key",
+        "//zkx/backends/cpu/collectives:cpu_cliques",
+        "//zkx/backends/cpu/collectives:cpu_collectives",
+        "//zkx/backends/cpu/collectives:in_process_collectives",
+        "//zkx/base:logging",
+        "//zkx/core/collectives:communicator",
+        "//zkx/core/collectives:rank_id",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/service:collective_ops_utils",
+        "//zkx/service:computation_placer",
+        "//zkx/service:global_device_id",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "orc_jit_memory_mapper",
+    srcs = ["orc_jit_memory_mapper.cc"],
+    hdrs = ["orc_jit_memory_mapper.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+        "@llvm-project//llvm:ExecutionEngine",
+    ],
+)
+
+zkx_cc_library(
+    name = "runtime_custom_call_status",
+    srcs = ["runtime_custom_call_status.cc"],
+    hdrs = ["runtime_custom_call_status.h"],
+    deps = [
+        "//zkx/service:custom_call_status",
+        "@com_google_absl//absl/base:core_headers",
+    ],
+)
+
+zkx_cc_library(
+    name = "runtime_fork_join",
+    srcs = ["runtime_fork_join.cc"],
+    hdrs = ["runtime_fork_join.h"],
+    deps = [
+        "//zkx:executable_run_options",
+        "//zkx/base:logging",
+        "//zkx/service:custom_call_status",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
+zkx_cc_library(
+    name = "runtime_symbol_generator",
+    srcs = ["runtime_symbol_generator.cc"],
+    hdrs = ["runtime_symbol_generator.h"],
+    deps = [
+        ":cpu_runtime",
+        ":runtime_custom_call_status",
+        ":runtime_fork_join",
+        "//zkx/service:custom_call_target_registry",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:OrcJIT",
+        "@llvm-project//mlir:_mlir_c_runner_utils",
+    ],
+)
+
+zkx_cc_library(
+    name = "thunk_emitter",
+    srcs = ["thunk_emitter.cc"],
+    hdrs = ["thunk_emitter.h"],
+    deps = [
+        "//zkx:cpu_function_runtime",
+        "//zkx/backends/cpu/codegen:jit_compiler",
+        "//zkx/backends/cpu/codegen/elemental:elemental_kernel_emitter",
+        "//zkx/backends/cpu/runtime:all_gather_thunk",
+        "//zkx/backends/cpu/runtime:all_reduce_thunk",
+        "//zkx/backends/cpu/runtime:all_to_all_thunk",
+        "//zkx/backends/cpu/runtime:collective_permute_thunk",
+        "//zkx/backends/cpu/runtime:copy_thunk",
+        "//zkx/backends/cpu/runtime:infeed_thunk",
+        "//zkx/backends/cpu/runtime:kernel_thunk",
+        "//zkx/backends/cpu/runtime:outfeed_thunk",
+        "//zkx/backends/cpu/runtime:reduce_scatter_thunk",
+        "//zkx/backends/cpu/runtime:thunk",
+        "//zkx/codegen:kernel_spec",
+        "//zkx/codegen:llvm_ir_kernel_source",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@llvm-project//llvm:OrcJIT",
+    ],
+)
+
+zkx_cc_library(
+    name = "xfeed_manager",
+    srcs = ["xfeed_manager.cc"],
+    hdrs = ["xfeed_manager.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_binary(
+    name = "demo",
+    srcs = ["demo.cc"],
+    data = [
+        "testdata/add.hlo",
+        "testdata/add2.hlo",
+        "testdata/add3.hlo",
+    ],
+    deps = [
+        ":cpu_compiler",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal_util",
+        "//zkx/hlo/parser:hlo_parser",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "cpu_unittests",
+    srcs = [
+        "cpu_runtime_unittest.cc",
+        "xfeed_manager_unittest.cc",
+    ],
+    deps = [
+        ":cpu_runtime",
+        ":runtime_custom_call_status",
+        ":xfeed_manager",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "//zkx:shape_util",
+        "//zkx/service:custom_call_status",
+        "@com_google_absl//absl/log:check",
+    ],
 )

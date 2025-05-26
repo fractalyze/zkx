@@ -28,7 +28,7 @@ LogicalBuffer::LogicalBuffer(HloInstruction* instruction,
 
 std::string LogicalBuffer::ToString() const {
   std::string color_string;
-  // TODO(chokobole): Remove this when Layout::memory_space is introduced.
+  // TODO(chokobole): Replace this with Layout::memory_space.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   if (has_color()) {

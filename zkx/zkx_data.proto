@@ -334,6 +334,89 @@ message OpMetadata {
   string scheduling_name = 15;
 }
 
+// Profile data from the execution of a computation.
+message ExecutionProfile {
+  // Whether the executable was read from the compilation cache.
+  bool compilation_cache_hit = 1;
+
+  // The time in milliseconds spent to compile the computation. This only set if
+  // the executable was not read from the compilation cache
+  // (compilation_cache_hit == false).
+  int64 compile_time_ms = 2;
+
+  // The number of cycles spent for the computation. This does not include the
+  // time taken for the data transfers between the host and the device. This is
+  // a target-dependent field and only used for debugging purposes.
+  int64 compute_cycle_count = 3;
+
+  // The time in nanoseconds spent for the computation, without data transfer.
+  int64 compute_time_ns = 4;
+
+  // The time in nanoseconds spent for the entire computation, including the
+  // result data transfer time. Current implementation does not spend any cycles
+  // for the input data transfer since the memory is initialized with the proper
+  // values before the execution.
+  int64 compute_and_transfer_time_ns = 5;
+
+  // The size of the binary code in the executable.
+  int64 executable_size_in_bytes = 6;
+
+  // Whether this profile was drawn from a cache of profiles instead of from
+  // execution on the hardware.
+  bool profile_cache_hit = 7;
+
+  // Whether a warm-up run of the computation was executed before the
+  // measured execution.
+  bool warmup_run_executed = 8;
+}
+
+// Handle given to a user that represents an execution that the user launched
+// asynchronously on the device.
+message ExecutionHandle {
+  int64 handle = 1;
+}
+
+// Handle given to a user that represents a globally accessible allocation.
+// Contrast this against a ComputationDataHandle, which is not globally
+// accessible, since it only exists within a specific computation.
+message GlobalDataHandle {
+  int64 handle = 1;
+}
+
+// Handle given to a user that represents a replicated virtual device. Each
+// replicated device represents N physical devices for execution where N is the
+// number of replicas.
+message DeviceHandle {
+  int64 handle = 1;
+
+  // The number of model-parallel virtual devices that communicate via ZKX
+  // Send/Recv instructions.
+  int64 device_count = 2;
+}
+
+// Handle given to a user to represent a channel between two computations
+// via a Send and Recv instruction pair. Channels are unbuffered, so Send
+// Send instructions will be blocked until the data is transferred.
+message ChannelHandle {
+  int64 handle = 1;
+  enum ChannelType {
+    // Invalid primitive type to serve as default.
+    CHANNEL_TYPE_INVALID = 0;
+
+    // A channel for sending data between devices.
+    DEVICE_TO_DEVICE = 1;
+
+    // A channel for sending data from the device to the host. Can only be used
+    // with a Send operation.
+    DEVICE_TO_HOST = 2;
+
+    // A channel for sending data from the host to the device. Can only be used
+    // with a Recv operation.
+    HOST_TO_DEVICE = 3;
+  }
+  ChannelType type = 2;
+}
+
 // DeviceAssignmentProto is a serialized form of DeviceAssignment class, which
 // represents the device ids assigned to a set of replicated computations.
 // See zkx::DeviceAssignment class comment for more details.
@@ -375,6 +458,36 @@ message LiteralProto {
   repeated uint64 u64s = 16;
   repeated LiteralProto tuple_literals = 17;
   repeated int64 sparse_indices = 18;
+}
+
+enum SparsityType {
+  SPARSITY_INVALID = 0;
+
+  // Structured N:M sparsity.
+  SPARSITY_STRUCTURED_N_M = 1;
+
+  // Next: 2
+}
+
+// Contains sparsity metadata for a sparse dot operation.
+// The only supported type atm is structured 2:4 sparsity, which is natively
+// supported on NVidia GPUs.
+// Restrictions:
+// - only one operand of the dot operation may be sparse;
+// - only the contracting dimension may be sparse.
+message SparsityDescriptor {
+  SparsityType type = 1;
+
+  // Sparse operand index (0 or 1).
+  int32 index = 2;
+  // Sparse dimension number.
+  int32 dimension = 3;
+
+  // Structured N:M sparsity (N < M).
+  int32 n = 4;
+  int32 m = 5;
+
+  // Next: 6
 }
 
 // Generic map of attributes used to pass hints / configuration options from
@@ -492,6 +605,64 @@ message ReplicaGroup {
   // The ids of the replicas that belongs to the same group. The ordering of the
   // ids matters in some ops (e.g., all-to-all).
   repeated int64 replica_ids = 1;
+}
+
+// Represents a list of replica groups (a list of list of devices) with
+// reshaping and transposing an iota array (iota tile assignment). Can be used
+// to represent certain common patterns of device lists in a compact, scalable
+// format.
+message IotaReplicaGroupListProto {
+  // Number of replica groups.
+  int64 num_replica_groups = 1;
+
+  // Number of devices per group.
+  int64 num_devices_per_group = 2;
+
+  // The dimensions used to reshape the 1D iota array of device IDs.
+  repeated int64 iota_reshape_dims = 3;
+
+  // The dimension permutations to transposed the iota array reshaped to
+  // iota_reshape_dims. This must have the same size as iota_reshape_dims.
+  repeated int32 iota_transpose_perm = 4;
+}
+
+// Represents a series of devices participating in a collective operation (e.g.,
+// all-reduce and all-to-all). While this directly translates to a list of
+// replica groups, it may be used to represent these lists in a compact form.
+message CollectiveDeviceListProto {
+  // ReplicaGroupV1: List of replica groups. Legacy way of representing device
+  // lists.
+  repeated ReplicaGroup replica_groups = 1;
+
+  // ReplicaGroupV2: Represents a list of replica groups with reshaping and
+  // transposing an iota array.
+  IotaReplicaGroupListProto iota_replica_group_list = 2;
+}
+
+// Describes the source target pair in the collective permute op.
+message SourceTarget {
+  int64 source = 1;
+  int64 target = 2;
+}
+
+// Describes whether all data-parallelism replicas will receive the same
+// parameter data at each buffer.
+message ParameterReplication {
+  // A list of boolean values for the flattened leaf buffers. Each value
+  // indicates whether the corresponding leaf buffer is replicated.
+  //
+  // If this field is empty, it means no buffer is replicated. Otherwise, the
+  // number of elements in this field must match the number of leaf buffers in
+  // the HLO instruction's shape.
+  repeated bool replicated_at_leaf_buffers = 1;
+}
+
+// Specifies a pair of output/operand buffers that alias each other for
+// kCustomCall and kFusion
+message OutputOperandAliasing {
+  repeated int64 output_shape_index = 1;
+  int64 operand_index = 2;
+  repeated int64 operand_shape_index = 3;
 }
 
 message OriginalArrayProto {

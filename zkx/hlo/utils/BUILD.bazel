@@ -1,0 +1,16 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "hlo_live_range",
+    srcs = ["hlo_live_range.cc"],
+    hdrs = ["hlo_live_range.h"],
+    deps = [
+        "//zkx/hlo/analysis:hlo_alias_analysis",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:hlo_value",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)

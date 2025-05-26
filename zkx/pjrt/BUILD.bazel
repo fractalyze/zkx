@@ -1,6 +1,43 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "compile_options_proto",
+    srcs = ["compile_options.proto"],
+    deps = [
+        "//zkx:zkx_data_proto",
+        "//zkx:zkx_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "compile_options_cc_proto",
+    deps = [":compile_options_proto"],
+)
+
+proto_library(
+    name = "execute_options_proto",
+    srcs = ["execute_options.proto"],
+)
+
+cc_proto_library(
+    name = "execute_options_cc_proto",
+    deps = [":execute_options_proto"],
+)
+
+proto_library(
+    name = "executable_metadata_proto",
+    srcs = ["executable_metadata.proto"],
+    deps = ["//zkx/service:hlo_proto"],
+)
+
+cc_proto_library(
+    name = "executable_metadata_cc_proto",
+    deps = [":executable_metadata_proto"],
+)
 
 zkx_cc_library(
     name = "exceptions",
@@ -12,11 +49,296 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "host_callback",
+    srcs = ["host_callback.cc"],
+    hdrs = ["host_callback.h"],
+    deps = [
+        ":pjrt_client",
+        ":pjrt_executable",
+        ":pjrt_future",
+        "//xla/tsl/platform:status",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "host_memory_spaces",
+    srcs = ["host_memory_spaces.cc"],
+    hdrs = ["host_memory_spaces.h"],
+    deps = [
+        ":pjrt_client",
+        "//xla/tsl/platform:fingerprint",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "lru_cache",
+    hdrs = ["lru_cache.h"],
+    deps = [
+        "//zkx/base:logging",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "pjrt_client",
+    srcs = ["pjrt_client.cc"],
+    hdrs = ["pjrt_client.h"],
+    deps = [
+        ":pjrt_common",
+        ":pjrt_compiler",
+        ":pjrt_device_description",
+        ":pjrt_future",
+        ":pjrt_layout",
+        "//xla/tsl/framework:allocator",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:logging",
+        "//zkx/hlo/builder:zkx_computation",
+        "//zkx/pjrt/distributed:key_value_store_interface",
+        "//zkx/service:computation_placer",
+        "//zkx/service:hlo_cost_analysis",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+zkx_cc_library(
+    name = "pjrt_common",
+    hdrs = ["pjrt_common.h"],
+    deps = ["//xla/tsl/lib/gtl:int_type"],
+)
+
+zkx_cc_library(
+    name = "pjrt_compiler",
+    srcs = ["pjrt_compiler.cc"],
+    hdrs = ["pjrt_compiler.h"],
+    deps = [
+        ":pjrt_device_description",
+        ":pjrt_executable",
+        "//xla/tsl/platform:fingerprint",
+        "//zkx/hlo/builder:zkx_computation",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+zkx_cc_library(
+    name = "pjrt_device_description",
+    hdrs = ["pjrt_device_description.h"],
+    deps = [
+        ":pjrt_common",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "pjrt_executable",
+    srcs = ["pjrt_executable.cc"],
+    hdrs = ["pjrt_executable.h"],
+    deps = [
+        ":compile_options_cc_proto",
+        ":executable_metadata_cc_proto",
+        ":execute_options_cc_proto",
+        ":pjrt_common",
+        ":pjrt_layout",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/client:executable_build_options",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:hlo_cost_analysis",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "pjrt_future",
+    srcs = ["pjrt_future.cc"],
+    hdrs = ["pjrt_future.h"],
+    deps = [
+        "//xla/tsl/concurrency:async_value",
+        "//xla/tsl/concurrency:ref_count",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "pjrt_layout",
+    hdrs = ["pjrt_layout.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/hlo/parser:hlo_parser",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
+    name = "pjrt_test_client",
+    testonly = True,
+    srcs = ["pjrt_test_client.cc"],
+    hdrs = ["pjrt_test_client.h"],
+    deps = [
+        ":pjrt_client",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "semaphore",
+    srcs = ["semaphore.cc"],
+    hdrs = ["semaphore.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "status_casters",
     hdrs = ["status_casters.h"],
     deps = [
         ":exceptions",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
+    name = "transpose",
+    srcs = [
+        "transpose.cc",
+        "transpose_kernels.h",
+    ],
+    hdrs = ["transpose.h"],
+    deps = [
+        ":lru_cache",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:compiler_macros",
+        "//zkx:permutation_util",
+        "//zkx:util",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "utils",
+    srcs = ["utils.cc"],
+    hdrs = ["utils.h"],
+    deps = [
+        "//xla/tsl/platform:cpu_info",
+        "//xla/tsl/platform:statusor",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:logging",
+        "//zkx/client:executable_build_options",
+        "//zkx/hlo/builder:zkx_computation",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_opcode",
+        "//zkx/hlo/ir:hlo_sharding",
+        "//zkx/service:computation_placer",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "pjrt_unittests",
+    srcs = [
+        "host_callback_unittest.cc",
+        "lru_cache_unittest.cc",
+        "pjrt_client_unittest.cc",
+        "pjrt_executable_unittest.cc",
+        "pjrt_future_unittest.cc",
+        "semaphore_unittest.cc",
+    ],
+    deps = [
+        ":host_callback",
+        ":lru_cache",
+        ":pjrt_executable",
+        ":pjrt_future",
+        ":semaphore",
+        "//xla/tsl/platform:status_matchers",
+        "//zkx:literal_util",
+        "//zkx/pjrt/cpu:pjrt_test_client",
+        "//zkx/tests:literal_test_util",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "transpose_unittest",
+    timeout = "moderate",
+    srcs = ["transpose_unittest.cc"],
+    deps = [
+        ":transpose",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:array",
+        "//zkx:permutation_util",
+        "@eigen_archive//:eigen3",
     ],
 )

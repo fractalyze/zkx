@@ -107,6 +107,9 @@ std::string CreateURI(std::string_view scheme, std::string_view host,
 // If it's set and dir != nullptr then sets *dir to that.
 bool GetTestUndeclaredOutputsDir(std::string* dir);
 
+// Appends `.exe` if `PLATFORM_WINDOWS` is defined.
+[[maybe_unused]] std::string& AppendDotExeIfWindows(std::string& path);
+
 }  // namespace tsl::io
 
 #endif  // XLA_TSL_PLATFORM_PATH_H_

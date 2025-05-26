@@ -28,7 +28,6 @@ limitations under the License.
 #include "zkx/service/buffer_assignment.h"
 #include "zkx/service/maybe_owning_device_memory.h"
 #include "zkx/stream_executor/device_memory.h"
-#include "zkx/stream_executor/namespace_alias.h"
 
 namespace zkx::cpu {
 

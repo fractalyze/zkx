@@ -1,0 +1,119 @@
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "test_request_proto",
+    testonly = True,
+    srcs = ["test_request.proto"],
+)
+
+cc_proto_library(
+    name = "test_request_cc_proto",
+    testonly = True,
+    deps = [":test_request_proto"],
+)
+
+zkx_cc_library(
+    name = "async_service_interface",
+    hdrs = ["async_service_interface.h"],
+)
+
+zkx_cc_library(
+    name = "grpc_call",
+    hdrs = ["grpc_call.h"],
+    deps = [
+        "//xla/tsl/platform:refcount",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "grpc_channel",
+    srcs = ["grpc_channel.cc"],
+    hdrs = ["grpc_channel.h"],
+    deps = [
+        ":grpc_channel_common",
+        ":grpc_util",
+        "//xla/tsl/lib/gtl:map_util",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/protobuf:rpc_options_cc_proto",
+        "//xla/tsl/util:device_name_utils",
+        "//zkx/base:logging",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "grpc_channel_common",
+    hdrs = ["grpc_channel_common.h"],
+    deps = [
+        ":grpc_util",
+        "//zkx/base:logging",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "grpc_client_cq_tag",
+    hdrs = ["grpc_client_cq_tag.h"],
+)
+
+zkx_cc_library(
+    name = "grpc_state",
+    hdrs = ["grpc_state.h"],
+    deps = [
+        ":grpc_client_cq_tag",
+        ":grpc_util",
+        "//xla/tsl/distributed_runtime:call_options",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/util:env_var",
+        "//zkx/base:logging",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "grpc_util",
+    srcs = ["grpc_util.cc"],
+    hdrs = ["grpc_util.h"],
+    deps = [
+        "//xla/tsl/protobuf:distributed_runtime_payloads_cc_proto",
+        "//zkx/base:logging",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "rpc_unittests",
+    srcs = [
+        "grpc_channel_unittest.cc",
+        "grpc_util_unittest.cc",
+    ],
+    deps = [
+        ":grpc_channel",
+        ":grpc_util",
+        ":test_request_cc_proto",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/util:device_name_utils",
+        "@com_google_absl//absl/log:check",
+    ],
+)

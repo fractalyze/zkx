@@ -90,59 +90,56 @@ TEST_F(LayoutUtilTest, CopyLayoutDenseArray) {
   EXPECT_FALSE(dst.has_layout());
 }
 
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeTupleShape,
-// MakeShapeWithDenseLayout
-// TEST_F(LayoutUtilTest, CopyLayoutCSRArray) {
-//   Shape src =
-//       MakeShapeWithLayout(U32, {2, 3}, {1, 0}, {DIM_DENSE, DIM_COMPRESSED});
-//   Shape dst = MakeShapeWithLayout(U32, {2, 3}, {0, 1});
+TEST_F(LayoutUtilTest, CopyLayoutCSRArray) {
+  Shape src =
+      MakeShapeWithLayout(U32, {2, 3}, {1, 0}, {DIM_DENSE, DIM_COMPRESSED});
+  Shape dst = MakeShapeWithLayout(U32, {2, 3}, {0, 1});
 
-//   EXPECT_TRUE(LayoutUtil::IsSparseArray(src));
-//   EXPECT_FALSE(LayoutUtil::IsSparseArray(dst));
+  EXPECT_TRUE(LayoutUtil::IsSparseArray(src));
+  EXPECT_FALSE(LayoutUtil::IsSparseArray(dst));
 
-//   EXPECT_TRUE(LayoutUtil::IsCSRArray(src));
-//   EXPECT_FALSE(LayoutUtil::IsCSRArray(dst));
+  EXPECT_TRUE(LayoutUtil::IsCSRArray(src));
+  EXPECT_FALSE(LayoutUtil::IsCSRArray(dst));
 
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_TRUE(LayoutUtil::IsCSRArray(dst));
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(LayoutUtil::IsCSRArray(dst));
 
-//   // Should work if destination has no layout.
-//   dst.clear_layout();
-//   EXPECT_FALSE(LayoutUtil::IsCSRArray(dst));
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_TRUE(LayoutUtil::IsCSRArray(dst));
+  // Should work if destination has no layout.
+  dst.clear_layout();
+  EXPECT_FALSE(LayoutUtil::IsCSRArray(dst));
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(LayoutUtil::IsCSRArray(dst));
 
-//   // Convert dst to a CSC array with dim 0 minor layout.
-//   *dst.mutable_layout()->mutable_minor_to_major() = {0, 1};
-//   EXPECT_TRUE(LayoutUtil::IsCSCArray(dst));
-//   EXPECT_FALSE(LayoutUtil::IsCSRArray(dst));
+  // Convert dst to a CSC array with dim 0 minor layout.
+  *dst.mutable_layout()->mutable_minor_to_major() = {0, 1};
+  EXPECT_TRUE(LayoutUtil::IsCSCArray(dst));
+  EXPECT_FALSE(LayoutUtil::IsCSRArray(dst));
 
-//   EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
-//   *src.mutable_layout()->mutable_physical_shape() =
-//   ShapeUtil::MakeTupleShape({
-//       ShapeUtil::MakeShapeWithDenseLayout(U32, {2}, {0}, {Tile({100})}),
-//       ShapeUtil::MakeShapeWithDenseLayout(U32, {4}, {0}, {Tile({100})}),
-//       ShapeUtil::MakeShapeWithDenseLayout(U32, {4}, {0}, {Tile({100})}),
-//   });
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   dst.clear_layout();
-//   EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
+  *src.mutable_layout()->mutable_physical_shape() = ShapeUtil::MakeTupleShape({
+      ShapeUtil::MakeShapeWithDenseLayout(U32, {2}, {0}, {Tile({100})}),
+      ShapeUtil::MakeShapeWithDenseLayout(U32, {4}, {0}, {Tile({100})}),
+      ShapeUtil::MakeShapeWithDenseLayout(U32, {4}, {0}, {Tile({100})}),
+  });
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  dst.clear_layout();
+  EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
 
-//   // If source is cleared, then destination should be cleared.
-//   src.clear_layout();
-//   EXPECT_FALSE(LayoutUtil::IsCSRArray(src));
-//   EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_TRUE(dst.has_layout());
-//   EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
-//   EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
-//   EXPECT_FALSE(dst.has_layout());
-//   EXPECT_FALSE(LayoutUtil::IsCSRArray(dst));
-// }
+  // If source is cleared, then destination should be cleared.
+  src.clear_layout();
+  EXPECT_FALSE(LayoutUtil::IsCSRArray(src));
+  EXPECT_FALSE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_TRUE(dst.has_layout());
+  EXPECT_TRUE(LayoutUtil::CopyLayoutBetweenShapes(src, &dst).ok());
+  EXPECT_TRUE(LayoutUtil::LayoutsInShapesEqual(src, dst));
+  EXPECT_FALSE(dst.has_layout());
+  EXPECT_FALSE(LayoutUtil::IsCSRArray(dst));
+}
 
 TEST_F(LayoutUtilTest, CopyLayoutTuple) {
   Shape src = ShapeUtil::MakeTupleShape(
@@ -328,100 +325,92 @@ TEST_F(LayoutUtilTest, MakeAscending) {
                                 LayoutUtil::MakeLayout({})));
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeShapeWithDenseLayout
-// clang-format on
-// TEST_F(LayoutUtilTest, HumanStringWithTiling) {
-//   Shape shape = ShapeUtil::MakeShapeWithDenseLayout(U32, {2, 3, 4}, {0, 1,
-//   2});
-//   Tile* tile;
+TEST_F(LayoutUtilTest, HumanStringWithTiling) {
+  Shape shape = ShapeUtil::MakeShapeWithDenseLayout(U32, {2, 3, 4}, {0, 1, 2});
+  Tile* tile;
 
-//   // No tiling.
-//   EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape), "f32[2,3,4]{0,1,2}");
+  // No tiling.
+  EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape), "u32[2,3,4]{0,1,2}");
 
-//   // 2D tile.
-//   tile = shape.mutable_layout()->add_tiles();
-//   tile->add_dimensions(512);
-//   tile->add_dimensions(1024);
-//   EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
-//             "f32[2,3,4]{0,1,2:T(512,1024)}");
+  // 2D tile.
+  tile = shape.mutable_layout()->add_tiles();
+  tile->add_dimensions(512);
+  tile->add_dimensions(1024);
+  EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
+            "u32[2,3,4]{0,1,2:T(512,1024)}");
 
-//   // 1D tile.
-//   shape.mutable_layout()->clear_tiles();
-//   tile = shape.mutable_layout()->add_tiles();
-//   tile->add_dimensions(512);
-//   EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
-//             "f32[2,3,4]{0,1,2:T(512)}");
+  // 1D tile.
+  shape.mutable_layout()->clear_tiles();
+  tile = shape.mutable_layout()->add_tiles();
+  tile->add_dimensions(512);
+  EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
+            "u32[2,3,4]{0,1,2:T(512)}");
 
-//   // 2 tiles.
-//   shape = ShapeUtil::MakeShapeWithDenseLayout(BF16, {2, 3, 4}, {1, 2, 0});
-//   tile = shape.mutable_layout()->add_tiles();
-//   tile->add_dimensions(16);
-//   tile->add_dimensions(256);
-//   tile = shape.mutable_layout()->add_tiles();
-//   tile->add_dimensions(2);
-//   tile->add_dimensions(1);
-//   EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
-//             "bf16[2,3,4]{1,2,0:T(16,256)(2,1)}");
+  // 2 tiles.
+  shape = ShapeUtil::MakeShapeWithDenseLayout(U16, {2, 3, 4}, {1, 2, 0});
+  tile = shape.mutable_layout()->add_tiles();
+  tile->add_dimensions(16);
+  tile->add_dimensions(256);
+  tile = shape.mutable_layout()->add_tiles();
+  tile->add_dimensions(2);
+  tile->add_dimensions(1);
+  EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
+            "u16[2,3,4]{1,2,0:T(16,256)(2,1)}");
 
-//   // PRED with element size of 8 bits.
-//   shape = ShapeUtil::MakeShapeWithDenseLayout(PRED, {8, 8, 8}, {0, 2, 1});
-//   tile = shape.mutable_layout()->add_tiles();
-//   tile->add_dimensions(8);
-//   tile->add_dimensions(128);
-//   EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
-//             "pred[8,8,8]{0,2,1:T(8,128)}");
+  // PRED with element size of 8 bits.
+  shape = ShapeUtil::MakeShapeWithDenseLayout(PRED, {8, 8, 8}, {0, 2, 1});
+  tile = shape.mutable_layout()->add_tiles();
+  tile->add_dimensions(8);
+  tile->add_dimensions(128);
+  EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
+            "pred[8,8,8]{0,2,1:T(8,128)}");
 
-//   // PRED with element size of 32 bits.
-//   shape.mutable_layout()->clear_tiles();
-//   tile = shape.mutable_layout()->add_tiles();
-//   tile->add_dimensions(8);
-//   tile->add_dimensions(128);
-//   shape.mutable_layout()->set_element_size_in_bits(32);
-//   EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
-//             "pred[8,8,8]{0,2,1:T(8,128)E(32)}");
+  // PRED with element size of 32 bits.
+  shape.mutable_layout()->clear_tiles();
+  tile = shape.mutable_layout()->add_tiles();
+  tile->add_dimensions(8);
+  tile->add_dimensions(128);
+  shape.mutable_layout()->set_element_size_in_bits(32);
+  EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
+            "pred[8,8,8]{0,2,1:T(8,128)E(32)}");
 
-//   // No tile. PRED with element size of 32 bits.
-//   shape.mutable_layout()->clear_tiles();
-//   shape.mutable_layout()->set_element_size_in_bits(32);
-//   EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
-//             "pred[8,8,8]{0,2,1:E(32)}");
+  // No tile. PRED with element size of 32 bits.
+  shape.mutable_layout()->clear_tiles();
+  shape.mutable_layout()->set_element_size_in_bits(32);
+  EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
+            "pred[8,8,8]{0,2,1:E(32)}");
 
-//   // Tile with negative dimension size for combining dimensions.
-//   shape = ShapeUtil::MakeShapeWithDenseLayout(BF16, {2, 3, 1004}, {2, 1, 0});
-//   tile = shape.mutable_layout()->add_tiles();
-//   tile->add_dimensions(2);
-//   tile->add_dimensions(Tile::kCombineDimension);
-//   tile->add_dimensions(128);
-//   EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
-//             "bf16[2,3,1004]{2,1,0:T(2,*,128)}");
+  // Tile with negative dimension size for combining dimensions.
+  shape = ShapeUtil::MakeShapeWithDenseLayout(U16, {2, 3, 1004}, {2, 1, 0});
+  tile = shape.mutable_layout()->add_tiles();
+  tile->add_dimensions(2);
+  tile->add_dimensions(Tile::kCombineDimension);
+  tile->add_dimensions(128);
+  EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
+            "u16[2,3,1004]{2,1,0:T(2,*,128)}");
 
-//   Tile with two negative dimensions.
-//   shape =
-//       ShapeUtil::MakeShapeWithDenseLayout(BF16, {8, 2, 3, 1004}, {3, 2, 1,
-//       0});
-//   tile = shape.mutable_layout()->add_tiles();
-//   tile->add_dimensions(2);
-//   tile->add_dimensions(Tile::kCombineDimension);
-//   tile->add_dimensions(Tile::kCombineDimension);
-//   tile->add_dimensions(128);
-//   EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
-//             "bf16[8,2,3,1004]{3,2,1,0:T(2,*,*,128)}");
-// }
+  // Tile with two negative dimensions.
+  shape =
+      ShapeUtil::MakeShapeWithDenseLayout(U16, {8, 2, 3, 1004}, {3, 2, 1, 0});
+  tile = shape.mutable_layout()->add_tiles();
+  tile->add_dimensions(2);
+  tile->add_dimensions(Tile::kCombineDimension);
+  tile->add_dimensions(Tile::kCombineDimension);
+  tile->add_dimensions(128);
+  EXPECT_EQ(ShapeUtil::HumanStringWithLayout(shape),
+            "u16[8,2,3,1004]{3,2,1,0:T(2,*,*,128)}");
+}
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeUtil::MakeShapeWithDenseLayout
-// clang-format on
-// TEST_F(LayoutUtilTest, ValidateLayout_ValidArrayLayout) {
-//   Shape shape = ShapeUtil::MakeShapeWithDenseLayout(U32, {2, 3}, {0, 1});
-//   auto status =
-//       LayoutUtil::ValidateLayoutInShape(shape,
-//                                         /*allow_missing_layouts=*/false);
-//   EXPECT_TRUE(status.ok());
-//   status = LayoutUtil::ValidateLayoutInShape(shape,
-//                                              /*allow_missing_layouts=*/true);
-//   EXPECT_TRUE(status.ok());
-// }
+TEST_F(LayoutUtilTest, ValidateLayout_ValidArrayLayout) {
+  Shape shape = ShapeUtil::MakeShapeWithDenseLayout(U32, {2, 3}, {0, 1});
+  auto status =
+      LayoutUtil::ValidateLayoutInShape(shape,
+                                        /*allow_missing_layouts=*/false);
+  EXPECT_TRUE(status.ok());
+  status = LayoutUtil::ValidateLayoutInShape(shape,
+                                             /*allow_missing_layouts=*/true);
+  EXPECT_TRUE(status.ok());
+}
 
 TEST_F(LayoutUtilTest, ValidateLayout_InvalidArrayLayout) {
   Shape shape = ShapeUtil::MakeShape(U32, {2, 3});

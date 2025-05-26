@@ -54,6 +54,22 @@ absl::Status CheckBufferAlignment(
   return absl::OkStatus();
 }
 
+// VLOGs kernel arguments resolved from the buffer allocations.
+void VlogKernelArgs(absl::Span<const BufferAllocation::Slice> arguments_buffers,
+                    absl::Span<const BufferAllocation::Slice> results_buffers,
+                    absl::Span<const ZKX_CPU_KernelArg> kernel_args) {
+  for (int64_t i = 0; i < arguments_buffers.size(); ++i) {
+    VLOG(3) << absl::StreamFormat("  arg #%d: %s (%p)", i,
+                                  arguments_buffers[i].ToString(),
+                                  kernel_args[i].data);
+  }
+  for (int64_t i = 0; i < results_buffers.size(); ++i) {
+    VLOG(3) << absl::StreamFormat(
+        "  res #%d: %s (%p)", i, results_buffers[i].ToString(),
+        kernel_args[arguments_buffers.size() + i].data);
+  }
+}
+
 // Returns kernel buffer uses for a given arguments and results buffers.
 Thunk::BufferUses KernelBufferUses(
     absl::Span<const BufferAllocation::Slice> arguments_buffers,
@@ -155,10 +171,9 @@ KernelThunk<num_arguments, num_results>::ExecuteInternal(
     }
   }
 
-  // TODO(chokobole): Uncomment this. Dependency: VLOG_IS_ON
-  // if (ABSL_PREDICT_FALSE(VLOG_IS_ON(3))) {
-  //   VlogKernelArgs(arguments_buffers_, results_buffers_, kernel_args);
-  // }
+  if (ABSL_PREDICT_FALSE(VLOG_IS_ON(3))) {
+    VlogKernelArgs(arguments_buffers_, results_buffers_, kernel_args);
+  }
 
   // Сheck that all resolved buffers are properly aligned, and that invariant
   // property holds.
@@ -176,16 +191,15 @@ KernelThunk<num_arguments, num_results>::ExecuteInternal(
   absl::call_once(kernel_init_flag_, [&]() {
     // Because thunks are owned by a parent CpuExecutable, we can safely assume
     // that kernel pointer will not change after we find it the first time.
-    // TODO(chokobole): Uncomment this. Dependency: FunctionLibrary
-    // absl::StatusOr<FunctionLibrary::Kernel*> kernel_fn =
-    //     params.function_library->ResolveFunction<FunctionLibrary::Kernel>(
-    //         kernel_name_);
+    absl::StatusOr<FunctionLibrary::Kernel*> kernel_fn =
+        params.function_library->ResolveFunction<FunctionLibrary::Kernel>(
+            kernel_name_);
 
-    // if (ABSL_PREDICT_TRUE(kernel_fn.ok())) {
-    //   kernel_.emplace(num_kernel_args_, *kernel_fn);
-    // } else {
-    //   kernel_ = std::move(kernel_fn.status());
-    // }
+    if (ABSL_PREDICT_TRUE(kernel_fn.ok())) {
+      kernel_.emplace(num_kernel_args_, *kernel_fn);
+    } else {
+      kernel_ = std::move(kernel_fn.status());
+    }
   });
   TF_RETURN_IF_ERROR(kernel_.status());
   Kernel* kernel = &kernel_.value();
@@ -219,13 +233,12 @@ absl::Status
 KernelThunk<num_arguments, num_results>::CheckInvariantBuffersMemory(
     const KernelArgs& kernel_args) const {
   CHECK(invariant_arguments_.has_value());  // Crash OK
-  // TODO(chokobole): Uncomment this. Dependency: VLOG_IS_ON
-  // if (ABSL_PREDICT_FALSE(VLOG_IS_ON(10))) {
-  //   VLOG(10) << "Verify invariant buffers: ";
-  //   for (auto index : *invariant_arguments_) {
-  //     VLOG(10) << absl::StreamFormat("  invariant arg id: %d", index);
-  //   }
-  // }
+  if (ABSL_PREDICT_FALSE(VLOG_IS_ON(10))) {
+    VLOG(10) << "Verify invariant buffers: ";
+    for (auto index : *invariant_arguments_) {
+      VLOG(10) << absl::StreamFormat("  invariant arg id: %d", index);
+    }
+  }
 
   auto arguments = absl::Span<const ZKX_CPU_KernelArg>(
       kernel_args.data(), arguments_buffers_.size());

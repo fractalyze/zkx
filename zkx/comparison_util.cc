@@ -129,6 +129,21 @@ absl::StatusOr<Comparison::Direction> StringToComparisonDirection(
   return it->second;
 }
 
+absl::StatusOr<Comparison::Order> StringToComparisonOrder(
+    std::string_view order) {
+  static auto* map =
+      new absl::flat_hash_map<std::string, Comparison::Order>({
+        {"PARTIALORDER", Comparison::Order::kPartial},
+          {"TOTALORDER", Comparison::Order::kTotal},
+      });
+  auto it = map->find(order);
+  if (it == map->end()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Unknown comparison order: %s", order));
+  }
+  return it->second;
+}
+
 Comparison::Comparison(Direction dir, PrimitiveType type, Order order)
     : dir_(dir), primitive_type_(type), order_(order) {
   CHECK(IsValidComparison(primitive_type_, order_));

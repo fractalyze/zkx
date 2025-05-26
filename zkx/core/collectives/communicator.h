@@ -27,7 +27,6 @@ limitations under the License.
 #include "zkx/core/collectives/rank_id.h"
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/stream_executor/device_memory.h"
-#include "zkx/stream_executor/namespace_alias.h"
 #include "zkx/zkx_data.pb.h"
 
 namespace zkx {

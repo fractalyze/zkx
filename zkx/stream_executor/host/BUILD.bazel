@@ -1,10 +1,90 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "host_event",
+    hdrs = ["host_event.h"],
+    deps = [
+        "//zkx/stream_executor:event",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "host_executor",
+    srcs = ["host_executor.cc"],
+    hdrs = ["host_executor.h"],
+    deps = [
+        ":host_event",
+        ":host_stream_factory",
+        "//xla/tsl/platform:cpu_info",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:mem",
+        "//xla/tsl/platform/profile_utils:cpu_utils",
+        "//zkx/stream_executor:executor_cache",
+        "//zkx/stream_executor:generic_memory_allocation",
+        "//zkx/stream_executor:generic_memory_allocator",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:stream_executor_common",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "host_platform",
+    srcs = ["host_platform.cc"],
+    hdrs = ["host_platform.h"],
+    deps = [
+        ":host_executor",
+        ":host_platform_id",
+        "//zkx/stream_executor:executor_cache",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor/platform:initialize",
+    ],
+)
 
 zkx_cc_library(
     name = "host_platform_id",
     srcs = ["host_platform_id.cc"],
     hdrs = ["host_platform_id.h"],
     deps = ["//zkx/stream_executor:platform"],
+)
+
+zkx_cc_library(
+    name = "host_stream",
+    srcs = ["host_stream.cc"],
+    hdrs = ["host_stream.h"],
+    deps = [
+        ":host_event",
+        "//xla/tsl/platform:env",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:stream_common",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "host_stream_factory",
+    srcs = ["host_stream_factory.cc"],
+    hdrs = ["host_stream_factory.h"],
+    deps = [
+        ":host_stream",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "host_unittests",
+    srcs = ["host_stream_unittest.cc"],
+    deps = [
+        ":host_platform",
+        ":host_stream",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor:platform_manager",
+    ],
 )

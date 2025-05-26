@@ -1,5 +1,4 @@
 load("@zkx//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
-load("@zkx//third_party/absl:workspace.bzl", absl = "repo")
 load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
 load("@zkx//third_party/farmhash:workspace.bzl", farmhash = "repo")
 load("@zkx//third_party/gloo:workspace.bzl", gloo = "repo")
@@ -7,7 +6,6 @@ load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 
 def zkx_deps():
-    absl()
     eigen3()
     farmhash()
     gloo()
@@ -16,6 +14,16 @@ def zkx_deps():
     # Load the raw llvm-project.  llvm does not have build rules set up by default,
     # but provides a script for setting up build rules via overlays.
     llvm("llvm-raw")
+
+    # TODO(chokobole): Delete after removing `build --noenable_bzlmod` from .bazelrc
+    tf_http_archive(
+        name = "bazel_skylib",
+        sha256 = "bc283cdfcd526a52c3201279cda4bc298652efa898b10b4db0837dc51652756f",
+        urls = [
+            "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.7.1/bazel-skylib-1.7.1.tar.gz",
+            "https://github.com/bazelbuild/bazel-skylib/releases/download/1.7.1/bazel-skylib-1.7.1.tar.gz",
+        ],
+    )
 
     # Needed by com_google_googletest
     tf_http_archive(
@@ -27,33 +35,18 @@ def zkx_deps():
     )
 
     tf_http_archive(
-        name = "com_google_protobuf",
-        patch_file = ["@zkx//third_party/protobuf:protobuf.patch"],
-        sha256 = "f66073dee0bc159157b0bd7f502d7d1ee0bc76b3c1eac9836927511bdc4b3fc1",
-        strip_prefix = "protobuf-3.21.9",
-        system_build_file = "@zkx//third_party/systemlibs:protobuf.BUILD",
-        system_link_files = {
-            "@zkx//third_party/systemlibs:protobuf.bzl": "protobuf.bzl",
-            "@zkx//third_party/systemlibs:protobuf_deps.bzl": "protobuf_deps.bzl",
-        },
-        urls = tf_mirror_urls("https://github.com/protocolbuffers/protobuf/archive/v3.21.9.zip"),
-    )
-
-    tf_http_archive(
         name = "com_google_googletest",
         sha256 = "81964fe578e9bd7c94dfdb09c8e4d6e6759e19967e397dbea48d1c10e45d0df2",
         strip_prefix = "googletest-release-1.12.1",
         urls = tf_mirror_urls("https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz"),
     )
 
-    # Needed by com_google_protobuf
     tf_http_archive(
-        name = "rules_pkg",
-        urls = [
-            "https://mirror.bazel.build/github.com/bazelbuild/rules_pkg/releases/download/0.7.1/rules_pkg-0.7.1.tar.gz",
-            "https://github.com/bazelbuild/rules_pkg/releases/download/0.7.1/rules_pkg-0.7.1.tar.gz",
-        ],
-        sha256 = "451e08a4d78988c06fa3f9306ec813b836b1d076d0f055595444ba4ff22b867f",
+        name = "com_github_grpc_grpc",
+        sha256 = "493d9905aa09124c2f44268b66205dd013f3925a7e82995f36745974e97af609",
+        strip_prefix = "grpc-1.63.0",
+        patch_file = ["@zkx//third_party/grpc:grpc.patch"],
+        urls = tf_mirror_urls("https://github.com/grpc/grpc/archive/v1.63.0.tar.gz"),
     )
 
     # Needed by com_google_protobuf

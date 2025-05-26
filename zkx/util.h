@@ -19,19 +19,26 @@ limitations under the License.
 #ifndef ZKX_UTIL_H_
 #define ZKX_UTIL_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <limits>
+#include <type_traits>
 #include <vector>
 
+#include "Eigen/Core"
 #include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/log/check.h"
+#include "absl/numeric/bits.h"
 #include "absl/status/status.h"
 #include "absl/types/span.h"
 
 #include "xla/tsl/lib/math/math_util.h"
+#include "zkx/base/logging.h"
 #include "zkx/status_macros.h"
+#include "zkx/zkx_data.pb.h"
 
 namespace zkx {
 
@@ -41,6 +48,13 @@ namespace zkx {
 // memory to store its values.
 inline constexpr int InlineRank() { return 6; }
 using DimensionVector = absl::InlinedVector<int64_t, InlineRank()>;
+using DimLevelTypeVector = absl::InlinedVector<DimLevelType, InlineRank()>;
+
+// Adds some context information to the error message in a
+// absl::Status. This is useful as absl::Statuses are
+// propagated upwards.
+absl::Status AddStatus(absl::Status prior, std::string_view context);
+absl::Status AppendStatus(absl::Status prior, std::string_view context);
 
 // Imports the templated FloorOfRatio math function from the TensorFlow
 // namespace, as it is very commonly used.
@@ -83,12 +97,110 @@ constexpr inline T LsbMask(int width) {
              : static_cast<T>(-1) >> (std::numeric_limits<T>::digits - width);
 }
 
+// UnsignedIntegerTypeForSize<N> gets an unsigned integer with the given size in
+// bytes.
+template <size_t>
+struct UnsignedIntegerTypeForSize;
+
+template <>
+struct UnsignedIntegerTypeForSize<1> {
+  using type = uint8_t;
+};
+
+template <>
+struct UnsignedIntegerTypeForSize<2> {
+  using type = uint16_t;
+};
+
+template <>
+struct UnsignedIntegerTypeForSize<4> {
+  using type = uint32_t;
+};
+
+template <>
+struct UnsignedIntegerTypeForSize<8> {
+  using type = uint64_t;
+};
+
+template <size_t kBytes>
+using UnsignedIntegerTypeForSizeType =
+    typename UnsignedIntegerTypeForSize<kBytes>::type;
+
+template <size_t kBytes>
+using SignedIntegerTypeForSizeType =
+    std::make_signed_t<UnsignedIntegerTypeForSizeType<kBytes>>;
+
+template <typename T>
+constexpr int NanPayloadBits() {
+  // Floating point types with signaling NaNs have payloads.
+  if constexpr (!std::numeric_limits<T>::has_signaling_NaN) {
+    return 0;
+  }
+  return std::numeric_limits<T>::digits - 1;
+}
+
+template <typename T>
+constexpr uint64_t QuietNanWithoutPayload() {
+  constexpr int bits = NanPayloadBits<T>();
+  if constexpr (bits > 0) {
+    return uint64_t{1} << (bits - 1);
+  }
+  return 0;
+}
+
+template <typename T>
+constexpr uint64_t NanPayloadBitMask() {
+  constexpr int bits = NanPayloadBits<T>();
+  if constexpr (bits > 0) {
+    return LsbMask<uint64_t>(bits);
+  }
+  return 0;
+}
+
+template <typename T>
+T NanWithSignAndPayload(bool sign, uint64_t nan_payload) {
+  static_assert(NanPayloadBits<T>() > 0);
+  using RepT = UnsignedIntegerTypeForSizeType<sizeof(T)>;
+  // Clear the sign bit.
+  T val = Eigen::numext::abs(std::numeric_limits<T>::quiet_NaN());
+  // Conditionally set the sign bit.
+  if (sign) {
+    val = -val;
+  }
+  auto rep = absl::bit_cast<RepT>(val);
+  rep |= uint64_t{sign} << (std::numeric_limits<RepT>::digits - 1);
+  constexpr int kPayloadBits = NanPayloadBits<T>();
+  if (kPayloadBits > 0) {
+    // Clear rep's NaN payload.
+    rep &= ~NanPayloadBitMask<T>();
+    CHECK_NE(nan_payload, 0);
+    rep |= nan_payload;
+  }
+  return absl::bit_cast<T>(rep);
+}
+
 template <typename Container>
 int64_t PositionInContainer(const Container& container, int64_t value) {
   return std::distance(container.begin(), absl::c_find(container, value));
 }
 
 int64_t Product(absl::Span<const int64_t> xs);
+
+// Returns the start indices of consecutive non-overlapping subsequences of `a`
+// and `b` with the same product, i.e. `(i, j)` so
+// • a = {a[0 = i_0], ..., a[i_1 - 1], a[i_1], ... , a[i_2 - 1], ...}
+// • b = {b[0 = j_0], ..., b[j_1 - 1], b[j_1], ... , b[j_2 - 1], ...}
+// • ∀ k . 0 <= k < CommonFactors(a, b).size - 1 =>
+//         a[i_k] × a[i_k + 1] × ... × a[i_(k+1) - 1] =
+//         b[j_k] × b[j_k + 1] × ... × b[j_(k+1) - 1]
+// where `CommonFactors(a, b)[CommonFactors(a, b).size - 1] = (a.size, b.size)`
+//
+// If input and output are the same, return {(0, 0), {1, 1}, ... {a.size,
+// b.size}}, otherwise if the given shapes have non-zero size, returns the
+// bounds of the shortest possible such subsequences; else, returns `{(0, 0),
+// (a.size, b.size)}`.
+absl::InlinedVector<std::pair<int64_t, int64_t>, 8> CommonFactors(
+    absl::Span<const int64_t> a, absl::Span<const int64_t> b);
 
 // Removes illegal characters from filenames.
 std::string SanitizeFileName(std::string file_name);
@@ -108,6 +220,83 @@ absl::Status EraseElementFromVector(std::vector<T>* container, const T& value) {
   return absl::OkStatus();
 }
 
+// Takes a sequence of unpacked n-bit values, such that every byte stores one
+// value in the low-order bits, and packs them so every byte stores as many
+// which will fit. `output` should have ceil((input.size()*kBitsPerElement)/8)
+// bytes. The high-order bits of each byte in `input` are ignored.
+template <size_t kBitsPerElement>
+void PackIntN(absl::Span<const char> input, absl::Span<char> output) {
+  constexpr auto kElementsPerByte = 8 / kBitsPerElement;
+  const size_t aligned_inputs = input.size() / kElementsPerByte;
+  for (size_t i = 0; i < aligned_inputs; ++i) {
+    char byte = 0;
+    for (size_t j = 0; j < kElementsPerByte; ++j) {
+      byte |=
+          (input[i * kElementsPerByte + j] & LsbMask<uint8_t>(kBitsPerElement))
+          << (kBitsPerElement * (kElementsPerByte - j - 1));
+    }
+    output[i] = byte;
+  }
+  if (size_t remainder = input.size() % kElementsPerByte; remainder != 0) {
+    char byte = 0;
+    for (size_t j = 0; j < remainder; ++j) {
+      byte |= (input[aligned_inputs * kElementsPerByte + j] &
+               LsbMask<uint8_t>(kBitsPerElement))
+              << (kBitsPerElement * (kElementsPerByte - j - 1));
+    }
+    output[aligned_inputs] = byte;
+  }
+}
+
+inline void PackIntN(int bits_per_element, absl::Span<const char> input,
+                     absl::Span<char> output) {
+  if (bits_per_element == 2) {
+    PackIntN<2>(input, output);
+  } else if (bits_per_element == 4) {
+    PackIntN<4>(input, output);
+  } else {
+    LOG(FATAL) << "Invalid bits_per_element: " << bits_per_element;
+  }
+}
+
+// Takes a sequence of packed values, such that every byte stores multiple
+// values, and unpacks them so every byte stores one value in the low-order
+// bits. `input` should have
+// ceil(output.size()*8/kBitsPerElement) bytes. The high-order bits in each
+// output are zero.
+template <size_t kBitsPerElement>
+void UnpackIntN(absl::Span<const char> input, absl::Span<char> output) {
+  constexpr auto kElementsPerByte = 8 / kBitsPerElement;
+  const size_t aligned_outputs = output.size() / kElementsPerByte;
+  for (size_t i = 0; i < aligned_outputs; ++i) {
+    const char byte = input[i];
+    for (int j = 0; j < kElementsPerByte; ++j) {
+      output[i * kElementsPerByte + j] =
+          (byte >> (kBitsPerElement * (kElementsPerByte - j - 1))) &
+          LsbMask<uint8_t>(kBitsPerElement);
+    }
+  }
+  if (size_t remainder = output.size() % kElementsPerByte; remainder != 0) {
+    const char byte = input[aligned_outputs];
+    for (size_t j = 0; j < remainder; ++j) {
+      output[aligned_outputs * kElementsPerByte + j] =
+          (byte >> (kBitsPerElement * (kElementsPerByte - j - 1))) &
+          LsbMask<uint8_t>(kBitsPerElement);
+    }
+  }
+}
+
+inline void UnpackIntN(int bits_per_element, absl::Span<const char> input,
+                       absl::Span<char> output) {
+  if (bits_per_element == 2) {
+    UnpackIntN<2>(input, output);
+  } else if (bits_per_element == 4) {
+    UnpackIntN<4>(input, output);
+  } else {
+    LOG(FATAL) << "Invalid bits_per_element: " << bits_per_element;
+  }
+}
+
 // Returns a container with `sorted_ids_to_remove` elements removed.
 template <typename T>
 static T RemoveElements(absl::Span<const int64_t> sorted_ids_to_remove,
@@ -123,6 +312,16 @@ static T RemoveElements(absl::Span<const int64_t> sorted_ids_to_remove,
   }
   return result;
 }
+
+class HloInstruction;
+class HloModule;
+
+// A predicate over HLO instruction.
+using HloPredicate = std::function<bool(const HloInstruction*)>;
+using HloModulePredicate = std::function<bool(const HloModule*)>;
+
+inline bool HloPredicateTrue(const HloInstruction*) { return true; }
+inline bool HloPredicateFalse(const HloInstruction*) { return false; }
 
 }  // namespace zkx
 

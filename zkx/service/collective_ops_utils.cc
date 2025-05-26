@@ -18,6 +18,7 @@ limitations under the License.
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/service/pattern_matcher.h"
 #include "zkx/status_macros.h"
 
 namespace zkx {
@@ -33,6 +34,46 @@ std::string_view ReductionKindToString(ReductionKind reduction_kind) {
     case ReductionKind::kMax:
       return "max";
   }
+}
+
+// Match the instruction to a reduction kind. We can represent and/or of pred as
+// min/max. This works because pred is stored as an 8-bit int of value 0 or 1.
+std::optional<ReductionKind> MatchReductionInstruction(
+    const HloInstruction* hlo) {
+  switch (hlo->opcode()) {
+    case HloOpcode::kAdd:
+      return ReductionKind::kSum;
+    case HloOpcode::kMultiply:
+      return ReductionKind::kProduct;
+    case HloOpcode::kMinimum:
+      return ReductionKind::kMin;
+    case HloOpcode::kMaximum:
+      return ReductionKind::kMax;
+      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAnd
+    // case HloOpcode::kAnd:
+    //   return type == PRED ? std::optional<ReductionKind>(ReductionKind::MIN)
+    //                       : std::nullopt;
+    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kOr
+    // case HloOpcode::kOr:
+    //   return type == PRED ? std::optional<ReductionKind>(ReductionKind::MAX)
+    //                       : std::nullopt;
+    default:
+      return std::nullopt;
+  }
+}
+
+std::optional<ReductionKind> MatchReductionComputation(
+    const HloComputation* computation) {
+  namespace m = match;
+  const HloInstruction* root = computation->root_instruction();
+  std::optional<ReductionKind> kind = MatchReductionInstruction(root);
+  if (kind && !Match(root, m::Op()
+                               .WithBinaryOperandsAnyOrder(m::Parameter(0),
+                                                           m::Parameter(1))
+                               .WithShape(m::Shape().IsEffectiveScalar()))) {
+    kind = std::nullopt;
+  }
+  return kind;
 }
 
 std::string_view CollectiveOpGroupModeToString(

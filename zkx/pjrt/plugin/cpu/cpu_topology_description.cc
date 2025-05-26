@@ -1,0 +1,66 @@
+/* Copyright 2024 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#include "zkx/pjrt/plugin/cpu/cpu_topology_description.h"
+
+#include "xla/tsl/lib/strings/proto_serialization.h"
+#include "zkx/layout_util.h"
+#include "zkx/pjrt/plugin/cpu/cpu_device_description.h"
+#include "zkx/shape_util.h"
+
+namespace zkx {
+
+// static
+CpuTopologyDescription CpuTopologyDescription::Create(
+    PjRtPlatformId platform_id, std::string_view platform_name,
+    std::string_view platform_version,
+    absl::Span<const std::unique_ptr<PjRtDevice>> devices,
+    absl::Span<const std::string> machine_attributes) {
+  std::vector<CpuTopology::CpuDevice> cpu_devices;
+  cpu_devices.reserve(devices.size());
+  for (const auto& device : devices) {
+    cpu_devices.push_back(CpuTopology::CpuDevice{
+        device->process_index(), device->local_hardware_id().value()});
+  }
+  return CpuTopologyDescription(platform_id, platform_name, platform_version,
+                                cpu_devices, machine_attributes);
+}
+
+absl::StatusOr<Layout> CpuTopologyDescription::GetDefaultLayout(
+    PrimitiveType element_type, absl::Span<const int64_t> dims) const {
+  Shape shape = ShapeUtil::MakeShape(element_type, dims);
+  return LayoutUtil::GetWithDefaultLayout(shape).layout();
+}
+
+absl::StatusOr<std::string> CpuTopologyDescription::Serialize() const {
+  std::string result;
+  if (!tsl::SerializeToStringDeterministic(cpu_topology_.ToProto(), &result)) {
+    return absl::InternalError("Failed to serialize cpu_topology");
+  }
+  return result;
+}
+
+std::vector<std::unique_ptr<const PjRtDeviceDescription>>
+CpuTopologyDescription::DeviceDescriptions() const {
+  std::vector<std::unique_ptr<const PjRtDeviceDescription>> devices;
+  devices.reserve(cpu_topology_.number_of_devices());
+  for (const CpuTopology::CpuDevice& device : cpu_topology_.devices()) {
+    devices.push_back(std::make_unique<CpuDeviceDescription>(
+        device.process_id, device.local_device_id));
+  }
+  return devices;
+}
+
+}  // namespace zkx
