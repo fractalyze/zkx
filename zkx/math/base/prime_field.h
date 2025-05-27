@@ -24,6 +24,7 @@ template <typename _Config>
 class PrimeField {
  public:
   constexpr static bool kUseMontgomery = true;
+  constexpr static bool kUseBigModulus = true;
   constexpr static size_t kModulusBits = _Config::kModulusBits;
   constexpr static size_t kLimbNums = (kModulusBits + 63) / 64;
   constexpr static size_t N = kLimbNums;
