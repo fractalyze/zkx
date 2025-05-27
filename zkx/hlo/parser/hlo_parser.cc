@@ -289,8 +289,6 @@ class HloParserImpl : public HloParser {
   // `loc` should be the source location of the value.
   template <typename LiteralNativeT, typename ParsedElemT>
   bool CheckParsedValueIsInRange(LocTy loc, ParsedElemT value);
-  template <typename LiteralNativeT>
-  bool CheckParsedValueIsInRange(LocTy loc, std::complex<double> value);
 
   bool ParseOperands(std::vector<HloInstruction*>* operands,
                      HloComputation::Builder* builder);
@@ -2793,62 +2791,6 @@ bool HloParserImpl::ParseInstructionNames(
                     "expects '}' at the end of instruction name list");
 }
 
-template <class T>
-uint64_t GetNanPayload(T val) {
-  if constexpr (std::is_same_v<T, double>) {
-    auto rep = absl::bit_cast<uint64_t>(val);
-    if (auto payload = rep & NanPayloadBitMask<double>()) {
-      return payload;
-    }
-    return QuietNanWithoutPayload<double>();
-  } else {
-    static_assert(!std::numeric_limits<T>::has_quiet_NaN);
-    static_assert(!std::numeric_limits<T>::has_signaling_NaN);
-    return 0;
-  }
-}
-
-template <typename LiteralNativeT, typename LiteralComponentT>
-LiteralNativeT LiteralNativeFromRealImag(LiteralComponentT real,
-                                         LiteralComponentT imag) {
-  if constexpr (std::is_same_v<LiteralNativeT,
-                               std::complex<LiteralComponentT>>) {
-    return LiteralNativeT(real, imag);
-  } else {
-    return real;
-  }
-}
-
-template <typename T>
-struct ComponentType {
-  using Type = T;
-};
-
-template <typename T>
-struct ComponentType<std::complex<T>> {
-  using Type = T;
-};
-
-template <typename T>
-T GetReal(T value) {
-  return value;
-}
-
-template <typename T>
-T GetReal(std::complex<T> value) {
-  return value.real();
-}
-
-template <typename T>
-T GetImag(T value) {
-  return 0;
-}
-
-template <typename T>
-T GetImag(std::complex<T> value) {
-  return value.imag();
-}
-
 // MaxFiniteValue is a type-traits helper used by
 // HloParserImpl::CheckParsedValueIsInRange.
 template <typename T>
@@ -2915,44 +2857,6 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
   return true;
 }
 
-template <typename LiteralNativeT>
-bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc,
-                                              std::complex<double> value) {
-  // e.g. `float` for std::complex<float>
-  using LiteralComplexComponentT =
-      decltype(std::real(std::declval<LiteralNativeT>()));
-
-  // We could do simply
-  //
-  //   return CheckParsedValueIsInRange<LiteralNativeT>(std::real(value)) &&
-  //          CheckParsedValueIsInRange<LiteralNativeT>(std::imag(value));
-  //
-  // but this would give bad error messages on failure.
-
-  auto check_component = [&](std::string_view name, double v) {
-    if (!std::isfinite(v)) {
-      // Skip range-checking for non-finite values.
-      return true;
-    }
-
-    double min = MinMaxFiniteValue<LiteralComplexComponentT>::min();
-    double max = MinMaxFiniteValue<LiteralComplexComponentT>::max();
-    if (v < min || v > max) {
-      // Value is out of range for LitearlComplexComponentT.
-      return Error(
-          loc, absl::StrCat(
-                   name, " part ", v,
-                   " is out of range for literal's primitive type ",
-                   PrimitiveType_Name(
-                       primitive_util::NativeToPrimitiveType<LiteralNativeT>()),
-                   ", namely [", min, ", ", max, "]."));
-    }
-    return true;
-  };
-  return check_component("real", std::real(value)) &&
-         check_component("imaginary", std::imag(value));
-}
-
 template <typename LiteralNativeT, typename ParsedElemT>
 bool HloParserImpl::SetValueInLiteralHelper(LocTy loc, ParsedElemT value,
                                             int64_t index, Literal* literal) {
@@ -2968,67 +2872,7 @@ bool HloParserImpl::SetValueInLiteralHelper(LocTy loc, ParsedElemT value,
                                    " at linear index ", index,
                                    ", but the index is out of range"));
   }
-  using ParsedElemComponentT = typename ComponentType<ParsedElemT>::Type;
-  using LiteralNativeComponentT = typename ComponentType<LiteralNativeT>::Type;
-  const auto handle_nan = [this, literal, index, loc](
-                              ParsedElemComponentT parsed_value_component,
-                              LiteralNativeComponentT*
-                                  literal_value_component) {
-    if (!std::isnan(static_cast<double>(parsed_value_component))) {
-      return true;
-    }
-    auto nan_payload = GetNanPayload(parsed_value_component);
-    if constexpr (NanPayloadBits<LiteralNativeComponentT>() > 0) {
-      if (nan_payload == QuietNanWithoutPayload<double>()) {
-        nan_payload = QuietNanWithoutPayload<LiteralNativeComponentT>();
-      }
-      const auto kLargestPayload = NanPayloadBitMask<LiteralNativeComponentT>();
-      if (nan_payload > kLargestPayload) {
-        return Error(
-            loc, absl::StrCat("tries to set NaN payload 0x",
-                              absl::Hex(nan_payload), " to a literal in shape ",
-                              ShapeUtil::HumanString(literal->shape()),
-                              " at linear index ", index,
-                              ", but the NaN payload is out of range (0x",
-                              absl::Hex(kLargestPayload), ")"));
-      }
-      *literal_value_component = NanWithSignAndPayload<LiteralNativeComponentT>(
-          /*sign=*/std::signbit(static_cast<double>(parsed_value_component)),
-          /*nan_payload=*/nan_payload);
-    } else {
-      if (nan_payload != QuietNanWithoutPayload<double>()) {
-        return Error(
-            loc, absl::StrCat("tries to set NaN payload 0x",
-                              absl::Hex(nan_payload), " to a literal in shape ",
-                              ShapeUtil::HumanString(literal->shape()),
-                              " at linear index ", index, ", but ",
-                              primitive_util::LowercasePrimitiveTypeName(
-                                  literal->shape().element_type()),
-                              " does not support payloads"));
-      }
-    }
-    return true;
-  };
-  const ParsedElemComponentT parsed_real_value = GetReal(value);
-  auto literal_real_value =
-      static_cast<LiteralNativeComponentT>(parsed_real_value);
-  if (std::is_floating_point_v<ParsedElemT> ||
-      std::is_same_v<ParsedElemT, std::complex<double>>) {
-    if (!handle_nan(parsed_real_value, &literal_real_value)) {
-      return false;
-    }
-  }
-  const ParsedElemComponentT parsed_imag_value = GetImag(value);
-  auto literal_imag_value =
-      static_cast<LiteralNativeComponentT>(parsed_imag_value);
-  if constexpr (std::is_same_v<ParsedElemT, std::complex<double>>) {
-    if (!handle_nan(parsed_real_value, &literal_imag_value)) {
-      return false;
-    }
-  }
-  literal->data<LiteralNativeT>().at(index) =
-      LiteralNativeFromRealImag<LiteralNativeT>(literal_real_value,
-                                                literal_imag_value);
+  literal->data<LiteralNativeT>().at(index) = value;
   return true;
 }
 
