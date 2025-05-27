@@ -52,6 +52,7 @@ zkx_cc_library(
     deps = [
         ":kernel_api_ir_builder",
         "//xla/tsl/platform:statusor",
+        "//zkx:permutation_util",
         "//zkx:primitive_util",
         "//zkx:shape_util",
         "//zkx/base:logging",
@@ -232,12 +233,18 @@ zkx_cc_unittest(
         # "kernel_api_ir_builder_unittest.cc",
         # TODO(chokobole): Add elemental_kernel_emitter_unittest.cc Dependency: HloTestBase
         "object_loader_unittest.cc",
+        "cpu_kernel_emitter_unittest.cc",
     ],
     deps = [
+        ":cpu_kernel_emitter",
         ":jit_compiler",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
+        "//zkx:literal_util",
+        "//zkx/backends/cpu/runtime:thread_pool_task_runner",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/service/cpu:cpu_compiler",
         "@llvm-project//llvm:AsmParser",
         "@llvm-project//llvm:ExecutionEngine",
         "@llvm-project//llvm:Support",
