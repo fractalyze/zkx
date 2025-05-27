@@ -16,6 +16,7 @@
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/random.h"
 #include "zkx/math/base/arithmetics.h"
 #include "zkx/math/base/bit_traits_forward.h"
 #include "zkx/math/base/endian_utils.h"
@@ -93,6 +94,28 @@ class BigInt {
   constexpr static BigInt Zero() { return BigInt(0); }
 
   constexpr static BigInt One() { return BigInt(1); }
+
+  constexpr static BigInt Min() { return Zero(); }
+
+  constexpr static BigInt Max() {
+    BigInt ret;
+    for (uint64_t& limb : ret.limbs_) {
+      limb = std::numeric_limits<uint64_t>::max();
+    }
+    return ret;
+  }
+
+  // Generate a random BigInt between [0, `max`).
+  constexpr static BigInt Random(const BigInt& max = Max()) {
+    BigInt ret;
+    for (size_t i = 0; i < N; ++i) {
+      ret[i] = base::Uniform<uint64_t>();
+    }
+    while (ret >= max) {
+      ret >>= 1;
+    }
+    return ret;
+  }
 
   constexpr const uint64_t* limbs() const { return limbs_; }
   constexpr uint64_t* limbs() { return limbs_; }

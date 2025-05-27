@@ -31,6 +31,7 @@ zkx_cc_library(
         ":endian_utils",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
+        "//zkx/base:random",
         "//zkx/base/strings:string_util",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/log:check",

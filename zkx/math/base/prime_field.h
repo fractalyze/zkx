@@ -61,6 +61,16 @@ class PrimeField {
     return PrimeField::FromUnchecked(Config::kOne);
   }
 
+  constexpr static PrimeField Min() { return Zero(); }
+
+  constexpr static PrimeField Max() {
+    return PrimeField::FromUnchecked(Config::kModulus - 1);
+  }
+
+  constexpr static PrimeField Random() {
+    return PrimeField::FromUnchecked(BigInt<N>::Random(Config::kModulus));
+  }
+
   constexpr static PrimeField FromUnchecked(const BigInt<N>& value) {
     PrimeField ret;
     ret.value_ = value;

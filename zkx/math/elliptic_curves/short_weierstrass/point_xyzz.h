@@ -59,6 +59,10 @@ class PointXyzz<_Curve,
             BaseField::One()};
   }
 
+  constexpr static PointXyzz Random() {
+    return ScalarField::Random() * Generator();
+  }
+
   constexpr const BaseField& x() const { return x_; }
   constexpr const BaseField& y() const { return y_; }
   constexpr const BaseField& zz() const { return zz_; }

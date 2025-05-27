@@ -56,6 +56,10 @@ class JacobianPoint<
     return {Curve::Config::kX, Curve::Config::kY, BaseField::One()};
   }
 
+  constexpr static JacobianPoint Random() {
+    return ScalarField::Random() * Generator();
+  }
+
   constexpr const BaseField& x() const { return x_; }
   constexpr const BaseField& y() const { return y_; }
   constexpr const BaseField& z() const { return z_; }
