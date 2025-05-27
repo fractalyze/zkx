@@ -35,6 +35,7 @@ zkx_cc_library(
         "//zkx/base/strings:string_util",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/numeric:bits",
         "@com_google_absl//absl/numeric:int128",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -136,6 +137,8 @@ zkx_cc_unittest(
         "//xla/tsl/platform:statusor",
         "//zkx/math/elliptic_curves/bn/bn254:fq2",
         "//zkx/math/elliptic_curves/bn/bn254:fr",
+        "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
     ],
 )
