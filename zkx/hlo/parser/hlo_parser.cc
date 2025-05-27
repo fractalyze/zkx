@@ -28,6 +28,7 @@ limitations under the License.
 #include "google/protobuf/message.h"
 
 #include "xla/tsl/lib/gtl/map_util.h"
+#include "xla/tsl/platform/env.h"
 #include "zkx/comparison_util.h"
 #include "zkx/hlo/ir/collective_device_list.h"
 #include "zkx/hlo/ir/hlo_domain_metadata.h"
@@ -1578,11 +1579,47 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
     case HloOpcode::kConstant: {
       Literal literal;
       if (!ParseToken(TokKind::kLparen,
-                      "expects '(' before constant literal") ||
-          !ParseLiteral(&literal, *shape) ||
-          !ParseToken(TokKind::kRparen, "expects ')' after constant literal") ||
-          !ParseAttributes(attrs, allow_attributes, shape)) {
+                      "expects '(' before constant literal")) {
         return nullptr;
+      }
+      TokKind kind = lexer_.GetKind();
+      if (kind == TokKind::kAttributeName) {
+        if (lexer_.GetStrVal() != "path") {
+          TokenError("expect path attribute");
+          return nullptr;
+        }
+        lexer_.Lex();
+
+        std::string path;
+        if (!ParseString(&path) ||
+            !ParseToken(TokKind::kRparen,
+                        "expects ')' after constant literal") ||
+            !ParseAttributes(attrs, allow_attributes, shape)) {
+          return nullptr;
+        }
+
+        LiteralProto parsed_proto;
+        absl::Status s =
+            tsl::ReadBinaryProto(tsl::Env::Default(), path, &parsed_proto);
+        if (!s.ok()) {
+          TokenError(s.message());
+          return nullptr;
+        }
+
+        absl::StatusOr<Literal> literal_tmp =
+            Literal::CreateFromProto(parsed_proto);
+        if (!literal_tmp.ok()) {
+          TokenError(literal_tmp.status().message());
+          return nullptr;
+        }
+        literal = std::move(*literal_tmp);
+      } else {
+        if (!ParseLiteral(&literal, *shape) ||
+            !ParseToken(TokKind::kRparen,
+                        "expects ')' after constant literal") ||
+            !ParseAttributes(attrs, allow_attributes, shape)) {
+          return nullptr;
+        }
       }
       return builder->AddInstruction(
           HloInstruction::CreateConstant(std::move(literal)));
