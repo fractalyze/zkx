@@ -51,6 +51,10 @@ class AffinePoint<
     return {Curve::Config::kX, Curve::Config::kY};
   }
 
+  constexpr static AffinePoint Random() {
+    return *JacobianPoint::Random().ToAffine();
+  }
+
   constexpr const BaseField& x() const { return x_; }
   constexpr const BaseField& y() const { return y_; }
 

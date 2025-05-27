@@ -30,6 +30,13 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "random",
+    srcs = ["random.cc"],
+    hdrs = ["random.h"],
+    deps = ["@com_google_absl//absl/random"],
+)
+
+zkx_cc_library(
     name = "template_util",
     hdrs = ["template_util.h"],
 )
