@@ -328,6 +328,11 @@ class HloInstruction {
                                                    FftType fft_type,
                                                    int64_t fft_length);
 
+  // Creates a MSM op
+  static std::unique_ptr<HloInstruction> CreateMsm(const Shape& shape,
+                                                   HloInstruction* scalars,
+                                                   HloInstruction* bases);
+
   // Creates an asynchronous start, update, and done op.
   static std::unique_ptr<HloInstruction> CreateAsyncStart(
       const Shape& shape, absl::Span<HloInstruction* const> operands,

@@ -48,6 +48,11 @@ class CpuKernelEmitter final : public KernelEmitter {
                                                EmitterLocOpBuilder& b,
                                                mlir::Value value);
 
+  static absl::StatusOr<mlir::Value> EmitMsmOp(const HloInstruction* instr,
+                                               EmitterLocOpBuilder& b,
+                                               mlir::Value scalars,
+                                               mlir::Value bases);
+
   static absl::StatusOr<mlir::Value> EmitDimensionsOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
       absl::Span<const int64_t> source_dimensions);

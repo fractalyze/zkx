@@ -78,6 +78,9 @@ class DfsHloVisitorWithDefaultBase
   absl::Status HandleFft(HloInstructionPtr fft) override {
     return DefaultAction(fft);
   }
+  absl::Status HandleMsm(HloInstructionPtr msm) override {
+    return DefaultAction(msm);
+  }
   absl::Status HandleAllGather(HloInstructionPtr crs) override {
     return DefaultAction(crs);
   }

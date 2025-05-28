@@ -426,6 +426,21 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
 }
 
 // static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value scalars,
+    mlir::Value bases) {
+  if (auto tensor_type =
+          mlir::dyn_cast<mlir::RankedTensorType>(bases.getType())) {
+    return b.create<mlir::zkir::elliptic_curve::MSMOp>(
+        llvm_ir::PrimitiveTypeToMLIRType(instr->shape().element_type(),
+                                         b.getContext()),
+        scalars, bases);
+  } else {
+    return absl::InvalidArgumentError("bases is not a tensor");
+  }
+}
+
+// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
     absl::Span<const int64_t> source_dimensions) {
@@ -507,6 +522,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     }
     case HloOpcode::kFft: {
       return EmitFftOp(instr, b, values[instr->operand(0)]);
+    }
+    case HloOpcode::kMsm: {
+      return EmitMsmOp(instr, b, values[instr->operand(0)],
+                       values[instr->operand(1)]);
     }
     case HloOpcode::kBroadcast: {
       return EmitDimensionsOp(instr, b, values[instr->operand(0)],

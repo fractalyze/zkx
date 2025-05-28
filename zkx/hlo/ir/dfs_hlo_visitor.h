@@ -115,6 +115,7 @@ class DfsHloVisitorBase {
   /* go/keep-sorted end */
 
   virtual absl::Status HandleFft(HloInstructionPtr fft) = 0;
+  virtual absl::Status HandleMsm(HloInstructionPtr msm) = 0;
 
   virtual absl::Status HandleGetDimensionSize(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleSetDimensionSize(HloInstructionPtr hlo) = 0;

@@ -81,6 +81,9 @@ class ShapeInference {
   // Infers the shape produced by the given FFT type on the given operand.
   static absl::StatusOr<Shape> InferFftShape(const Shape& in, FftType fft_type);
 
+  // Infers the shape produced by the given MSM type on the given operand.
+  static absl::StatusOr<Shape> InferMsmShape(const Shape& bases);
+
   // Infers the shape produced by an all-gather with the given operand shape,
   // concat dimension, and shard count.
   static absl::StatusOr<Shape> InferAllGatherShape(
