@@ -227,6 +227,7 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "codegen_unittests",
+    timeout = "moderate",
     srcs = [
         "jit_compiler_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: HloTestBase

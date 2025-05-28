@@ -86,6 +86,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kMap:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
+    case HloOpcode::kMsm:
     case HloOpcode::kMultiply:
     case HloOpcode::kNegate:
     case HloOpcode::kPartitionId:
@@ -2240,7 +2241,20 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return builder->AddInstruction(HloInstruction::CreateFft(
           *shape, operands[0], *fft_type, *fft_length));
     }
-
+    case HloOpcode::kMsm: {
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferMsmShape(operands[1]->shape());
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateMsm(*shape, operands[0], operands[1]));
+    }
     case HloOpcode::kCompare: {
       std::optional<ComparisonDirection> direction;
       std::optional<PrimitiveType> type;

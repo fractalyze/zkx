@@ -1248,6 +1248,16 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateFft(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateMsm(
+    const Shape& shape, HloInstruction* scalars, HloInstruction* bases) {
+  auto instruction =
+      absl::WrapUnique(new HloInstruction(HloOpcode::kMsm, shape));
+  instruction->AppendOperand(scalars);
+  instruction->AppendOperand(bases);
+  return instruction;
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateAsyncStart(
     const Shape& shape, absl::Span<HloInstruction* const> operands,
     HloComputation* async_computation,
@@ -2106,6 +2116,7 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kAsyncUpdate:
     case HloOpcode::kAsyncDone:
     case HloOpcode::kFft:
+    case HloOpcode::kMsm:
     case HloOpcode::kCompare:
     case HloOpcode::kSend:
     case HloOpcode::kSendDone:
@@ -2855,6 +2866,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleSelect(this);
     case HloOpcode::kFft:
       return visitor->HandleFft(this);
+    case HloOpcode::kMsm:
+      return visitor->HandleMsm(this);
     case HloOpcode::kAllGather:
       return visitor->HandleAllGather(this);
     case HloOpcode::kAllGatherStart:

@@ -526,6 +526,12 @@ absl::StatusOr<Shape> ShapeInference::InferFftShape(
 }
 
 // static
+absl::StatusOr<Shape> ShapeInference::InferMsmShape(
+    const Shape& bases) {
+  return ShapeUtil::MakeScalarShape(bases.element_type());
+}
+
+// static
 absl::StatusOr<Shape> ShapeInference::InferAllGatherShape(
     absl::Span<const Shape* const> operand_shapes, int64_t all_gather_dimension,
     int64_t shard_count) {
