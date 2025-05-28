@@ -58,9 +58,15 @@ namespace {
 
 void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
   mlir_context->loadDialect<
-      mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
-      mlir::func::FuncDialect, mlir::bufferization::BufferizationDialect,
-      mlir::memref::MemRefDialect, mlir::LLVM::LLVMDialect>();
+      // clang-format off
+      mlir::arith::ArithDialect,
+      mlir::bufferization::BufferizationDialect,
+      mlir::cf::ControlFlowDialect,
+      mlir::func::FuncDialect,
+      mlir::LLVM::LLVMDialect,
+      mlir::memref::MemRefDialect
+      // clang-format on
+      >();
 }
 
 void OneShotBufferize(mlir::OpPassManager& pm) {
