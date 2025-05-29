@@ -6,7 +6,9 @@ zkx_cc_library(
     name = "affine_point",
     hdrs = ["affine_point.h"],
     deps = [
+        "//xla/tsl/platform:errors",
         "//zkx/base:logging",
+        "//zkx/base/buffer:serde",
         "//zkx/math/base:scalar_mul",
         "//zkx/math/geometry:curve_type",
         "//zkx/math/geometry:point_declarations",
@@ -24,6 +26,7 @@ zkx_cc_library(
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
         "//zkx/base:template_util",
+        "//zkx/base/buffer:serde",
         "//zkx/base/containers:container_util",
         "//zkx/math/base:batch_inverse",
         "//zkx/math/base:scalar_mul",
@@ -74,6 +77,8 @@ zkx_cc_unittest(
         ":affine_point",
         ":jacobian_point",
         ":point_xyzz",
+        "//xla/tsl/platform:status",
+        "//zkx/base/buffer:vector_buffer",
         "//zkx/math/elliptic_curves/short_weierstrass/test:sw_curve_config",
     ],
 )

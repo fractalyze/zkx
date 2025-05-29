@@ -19,12 +19,14 @@
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/serde.h"
 #include "zkx/base/random.h"
 #include "zkx/math/base/arithmetics.h"
 #include "zkx/math/base/bit_traits_forward.h"
 #include "zkx/math/base/endian_utils.h"
 
-namespace zkx::math {
+namespace zkx {
+namespace math {
 namespace internal {
 
 absl::Status StringToLimbs(std::string_view str, uint64_t* limbs,
@@ -518,6 +520,8 @@ class BigInt {
   }
 
  private:
+  friend class base::Serde<BigInt<N>>;
+
   uint64_t limbs_[N];
 };
 
@@ -555,6 +559,28 @@ class BitTraits<BigInt<N>> {
   }
 };
 
-}  // namespace zkx::math
+}  // namespace math
+
+namespace base {
+
+template <size_t N>
+class Serde<math::BigInt<N>> {
+ public:
+  static absl::Status WriteTo(const math::BigInt<N>& bigint, Buffer* buffer) {
+    return buffer->Write(bigint.limbs_);
+  }
+
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
+                               math::BigInt<N>* bigint) {
+    return buffer.Read(bigint->limbs_);
+  }
+
+  static size_t EstimateSize(const math::BigInt<N>& bigint) {
+    return base::EstimateSize(bigint.limbs_);
+  }
+};
+
+}  // namespace base
+}  // namespace zkx
 
 #endif  // ZKX_MATH_BASE_BIG_INT_H_

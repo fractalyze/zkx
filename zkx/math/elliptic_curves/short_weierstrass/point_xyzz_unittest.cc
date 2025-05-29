@@ -5,6 +5,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include "xla/tsl/platform/status.h"
+#include "zkx/base/buffer/vector_buffer.h"
 #include "zkx/math/elliptic_curves/short_weierstrass/test/sw_curve_config.h"
 
 namespace zkx::math::test {
@@ -127,6 +129,21 @@ TEST(PointXyzzTest, BatchToAffine) {
   std::vector<AffinePoint> expected_affine_points = {
       AffinePoint::Zero(), AffinePoint(1, 2), AffinePoint(4, 5)};
   EXPECT_EQ(affine_points, expected_affine_points);
+}
+
+TEST(PointXyzzTest, Serde) {
+  PointXyzz expected = PointXyzz::Random();
+
+  base::Uint8VectorBuffer write_buf;
+  TF_ASSERT_OK(write_buf.Grow(base::EstimateSize(expected)));
+  TF_ASSERT_OK(write_buf.Write(expected));
+  ASSERT_TRUE(write_buf.Done());
+
+  write_buf.set_buffer_offset(0);
+
+  PointXyzz value;
+  TF_ASSERT_OK(write_buf.Read(&value));
+  EXPECT_EQ(expected, value);
 }
 
 }  // namespace zkx::math::test
