@@ -9,6 +9,7 @@
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/serde.h"
 #include "zkx/base/containers/container_util.h"
 #include "zkx/base/template_util.h"
 #include "zkx/math/base/batch_inverse.h"
@@ -16,7 +17,8 @@
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
-namespace zkx::math {
+namespace zkx {
+namespace math {
 
 template <typename _Curve>
 class JacobianPoint<
@@ -247,7 +249,36 @@ class JacobianPoint<
   BaseField z_;
 };
 
-}  // namespace zkx::math
+}  // namespace math
+
+namespace base {
+
+template <typename Curve>
+class Serde<math::JacobianPoint<
+    Curve,
+    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+ public:
+  static absl::Status WriteTo(const math::JacobianPoint<Curve>& point,
+                              Buffer* buffer) {
+    return buffer->WriteMany(point.x(), point.y(), point.z());
+  }
+
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
+                               math::JacobianPoint<Curve>* point) {
+    using BaseField = typename math::JacobianPoint<Curve>::BaseField;
+    BaseField x, y, z;
+    TF_RETURN_IF_ERROR(buffer.ReadMany(&x, &y, &z));
+    *point = math::JacobianPoint<Curve>(x, y, z);
+    return absl::OkStatus();
+  }
+
+  static size_t EstimateSize(const math::JacobianPoint<Curve>& point) {
+    return base::EstimateSize(point.x(), point.y(), point.z());
+  }
+};
+
+}  // namespace base
+}  // namespace zkx
 
 #include "zkx/math/elliptic_curves/short_weierstrass/jacobian_point_impl.h"
 

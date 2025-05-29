@@ -9,6 +9,7 @@
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/serde.h"
 #include "zkx/base/containers/container_util.h"
 #include "zkx/base/template_util.h"
 #include "zkx/math/base/batch_inverse.h"
@@ -16,7 +17,8 @@
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
-namespace zkx::math {
+namespace zkx {
+namespace math {
 
 template <typename _Curve>
 class PointXyzz<_Curve,
@@ -252,7 +254,36 @@ class PointXyzz<_Curve,
   BaseField zzz_;
 };
 
-}  // namespace zkx::math
+}  // namespace math
+
+namespace base {
+
+template <typename Curve>
+class Serde<math::PointXyzz<
+    Curve,
+    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+ public:
+  static absl::Status WriteTo(const math::PointXyzz<Curve>& point,
+                              Buffer* buffer) {
+    return buffer->WriteMany(point.x(), point.y(), point.zz(), point.zzz());
+  }
+
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
+                               math::PointXyzz<Curve>* point) {
+    using BaseField = typename math::PointXyzz<Curve>::BaseField;
+    BaseField x, y, zz, zzz;
+    TF_RETURN_IF_ERROR(buffer.ReadMany(&x, &y, &zz, &zzz));
+    *point = math::PointXyzz<Curve>(x, y, zz, zzz);
+    return absl::OkStatus();
+  }
+
+  static size_t EstimateSize(const math::PointXyzz<Curve>& point) {
+    return base::EstimateSize(point.x(), point.y(), point.zz(), point.zzz());
+  }
+};
+
+}  // namespace base
+}  // namespace zkx
 
 #include "zkx/math/elliptic_curves/short_weierstrass/point_xyzz_impl.h"
 

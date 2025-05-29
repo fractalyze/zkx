@@ -9,6 +9,7 @@
 
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/status_matchers.h"
+#include "zkx/base/buffer/vector_buffer.h"
 
 namespace zkx::math {
 
@@ -207,6 +208,21 @@ TYPED_TEST(BigIntConversionTest, BytesBEConversion) {
   std::array<uint8_t, 32> actual_input = actual.ToBytesBE();
   EXPECT_TRUE(std::equal(actual_input.begin(), actual_input.end(),
                          expected_input.begin()));
+}
+
+TEST(BigIntTest, Serde) {
+  BigInt<2> expected = BigInt<2>::Random();
+
+  base::Uint8VectorBuffer write_buf;
+  TF_ASSERT_OK(write_buf.Grow(base::EstimateSize(expected)));
+  TF_ASSERT_OK(write_buf.Write(expected));
+  ASSERT_TRUE(write_buf.Done());
+
+  write_buf.set_buffer_offset(0);
+
+  BigInt<2> value;
+  TF_ASSERT_OK(write_buf.Read(&value));
+  EXPECT_EQ(value, expected);
 }
 
 }  // namespace zkx::math

@@ -12,12 +12,15 @@
 #include "absl/log/check.h"
 #include "absl/status/statusor.h"
 
+#include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/serde.h"
 #include "zkx/math/base/big_int.h"
 #include "zkx/math/base/byinverter.h"
 #include "zkx/math/base/pow.h"
 
-namespace zkx::math {
+namespace zkx {
+namespace math {
 
 // This implements PrimeField on Montgomery domain.
 template <typename _Config>
@@ -397,6 +400,48 @@ struct IsPrimeFieldImpl<PrimeField<Config>> {
 template <typename T>
 constexpr bool IsPrimeField = IsPrimeFieldImpl<T>::value;
 
-}  // namespace zkx::math
+}  // namespace math
+
+namespace base {
+
+template <typename Config>
+class Serde<math::PrimeField<Config>> {
+ public:
+  constexpr static size_t N = math::PrimeField<Config>::N;
+
+  static bool s_is_in_montgomery;
+
+  static absl::Status WriteTo(const math::PrimeField<Config>& prime_field,
+                              Buffer* buffer) {
+    if (s_is_in_montgomery) {
+      return buffer->Write(prime_field.value());
+    } else {
+      return buffer->Write(prime_field.MontReduce());
+    }
+  }
+
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
+                               math::PrimeField<Config>* prime_field) {
+    math::BigInt<N> v;
+    TF_RETURN_IF_ERROR(buffer.Read(&v));
+    if (s_is_in_montgomery) {
+      *prime_field = math::PrimeField<Config>::FromUnchecked(v);
+    } else {
+      *prime_field = math::PrimeField<Config>(v);
+    }
+    return absl::OkStatus();
+  }
+
+  static size_t EstimateSize(const math::PrimeField<Config>& prime_field) {
+    return N * sizeof(uint64_t);
+  }
+};
+
+// static
+template <typename Config>
+bool Serde<math::PrimeField<Config>>::s_is_in_montgomery = true;
+
+}  // namespace base
+}  // namespace zkx
 
 #endif  // ZKX_MATH_BASE_PRIME_FIELD_H_
