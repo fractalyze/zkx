@@ -55,6 +55,6 @@ zkx_cc_library(
         ":kernel_source",
         "//zkx/service/llvm_ir:llvm_util",
         "@llvm-project//llvm:Core",
-        "@llvm-project//llvm:ExecutionEngine",
+        "@llvm-project//llvm:OrcJIT",
     ],
 )
