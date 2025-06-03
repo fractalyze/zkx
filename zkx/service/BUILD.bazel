@@ -252,6 +252,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "generic_transfer_manager",
+    srcs = ["generic_transfer_manager.cc"],
+    hdrs = ["generic_transfer_manager.h"],
+    deps = [
+        ":transfer_manager",
+        "//xla/tsl/platform:casts",
+        "//xla/tsl/platform:errors",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "global_device_id",
     srcs = ["global_device_id.cc"],
     hdrs = ["global_device_id.h"],
