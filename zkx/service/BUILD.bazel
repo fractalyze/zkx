@@ -323,6 +323,30 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_runner_interface",
+    srcs = ["hlo_runner_interface.cc"],
+    hdrs = ["hlo_runner_interface.h"],
+    deps = [
+        ":hlo_module_config",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/parser:hlo_parser",
+        "@com_google_absl//absl/base:nullability",
+        "@com_google_absl//absl/log:die_if_null",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_value",
     srcs = ["hlo_value.cc"],
     hdrs = ["hlo_value.h"],
