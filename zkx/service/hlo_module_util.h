@@ -41,6 +41,15 @@ absl::StatusOr<std::unique_ptr<HloModuleConfig>> CreateModuleConfig(
     std::optional<int> num_threads = std::nullopt,
     const AotCompilationOptions* aot_options = nullptr);
 
+typedef std::function<Shape(const Shape&)> DeviceShapeRepresentationFn;
+
+// Update entry computation's computation layout by translating each shape
+// with shape_representation_fn(shape). It can be used for example to add
+// tiling info for each shape.
+void UpdateEntryComputationLayout(
+    HloModule* module, DeviceShapeRepresentationFn shape_representation_fn,
+    bool empty_tiles_only = true);
+
 }  // namespace zkx
 
 #endif  // ZKX_SERVICE_HLO_MODULE_UTIL_H_
