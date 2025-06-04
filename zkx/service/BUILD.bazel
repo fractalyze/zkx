@@ -52,6 +52,37 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "backend",
+    srcs = ["backend.cc"],
+    hdrs = ["backend.h"],
+    deps = [
+        ":compiler",
+        ":computation_placer",
+        ":platform_util",
+        ":stream_pool",
+        ":transfer_manager",
+        "//xla/tsl/platform:cpu_info",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:statusor",
+        "//zkx:util",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory_allocator",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:stream_executor_memory_allocator",
+        "//zkx/stream_executor/host:host_platform_id",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
+zkx_cc_library(
     name = "buffer_assignment",
     srcs = ["buffer_assignment.cc"],
     hdrs = ["buffer_assignment.h"],
