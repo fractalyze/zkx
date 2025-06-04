@@ -369,13 +369,11 @@ class TfrtCpuExecutable final : public PjRtLoadedExecutable {
   absl::StatusOr<CompiledMemoryStats> GetCompiledMemoryStats() const override {
     CompiledMemoryStats memory_stats = CompiledMemoryStats();
     memory_stats.generated_code_size_in_bytes = SizeOfGeneratedCodeInBytes();
-    // TODO(chokobole): Uncomment this. Dependency: Executable::HloProto
-    // const HloProto* proto = cpu_executable_->hlo_proto();
-    // if (!proto) {
-    //   return absl::FailedPreconditionError("cpu_executable_ has no
-    //   hlo_proto.");
-    // }
-    // memory_stats.serialized_hlo_proto = proto->SerializeAsString();
+    const HloProto* proto = cpu_executable_->hlo_proto();
+    if (!proto) {
+      return absl::FailedPreconditionError("cpu_executable_ has no hlo_proto.");
+    }
+    memory_stats.serialized_hlo_proto = proto->SerializeAsString();
     memory_stats.PopulateBufferStatsFromAllocations(
         cpu_executable_->GetAllocations());
     return memory_stats;
