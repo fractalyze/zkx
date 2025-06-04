@@ -15,13 +15,19 @@ limitations under the License.
 
 #include "zkx/service/platform_util.h"
 
+#include <vector>
+
 #include "absl/strings/ascii.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
+#include "xla/tsl/platform/thread_pool.h"
 #include "zkx/base/logging.h"
+#include "zkx/debug_options_flags.h"
 #include "zkx/service/compiler.h"
+#include "zkx/stream_executor/host/host_platform_id.h"
 #include "zkx/stream_executor/platform_manager.h"
 
 namespace zkx {
@@ -118,6 +124,126 @@ absl::StatusOr<se::Platform*> PlatformUtil::GetPlatform(
                           zkx::CanonicalPlatformName(platform_name)));
   TF_RETURN_IF_ERROR(Compiler::GetForPlatform(platform).status());
   return platform;
+}
+
+// Returns whether the device underlying the given StreamExecutor is supported
+// by XLA.
+static bool IsDeviceSupported(se::StreamExecutor* executor) {
+  // const auto& description = executor->GetDeviceDescription();
+  // TODO(chokobole): Uncomment this. Dependency: cuda::kCudaPlatformId
+  // if (executor->GetPlatform()->id() == se::cuda::kCudaPlatformId) {
+  //   // CUDA devices must have a minimum compute capability.
+  //   se::CudaComputeCapability cc = description.cuda_compute_capability();
+  //   if (!cc.IsAtLeast(kMinCudaComputeCapabilityMajor,
+  //                     kMinCudaComputeCapabilityMinor)) {
+  //     LOG(INFO) << "StreamExecutor cuda device (" <<
+  //     executor->device_ordinal()
+  //               << ") is of insufficient compute capability: "
+  //               << kMinCudaComputeCapabilityMajor << "."
+  //               << kMinCudaComputeCapabilityMinor << " required, "
+  //               << "device is " << cc.ToString();
+  //     return false;
+  //   }
+  // }
+  // TODO(chokobole): Uncomment this. Dependency: rocm::kROCmPlatformId
+  // else if (executor->GetPlatform()->id() == se::rocm::kROCmPlatformId) {
+  //   auto rocm_compute_capability = description.rocm_compute_capability();
+  //   if (!rocm_compute_capability.is_supported_gfx_version()) {
+  //     LOG(INFO) << "StreamExecutor ROCM device (" <<
+  //     executor->device_ordinal()
+  //               << ") is of unsupported "
+  //               << "AMDGPU version : " <<
+  //               rocm_compute_capability.gfx_version()
+  //               << ". The supported AMDGPU versions are "
+  //               << rocm_compute_capability.supported_gfx_versions_str() <<
+  //               ".";
+  //     return false;
+  //   }
+  // }
+  return true;
+}
+
+absl::StatusOr<std::vector<se::StreamExecutor*>>
+PlatformUtil::GetStreamExecutors(
+    se::Platform* platform,
+    const std::optional<std::set<int>>& allowed_devices) {
+  int device_count = platform->VisibleDeviceCount();
+  if (device_count <= 0) {
+    return absl::NotFoundError(
+        absl::StrFormat("no %s devices found", platform->Name()));
+  }
+  if (platform->id() == se::host::kHostPlatformId) {
+    // On host "devices", StreamExecutor exports a device for each hardware
+    // thread. Because we parallelize a single computation across threads, it
+    // doesn't make sense to expose these as separate devices, so by default we
+    // fix the number of devices to one.  However we do let the user override
+    // this behavior to help run tests on the host that run models in parallel
+    // across multiple devices.
+    device_count =
+        GetDebugOptionsFromFlags().zkx_force_host_platform_device_count();
+  }
+  std::vector<se::StreamExecutor*> stream_executors(device_count, nullptr);
+  VLOG(1) << "Initializing devices";
+  {
+    tsl::thread::ThreadPool thread_pool(tsl::Env::Default(),
+                                        "device_initialization", device_count);
+    auto create_fn = [](se::Platform* platform,
+                        std::vector<se::StreamExecutor*>& stream_executors,
+                        int device_ordinal, int count) {
+      VLOG(1) << "Started device init " << device_ordinal;
+      auto executor_status = platform->ExecutorForDevice(device_ordinal);
+      if (executor_status.ok()) {
+        se::StreamExecutor* executor = executor_status.value();
+        if (IsDeviceSupported(executor)) {
+          stream_executors[count] = executor;
+        }
+      } else {
+        LOG(WARNING) << "unable to create StreamExecutor for "
+                     << platform->Name() << ":" << device_ordinal << ": "
+                     << executor_status.status().message();
+      }
+      VLOG(1) << "Finished device init " << device_ordinal;
+    };
+    // Once a stream executor is instantiated it will cause allocations on
+    // the device, for example for GPUs cuda context, cudnn handles etc. will
+    // be constructed. By constructing stream executors only on the
+    // allowed_devices, we don't make any allocations on other devices.
+    // This helps in multi-process executions on the same host like horovod or
+    // shared hosts.
+    if (allowed_devices) {
+      int count = 0;
+      for (const auto& i : *allowed_devices) {
+        if (count >= device_count) {
+          break;
+        }
+        thread_pool.Schedule(
+            [platform, &stream_executors, i, count, &create_fn]() {
+              create_fn(platform, stream_executors, i, count);
+            });
+        count++;
+      }
+    } else {
+      for (int i = 0; i < device_count; ++i) {
+        thread_pool.Schedule([platform, &stream_executors, i, &create_fn]() {
+          create_fn(platform, stream_executors, i, i);
+        });
+      }
+    }
+    // Block here in thread_pool destructor until all devices are initialized.
+  }
+  VLOG(1) << "Device initialization complete";
+
+  std::vector<se::StreamExecutor*> out;
+  for (se::StreamExecutor* executor : stream_executors) {
+    if (executor != nullptr) {
+      out.push_back(executor);
+    }
+  }
+  if (out.empty()) {
+    return absl::InternalError(absl::StrFormat(
+        "no supported devices found for platform %s", platform->Name()));
+  }
+  return out;
 }
 
 }  // namespace zkx
