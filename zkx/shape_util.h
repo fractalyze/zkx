@@ -295,6 +295,11 @@ class ShapeUtil {
   // Returns an empty tuple shape. Can be used as a sentinel Shape value.
   static Shape MakeNil() { return MakeTupleShape({}); }
 
+  // Checks whether the shape is initialized.
+  static bool IsInitialized(const Shape& shape) {
+    return shape.element_type() != PRIMITIVE_TYPE_INVALID;
+  }
+
   // Constructs a new shape with the given element type and sequence of
   // dimensions.
   static Shape MakeShape(PrimitiveType element_type,
