@@ -225,29 +225,62 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "cpu_kernel_emitter_test",
+    testonly = True,
+    srcs = ["cpu_kernel_emitter_test.cc"],
+    hdrs = ["cpu_kernel_emitter_test.h"],
+    deps = [
+        ":cpu_kernel_emitter",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:permutation_util",
+        "//zkx:primitive_util",
+        "//zkx/backends/cpu/runtime:thread_pool_task_runner",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/service/cpu:cpu_compiler",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
 zkx_cc_unittest(
     name = "codegen_unittests",
-    timeout = "moderate",
     srcs = [
         "jit_compiler_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: HloTestBase
         # "kernel_api_ir_builder_unittest.cc",
         # TODO(chokobole): Add elemental_kernel_emitter_unittest.cc Dependency: HloTestBase
         "object_loader_unittest.cc",
-        "cpu_kernel_emitter_unittest.cc",
     ],
     deps = [
-        ":cpu_kernel_emitter",
         ":jit_compiler",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
-        "//zkx:literal_util",
-        "//zkx/backends/cpu/runtime:thread_pool_task_runner",
-        "//zkx/hlo/parser:hlo_parser",
-        "//zkx/service/cpu:cpu_compiler",
         "@llvm-project//llvm:AsmParser",
         "@llvm-project//llvm:ExecutionEngine",
         "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "cpu_kernel_emitter_bn254_sf_unittest",
+    srcs = ["cpu_kernel_emitter_bn254_sf_unittest.cc"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//zkx:literal_util",
+        "//zkx/math/poly:root_of_unity",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "cpu_kernel_emitter_bn254_g1_unittest",
+    timeout = "moderate",
+    srcs = ["cpu_kernel_emitter_bn254_g1_unittest.cc"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//zkx:literal_util",
     ],
 )
