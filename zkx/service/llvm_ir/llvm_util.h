@@ -127,7 +127,27 @@ mlir::zkir::field::PrimeFieldAttr GetMLIRPrimeFieldAttr(
 }
 
 template <typename T>
-mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMLIRShortWeierstrassAttr(
+mlir::zkir::field::QuadraticExtFieldType GetMLIRQuadraticExtFieldType(
+    mlir::MLIRContext* context) {
+  using BaseField = typename T::BaseField;
+  return mlir::zkir::field::QuadraticExtFieldType::get(
+      context, GetMLIRPrimeFieldType<BaseField>(context),
+      GetMLIRPrimeFieldAttr(context, T::Config::kNonResidue,
+                            BaseField::kUseMontgomery));
+}
+
+template <typename T>
+mlir::zkir::field::QuadraticExtFieldAttr GetMLIRExtQuadraticExtFieldAttr(
+    mlir::MLIRContext* context, const T& value) {
+  using BaseField = typename T::BaseField;
+  return mlir::zkir::field::QuadraticExtFieldAttr::get(
+      context, GetMLIRQuadraticExtFieldType<T>(context),
+      GetMLIRPrimeFieldAttr(context, value[0], BaseField::kUseMontgomery),
+      GetMLIRPrimeFieldAttr(context, value[1], BaseField::kUseMontgomery));
+}
+
+template <typename T>
+mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMLIRG1ShortWeierstrassAttr(
     mlir::MLIRContext* context) {
   using BaseField = typename T::BaseField;
   mlir::zkir::field::PrimeFieldAttr a = GetMLIRPrimeFieldAttr(
@@ -143,24 +163,56 @@ mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMLIRShortWeierstrassAttr(
 }
 
 template <typename T>
+mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMLIRG2ShortWeierstrassAttr(
+    mlir::MLIRContext* context) {
+  mlir::zkir::field::QuadraticExtFieldAttr a =
+      GetMLIRExtQuadraticExtFieldAttr(context, T::Curve::Config::kA);
+  mlir::zkir::field::QuadraticExtFieldAttr b =
+      GetMLIRExtQuadraticExtFieldAttr(context, T::Curve::Config::kB);
+  mlir::zkir::field::QuadraticExtFieldAttr x =
+      GetMLIRExtQuadraticExtFieldAttr(context, T::Curve::Config::kX);
+  mlir::zkir::field::QuadraticExtFieldAttr y =
+      GetMLIRExtQuadraticExtFieldAttr(context, T::Curve::Config::kY);
+  return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(context, a, b, x,
+                                                               y);
+}
+template <typename T>
 mlir::zkir::elliptic_curve::AffineType GetMLIRAffinePointType(
     mlir::MLIRContext* context) {
-  return mlir::zkir::elliptic_curve::AffineType::get(
-      context, GetMLIRShortWeierstrassAttr<T>(context));
+  using BaseField = typename T::BaseField;
+  if constexpr (BaseField::ExtensionDegree() == 1) {
+    return mlir::zkir::elliptic_curve::AffineType::get(
+        context, GetMLIRG1ShortWeierstrassAttr<T>(context));
+  } else {
+    return mlir::zkir::elliptic_curve::AffineType::get(
+        context, GetMLIRG2ShortWeierstrassAttr<T>(context));
+  }
 }
 
 template <typename T>
 mlir::zkir::elliptic_curve::JacobianType GetMLIRJacobianPointType(
     mlir::MLIRContext* context) {
-  return mlir::zkir::elliptic_curve::JacobianType::get(
-      context, GetMLIRShortWeierstrassAttr<T>(context));
+  using BaseField = typename T::BaseField;
+  if constexpr (BaseField::ExtensionDegree() == 1) {
+    return mlir::zkir::elliptic_curve::JacobianType::get(
+        context, GetMLIRG1ShortWeierstrassAttr<T>(context));
+  } else {
+    return mlir::zkir::elliptic_curve::JacobianType::get(
+        context, GetMLIRG2ShortWeierstrassAttr<T>(context));
+  }
 }
 
 template <typename T>
 mlir::zkir::elliptic_curve::XYZZType GetMLIRPointXyzzType(
     mlir::MLIRContext* context) {
-  return mlir::zkir::elliptic_curve::XYZZType::get(
-      context, GetMLIRShortWeierstrassAttr<T>(context));
+  using BaseField = typename T::BaseField;
+  if constexpr (BaseField::ExtensionDegree() == 1) {
+    return mlir::zkir::elliptic_curve::XYZZType::get(
+        context, GetMLIRG1ShortWeierstrassAttr<T>(context));
+  } else {
+    return mlir::zkir::elliptic_curve::XYZZType::get(
+        context, GetMLIRG2ShortWeierstrassAttr<T>(context));
+  }
 }
 
 mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
