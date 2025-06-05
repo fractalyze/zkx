@@ -40,6 +40,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cpu_compiler_registerer",
+    srcs = ["cpu_compiler_registerer.cc"],
+    deps = [
+        ":cpu_compiler",
+        "//zkx/service:compiler",
+        "//zkx/stream_executor/host:host_platform_id",
+    ],
+)
+
+zkx_cc_library(
     name = "cpu_event",
     hdrs = ["cpu_event.h"],
 )
