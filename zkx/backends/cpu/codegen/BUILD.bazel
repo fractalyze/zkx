@@ -285,3 +285,13 @@ zkx_cc_unittest(
         "//zkx:literal_util",
     ],
 )
+
+zkx_cc_unittest(
+    name = "cpu_kernel_emitter_bn254_g2_unittest",
+    timeout = "moderate",
+    srcs = ["cpu_kernel_emitter_bn254_g2_unittest.cc"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//zkx:literal_util",
+    ],
+)
