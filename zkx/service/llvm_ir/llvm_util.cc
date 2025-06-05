@@ -121,6 +121,12 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
       return GetMLIRJacobianPointType<math::bn254::G1JacobianPoint>(context);
     case BN254_G1_XYZZ:
       return GetMLIRPointXyzzType<math::bn254::G1PointXyzz>(context);
+    case BN254_G2_AFFINE:
+      return GetMLIRAffinePointType<math::bn254::G2AffinePoint>(context);
+    case BN254_G2_JACOBIAN:
+      return GetMLIRJacobianPointType<math::bn254::G2JacobianPoint>(context);
+    case BN254_G2_XYZZ:
+      return GetMLIRPointXyzzType<math::bn254::G2PointXyzz>(context);
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }
