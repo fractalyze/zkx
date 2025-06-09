@@ -1057,6 +1057,118 @@ class HloConstantInstruction : public HloInstruction {
   std::shared_ptr<Literal> literal_;
 };
 
+// Abstract class that represents an HLO instruction that "calls" a computation.
+// Fusion and Call HLOs inherit from this class.
+class HloCallableInstruction : public HloInstruction {
+ public:
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape);
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         absl::Span<HloInstruction* const> operands);
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         absl::Span<HloInstruction* const> operands,
+                         HloComputation* called_computation,
+                         std::string_view prefix = "");
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         absl::Span<HloInstruction* const> operands,
+                         absl::Span<HloComputation* const> called_computations);
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         const std::string& name, const std::string& attributes,
+                         int64_t version);
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         absl::Span<HloInstruction* const> operands,
+                         HloComputation* decomposition, const std::string& name,
+                         const std::string& attributes, int64_t version);
+
+  ~HloCallableInstruction() override;
+
+  // Adds a new operand to the callable instruction.
+  HloInstruction* AddCallOperand(HloInstruction* new_operand);
+
+  // Appends (fuses) the given instruction into this callable instruction.
+  // instruction_to_append is cloned and the clone is placed in the callable
+  // instruction.  The users of instruction_to_append will be redirected to this
+  // callable instruction. instruction_to_append is unchanged otherwise. When
+  // add_output is true, a clone of the instruction_to_append will be added as
+  // additional output resulting in a multi-output callable instruction.
+  HloInstruction* AppendInstructionIntoCalledComputation(
+      HloInstruction* instruction_to_append, bool add_output = false);
+  // Clones the given instruction_to_append and inserts the clone into this
+  // callable instruction. If add_output is true, a clone of
+  // instruction_to_append will be in the output of the this callable
+  // instruction (part of the tuple of the callable root).
+  HloInstruction* CloneAndAppendInstructionIntoCalledComputation(
+      HloInstruction* instruction_to_append, bool add_output = false);
+
+  // Retrieves the called computations of an HloCallableInstruction that is
+  // being cloned. If the called computations have not yet been cloned, then
+  // they are first cloned and added to the context.
+  absl::InlinedVector<HloComputation*, 1> GetOrCloneCalledComputations(
+      HloCloneContext* context) const;
+
+  HloComputation* called_computation() const;
+
+  HloInstruction* called_computation_root() const;
+
+  // Recursively sets all nested called computation to have thread name as
+  // `execution_thread`. if `skip_async_execution_thread_overwrite` is true,
+  // skip overwrite async instruction and its computations thread name
+  // overwriting.
+  void RecursivelySetComputationsThreadName(
+      std::string_view execution_thread,
+      bool skip_async_execution_thread_overwrite);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kFusion ||
+           hlo->opcode() == HloOpcode::kCall ||
+           hlo->opcode() == HloOpcode::kCustomCall;
+  }
+
+  // Gets a list of output/operand buffer pairs that alias each other, where the
+  // output buffer is represented as a ShapeIndex, and the operand buffer is
+  // represented as the operand index and the ShapeIndex. By default this list
+  // is empty.
+  const std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>&
+  output_to_operand_aliasing() const {
+    return output_to_operand_aliasing_;
+  }
+  // Sets the list of output/operand buffer pairs that alias each other.
+  void set_output_to_operand_aliasing(
+      std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+          aliasing) {
+    output_to_operand_aliasing_ = std::move(aliasing);
+  }
+
+  FrontendAttributes BuildFrontendAttributesForComposite(
+      const std::string& name,
+      std::optional<std::string_view> attributes = std::nullopt,
+      std::optional<int64_t> version = std::nullopt) {
+    FrontendAttributes frontend_attributes;
+    frontend_attributes.mutable_map()->insert({"composite.name", name});
+    frontend_attributes.mutable_map()->insert(
+        {"composite.attributes",
+         attributes.has_value() ? std::string(*attributes) : "{}"});
+    frontend_attributes.mutable_map()->insert(
+        {"composite.version",
+         version.has_value() ? std::to_string(*version) : "0"});
+    return frontend_attributes;
+  }
+
+ protected:
+  // Returns the default called computation name.
+  virtual std::string default_called_computation_name() const = 0;
+
+ private:
+  // A list of output/operand buffer pairs that alias each other. See comment of
+  // output_to_operand_aliasing().
+  std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+      output_to_operand_aliasing_;
+};
+
 class HloParameterInstruction : public HloInstruction {
  public:
   explicit HloParameterInstruction(int64_t parameter_number, const Shape& shape,

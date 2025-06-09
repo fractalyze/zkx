@@ -155,6 +155,19 @@ void HloInstruction::AppendComputation(HloComputation* computation) {
   mutable_rare()->called_computations.push_back(computation);
 }
 
+HloInstruction* HloInstruction::AddInstruction(
+    std::unique_ptr<HloInstruction> derived_instruction) {
+  HloInstruction* derived =
+      parent()->AddInstruction(std::move(derived_instruction));
+  const bool has_prior_sharding = derived->has_sharding();
+  SetupDerivedInstruction(derived);
+  if (!has_prior_sharding && (derived->opcode() == HloOpcode::kReshape ||
+                              derived->opcode() == HloOpcode::kTranspose)) {
+    derived->clear_sharding();
+  }
+  return derived;
+}
+
 // static
 absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
     const HloInstructionProto& proto,
@@ -3443,6 +3456,18 @@ ComparisonDirection HloInstruction::comparison_direction() const {
 
 ComparisonOrder HloInstruction::comparison_order() const {
   return Cast<HloCompareInstruction>(this)->order();
+}
+
+const std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>&
+HloInstruction::output_operand_aliasing() const {
+  return Cast<HloCallableInstruction>(this)->output_to_operand_aliasing();
+}
+
+void HloInstruction::set_output_to_operand_aliasing(
+    std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+        aliasing) {
+  Cast<HloCallableInstruction>(this)->set_output_to_operand_aliasing(
+      std::move(aliasing));
 }
 
 std::string_view ToString(HloInstruction::FusionKind kind) {

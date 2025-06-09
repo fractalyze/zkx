@@ -266,6 +266,11 @@ class HloInstruction {
   // instruction from each operand's user set and user's operand set.
   void DetachFromOperandsAndUsers();
 
+  // Adds a derived instruction to the parent computation of this instruction.
+  // Also update setup the new instruction as a derived instruction.
+  HloInstruction* AddInstruction(
+      std::unique_ptr<HloInstruction> derived_instruction);
+
   // Creates an instruction from the given proto. Arguments:
   //
   //   proto: the proto to convert from.
@@ -1529,6 +1534,15 @@ class HloInstruction {
 
   // Delegates to HloCollectivePermuteInstruction::source_target_pairs.
   const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs() const;
+
+  // Delegates to HloCallableInstruction::output_to_operand_aliasing().
+  const std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>&
+  output_operand_aliasing() const;
+
+  // Delegates to HloCallableInstruction::set_output_to_operand_aliasing().
+  void set_output_to_operand_aliasing(
+      std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+          aliasing);
 
   // Appends operand(s) to the list of operands and adds this instruction as a
   // user of the operand.
