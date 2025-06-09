@@ -331,10 +331,9 @@ HloAsyncStartInstruction::CloneWithNewOperandsImpl(
         context->FindComputation(async_wrapped_computation());
   }
   if (new_wrapped_computation == nullptr) {
-    // TODO(chokobole): Uncomment this. Dependency: HloComputation::Clone
-    // HloModule* module = context != nullptr ? context->module() : GetModule();
-    // new_wrapped_computation = module->AddEmbeddedComputation(
-    //     async_wrapped_computation()->Clone("clone", context));
+    HloModule* module = context != nullptr ? context->module() : GetModule();
+    new_wrapped_computation = module->AddEmbeddedComputation(
+        async_wrapped_computation()->Clone("clone", context));
   }
 
   return std::make_unique<HloAsyncStartInstruction>(
