@@ -760,7 +760,7 @@ absl::Status SlicedCopyAllocation::SliceDetail::CreateAsyncSlice(
   }
 
   // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateCustomCall
+  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateSlice
   // clang-format on
   // HloInstruction* slice = parent.AddInstruction(
   //     HloInstruction::CreateSlice(slice_decision.sizing.slice_shape,
