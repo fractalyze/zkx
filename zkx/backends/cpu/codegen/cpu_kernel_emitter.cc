@@ -319,10 +319,18 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     // TODO(jingyue): add the "nsw" attribute for signed types.
     case HloOpcode::kAdd:
       return b.create<mlir::arith::AddIOp>(lhs_value, rhs_value);
+    case HloOpcode::kDivide: {
+      if (is_signed) {
+        return b.create<mlir::arith::DivSIOp>(lhs_value, rhs_value);
+      } else {
+        return b.create<mlir::arith::DivUIOp>(lhs_value, rhs_value);
+      }
+    }
     case HloOpcode::kMultiply:
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
     case HloOpcode::kSubtract:
       return b.create<mlir::arith::SubIOp>(lhs_value, rhs_value);
+
     default:
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled binary integer op: %s", HloOpcodeString(instr->opcode())));
@@ -336,6 +344,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::field::AddOp>(lhs_value, rhs_value);
+    case HloOpcode::kDivide: {
+      auto inv = b.create<mlir::zkir::field::InverseOp>(rhs_value);
+      return b.create<mlir::zkir::field::MulOp>(lhs_value, inv);
+    }
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
     case HloOpcode::kSubtract:
@@ -515,8 +527,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
+    case HloOpcode::kSubtract:
     case HloOpcode::kMultiply:
-    case HloOpcode::kSubtract: {
+    case HloOpcode::kDivide: {
       return EmitBinaryOp(instr, b, values[instr->operand(0)],
                           values[instr->operand(1)]);
     }

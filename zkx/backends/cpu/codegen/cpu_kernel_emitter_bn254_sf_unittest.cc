@@ -70,6 +70,31 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(x * y));
 }
 
+TEST_F(CpuKernelEmitterTest, FieldScalarDiv) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
+  %x = bn254.sf[] parameter(0)
+  %y = bn254.sf[] parameter(1)
+
+  ROOT %ret = bn254.sf[] divide(%x, %y)
+}
+)";
+
+  auto x = math::bn254::Fr::Random();
+  auto y = math::bn254::Fr::Random();
+  while (y.IsZero()) {
+    y = math::bn254::Fr::Random();
+  }
+
+  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
+  Literal y_literal = LiteralUtil::CreateR0<math::bn254::Fr>(y);
+  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::Fr>(0);
+  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
+  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(*(x / y)));
+}
+
 TEST_F(CpuKernelEmitterTest, FieldTensorAdd) {
   const std::string kHloText = R"(
 ENTRY %f (x: bn254.sf[2,3], y: bn254.sf[2,3]) -> bn254.sf[2,3] {

@@ -180,6 +180,12 @@ class PrimeField {
     }
   }
 
+  constexpr absl::StatusOr<PrimeField> operator/(
+      const PrimeField& other) const {
+    TF_ASSIGN_OR_RETURN(PrimeField inv, other.Inverse());
+    return operator*(inv);
+  }
+
   constexpr absl::StatusOr<PrimeField> Inverse() const {
     PrimeField ret;
     if (!s_inverter_.Invert(value_, ret.value_)) {
