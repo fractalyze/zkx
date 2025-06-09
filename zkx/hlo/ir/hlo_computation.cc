@@ -27,6 +27,21 @@ namespace {
 
 enum class VisitState { kNew = 0, kVisiting = 1, kVisited = 2 };
 
+static std::ostream& operator<<(std::ostream& os, const VisitState& state) {
+  switch (state) {
+    case VisitState::kNew:
+      os << "new";
+      break;
+    case VisitState::kVisiting:
+      os << "visiting";
+      break;
+    case VisitState::kVisited:
+      os << "visited";
+      break;
+  }
+  return os;
+}
+
 }  // namespace
 
 class HloComputation::VisitMap {
