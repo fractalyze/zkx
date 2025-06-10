@@ -106,6 +106,9 @@ message HloInstructionProto {
   // Shape of outfeed request.
   ShapeProto outfeed_shape = 29;
 
+  // Describes the dimension numbers used for a dot operation
+  DotDimensionNumbers dot_dimension_numbers = 30;
+
   // FFT type (FFT, IFFT).
   FftType fft_type = 31;
 

@@ -355,6 +355,17 @@ class HloInstruction {
       Comparison::Direction direction,
       std::optional<PrimitiveType> type = std::nullopt);
 
+  // Creates a dot op with operands `lhs` and `rhs` with contracting and batch
+  // dimensions specified in `dimension_numbers`. If `sparsity` is set, then
+  // `sparse_meta` must also be present (and have the same size).
+  // Note: `sparsity` argument is eventually moved in the HloDotInstruction
+  // constructor, so no extra copies are created.
+  static std::unique_ptr<HloInstruction> CreateDot(
+      const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
+      const DotDimensionNumbers& dimension_numbers,
+      std::vector<SparsityDescriptor> sparsity = {},
+      absl::Span<HloInstruction* const> sparse_meta = {});
+
   // Creates an all-gather op, which concats the operands of all participants
   // along all_gather_dimension. The replica_groups, channel_id, and
   // use_global_device_ids arguments are identical to those in all-reduce,
@@ -1469,6 +1480,12 @@ class HloInstruction {
   void set_original_value(std::shared_ptr<OriginalValue> original_value) {
     original_value_ = original_value;
   }
+
+  // Delegates to HloDotInstruction::dot_dimension_numbers().
+  const DotDimensionNumbers& dot_dimension_numbers() const;
+
+  // Delegates to HloDotInstruction::sparsity().
+  absl::Span<const SparsityDescriptor> sparsity() const;
 
   // Returns true if the instruction is an async-start, async-update, or
   // async-done.

@@ -1298,6 +1298,16 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateCompare(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateDot(
+    const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
+    const DotDimensionNumbers& dimension_numbers,
+    std::vector<SparsityDescriptor> sparsity,
+    absl::Span<HloInstruction* const> sparse_meta) {
+  return std::make_unique<HloDotInstruction>(shape, lhs, rhs, dimension_numbers,
+                                             std::move(sparsity), sparse_meta);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateAllGather(
     const Shape& shape, absl::Span<HloInstruction* const> operands,
     int64_t all_gather_dimension, const CollectiveDeviceList& device_list,
@@ -3274,6 +3284,14 @@ std::optional<int64_t> HloInstruction::channel_id() const {
 
 void HloInstruction::set_channel_id(const std::optional<int64_t>& channel_id) {
   return Cast<HloChannelInstruction>(this)->set_channel_id(channel_id);
+}
+
+const DotDimensionNumbers& HloInstruction::dot_dimension_numbers() const {
+  return Cast<HloDotInstruction>(this)->dot_dimension_numbers();
+}
+
+absl::Span<const SparsityDescriptor> HloInstruction::sparsity() const {
+  return Cast<HloDotInstruction>(this)->sparsity();
 }
 
 bool HloInstruction::IsAsynchronous() const {
