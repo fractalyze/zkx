@@ -162,6 +162,15 @@ class ShapeInference {
       const Shape& operand_shape, const Shape& output_shape,
       absl::Span<const int64_t> broadcast_dimensions);
 
+  // Helper that infers the shape produced by performing a dot operation with
+  // the given LHS and RHS shapes. An optional preferred_element_type can be
+  // specified to upcast the element type.
+  static absl::StatusOr<Shape> InferDotOpShape(
+      const Shape& lhs, const Shape& rhs,
+      const DotDimensionNumbers& dimension_numbers,
+      std::optional<PrimitiveType> preferred_element_type,
+      absl::Span<const SparsityDescriptor> sparsity = {});
+
  private:
   // Helper that infers the shape produced by performing an element-wise binary
   // operation with the given LHS and RHS shapes.

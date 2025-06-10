@@ -306,9 +306,160 @@ TEST_F(ShapeInferenceTest, InferCompareShape) {
 // TODO(chokobole): Add tests. Dependency: ShapeInference::InferBroadcastShape
 // clang-format on
 
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: ShapeInference::InferDotOpShape
-// clang-format on
+// scalar <dot> vector: ok
+TEST_F(ShapeInferenceTest, ScalarDotVector) {
+  DotDimensionNumbers dot_dnums;
+  const absl::StatusOr<Shape> inferred_shape = ShapeInference::InferDotOpShape(
+      u32_, vector_32_, dot_dnums, /*preferred_element_type=*/std::nullopt);
+  EXPECT_TRUE(inferred_shape.ok());
+  EXPECT_EQ(*inferred_shape, vector_32_);
+}
+
+// 3D <dot> 2D: error
+TEST_F(ShapeInferenceTest, DotWithRankHigherThanTwo) {
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  const absl::StatusOr<Shape> inferred_shape = ShapeInference::InferDotOpShape(
+      ShapeUtil::MakeShape(U32, {32, 32, 32}), matrix_32_64_, dot_dnums,
+      /*preferred_element_type=*/std::nullopt);
+  EXPECT_TRUE(inferred_shape.ok());
+  EXPECT_TRUE(ShapeUtil::Equal(*inferred_shape,
+                               ShapeUtil::MakeShape(U32, {32, 32, 64})));
+}
+
+// vector <dot> vector -> scalar
+TEST_F(ShapeInferenceTest, VectorDotVector) {
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(0);
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferDotOpShape(vector_64_, vector_64_, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(u32_, *inferred_shape));
+  const absl::StatusOr<Shape> inferred_shape_mismatch =
+      ShapeInference::InferDotOpShape(vector_64_, vector_32_, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_FALSE(inferred_shape_mismatch.ok());
+}
+
+// matrix <dot> vector -> vector
+TEST_F(ShapeInferenceTest, MatrixDotVector) {
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferDotOpShape(matrix_32_64_, vector_64_, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(*inferred_shape, vector_32_));
+  const absl::StatusOr<Shape> inferred_shape_mismatch =
+      ShapeInference::InferDotOpShape(matrix_32_64_, vector_32_, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_FALSE(inferred_shape_mismatch.ok());
+}
+
+// vector <dot> matrix -> vector
+TEST_F(ShapeInferenceTest, VectorDotMatrix) {
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(0);
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferDotOpShape(vector_32_, matrix_32_64_, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(*inferred_shape, vector_64_));
+  const absl::StatusOr<Shape> inferred_shape_mismatch =
+      ShapeInference::InferDotOpShape(vector_64_, matrix_32_64_, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_FALSE(inferred_shape_mismatch.ok());
+}
+
+// matrix <dot> matrix -> matrix
+TEST_F(ShapeInferenceTest, MatrixDotMatrix) {
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_contracting_dimensions(0);
+  const absl::StatusOr<Shape> inferred_shape_match =
+      ShapeInference::InferDotOpShape(matrix_32_64_, matrix_64_48_, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_TRUE(inferred_shape_match.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(*inferred_shape_match, matrix_32_48_))
+      << "inferred: " << ShapeUtil::HumanString(*inferred_shape_match)
+      << " expected: " << ShapeUtil::HumanString(matrix_64_48_);
+  const absl::StatusOr<Shape> inferred_shape_mismatch =
+      ShapeInference::InferDotOpShape(matrix_32_64_, matrix_32_64_, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_FALSE(inferred_shape_mismatch.ok());
+}
+
+// BatchMatMul with two batch dimensions and one contracting dimension.
+TEST_F(ShapeInferenceTest, DotGeneral) {
+  const Shape lhs_shape = ShapeUtil::MakeShape(U32, {5, 2, 11, 3});
+  const Shape rhs_shape = ShapeUtil::MakeShape(U32, {5, 2, 3, 14});
+  const Shape output_shape = ShapeUtil::MakeShape(U32, {5, 2, 11, 14});
+
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(3);
+  dot_dnums.add_lhs_batch_dimensions(0);
+  dot_dnums.add_lhs_batch_dimensions(1);
+
+  dot_dnums.add_rhs_contracting_dimensions(2);
+  dot_dnums.add_rhs_batch_dimensions(0);
+  dot_dnums.add_rhs_batch_dimensions(1);
+
+  const absl::StatusOr<Shape> inferred_shape_match =
+      ShapeInference::InferDotOpShape(lhs_shape, rhs_shape, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_TRUE(inferred_shape_match.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(*inferred_shape_match, output_shape))
+      << "inferred: " << ShapeUtil::HumanString(*inferred_shape_match)
+      << " expected: " << ShapeUtil::HumanString(output_shape);
+}
+
+// BatchMatMul with two contracting dimensions fails.
+TEST_F(ShapeInferenceTest, DotWithTwoContractingDimsFails) {
+  const Shape lhs_shape = ShapeUtil::MakeShape(U32, {2, 11, 3, 2});
+  const Shape rhs_shape = ShapeUtil::MakeShape(U32, {2, 3, 14});
+
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(2);
+  dot_dnums.add_lhs_contracting_dimensions(3);
+  dot_dnums.add_lhs_batch_dimensions(0);
+
+  dot_dnums.add_rhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_batch_dimensions(0);
+
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferDotOpShape(lhs_shape, rhs_shape, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  ASSERT_FALSE(inferred_shape.ok());
+  ASSERT_THAT(inferred_shape.status().message(),
+              HasSubstr("Must specify the same number of contracting "
+                        "dimensions for lhs and rhs."));
+}
+
+TEST_F(ShapeInferenceTest, DotWithTwoContractingDimsPasses) {
+  const Shape lhs_shape = ShapeUtil::MakeShape(U32, {2, 11, 3, 2});
+  const Shape rhs_shape = ShapeUtil::MakeShape(U32, {2, 3, 2, 14});
+  const Shape output_shape = ShapeUtil::MakeShape(U32, {2, 11, 14});
+
+  DotDimensionNumbers dot_dnums;
+  dot_dnums.add_lhs_contracting_dimensions(2);
+  dot_dnums.add_lhs_contracting_dimensions(3);
+  dot_dnums.add_lhs_batch_dimensions(0);
+
+  dot_dnums.add_rhs_contracting_dimensions(1);
+  dot_dnums.add_rhs_contracting_dimensions(2);
+  dot_dnums.add_rhs_batch_dimensions(0);
+
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferDotOpShape(lhs_shape, rhs_shape, dot_dnums,
+                                      /*preferred_element_type=*/std::nullopt);
+  EXPECT_TRUE(inferred_shape.ok());
+  EXPECT_TRUE(ShapeUtil::Equal(*inferred_shape, output_shape));
+}
 
 // clang-format off
 // TODO(chokobole): Add tests. Dependency: ShapeInference::InferSetDimensionSizeShape
@@ -726,9 +877,43 @@ TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedDiv) {
   }
 }
 
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: ShapeInference::InferDotOpShape
-// clang-format on
+TEST_F(ShapeInferenceTest, UnboundedDot) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape("u32[?, 10]"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape("u32[?, 10]"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape expected, ParseShape("u32[?, 10]"));
+
+  DotDimensionNumbers dnums;
+  dnums.add_lhs_contracting_dimensions(1);
+  dnums.add_rhs_contracting_dimensions(0);
+
+  TF_ASSERT_OK_AND_ASSIGN(
+      const Shape inferred_shape,
+      ShapeInference::InferDotOpShape(lhs, rhs, dnums,
+                                      /*preferred_element_type=*/std::nullopt));
+  EXPECT_TRUE(ShapeUtil::Equal(inferred_shape, expected))
+      << "inferred: " << ShapeUtil::HumanString(inferred_shape)
+      << " expected: " << ShapeUtil::HumanString(expected);
+}
+
+TEST_F(ShapeInferenceTest, UnboundedDotGeneral) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape("u32[?, <=3, ?]"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape("u32[2, 4, 5]"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape expected, ParseShape("u32[?, <=3, 5]"));
+
+  DotDimensionNumbers dnums;
+  dnums.add_lhs_batch_dimensions(0);
+  dnums.add_rhs_batch_dimensions(0);
+  dnums.add_lhs_contracting_dimensions(2);
+  dnums.add_rhs_contracting_dimensions(1);
+
+  TF_ASSERT_OK_AND_ASSIGN(
+      const Shape inferred_shape,
+      ShapeInference::InferDotOpShape(lhs, rhs, dnums,
+                                      /*preferred_element_type=*/std::nullopt));
+  EXPECT_TRUE(ShapeUtil::Equal(inferred_shape, expected))
+      << "inferred: " << ShapeUtil::HumanString(inferred_shape)
+      << " expected: " << ShapeUtil::HumanString(expected);
+}
 
 // clang-format off
 // TODO(chokobole): Add tests. Dependency: ShapeInference::InferDynamicSliceShape
