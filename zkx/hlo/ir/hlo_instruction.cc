@@ -898,7 +898,7 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kRaggedDot: {
-      // TODO(chokobole): Uncomment this. Dependency: HloDotInstruction
+      // TODO(chokobole): Uncomment this. Dependency: HloRaggedDotInstruction
       // int expected_operands = HloRaggedDotInstruction::kOperands;
       // TF_RET_CHECK(proto.operand_ids_size() == expected_operands)
       //     << proto.opcode() << " instruction should have " <<
