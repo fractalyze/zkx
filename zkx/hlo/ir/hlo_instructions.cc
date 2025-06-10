@@ -15,8 +15,11 @@ limitations under the License.
 
 #include "zkx/hlo/ir/hlo_instructions.h"
 
+#include "absl/algorithm/container.h"
+
 #include "zkx/hlo/ir/hlo_casting_utils.h"
 #include "zkx/hlo/ir/hlo_module.h"
+#include "zkx/protobuf_util.h"
 
 namespace zkx {
 namespace {
@@ -1378,6 +1381,68 @@ std::unique_ptr<HloInstruction> HloOutfeedInstruction::CloneWithNewOperandsImpl(
   CHECK_EQ(new_operands.size(), 2);
   return std::make_unique<HloOutfeedInstruction>(
       outfeed_shape(), new_operands[0], new_operands[1], outfeed_config());
+}
+
+HloDotInstruction::HloDotInstruction(
+    const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
+    const DotDimensionNumbers& dimension_numbers,
+    std::vector<SparsityDescriptor> sparsity,
+    absl::Span<HloInstruction* const> sparse_meta)
+    : HloInstruction(HloOpcode::kDot, shape),
+      dot_dimension_numbers_(dimension_numbers),
+      sparsity_(std::move(sparsity)) {
+  AppendOperand(lhs);
+  AppendOperand(rhs);
+  CHECK_LE(sparsity_.size(), kOperands);
+  CHECK_EQ(sparsity_.size(), sparse_meta.size());
+  for (HloInstruction* meta : sparse_meta) {
+    AppendOperand(meta);
+  }
+  if (sparsity_.size() == kOperands &&
+      sparsity_[0].index() > sparsity_[1].index()) {
+    std::swap(sparsity_[0], sparsity_[1]);  // Keep descriptors ordered.
+    std::swap(mutable_operands()[2], mutable_operands()[3]);
+  }
+}
+
+HloInstructionProto HloDotInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  *proto.mutable_dot_dimension_numbers() = dot_dimension_numbers_;
+  for (const SparsityDescriptor& descriptor : sparsity_) {
+    *proto.add_dot_sparsity() = descriptor;
+  }
+  return proto;
+}
+
+// TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+// void HloDotInstruction::PrintExtraAttributesImpl(
+//     AttributePrinter& printer, const HloPrintOptions& options) const {
+//   printer.Next([this](Printer* printer) {
+//     printer->Append(DotDimensionNumbersToString(dot_dimension_numbers_));
+//   });
+//   if (!sparsity_.empty()) {
+//     PrintSparsityDescriptor(printer, absl::MakeSpan(sparsity_));
+//   }
+// }
+
+bool HloDotInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloDotInstruction&>(other);
+  return protobuf_util::ProtobufEquals(dot_dimension_numbers(),
+                                       casted_other.dot_dimension_numbers()) &&
+         absl::c_equal(sparsity_, casted_other.sparsity_,
+                       protobuf_util::ProtobufEquals);
+}
+
+std::unique_ptr<HloInstruction> HloDotInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), kOperands + sparse_operands());
+  return std::make_unique<HloDotInstruction>(
+      shape, new_operands[0], new_operands[1], dot_dimension_numbers_,
+      sparsity_, new_operands.subspan(kOperands));
 }
 
 }  //  namespace zkx
