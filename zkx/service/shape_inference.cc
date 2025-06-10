@@ -16,11 +16,13 @@ limitations under the License.
 #include "zkx/service/shape_inference.h"
 
 #include "absl/algorithm/container.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/status.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
 
 namespace zkx {
 namespace {
@@ -28,6 +30,13 @@ namespace {
 // Checks whether the given dimension size `size` is unbounded dynamic size.
 bool IsUnboundedDynamicSize(int64_t size) {
   return size == Shape::kUnboundedSize;
+}
+
+// Returns success if the given two dimension sizes 'size_a' and 'size_b' are
+// compatible: at least one is dynamic or both are equal.
+bool CompatibleDimensionSizes(int64_t size_a, int64_t size_b) {
+  return IsUnboundedDynamicSize(size_a) || IsUnboundedDynamicSize(size_b) ||
+         size_a == size_b;
 }
 
 absl::Status ExpectArray(const Shape& shape, std::string_view op_type) {
@@ -149,6 +158,230 @@ absl::StatusOr<Shape> ShapeInference::InferUnaryOpShape(HloOpcode opcode,
           "Unknown operation for unary shape inference: \"%s\".",
           HloOpcodeString(opcode)));
   }
+}
+
+// Current DotDimensionNumbers Requirements:
+//
+// Contracting Dimensions:
+// *) Same number of contracting dimensions on both lhs and rhs.
+// *) Contracting dimension size must be the same on both lhs and rhs.
+//
+// Batch Dimensions:
+// *) Same number of batch dimensions on both lhs and rhs.
+// *) Same batch dimension sizes on both lhs and rhs.
+//
+
+namespace {
+
+absl::Status ValidateDotDimensionNumbers(
+    const Shape& lhs, const Shape& rhs,
+    const DotDimensionNumbers& dimension_numbers) {
+  // Check that dimension numbers are in range.
+  auto dims_in_range = [](const int64_t rank,
+                          absl::Span<const int64_t> contracting_dims,
+                          absl::Span<const int64_t> batch_dims) -> bool {
+    auto in_range = [&rank](int64_t i) -> bool { return 0 <= i && i < rank; };
+    return absl::c_all_of(contracting_dims, in_range) &&
+           absl::c_all_of(batch_dims, in_range);
+  };
+
+  absl::Span<const int64_t> lhs_contracting_dimensions =
+      dimension_numbers.lhs_contracting_dimensions();
+  absl::Span<const int64_t> rhs_contracting_dimensions =
+      dimension_numbers.rhs_contracting_dimensions();
+  absl::Span<const int64_t> lhs_batch_dimensions =
+      dimension_numbers.lhs_batch_dimensions();
+  absl::Span<const int64_t> rhs_batch_dimensions =
+      dimension_numbers.rhs_batch_dimensions();
+
+  if (!dims_in_range(lhs.rank(), lhs_contracting_dimensions,
+                     lhs_batch_dimensions) ||
+      !dims_in_range(rhs.rank(), rhs_contracting_dimensions,
+                     rhs_batch_dimensions)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "A dimension number is out of range in Dot: %s. %s %s",
+        dimension_numbers.DebugString(), lhs.ToString(), rhs.ToString()));
+  }
+
+  // Check that dimension numbers are unique.
+  auto dims_unique = [](absl::Span<const int64_t> contracting_dims,
+                        absl::Span<const int64_t> batch_dims) -> bool {
+    absl::flat_hash_set<int64_t> dim_set;
+    auto is_unique = [&dim_set](int64_t i) -> bool {
+      return dim_set.insert(i).second;
+    };
+    return absl::c_all_of(contracting_dims, is_unique) &&
+           absl::c_all_of(batch_dims, is_unique);
+  };
+
+  if (!dims_unique(lhs_contracting_dimensions, lhs_batch_dimensions) ||
+      !dims_unique(rhs_contracting_dimensions, rhs_batch_dimensions)) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("A dimension number is not unique in Dot: %s.",
+                        dimension_numbers.DebugString()));
+  }
+
+  return absl::OkStatus();
+}
+
+absl::Status CheckDotDimensionConstraints(
+    const Shape& lhs, const Shape& rhs,
+    const DotDimensionNumbers& dimension_numbers,
+    std::optional<std::array<std::pair<int, int>, HloDotInstruction::kOperands>>
+        sparsity_nm = std::nullopt,
+    std::optional<std::array<int, HloDotInstruction::kOperands>> sparsity_dim =
+        std::nullopt) {
+  auto fail = [lhs, rhs](const std::string& addendum) -> absl::Status {
+    std::string message = absl::StrFormat(
+        "Cannot infer shape for dot operation: %s <dot> %s.",
+        ShapeUtil::HumanString(lhs), ShapeUtil::HumanString(rhs));
+    if (!addendum.empty()) {
+      message += " " + addendum;
+    }
+    return absl::InvalidArgumentError(message);
+  };
+
+  // Check that number of contracting dimensions match.
+  if (dimension_numbers.lhs_contracting_dimensions_size() !=
+      dimension_numbers.rhs_contracting_dimensions_size()) {
+    return fail(
+        "Must specify the same number of contracting dimensions for lhs and "
+        "rhs.");
+  }
+  // Check that contracting dimension sizes match.
+  for (int64_t i = 0; i < dimension_numbers.lhs_contracting_dimensions_size();
+       ++i) {
+    const int64_t lhs_contracting_dimension =
+        dimension_numbers.lhs_contracting_dimensions(i);
+    const int64_t rhs_contracting_dimension =
+        dimension_numbers.rhs_contracting_dimensions(i);
+    int64_t lhs_size = lhs.dimensions(lhs_contracting_dimension);
+    int64_t rhs_size = rhs.dimensions(rhs_contracting_dimension);
+    bool is_sparse = false;
+    if (sparsity_nm.has_value() && sparsity_dim.has_value()) {
+      if (lhs_contracting_dimension == sparsity_dim.value()[0]) {
+        lhs_size *= sparsity_nm.value()[0].second;
+        rhs_size *= sparsity_nm.value()[0].first;
+        is_sparse = true;
+      }
+      if (rhs_contracting_dimension == sparsity_dim.value()[1]) {
+        lhs_size *= sparsity_nm.value()[1].first;
+        rhs_size *= sparsity_nm.value()[1].second;
+        is_sparse = true;
+      }
+    }
+    if (!CompatibleDimensionSizes(lhs_size, rhs_size)) {
+      return fail(
+          !is_sparse
+              ? "Contracting dimension sizes are not compatible."
+              : "Sparse dimension size ratio doesn't match the descriptor.");
+    }
+  }
+
+  // Check that number of batch dimensions match.
+  if (dimension_numbers.lhs_batch_dimensions_size() !=
+      dimension_numbers.rhs_batch_dimensions_size()) {
+    return fail("Must the same number of batch dimensions for lhs and rhs.");
+  }
+
+  // Check that batch dimension numbers and sizes match.
+  for (int64_t i = 0; i < dimension_numbers.lhs_batch_dimensions_size(); ++i) {
+    if (!CompatibleDimensionSizes(
+            lhs.dimensions(dimension_numbers.lhs_batch_dimensions(i)),
+            rhs.dimensions(dimension_numbers.rhs_batch_dimensions(i)))) {
+      return fail("Batch dimension sizes are not compatible.");
+    }
+  }
+  return absl::OkStatus();
+}
+
+// The ranks of lhs and rhs are decremented by 1 respectively due to the
+// contraction, and added for the rank of the result. When an input tensor is
+// a scalar, its contribution to the rank of the result is 0.
+// Generate the result dimensions in order, rhs dimensions followed by lhs
+// dimensions except the contracted and batch dimensions.
+void GenerateDotResultDimensions(
+    const Shape& lhs, const Shape& rhs,
+    const DotDimensionNumbers& dimension_numbers,
+    std::vector<int64_t>& dimensions, std::vector<bool>& is_dynamic,
+    std::vector<int64_t> rhs_group_dimensions = {}) {
+  const auto& lhs_batch_dimensions = dimension_numbers.lhs_batch_dimensions();
+  const auto lhs_batch_dimensions_size =
+      lhs.rank() - dimension_numbers.lhs_contracting_dimensions().size() +
+      rhs.rank() - dimension_numbers.rhs_contracting_dimensions().size() -
+      dimension_numbers.rhs_batch_dimensions().size();
+  dimensions.reserve(lhs_batch_dimensions_size);
+  is_dynamic.reserve(lhs_batch_dimensions_size);
+  for (const int64_t lhs_dim : lhs_batch_dimensions) {
+    dimensions.push_back(lhs.dimensions(lhs_dim));
+    is_dynamic.push_back(lhs.is_dynamic_dimension(lhs_dim));
+  }
+  for (int64_t i = 0; i < lhs.rank(); i++) {
+    if (!absl::c_linear_search(dimension_numbers.lhs_contracting_dimensions(),
+                               i) &&
+        !absl::c_linear_search(dimension_numbers.lhs_batch_dimensions(), i)) {
+      dimensions.push_back(lhs.dimensions(i));
+      is_dynamic.push_back(lhs.is_dynamic_dimension(i));
+    }
+  }
+  for (int64_t i = 0; i < rhs.rank(); i++) {
+    if (!absl::c_linear_search(dimension_numbers.rhs_contracting_dimensions(),
+                               i) &&
+        !absl::c_linear_search(dimension_numbers.rhs_batch_dimensions(), i) &&
+        !absl::c_linear_search(rhs_group_dimensions, i)) {
+      dimensions.push_back(rhs.dimensions(i));
+      is_dynamic.push_back(rhs.is_dynamic_dimension(i));
+    }
+  }
+}
+
+}  // namespace
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferDotOpShape(
+    const Shape& lhs, const Shape& rhs,
+    const DotDimensionNumbers& dimension_numbers,
+    std::optional<PrimitiveType> preferred_element_type,
+    absl::Span<const SparsityDescriptor> sparsity) {
+  TF_RETURN_IF_ERROR(ExpectArray(lhs, "lhs of dot"));
+  TF_RETURN_IF_ERROR(ExpectArray(rhs, "rhs of dot"));
+
+  // Validate basic properties of dot dimension numbers.
+  TF_RETURN_IF_ERROR(ValidateDotDimensionNumbers(lhs, rhs, dimension_numbers));
+
+  // Sparsity is only supported for contracting dimensions.
+  // With N:M sparsity, the contracting dimension sizes have N/M ratio.
+  const int kSize = HloDotInstruction::kOperands;
+  std::array<std::pair<int, int>, kSize> sparsity_nm = {{{1, 1}, {1, 1}}};
+  std::array<int, kSize> sparsity_dim = {-1, -1};
+  for (const auto& descriptor : sparsity) {
+    TF_RET_CHECK(descriptor.index() == 0 || descriptor.index() == 1);
+    sparsity_dim[descriptor.index()] = descriptor.dimension();
+    switch (descriptor.type()) {
+      case SPARSITY_STRUCTURED_N_M:
+        sparsity_nm[descriptor.index()] = {descriptor.n(), descriptor.m()};
+        break;
+      default:
+        LOG(FATAL) << "Unsupported sparsity type: " << descriptor.type();
+    }
+  }
+
+  // Check the number and sizes of batch and contracting dimensions.
+  TF_RETURN_IF_ERROR(CheckDotDimensionConstraints(lhs, rhs, dimension_numbers,
+                                                  sparsity_nm, sparsity_dim));
+
+  std::vector<int64_t> dimensions;
+  std::vector<bool> is_dynamic;
+  GenerateDotResultDimensions(lhs, rhs, dimension_numbers, dimensions,
+                              is_dynamic);
+
+  PrimitiveType type = preferred_element_type.value_or(
+      ShapeUtil::HigherPrecisionElementType(lhs, rhs));
+  Shape result = ShapeUtil::MakeShape(type, dimensions, is_dynamic);
+
+  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(result));
+  VLOG(2) << "inferred dot shape: " << ShapeUtil::HumanString(result);
+  return result;
 }
 
 // static
