@@ -66,15 +66,23 @@ class Serde<std::basic_string_view<CharTy>> {
 template <typename CharTy>
 class Serde<std::basic_string<CharTy>> {
  public:
+  static bool s_ignore_size;
+
   static absl::Status WriteTo(const std::basic_string<CharTy>& value,
                               Buffer* buffer) {
-    TF_RETURN_IF_ERROR(buffer->Write(value.size()));
+    if (!s_ignore_size) {
+      TF_RETURN_IF_ERROR(buffer->Write(value.size()));
+    }
     return buffer->Write(reinterpret_cast<const uint8_t*>(value.data()),
                          value.size());
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
                                std::basic_string<CharTy>* value) {
+    if (s_ignore_size) {
+      return buffer.Read(reinterpret_cast<uint8_t*>(value->data()),
+                         value->size());
+    }
     size_t size;
     TF_RETURN_IF_ERROR(buffer.Read(&size));
     value->resize(size);
@@ -82,9 +90,13 @@ class Serde<std::basic_string<CharTy>> {
   }
 
   static size_t EstimateSize(const std::basic_string<CharTy>& value) {
-    return sizeof(size_t) + value.size();
+    return (s_ignore_size ? 0 : sizeof(size_t)) + value.size();
   }
 };
+
+// static
+template <typename CharTy>
+bool Serde<std::basic_string<CharTy>>::s_ignore_size = false;
 
 template <typename CharTy>
 class Serde<const CharTy*, std::enable_if_t<std::is_same_v<CharTy, char> ||
@@ -139,8 +151,12 @@ class Serde<T[N]> {
 template <typename T>
 class Serde<std::vector<T>> {
  public:
+  static bool s_ignore_size;
+
   static absl::Status WriteTo(const std::vector<T>& values, Buffer* buffer) {
-    TF_RETURN_IF_ERROR(buffer->Write(values.size()));
+    if (!s_ignore_size) {
+      TF_RETURN_IF_ERROR(buffer->Write(values.size()));
+    }
     for (const T& value : values) {
       TF_RETURN_IF_ERROR(buffer->Write(value));
     }
@@ -149,9 +165,11 @@ class Serde<std::vector<T>> {
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
                                std::vector<T>* values) {
-    size_t size;
-    TF_RETURN_IF_ERROR(buffer.Read(&size));
-    values->resize(size);
+    if (!s_ignore_size) {
+      size_t size;
+      TF_RETURN_IF_ERROR(buffer.Read(&size));
+      values->resize(size);
+    }
     for (T& value : (*values)) {
       TF_RETURN_IF_ERROR(buffer.Read(&value));
     }
@@ -159,12 +177,17 @@ class Serde<std::vector<T>> {
   }
 
   static size_t EstimateSize(const std::vector<T>& values) {
-    return std::accumulate(values.begin(), values.end(), sizeof(size_t),
+    return std::accumulate(values.begin(), values.end(),
+                           s_ignore_size ? 0 : sizeof(size_t),
                            [](size_t total, const T& value) {
                              return total + base::EstimateSize(value);
                            });
   }
 };
+
+// static
+template <typename T>
+bool Serde<std::vector<T>>::s_ignore_size = false;
 
 template <typename T, size_t N>
 class Serde<std::array<T, N>> {
@@ -195,8 +218,12 @@ class Serde<std::array<T, N>> {
 template <typename T>
 class Serde<absl::Span<T>> {
  public:
+  static bool s_ignore_size;
+
   static absl::Status WriteTo(absl::Span<T> values, Buffer* buffer) {
-    TF_RETURN_IF_ERROR(buffer->Write(values.size()));
+    if (!s_ignore_size) {
+      TF_RETURN_IF_ERROR(buffer->Write(values.size()));
+    }
     for (const T& value : values) {
       TF_RETURN_IF_ERROR(buffer->Write(value));
     }
@@ -210,12 +237,17 @@ class Serde<absl::Span<T>> {
   }
 
   static size_t EstimateSize(absl::Span<T> values) {
-    return std::accumulate(values.begin(), values.end(), sizeof(size_t),
+    return std::accumulate(values.begin(), values.end(),
+                           s_ignore_size ? 0 : sizeof(size_t),
                            [](size_t total, const T& value) {
                              return total + base::EstimateSize(value);
                            });
   }
 };
+
+// static
+template <typename T>
+bool Serde<absl::Span<T>>::s_ignore_size = false;
 
 template <typename... Ts>
 class Serde<std::tuple<Ts...>> {
