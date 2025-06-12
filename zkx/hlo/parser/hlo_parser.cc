@@ -1749,7 +1749,7 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
         }
       }
       return builder->AddInstruction(
-          HloInstruction::CreateConstant(std::move(literal)));
+          HloInstruction::CreateConstant(std::move(literal), *shape));
     }
     // Unary ops.
     case HloOpcode::kAllGatherDone:
