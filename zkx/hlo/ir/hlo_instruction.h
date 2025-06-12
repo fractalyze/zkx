@@ -287,6 +287,10 @@ class HloInstruction {
   // Creates a literal constant instruction.
   static std::unique_ptr<HloInstruction> CreateConstant(Literal literal);
 
+  // Creates a literal constant instruction.
+  static std::unique_ptr<HloInstruction> CreateConstant(Literal literal,
+                                                        const Shape& shape);
+
   // Creates a get tuple element instruction.
   static std::unique_ptr<HloInstruction> CreateGetTupleElement(
       const Shape& shape, HloInstruction* operand, int64_t index);
