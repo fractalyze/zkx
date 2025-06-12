@@ -1135,6 +1135,12 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateConstant(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateConstant(
+    Literal literal, const Shape& shape) {
+  return std::make_unique<HloConstantInstruction>(std::move(literal), shape);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateGetTupleElement(
     const Shape& shape, HloInstruction* operand, int64_t index) {
   return std::make_unique<HloGetTupleElementInstruction>(shape, operand, index);
