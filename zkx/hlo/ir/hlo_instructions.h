@@ -900,6 +900,61 @@ class HloConcatenateInstruction : public HloDimensionsInstruction {
       HloCloneContext* context) const override;
 };
 
+class HloSliceInstruction : public HloInstruction {
+ public:
+  explicit HloSliceInstruction(const Shape& shape, HloInstruction* operand,
+                               absl::Span<const int64_t> start_indices,
+                               absl::Span<const int64_t> limit_indices,
+                               absl::Span<const int64_t> strides);
+
+  HloInstructionProto ToProto() const override;
+
+  // Returns the start index in the given dimension for a slice node.
+  int64_t slice_starts(int64_t dimension) const {
+    return slice_starts_[dimension];
+  }
+  const std::vector<int64_t>& slice_starts() const { return slice_starts_; }
+  std::vector<int64_t>* mutable_slice_starts() { return &slice_starts_; }
+
+  // Returns the (exclusive) limit index in the given dimension for a slice
+  // node.
+  int64_t slice_limits(int64_t dimension) const {
+    return slice_limits_[dimension];
+  }
+  const std::vector<int64_t>& slice_limits() const { return slice_limits_; }
+  std::vector<int64_t>* mutable_slice_limits() { return &slice_limits_; }
+
+  // Returns the stride in the given dimension for a slice node.
+  int64_t slice_strides(int64_t dimension) const {
+    return slice_strides_[dimension];
+  }
+  const std::vector<int64_t>& slice_strides() const { return slice_strides_; }
+  std::vector<int64_t>* mutable_slice_strides() { return &slice_strides_; }
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kSlice;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  // Describes the [begin, end) index range for a slice.
+  std::vector<int64_t> slice_starts_;
+  std::vector<int64_t> slice_limits_;
+  std::vector<int64_t> slice_strides_;
+};
+
 class HloConstantInstruction : public HloInstruction {
  public:
   explicit HloConstantInstruction(Literal literal);
