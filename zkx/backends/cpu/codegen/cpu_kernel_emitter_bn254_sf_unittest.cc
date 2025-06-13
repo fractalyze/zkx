@@ -318,4 +318,24 @@ ENTRY %f (x: bn254.sf[4,3]{1,0:D(D, C)NNZ(8)}, y: bn254.sf[3]) -> bn254.sf[4] {
   }
 }
 
+TEST_F(CpuKernelEmitterTest, Slice) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[]) -> bn254.sf[3] {
+  %x = bn254.sf[6] parameter(0)
+
+  ROOT ret = bn254.sf[3] slice(%x), slice={[2:5]}
+}
+)";
+
+  std::vector<math::bn254::Fr> x = {1, 2, 3, 4, 5, 6};
+
+  Literal x_literal = LiteralUtil::CreateR1<math::bn254::Fr>(absl::MakeSpan(x));
+  Literal ret_literal = LiteralUtil::CreateR1<math::bn254::Fr>({0, 0, 0});
+  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
+  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+
+  absl::Span expected = absl::MakeSpan(x).subspan(2, 3);
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR1<math::bn254::Fr>(expected));
+}
+
 }  // namespace zkx::cpu

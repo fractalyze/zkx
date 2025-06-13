@@ -80,6 +80,12 @@ class CpuKernelEmitter final : public KernelEmitter {
                                                mlir::Value lhs,
                                                mlir::Value rhs);
 
+  static absl::StatusOr<mlir::Value> EmitSliceOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
+      absl::Span<const int64_t> start_indices,
+      absl::Span<const int64_t> limit_indices,
+      absl::Span<const int64_t> strides);
+
   static absl::StatusOr<mlir::Value> EmitIntegerBinaryOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       mlir::Value lhs_value, mlir::Value rhs_value, bool is_signed);
