@@ -1087,6 +1087,72 @@ HloConcatenateInstruction::CloneWithNewOperandsImpl(
                                                      concatenate_dimension());
 }
 
+HloSliceInstruction::HloSliceInstruction(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> start_indices,
+    absl::Span<const int64_t> limit_indices, absl::Span<const int64_t> strides)
+    : HloInstruction(HloOpcode::kSlice, shape),
+      slice_starts_(start_indices.begin(), start_indices.end()),
+      slice_limits_(limit_indices.begin(), limit_indices.end()),
+      slice_strides_(strides.begin(), strides.end()) {
+  AppendOperand(operand);
+  // For backward compatibility with old serialized computations: if there are
+  // no strides, assume all strides are 1.
+  // TODO(b/63317920): remove this code.
+  if (slice_strides_.empty()) {
+    slice_strides_ = std::vector<int64_t>(start_indices.size(), 1LL);
+  }
+}
+
+HloInstructionProto HloSliceInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  for (int i = 0; i < slice_starts_.size(); ++i) {
+    auto* slice_dimension = proto.add_slice_dimensions();
+    slice_dimension->set_start(slice_starts_[i]);
+    slice_dimension->set_limit(slice_limits_[i]);
+    slice_dimension->set_stride(slice_strides_[i]);
+  }
+  return proto;
+}
+
+// TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+// void HloSliceInstruction::PrintExtraAttributesImpl(
+//     AttributePrinter& printer, const HloPrintOptions& options) const {
+//   printer.Next([this](Printer* printer) {
+//     const bool omit_stride = absl::c_all_of(
+//         slice_strides_, [](int64_t stride) { return stride == 1; });
+//     printer->Append("slice={");
+//     AppendJoin(printer, slice_starts_, ", ",
+//                [&](Printer* printer, auto& slice_start) {
+//                  const auto i = &slice_start - slice_starts_.data();
+//                  AppendCat(printer, "[", slice_start, ":", slice_limits_[i]);
+//                  if (!omit_stride) {
+//                    AppendCat(printer, ":", slice_strides_[i]);
+//                  }
+//                  printer->Append("]");
+//                });
+//     printer->Append("}");
+//   });
+// }
+
+bool HloSliceInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& other_slice = static_cast<const HloSliceInstruction&>(other);
+  return slice_starts_ == other_slice.slice_starts_ &&
+         slice_limits_ == other_slice.slice_limits_ &&
+         slice_strides_ == other_slice.slice_strides_;
+}
+
+std::unique_ptr<HloInstruction> HloSliceInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), 1);
+  return std::make_unique<HloSliceInstruction>(
+      shape, new_operands[0], slice_starts_, slice_limits_, slice_strides_);
+}
+
 HloConstantInstruction::HloConstantInstruction(Literal literal)
     : HloInstruction(HloOpcode::kConstant, literal.shape()),
       literal_(new Literal(std::move(literal))) {}

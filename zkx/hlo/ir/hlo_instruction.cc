@@ -1573,6 +1573,16 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateToken() {
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateSlice(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> start_indices,
+    absl::Span<const int64_t> limit_indices,
+    absl::Span<const int64_t> strides) {
+  return std::make_unique<HloSliceInstruction>(shape, operand, start_indices,
+                                               limit_indices, strides);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateAddDependency(
     HloInstruction* data_operand, HloInstruction* token_operand) {
   auto instruction = absl::WrapUnique(
@@ -3194,6 +3204,42 @@ int64_t HloInstruction::fft_length() const {
 
 int64_t HloInstruction::concatenate_dimension() const {
   return Cast<HloConcatenateInstruction>(this)->concatenate_dimension();
+}
+
+int64_t HloInstruction::slice_starts(int64_t dimension) const {
+  return Cast<HloSliceInstruction>(this)->slice_starts(dimension);
+}
+
+const std::vector<int64_t>& HloInstruction::slice_starts() const {
+  return Cast<HloSliceInstruction>(this)->slice_starts();
+}
+
+std::vector<int64_t>* HloInstruction::mutable_slice_starts() {
+  return Cast<HloSliceInstruction>(this)->mutable_slice_starts();
+}
+
+int64_t HloInstruction::slice_limits(int64_t dimension) const {
+  return Cast<HloSliceInstruction>(this)->slice_limits(dimension);
+}
+
+const std::vector<int64_t>& HloInstruction::slice_limits() const {
+  return Cast<HloSliceInstruction>(this)->slice_limits();
+}
+
+std::vector<int64_t>* HloInstruction::mutable_slice_limits() {
+  return Cast<HloSliceInstruction>(this)->mutable_slice_limits();
+}
+
+int64_t HloInstruction::slice_strides(int64_t dimension) const {
+  return Cast<HloSliceInstruction>(this)->slice_strides(dimension);
+}
+
+const std::vector<int64_t>& HloInstruction::slice_strides() const {
+  return Cast<HloSliceInstruction>(this)->slice_strides();
+}
+
+std::vector<int64_t>* HloInstruction::mutable_slice_strides() {
+  return Cast<HloSliceInstruction>(this)->mutable_slice_strides();
 }
 
 const Literal& HloInstruction::literal() const {
