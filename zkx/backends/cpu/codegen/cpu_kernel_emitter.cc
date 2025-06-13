@@ -854,6 +854,36 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
 }
 
 // static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
+    absl::Span<const int64_t> start_indices,
+    absl::Span<const int64_t> limit_indices,
+    absl::Span<const int64_t> strides_in) {
+  const Shape& shape = instr->shape();
+  auto value_type = mlir::dyn_cast<mlir::RankedTensorType>(value.getType());
+  if (value_type == nullptr) {
+    return absl::InternalError("value is not a ranked tensor");
+  }
+
+  auto result_type = mlir::dyn_cast<mlir::RankedTensorType>(
+      llvm_ir::ShapeToMLIRTensorType(shape, b.getContext()));
+  CHECK(result_type);
+
+  llvm::SmallVector<mlir::OpFoldResult> offsets;
+  llvm::SmallVector<mlir::OpFoldResult> sizes;
+  llvm::SmallVector<mlir::OpFoldResult> strides;
+
+  for (int64_t i = 0; i < shape.rank(); ++i) {
+    offsets.push_back(b.getIndexAttr(start_indices[i]));
+    sizes.push_back(b.getIndexAttr(limit_indices[i] - start_indices[i]));
+    strides.push_back(b.getIndexAttr(strides_in[i]));
+  }
+
+  return b.create<mlir::tensor::ExtractSliceOp>(result_type, value, offsets,
+                                                sizes, strides);
+}
+
+// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
@@ -879,6 +909,11 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kDot: {
       return EmitDotOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
+    }
+    case HloOpcode::kSlice: {
+      return EmitSliceOp(instr, b, values[instr->operand(0)],
+                         instr->slice_starts(), instr->slice_limits(),
+                         instr->slice_strides());
     }
 
     default:
