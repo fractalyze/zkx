@@ -461,19 +461,15 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           "HloInstruction::CreateFromProto: Map not implemented");
       break;
     case HloOpcode::kSlice: {
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateSlice
-      // std::vector<int64_t> slice_starts, slice_limits, slice_strides;
-      // for (const HloInstructionProto::SliceDimensions& slice_dimensions :
-      //      proto.slice_dimensions()) {
-      //   slice_starts.push_back(slice_dimensions.start());
-      //   slice_limits.push_back(slice_dimensions.limit());
-      //   slice_strides.push_back(slice_dimensions.stride());
-      // }
-      // instruction = CreateSlice(shape, operands(0), slice_starts,
-      // slice_limits,
-      //                           slice_strides);
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Slice not implemented");
+      std::vector<int64_t> slice_starts, slice_limits, slice_strides;
+      for (const HloInstructionProto::SliceDimensions& slice_dimensions :
+           proto.slice_dimensions()) {
+        slice_starts.push_back(slice_dimensions.start());
+        slice_limits.push_back(slice_dimensions.limit());
+        slice_strides.push_back(slice_dimensions.stride());
+      }
+      instruction = CreateSlice(shape, operands(0), slice_starts, slice_limits,
+                                slice_strides);
       break;
     }
     case HloOpcode::kConstant: {
