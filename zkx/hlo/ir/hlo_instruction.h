@@ -684,6 +684,14 @@ class HloInstruction {
       HloInstruction* operand, std::optional<int64_t> channel_id,
       bool is_host_transfer);
 
+  // Creates a slice instruction, where the operand is sliced by the given
+  // start/limit indices.
+  static std::unique_ptr<HloInstruction> CreateSlice(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<const int64_t> start_indices,
+      absl::Span<const int64_t> limit_indices,
+      absl::Span<const int64_t> strides);
+
   // Creates a broadcast instruction.
   static std::unique_ptr<HloInstruction> CreateBroadcast(
       const Shape& shape, HloInstruction* operand,
@@ -1412,6 +1420,21 @@ class HloInstruction {
 
   // Delegates to HloConcatenateInstruction::concatenate_dimension.
   virtual int64_t concatenate_dimension() const;
+
+  // Delegates to HloSliceInstruction::slice_start.
+  int64_t slice_starts(int64_t dimension) const;
+  const std::vector<int64_t>& slice_starts() const;
+  std::vector<int64_t>* mutable_slice_starts();
+
+  // Delegates to HloSliceInstruction::slice_limits.
+  int64_t slice_limits(int64_t dimension) const;
+  const std::vector<int64_t>& slice_limits() const;
+  std::vector<int64_t>* mutable_slice_limits();
+
+  // Delegates to HloSliceInstruction::slice_strides.
+  int64_t slice_strides(int64_t dimension) const;
+  const std::vector<int64_t>& slice_strides() const;
+  std::vector<int64_t>* mutable_slice_strides();
 
   // Returns the literal associated with this instruction.
   const Literal& literal() const;
