@@ -2454,10 +2454,16 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kSlice: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateSlice
-      // clang-format on
-      return nullptr;
+      std::optional<SliceRanges> slice_ranges;
+      attrs["slice"] = {/*required=*/true, AttrTy::kSliceRanges, &slice_ranges};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateSlice(
+          *shape, operands[0], slice_ranges->starts, slice_ranges->limits,
+          slice_ranges->strides));
     }
     case HloOpcode::kDynamicSlice: {
       // clang-format off
