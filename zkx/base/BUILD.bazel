@@ -39,7 +39,10 @@ zkx_cc_library(
     name = "random",
     srcs = ["random.cc"],
     hdrs = ["random.h"],
-    deps = ["@com_google_absl//absl/random"],
+    deps = [
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/random",
+    ],
 )
 
 zkx_cc_library(
