@@ -164,6 +164,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kAdd:
     case HloOpcode::kBroadcast:
     case HloOpcode::kDivide:
+    case HloOpcode::kDot:
     case HloOpcode::kFft:
     case HloOpcode::kMsm:
     case HloOpcode::kMultiply:

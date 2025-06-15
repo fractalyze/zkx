@@ -17,7 +17,6 @@ limitations under the License.
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Linker/Linker.h"
 #include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
 #include "mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"
@@ -40,6 +39,9 @@ limitations under the License.
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/Dialect/SCF/Transforms/BufferDeallocationOpInterfaceImpl.h"
 #include "mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
+#include "mlir/Dialect/SparseTensor/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/SparseTensor/Transforms/Passes.h"
 #include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OwningOpRef.h"
@@ -67,6 +69,7 @@ limitations under the License.
 #include "zkx/codegen/emitter_loc_op_builder.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
+#include "zkx/layout_util.h"
 #include "zkx/math/poly/root_of_unity.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/llvm_ir/llvm_util.h"
@@ -102,6 +105,7 @@ void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
       mlir::linalg::LinalgDialect,
       mlir::LLVM::LLVMDialect,
       mlir::memref::MemRefDialect,
+      mlir::sparse_tensor::SparseTensorDialect,
       mlir::zkir::elliptic_curve::EllipticCurveDialect,
       mlir::zkir::field::FieldDialect,
       mlir::zkir::mod_arith::ModArithDialect,
@@ -129,6 +133,8 @@ void OneShotBufferize(mlir::OpPassManager& pm) {
 }
 
 void AddPasses(mlir::OpPassManager& pm) {
+  pm.addPass(mlir::createSparsificationAndBufferizationPass());
+
   pm.addPass(mlir::zkir::poly::createPolyToField());
   pm.addPass(mlir::zkir::tensor_ext::createTensorExtToTensor());
   pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
@@ -144,6 +150,8 @@ void AddPasses(mlir::OpPassManager& pm) {
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::createConvertLinalgToParallelLoopsPass());
   pm.addPass(mlir::createConvertSCFToCFPass());
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::memref::createExpandStridedMetadataPass());
   pm.addPass(mlir::createConvertToLLVMPass());
 }
 
@@ -172,6 +180,7 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
   mlir::LLVM::registerInlinerInterface(registry);
   mlir::scf::registerBufferDeallocationOpInterfaceExternalModels(registry);
   mlir::scf::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::sparse_tensor::registerBufferizableOpInterfaceExternalModels(registry);
   mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
   module->getContext()->appendDialectRegistry(registry);
 
@@ -220,6 +229,244 @@ CpuKernelEmitter::CpuKernelEmitter(mlir::MLIRContext* context,
       instr_(instr),
       buffer_assignment_(buffer_assignment) {}
 
+absl::StatusOr<llvm::SmallVector<mlir::Type>>
+CpuKernelEmitter::MakeFuncArguments() const {
+  llvm::SmallVector<mlir::Type> args;
+  args.reserve(instr_->operand_count() + 1);
+  for (int64_t i = 0; i < instr_->operand_count(); ++i) {
+    const HloInstruction* operand = instr_->operand(i);
+    const Shape& shape = operand->shape();
+    if (LayoutUtil::IsSparseArray(shape)) {
+      args.push_back(llvm_ir::ShapeToMLIRMemRefType(
+          ShapeUtil::MakeShape(U8, {ShapeUtil::SparseArrayDataSize(shape)}),
+          mlir_context_));
+    } else {
+      args.push_back(llvm_ir::ShapeToMLIRMemRefType(shape, mlir_context_));
+    }
+  }
+  args.push_back(
+      llvm_ir::ShapeToMLIRMemRefType(instr_->shape(), mlir_context_));
+  return std::move(args);
+}
+
+mlir::Value CpuKernelEmitter::EmitCSROperand(EmitterLocOpBuilder& b,
+                                             mlir::Block* entry_block,
+                                             int64_t i,
+                                             const Shape& shape) const {
+  int64_t num_rows = shape.dimensions(0);
+  int64_t num_nonzeros = shape.layout().num_nonzeros();
+
+  int64_t offset0 = 0;
+  int64_t offset1 = offset0 + (num_rows + 1) * sizeof(uint32_t);
+  int64_t offset2 = offset1 + num_nonzeros * sizeof(uint32_t);
+
+  auto offset0_op = b.create<mlir::arith::ConstantOp>(
+      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset0));
+  auto offset1_op = b.create<mlir::arith::ConstantOp>(
+      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset1));
+  auto offset2_op = b.create<mlir::arith::ConstantOp>(
+      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset2));
+
+  auto row_ptrs_memref = b.create<mlir::memref::ViewOp>(
+      llvm_ir::ShapeToMLIRMemRefType(ShapeUtil::MakeShape(U32, {num_rows + 1}),
+                                     mlir_context_),
+      entry_block->getArgument(i), offset0_op, mlir::ValueRange{});
+  auto col_indices_memref = b.create<mlir::memref::ViewOp>(
+      llvm_ir::ShapeToMLIRMemRefType(ShapeUtil::MakeShape(U32, {num_nonzeros}),
+                                     mlir_context_),
+      entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
+  auto values_array_memref = b.create<mlir::memref::ViewOp>(
+      llvm_ir::ShapeToMLIRMemRefType(
+          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
+          mlir_context_),
+      entry_block->getArgument(i), offset2_op, mlir::ValueRange{});
+
+  auto row_ptrs = b.create<mlir::bufferization::ToTensorOp>(
+      llvm_ir::ShapeToMLIRTensorType(ShapeUtil::MakeShape(U32, {num_rows + 1}),
+                                     mlir_context_),
+      row_ptrs_memref,
+      /*restrict=*/true,
+      /*writable=*/false);
+  auto col_indices = b.create<mlir::bufferization::ToTensorOp>(
+      llvm_ir::ShapeToMLIRTensorType(ShapeUtil::MakeShape(U32, {num_nonzeros}),
+                                     mlir_context_),
+      col_indices_memref,
+      /*restrict=*/true,
+      /*writable=*/false);
+  auto values_array = b.create<mlir::bufferization::ToTensorOp>(
+      llvm_ir::ShapeToMLIRTensorType(
+          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
+          mlir_context_),
+      values_array_memref,
+      /*restrict=*/true,
+      /*writable=*/false);
+
+  return b.create<mlir::sparse_tensor::AssembleOp>(
+      llvm_ir::ShapeToMLIRTensorType(shape, mlir_context_),
+      mlir::ValueRange{row_ptrs, col_indices}, values_array);
+}
+
+mlir::Value CpuKernelEmitter::EmitCSCOperand(EmitterLocOpBuilder& b,
+                                             mlir::Block* entry_block,
+                                             int64_t i,
+                                             const Shape& shape) const {
+  int64_t num_cols = shape.dimensions(0);
+  int64_t num_nonzeros = shape.layout().num_nonzeros();
+
+  int64_t offset0 = 0;
+  int64_t offset1 = offset0 + (num_cols + 1) * sizeof(uint32_t);
+  int64_t offset2 = offset1 + num_nonzeros * sizeof(uint32_t);
+
+  auto offset0_op = b.create<mlir::arith::ConstantOp>(
+      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset0));
+  auto offset1_op = b.create<mlir::arith::ConstantOp>(
+      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset1));
+  auto offset2_op = b.create<mlir::arith::ConstantOp>(
+      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset2));
+
+  auto col_ptrs_memref = b.create<mlir::memref::ViewOp>(
+      llvm_ir::ShapeToMLIRMemRefType(ShapeUtil::MakeShape(U32, {num_cols + 1}),
+                                     mlir_context_),
+      entry_block->getArgument(i), offset0_op, mlir::ValueRange{});
+  auto row_indices_memref = b.create<mlir::memref::ViewOp>(
+      llvm_ir::ShapeToMLIRMemRefType(ShapeUtil::MakeShape(U32, {num_nonzeros}),
+                                     mlir_context_),
+      entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
+  auto values_array_memref = b.create<mlir::memref::ViewOp>(
+      llvm_ir::ShapeToMLIRMemRefType(
+          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
+          mlir_context_),
+      entry_block->getArgument(i), offset2_op, mlir::ValueRange{});
+
+  auto col_ptrs = b.create<mlir::bufferization::ToTensorOp>(
+      llvm_ir::ShapeToMLIRTensorType(ShapeUtil::MakeShape(U32, {num_cols + 1}),
+                                     mlir_context_),
+      col_ptrs_memref,
+      /*restrict=*/true,
+      /*writable=*/false);
+  auto row_indices = b.create<mlir::bufferization::ToTensorOp>(
+      llvm_ir::ShapeToMLIRTensorType(ShapeUtil::MakeShape(U32, {num_nonzeros}),
+                                     mlir_context_),
+      row_indices_memref,
+      /*restrict=*/true,
+      /*writable=*/false);
+  auto values_array = b.create<mlir::bufferization::ToTensorOp>(
+      llvm_ir::ShapeToMLIRTensorType(
+          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
+          mlir_context_),
+      values_array_memref,
+      /*restrict=*/true,
+      /*writable=*/false);
+
+  return b.create<mlir::sparse_tensor::AssembleOp>(
+      llvm_ir::ShapeToMLIRTensorType(shape, mlir_context_),
+      mlir::ValueRange{col_ptrs, row_indices}, values_array);
+}
+
+mlir::Value CpuKernelEmitter::EmitCOOOperand(EmitterLocOpBuilder& b,
+                                             mlir::Block* entry_block,
+                                             int64_t i,
+                                             const Shape& shape) const {
+  int64_t num_nonzeros = shape.layout().num_nonzeros();
+  CHECK_LE(num_nonzeros, std::numeric_limits<int32_t>::max());
+
+  auto positions_type = mlir::RankedTensorType::get({2}, b.getI32Type());
+  auto positions_attr = mlir::DenseElementsAttr::get(
+      positions_type,
+      llvm::ArrayRef<int32_t>{0, static_cast<int32_t>(num_nonzeros)});
+  auto positions =
+      b.create<mlir::arith::ConstantOp>(positions_type, positions_attr);
+
+  int64_t offset0 = 0;
+  int64_t offset1 = offset0 + num_nonzeros * sizeof(uint32_t) * 2;
+
+  auto offset0_op = b.create<mlir::arith::ConstantOp>(
+      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset0));
+  auto offset1_op = b.create<mlir::arith::ConstantOp>(
+      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset1));
+
+  auto indices_memref = b.create<mlir::memref::ViewOp>(
+      llvm_ir::ShapeToMLIRMemRefType(
+          ShapeUtil::MakeShape(U32, {num_nonzeros, 2}), mlir_context_),
+      entry_block->getArgument(i), offset0_op, mlir::ValueRange{});
+  auto values_array_memref = b.create<mlir::memref::ViewOp>(
+      llvm_ir::ShapeToMLIRMemRefType(
+          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
+          mlir_context_),
+      entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
+
+  auto indices = b.create<mlir::bufferization::ToTensorOp>(
+      llvm_ir::ShapeToMLIRTensorType(
+          ShapeUtil::MakeShape(U32, {num_nonzeros, 2}), mlir_context_),
+      indices_memref,
+      /*restrict=*/true,
+      /*writable=*/false);
+  auto values_array = b.create<mlir::bufferization::ToTensorOp>(
+      llvm_ir::ShapeToMLIRTensorType(
+          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
+          mlir_context_),
+      values_array_memref,
+      /*restrict=*/true,
+      /*writable=*/false);
+
+  return b.create<mlir::sparse_tensor::AssembleOp>(
+      llvm_ir::ShapeToMLIRTensorType(shape, mlir_context_),
+      mlir::ValueRange{positions, indices}, values_array);
+}
+
+absl::StatusOr<absl::flat_hash_map<const HloInstruction*, mlir::Value>>
+CpuKernelEmitter::EmitOperands(EmitterLocOpBuilder& b,
+                               mlir::Block* entry_block) const {
+  absl::flat_hash_map<const HloInstruction*, mlir::Value> values;
+  for (int64_t i = 0; i < instr_->operand_count(); ++i) {
+    const HloInstruction* operand = instr_->operand(i);
+    const Shape& shape = operand->shape();
+    if (LayoutUtil::IsSparseArray(shape)) {
+      if (LayoutUtil::IsCSRArray(shape)) {
+        values[operand] = EmitCSROperand(b, entry_block, i, shape);
+      } else if (LayoutUtil::IsCSCArray(shape)) {
+        values[operand] = EmitCSCOperand(b, entry_block, i, shape);
+      } else if (LayoutUtil::IsCOOArray(shape)) {
+        values[operand] = EmitCOOOperand(b, entry_block, i, shape);
+      } else {
+        return absl::UnimplementedError(absl::StrFormat(
+            "Unhandled sparse array layout: %s", operand->ToString()));
+      }
+    } else if (ShapeUtil::IsScalar(shape)) {
+      values[operand] =
+          b.create<mlir::memref::LoadOp>(entry_block->getArgument(i), {});
+    } else {
+      values[operand] = b.create<mlir::bufferization::ToTensorOp>(
+          llvm_ir::ShapeToMLIRTensorType(shape, mlir_context_),
+          entry_block->getArgument(i),
+          /*restrict=*/true,
+          /*writable=*/false);
+    }
+  }
+  return std::move(values);
+}
+
+absl::Status CpuKernelEmitter::EmitEpilog(EmitterLocOpBuilder& b,
+                                          mlir::Block* entry_block,
+                                          mlir::Value res) const {
+  const Shape& shape = instr_->shape();
+  if (LayoutUtil::IsSparseArray(shape)) {
+    return absl::UnimplementedError(absl::StrFormat(
+        "Unhandled sparse array layout: %s", instr_->ToString()));
+  } else if (ShapeUtil::IsScalar(shape)) {
+    b.create<mlir::memref::StoreOp>(
+        res, entry_block->getArgument(entry_block->getNumArguments() - 1), {});
+  } else {
+    b.create<mlir::bufferization::MaterializeInDestinationOp>(
+        mlir::TypeRange{}, res,
+        entry_block->getArgument(entry_block->getNumArguments() - 1),
+        /*restrict=*/true, /*writable=*/true);
+  }
+
+  b.create<mlir::func::ReturnOp>();
+  return absl::OkStatus();
+}
+
 absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
   VLOG(2) << "Emit host kernel: " << instr_->name();
 
@@ -240,15 +487,8 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
       mlir::ModuleOp::create(std::move(loc)));
   b.setInsertionPointToEnd(mlir_module->getBody());
 
-  llvm::SmallVector<mlir::Type> fn_arg_types;
-  fn_arg_types.reserve(instr_->operand_count() + 1);
-  for (int64_t i = 0; i < instr_->operand_count(); ++i) {
-    const HloInstruction* operand = instr_->operand(i);
-    fn_arg_types.push_back(
-        llvm_ir::ShapeToMLIRMemRefType(operand->shape(), mlir_context_));
-  }
-  fn_arg_types.push_back(
-      llvm_ir::ShapeToMLIRMemRefType(instr_->shape(), mlir_context_));
+  TF_ASSIGN_OR_RETURN(llvm::SmallVector<mlir::Type> fn_arg_types,
+                      MakeFuncArguments());
 
   auto fn = b.create<mlir::func::FuncOp>(
       instr_->name(), b.getFunctionType(fn_arg_types, std::nullopt));
@@ -258,32 +498,11 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
   b.setInsertionPointToEnd(entry_block);
 
   absl::flat_hash_map<const HloInstruction*, mlir::Value> values;
-  for (int64_t i = 0; i < instr_->operand_count(); ++i) {
-    const HloInstruction* operand = instr_->operand(i);
-    if (ShapeUtil::IsScalar(operand->shape())) {
-      values[operand] =
-          b.create<mlir::memref::LoadOp>(entry_block->getArgument(i), {});
-    } else {
-      values[operand] = b.create<mlir::bufferization::ToTensorOp>(
-          llvm_ir::ShapeToMLIRTensorType(operand->shape(), mlir_context_),
-          entry_block->getArgument(i),
-          /*restrict=*/true,
-          /*writable=*/false);
-    }
-  }
+  TF_ASSIGN_OR_RETURN(values, EmitOperands(b, entry_block));
 
   TF_ASSIGN_OR_RETURN(mlir::Value res, EmitOp(instr_, b, values));
-  if (ShapeUtil::IsScalar(instr_->shape())) {
-    b.create<mlir::memref::StoreOp>(
-        res, entry_block->getArgument(instr_->operand_count()), {});
-  } else {
-    b.create<mlir::bufferization::MaterializeInDestinationOp>(
-        mlir::TypeRange{}, res,
-        entry_block->getArgument(instr_->operand_count()),
-        /*restrict=*/true, /*writable=*/true);
-  }
 
-  b.create<mlir::func::ReturnOp>();
+  TF_RETURN_IF_ERROR(EmitEpilog(b, entry_block, res));
 
   std::unique_ptr<llvm::Module> llvm_module =
       CreateLLVMModule(mlir_context_, mlir_module.get(), llvm_context.get());
@@ -524,6 +743,117 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
 }
 
 // static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,
+    mlir::Value rhs) {
+  if (LayoutUtil::IsDenseArray(instr->operand(0)->shape())) {
+    return absl::UnimplementedError(
+        "Dense matrix vector multiplication is not supported");
+  }
+  if (!LayoutUtil::IsCSRArray(instr->operand(0)->shape())) {
+    return absl::UnimplementedError(
+        "Only CSR matrix vector multiplication is supported");
+  }
+
+  mlir::MLIRContext* ctx = lhs.getContext();
+  auto result_type = mlir::cast<mlir::RankedTensorType>(
+      llvm_ir::ShapeToMLIRTensorType(instr->shape(), ctx));
+  CHECK(result_type);
+  llvm::SmallVector<int64_t> shapes;
+  for (int64_t i = 0; i < instr->shape().dimensions_size(); ++i) {
+    shapes.push_back(instr->shape().dimensions(i));
+  }
+  auto result =
+      b.create<mlir::tensor::EmptyOp>(shapes, result_type.getElementType());
+
+  auto d0 = b.getAffineDimExpr(0);
+  auto d1 = b.getAffineDimExpr(1);
+
+  auto generic_op = b.create<mlir::linalg::GenericOp>(
+      /*resultTensorTypes=*/mlir::TypeRange{result_type},
+      /*inputs=*/mlir::ValueRange{lhs, rhs},
+      /*outputs=*/mlir::ValueRange{result},
+      /*indexingMaps=*/
+      llvm::SmallVector<mlir::AffineMap>{
+          mlir::AffineMap::get(2, 0, {d0, d1}, ctx),
+          mlir::AffineMap::get(2, 0, {d1}, ctx),
+          mlir::AffineMap::get(2, 0, {d0}, ctx),
+      },
+      /*iteratorTypes=*/
+      llvm::SmallVector<mlir::utils::IteratorType>{
+          mlir::utils::IteratorType::parallel,
+          mlir::utils::IteratorType::reduction,
+      },
+      /*doc=*/"matrix vector multiplication",
+      /*libraryCall=*/mlir::StringRef(),
+      [](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange args) {
+        mlir::ImplicitLocOpBuilder b(loc, builder);
+        auto x = args[0];
+        auto y = args[1];
+        auto z = args[2];
+
+        auto mul_op =
+            b.create<mlir::sparse_tensor::BinaryOp>(x.getType(), x, y);
+        {
+          mlir::Region& overlap_region = mul_op.getOverlapRegion();
+          mlir::Block* block = b.createBlock(&overlap_region);
+          block->addArguments({x.getType(), y.getType()}, {loc, loc});
+          b.setInsertionPointToStart(block);
+          auto mul = b.create<mlir::zkir::field::MulOp>(block->getArgument(0),
+                                                        block->getArgument(1));
+          b.create<mlir::sparse_tensor::YieldOp>(mul);
+        }
+
+        b.setInsertionPointAfter(mul_op);
+        auto reduce_op = b.create<mlir::sparse_tensor::ReduceOp>(
+            mul_op.getType(), mul_op, z,
+            /*identity=*/
+            b.create<mlir::zkir::field::ConstantOp>(mul_op.getType(), 0));
+        {
+          mlir::Region& reduce_region = reduce_op.getRegion();
+          mlir::Block* block = b.createBlock(&reduce_region);
+          block->addArguments({mul_op.getType(), z.getType()}, {loc, loc});
+          b.setInsertionPointToStart(block);
+          auto add = b.create<mlir::zkir::field::AddOp>(block->getArgument(0),
+                                                        block->getArgument(1));
+          b.create<mlir::sparse_tensor::YieldOp>(add);
+        }
+
+        b.setInsertionPointAfter(reduce_op);
+        b.create<mlir::linalg::YieldOp>(
+            mlir::ValueRange{reduce_op.getOutput()});
+      });
+  return generic_op.getResult(0);
+}
+
+// static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,
+    mlir::Value rhs) {
+  int64_t rank0 = instr->operand(0)->shape().rank();
+  int64_t rank1 = instr->operand(1)->shape().rank();
+
+  if (rank0 == 1) {
+    if (rank1 == 1) {
+      return absl::UnimplementedError(
+          "Dot op with vector and vector is not supported");
+    } else if (rank1 == 2) {
+      return absl::UnimplementedError(
+          "Dot op with vector and matrix is not supported");
+    }
+  } else if (rank0 == 2) {
+    if (rank1 == 1) {
+      return EmitMatrixVectorMultiplicationOp(instr, b, lhs, rhs);
+    } else if (rank1 == 2) {
+      return absl::UnimplementedError(
+          "Dot op with matrix and matrix is not supported");
+    }
+  }
+  return absl::UnimplementedError(absl::StrFormat(
+      "Dot op with rank %d and rank %d is not supported", rank0, rank1));
+}
+
+// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
@@ -545,6 +875,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kBroadcast: {
       return EmitDimensionsOp(instr, b, values[instr->operand(0)],
                               instr->dimensions());
+    }
+    case HloOpcode::kDot: {
+      return EmitDotOp(instr, b, values[instr->operand(0)],
+                       values[instr->operand(1)]);
     }
 
     default:
