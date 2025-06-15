@@ -349,6 +349,7 @@ zkx_cc_library(
         "//xla/tsl/platform:statusor",
         "//zkx/base:logging",
         "//zkx/base/strings:string_util",
+        "//zkx/math/base:sparse_matrix",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:inlined_vector",

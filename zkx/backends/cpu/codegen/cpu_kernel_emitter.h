@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
+#include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/MLIRContext.h"
 
 #include "zkx/codegen/emitter_loc_op_builder.h"
@@ -35,6 +36,23 @@ class CpuKernelEmitter final : public KernelEmitter {
   absl::StatusOr<KernelDefinition> EmitKernelDefinition() override;
 
  private:
+  absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncArguments() const;
+
+  absl::StatusOr<absl::flat_hash_map<const HloInstruction*, mlir::Value>>
+  EmitOperands(EmitterLocOpBuilder& b, mlir::Block* entry_block) const;
+
+  mlir::Value EmitCSROperand(EmitterLocOpBuilder& b, mlir::Block* entry_block,
+                             int64_t i, const Shape& shape) const;
+
+  mlir::Value EmitCSCOperand(EmitterLocOpBuilder& b, mlir::Block* entry_block,
+                             int64_t i, const Shape& shape) const;
+
+  mlir::Value EmitCOOOperand(EmitterLocOpBuilder& b, mlir::Block* entry_block,
+                             int64_t i, const Shape& shape) const;
+
+  absl::Status EmitEpilog(EmitterLocOpBuilder& b, mlir::Block* entry_block,
+                          mlir::Value res) const;
+
   static absl::StatusOr<mlir::Value> EmitOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       absl::flat_hash_map<const HloInstruction*, mlir::Value>& values);
@@ -57,6 +75,11 @@ class CpuKernelEmitter final : public KernelEmitter {
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
       absl::Span<const int64_t> source_dimensions);
 
+  static absl::StatusOr<mlir::Value> EmitDotOp(const HloInstruction* instr,
+                                               EmitterLocOpBuilder& b,
+                                               mlir::Value lhs,
+                                               mlir::Value rhs);
+
   static absl::StatusOr<mlir::Value> EmitIntegerBinaryOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       mlir::Value lhs_value, mlir::Value rhs_value, bool is_signed);
@@ -68,6 +91,10 @@ class CpuKernelEmitter final : public KernelEmitter {
   static absl::StatusOr<mlir::Value> EmitEcPointBinaryOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       mlir::Value lhs_value, mlir::Value rhs_value);
+
+  static absl::StatusOr<mlir::Value> EmitMatrixVectorMultiplicationOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,
+      mlir::Value rhs);
 
   mlir::MLIRContext* const mlir_context_;
   const HloInstruction* const instr_;
