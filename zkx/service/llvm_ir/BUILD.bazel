@@ -36,6 +36,7 @@ zkx_cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:SparseTensorDialect",
         "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
         "@zkir//zkir/Dialect/Field/IR:Field",
         "@zkir//zkir/Dialect/ModArith/IR:ModArith",
