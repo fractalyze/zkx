@@ -62,6 +62,14 @@ def zkx_deps():
         urls = tf_mirror_urls("https://zlib.net/zlib-1.3.1.tar.gz"),
     )
 
+    tf_http_archive(
+        name = "com_github_tencent_rapidjson",
+        build_file = "//third_party:rapidjson/rapidjson.BUILD",
+        sha256 = "8e00c38829d6785a2dfb951bb87c6974fa07dfe488aa5b25deec4b8bc0f6a3ab",
+        strip_prefix = "rapidjson-1.1.0",
+        urls = tf_mirror_urls("https://github.com/Tencent/rapidjson/archive/v1.1.0.zip"),
+    )
+
     ZKIR_COMMIT = "83985c6579d4ed3652769e1788f5523aa6ba18a1"
     tf_http_archive(
         name = "zkir",
