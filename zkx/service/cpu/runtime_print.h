@@ -1,0 +1,36 @@
+#ifndef ZKX_SERVICE_CPU_RUNTIME_PRINT_H_
+#define ZKX_SERVICE_CPU_RUNTIME_PRINT_H_
+
+extern "C" {
+
+#define DECLARE_PRINT_MEMREF_FUNCTION(name)                      \
+  extern void __zkx_cpu_runtime_PrintMemref##name(void* memref); \
+  extern void _mlir_ciface___zkx_cpu_runtime_PrintMemref##name(void* memref)
+
+DECLARE_PRINT_MEMREF_FUNCTION(Bn254Scalar);
+DECLARE_PRINT_MEMREF_FUNCTION(Bn254G1Affine);
+DECLARE_PRINT_MEMREF_FUNCTION(Bn254G1Jacobian);
+DECLARE_PRINT_MEMREF_FUNCTION(Bn254G1Xyzz);
+DECLARE_PRINT_MEMREF_FUNCTION(Bn254G2Affine);
+DECLARE_PRINT_MEMREF_FUNCTION(Bn254G2Jacobian);
+DECLARE_PRINT_MEMREF_FUNCTION(Bn254G2Xyz);
+
+#undef DECLARE_PRINT_MEMREF_FUNCTION
+
+#define DECLARE_PRINT_STRIDED_MEMREF_FUNCTION(rank, name)                 \
+  extern void __zkx_cpu_runtime_PrintMemref##rank##D##name(void* memref); \
+  extern void _mlir_ciface___zkx_cpu_runtime_PrintMemref##rank##D##name(  \
+      void* memref)
+
+DECLARE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254Scalar);
+DECLARE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G1Affine);
+DECLARE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G1Jacobian);
+DECLARE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G1Xyzz);
+DECLARE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G2Affine);
+DECLARE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G2Jacobian);
+DECLARE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G2Xyz);
+
+#undef DECLARE_PRINT_STRIDED_MEMREF_FUNCTION
+}
+
+#endif  // ZKX_SERVICE_CPU_RUNTIME_PRINT_H_

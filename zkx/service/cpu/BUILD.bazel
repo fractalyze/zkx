@@ -1,6 +1,13 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_binary(
+    name = "libmlir_c_runtime_print.so",
+    linkshared = True,
+    linkstatic = False,
+    deps = [":runtime_print"],
+)
 
 zkx_cc_library(
     name = "cpu_compiler",
@@ -186,6 +193,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "runtime_print",
+    srcs = ["runtime_print.cc"],
+    hdrs = ["runtime_print.h"],
+    deps = [
+        "//zkx/math/elliptic_curves/bn/bn254:fr",
+        "//zkx/math/elliptic_curves/bn/bn254:g1",
+        "//zkx/math/elliptic_curves/bn/bn254:g2",
+        "@llvm-project//mlir:mlir_runner_utils",
+    ],
+)
+
+zkx_cc_library(
     name = "runtime_symbol_generator",
     srcs = ["runtime_symbol_generator.cc"],
     hdrs = ["runtime_symbol_generator.h"],
@@ -193,6 +212,7 @@ zkx_cc_library(
         ":cpu_runtime",
         ":runtime_custom_call_status",
         ":runtime_fork_join",
+        ":runtime_print",
         "//zkx/service:custom_call_target_registry",
         "@llvm-project//llvm:Core",
         "@llvm-project//llvm:OrcJIT",
