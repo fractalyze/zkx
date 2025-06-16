@@ -146,4 +146,21 @@ TEST(PointXyzzTest, Serde) {
   EXPECT_EQ(expected, value);
 }
 
+TEST(PointXyzzTest, JsonSerde) {
+  rapidjson::Document doc;
+
+  PointXyzz expected = PointXyzz::Random();
+  rapidjson::Value json_value =
+      base::JsonSerde<PointXyzz>::From(expected, doc.GetAllocator());
+  EXPECT_TRUE(json_value.IsObject());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["x"].GetInt()), expected.x());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["y"].GetInt()), expected.y());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["zz"].GetInt()), expected.zz());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["zzz"].GetInt()), expected.zzz());
+
+  TF_ASSERT_OK_AND_ASSIGN(PointXyzz value,
+                          base::JsonSerde<PointXyzz>::To(json_value, ""));
+  EXPECT_EQ(expected, value);
+}
+
 }  // namespace zkx::math::test

@@ -20,6 +20,7 @@
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/buffer/serde.h"
+#include "zkx/base/json/json_serde.h"
 #include "zkx/base/random.h"
 #include "zkx/math/base/arithmetics.h"
 #include "zkx/math/base/bit_traits_forward.h"
@@ -577,6 +578,38 @@ class Serde<math::BigInt<N>> {
 
   static size_t EstimateSize(const math::BigInt<N>& bigint) {
     return base::EstimateSize(bigint.limbs_);
+  }
+};
+
+template <size_t N>
+class JsonSerde<math::BigInt<N>> {
+ public:
+  template <typename Allocator>
+  static rapidjson::Value From(const math::BigInt<N>& value,
+                               Allocator& allocator) {
+    if (value < math::BigInt<N>(std::numeric_limits<uint64_t>::max())) {
+#if ABSL_IS_LITTLE_ENDIAN
+      return rapidjson::Value(value.limbs()[0]);
+#else
+      return rapidjson::Value(value.limbs()[N - 1]);
+#endif
+    } else {
+      return rapidjson::Value(value.ToString(), allocator);
+    }
+  }
+
+  static absl::StatusOr<math::BigInt<N>> To(const rapidjson::Value& json_value,
+                                            std::string_view key) {
+    if (json_value.IsUint64()) {
+      return math::BigInt<N>(json_value.GetUint64());
+    } else if (json_value.IsString()) {
+      TF_ASSIGN_OR_RETURN(std::string value,
+                          JsonSerde<std::string>::To(json_value, key));
+      return math::BigInt<N>::FromDecString(value);
+    } else {
+      return absl::InvalidArgumentError(
+          RapidJsonMismatchedTypeError(key, "string", json_value));
+    }
   }
 };
 

@@ -152,4 +152,20 @@ TEST(JacobianPointTest, Serde) {
   EXPECT_EQ(expected, value);
 }
 
+TEST(JacobianPointTest, JsonSerde) {
+  rapidjson::Document doc;
+
+  JacobianPoint expected = JacobianPoint::Random();
+  rapidjson::Value json_value =
+      base::JsonSerde<JacobianPoint>::From(expected, doc.GetAllocator());
+  EXPECT_TRUE(json_value.IsObject());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["x"].GetInt()), expected.x());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["y"].GetInt()), expected.y());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["z"].GetInt()), expected.z());
+
+  TF_ASSERT_OK_AND_ASSIGN(JacobianPoint value,
+                          base::JsonSerde<JacobianPoint>::To(json_value, ""));
+  EXPECT_EQ(expected, value);
+}
+
 }  // namespace zkx::math::test

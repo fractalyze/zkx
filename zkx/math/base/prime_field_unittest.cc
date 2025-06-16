@@ -61,4 +61,21 @@ TEST(PrimeFieldTest, Serde) {
   }
 }
 
+TEST(PrimeFieldTest, JsonSerde) {
+  rapidjson::Document doc;
+
+  Fr expected = Fr::Random();
+  for (size_t i = 0; i < 2; ++i) {
+    bool s_is_in_montgomery = i == 0;
+    SCOPED_TRACE(
+        absl::Substitute("s_is_in_montgomery: $0", s_is_in_montgomery));
+    base::AutoReset<bool> auto_reset(&base::JsonSerde<Fr>::s_is_in_montgomery,
+                                     s_is_in_montgomery);
+    rapidjson::Value json_value =
+        base::JsonSerde<Fr>::From(expected, doc.GetAllocator());
+    TF_ASSERT_OK_AND_ASSIGN(Fr value, base::JsonSerde<Fr>::To(json_value, ""));
+    EXPECT_EQ(expected, value);
+  }
+}
+
 }  // namespace zkx::math::bn254
