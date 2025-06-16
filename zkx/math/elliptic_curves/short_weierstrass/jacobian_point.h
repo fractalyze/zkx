@@ -11,6 +11,7 @@
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/buffer/serde.h"
 #include "zkx/base/containers/container_util.h"
+#include "zkx/base/json/json_serde.h"
 #include "zkx/base/template_util.h"
 #include "zkx/math/base/batch_inverse.h"
 #include "zkx/math/base/scalar_mul.h"
@@ -274,6 +275,32 @@ class Serde<math::JacobianPoint<
 
   static size_t EstimateSize(const math::JacobianPoint<Curve>& point) {
     return base::EstimateSize(point.x(), point.y(), point.z());
+  }
+};
+
+template <typename Curve>
+class JsonSerde<math::JacobianPoint<
+    Curve,
+    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+ public:
+  using Field = typename math::JacobianPoint<Curve>::BaseField;
+
+  template <typename Allocator>
+  static rapidjson::Value From(const math::JacobianPoint<Curve>& value,
+                               Allocator& allocator) {
+    rapidjson::Value object(rapidjson::kObjectType);
+    AddJsonElement(object, "x", value.x(), allocator);
+    AddJsonElement(object, "y", value.y(), allocator);
+    AddJsonElement(object, "z", value.z(), allocator);
+    return object;
+  }
+
+  static absl::StatusOr<math::JacobianPoint<Curve>> To(
+      const rapidjson::Value& json_value, std::string_view key) {
+    TF_ASSIGN_OR_RETURN(Field x, ParseJsonElement<Field>(json_value, "x"));
+    TF_ASSIGN_OR_RETURN(Field y, ParseJsonElement<Field>(json_value, "y"));
+    TF_ASSIGN_OR_RETURN(Field z, ParseJsonElement<Field>(json_value, "z"));
+    return math::JacobianPoint<Curve>(x, y, z);
   }
 };
 

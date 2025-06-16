@@ -11,6 +11,7 @@
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/buffer/serde.h"
 #include "zkx/base/containers/container_util.h"
+#include "zkx/base/json/json_serde.h"
 #include "zkx/base/template_util.h"
 #include "zkx/math/base/batch_inverse.h"
 #include "zkx/math/base/scalar_mul.h"
@@ -279,6 +280,34 @@ class Serde<math::PointXyzz<
 
   static size_t EstimateSize(const math::PointXyzz<Curve>& point) {
     return base::EstimateSize(point.x(), point.y(), point.zz(), point.zzz());
+  }
+};
+
+template <typename Curve>
+class JsonSerde<math::PointXyzz<
+    Curve,
+    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+ public:
+  using Field = typename math::PointXyzz<Curve>::BaseField;
+
+  template <typename Allocator>
+  static rapidjson::Value From(const math::PointXyzz<Curve>& value,
+                               Allocator& allocator) {
+    rapidjson::Value object(rapidjson::kObjectType);
+    AddJsonElement(object, "x", value.x(), allocator);
+    AddJsonElement(object, "y", value.y(), allocator);
+    AddJsonElement(object, "zz", value.zz(), allocator);
+    AddJsonElement(object, "zzz", value.zzz(), allocator);
+    return object;
+  }
+
+  static absl::StatusOr<math::PointXyzz<Curve>> To(
+      const rapidjson::Value& json_value, std::string_view key) {
+    TF_ASSIGN_OR_RETURN(Field x, ParseJsonElement<Field>(json_value, "x"));
+    TF_ASSIGN_OR_RETURN(Field y, ParseJsonElement<Field>(json_value, "y"));
+    TF_ASSIGN_OR_RETURN(Field zz, ParseJsonElement<Field>(json_value, "zz"));
+    TF_ASSIGN_OR_RETURN(Field zzz, ParseJsonElement<Field>(json_value, "zzz"));
+    return math::PointXyzz<Curve>(x, y, zz, zzz);
   }
 };
 

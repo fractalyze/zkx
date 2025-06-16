@@ -8,6 +8,7 @@
 
 #include "xla/tsl/platform/errors.h"
 #include "zkx/base/buffer/serde.h"
+#include "zkx/base/json/json_serde.h"
 #include "zkx/base/logging.h"
 #include "zkx/math/base/scalar_mul.h"
 #include "zkx/math/geometry/curve_type.h"
@@ -150,6 +151,30 @@ class Serde<math::AffinePoint<
 
   static size_t EstimateSize(const math::AffinePoint<Curve>& point) {
     return base::EstimateSize(point.x(), point.y());
+  }
+};
+
+template <typename Curve>
+class JsonSerde<math::AffinePoint<
+    Curve,
+    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+ public:
+  using Field = typename math::AffinePoint<Curve>::BaseField;
+
+  template <typename Allocator>
+  static rapidjson::Value From(const math::AffinePoint<Curve>& value,
+                               Allocator& allocator) {
+    rapidjson::Value object(rapidjson::kObjectType);
+    AddJsonElement(object, "x", value.x(), allocator);
+    AddJsonElement(object, "y", value.y(), allocator);
+    return object;
+  }
+
+  static absl::StatusOr<math::AffinePoint<Curve>> To(
+      const rapidjson::Value& json_value, std::string_view key) {
+    TF_ASSIGN_OR_RETURN(Field x, ParseJsonElement<Field>(json_value, "x"));
+    TF_ASSIGN_OR_RETURN(Field y, ParseJsonElement<Field>(json_value, "y"));
+    return math::AffinePoint<Curve>(x, y);
   }
 };
 

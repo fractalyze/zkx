@@ -225,4 +225,29 @@ TEST(BigIntTest, Serde) {
   EXPECT_EQ(value, expected);
 }
 
+TEST(BigIntTest, JsonSerde) {
+  rapidjson::Document doc;
+
+  // Test with uint64_t value
+  BigInt<2> expected = BigInt<2>(12345);
+  rapidjson::Value json_value =
+      base::JsonSerde<BigInt<2>>::From(expected, doc.GetAllocator());
+  EXPECT_TRUE(json_value.IsUint64());
+  EXPECT_EQ(json_value.GetUint64(), 12345);
+
+  TF_ASSERT_OK_AND_ASSIGN(BigInt<2> actual,
+                          base::JsonSerde<BigInt<2>>::To(json_value, ""));
+  EXPECT_EQ(actual, expected);
+
+  // Test with large value that needs string representation
+  expected = BigInt<2>::FromDecString("36893488147419103232").value();
+  json_value = base::JsonSerde<BigInt<2>>::From(expected, doc.GetAllocator());
+  EXPECT_TRUE(json_value.IsString());
+  EXPECT_STREQ(json_value.GetString(), "36893488147419103232");
+
+  TF_ASSERT_OK_AND_ASSIGN(actual,
+                          base::JsonSerde<BigInt<2>>::To(json_value, ""));
+  EXPECT_EQ(actual, expected);
+}
+
 }  // namespace zkx::math

@@ -104,4 +104,19 @@ TEST(AffinePointTest, Serde) {
   EXPECT_EQ(expected, value);
 }
 
+TEST(AffinePointTest, JsonSerde) {
+  rapidjson::Document doc;
+
+  AffinePoint expected = AffinePoint::Random();
+  rapidjson::Value json_value =
+      base::JsonSerde<AffinePoint>::From(expected, doc.GetAllocator());
+  EXPECT_TRUE(json_value.IsObject());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["x"].GetInt()), expected.x());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["y"].GetInt()), expected.y());
+
+  TF_ASSERT_OK_AND_ASSIGN(AffinePoint value,
+                          base::JsonSerde<AffinePoint>::To(json_value, ""));
+  EXPECT_EQ(expected, value);
+}
+
 }  // namespace zkx::math::test
