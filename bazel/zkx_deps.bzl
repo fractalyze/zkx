@@ -3,9 +3,12 @@ load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
 load("@zkx//third_party/farmhash:workspace.bzl", farmhash = "repo")
 load("@zkx//third_party/gloo:workspace.bzl", gloo = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
+load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 
 def zkx_deps():
+    omp_configure(name = "local_config_omp")
+
     eigen3()
     farmhash()
     gloo()
