@@ -58,6 +58,28 @@ extern const char* const kAllGatherSymbolName;
 extern const char* const kReduceScatterSymbolName;
 extern const char* const kHandleFfiCallSymbolName;
 
+#define DECLARE_MLIR_C_INTERFACE_FUNCTION(name) \
+  extern const char* const k##name##SymbolName; \
+  extern const char* const kMlirCiface##name##SymbolName;
+
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254Scalar);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G1Affine);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G1Jacobian);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G1Xyzz);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G2Affine);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G2Jacobian);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G2Xyz);
+
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254Scalar);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G1Affine);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G1Jacobian);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G1Xyzz);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G2Affine);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G2Jacobian);
+DECLARE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G2Xyz);
+
+#undef DECLARE_MLIR_C_INTERFACE_FUNCTION
+
 // All symbol names for ZKX CPU runtime functions need to start with this
 // prefix.
 extern const char* const kZkxCpuRuntimeSymbolNamePrefix;

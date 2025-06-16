@@ -24,6 +24,7 @@ limitations under the License.
 #include "zkx/service/cpu/cpu_runtime.h"
 #include "zkx/service/cpu/runtime_custom_call_status.h"
 #include "zkx/service/cpu/runtime_fork_join.h"
+#include "zkx/service/cpu/runtime_print.h"
 #include "zkx/service/custom_call_target_registry.h"
 
 namespace zkx::cpu {
@@ -82,6 +83,17 @@ extern "C" void __chkstk(size_t);
              "__zkx_cpu_runtime_" #base_name);                              \
   } while (false)
 
+#define REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(base_name)               \
+  do {                                                                        \
+    auto* function_address =                                                  \
+        reinterpret_cast<void*>(__zkx_cpu_runtime_##base_name);               \
+    registry->Register(zkx::cpu::runtime::kMlirCiface##base_name##SymbolName, \
+                       function_address, "Host");                             \
+    CHECK_EQ(std::string_view(                                                \
+                 zkx::cpu::runtime::kMlirCiface##base_name##SymbolName),      \
+             "_mlir_ciface___zkx_cpu_runtime_" #base_name);                   \
+  } while (false)
+
 // Register both the f32 (float) and f64 (double) versions of a libm symbol.
 // Unfortunately the double versions are overloaded on some systems, e.g.
 // Mac so we need an explicit cast. This requires passing the function signature
@@ -116,6 +128,22 @@ static bool RegisterKnownJITSymbols() {
   REGISTER_CPU_RUNTIME_SYMBOL(StatusIsSuccess);
   REGISTER_CPU_RUNTIME_SYMBOL(TracingStart);
   REGISTER_CPU_RUNTIME_SYMBOL(TracingEnd);
+
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemrefBn254Scalar);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemrefBn254G1Affine);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemrefBn254G1Jacobian);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemrefBn254G1Xyzz);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemrefBn254G2Affine);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemrefBn254G2Jacobian);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemrefBn254G2Xyz);
+
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemref1DBn254Scalar);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemref1DBn254G1Affine);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemref1DBn254G1Jacobian);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemref1DBn254G1Xyzz);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemref1DBn254G2Affine);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemref1DBn254G2Jacobian);
+  REGISTER_CPU_RUNTIME_SYMBOL_MLIR_C_INTERFACE(PrintMemref1DBn254G2Xyz);
 
   registry->Register("memcpy", reinterpret_cast<void*>(memcpy), "Host");
   registry->Register("memmove", reinterpret_cast<void*>(memmove), "Host");
