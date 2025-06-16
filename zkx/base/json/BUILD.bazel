@@ -1,0 +1,40 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "json",
+    hdrs = ["json.h"],
+    deps = [
+        ":json_serde",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "@com_github_tencent_rapidjson//:rapidjson",
+    ],
+)
+
+zkx_cc_library(
+    name = "json_serde",
+    srcs = ["json_serde.cc"],
+    hdrs = ["json_serde.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "@com_github_tencent_rapidjson//:rapidjson",
+        "@com_google_absl//absl/numeric:bits",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "json_unittests",
+    srcs = [
+        "json_serde_unittest.cc",
+        "json_unittest.cc",
+    ],
+    data = ["test/simple_data.json"],
+    deps = [
+        ":json",
+        ":json_serde",
+        "//xla/tsl/platform:status_matchers",
+    ],
+)
