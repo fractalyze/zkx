@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef XLA_SERVICE_CPU_RUNTIME_CUSTOM_CALL_STATUS_H_
-#define XLA_SERVICE_CPU_RUNTIME_CUSTOM_CALL_STATUS_H_
+#ifndef ZKX_SERVICE_CPU_RUNTIME_CUSTOM_CALL_STATUS_H_
+#define ZKX_SERVICE_CPU_RUNTIME_CUSTOM_CALL_STATUS_H_
 
 extern "C" {
 
@@ -24,4 +24,4 @@ extern bool __zkx_cpu_runtime_StatusIsSuccess(
     const void* /* ZkxCustomCallStatus* */ status_ptr);
 }
 
-#endif  // XLA_SERVICE_CPU_RUNTIME_CUSTOM_CALL_STATUS_H_
+#endif  // ZKX_SERVICE_CPU_RUNTIME_CUSTOM_CALL_STATUS_H_
