@@ -15,6 +15,7 @@
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/buffer/serde.h"
+#include "zkx/base/json/json_serde.h"
 #include "zkx/math/base/big_int.h"
 #include "zkx/math/base/byinverter.h"
 #include "zkx/math/base/pow.h"
@@ -440,6 +441,40 @@ class Serde<math::PrimeField<Config>> {
 // static
 template <typename Config>
 bool Serde<math::PrimeField<Config>>::s_is_in_montgomery = true;
+
+template <typename Config>
+class JsonSerde<math::PrimeField<Config>> {
+ public:
+  constexpr static size_t N = math::PrimeField<Config>::N;
+
+  static bool s_is_in_montgomery;
+
+  template <typename Allocator>
+  static rapidjson::Value From(const math::PrimeField<Config>& value,
+                               Allocator& allocator) {
+    if (s_is_in_montgomery) {
+      return JsonSerde<math::BigInt<N>>::From(value.value(), allocator);
+    } else {
+      return JsonSerde<math::BigInt<N>>::From(value.MontReduce(), allocator);
+    }
+  }
+
+  static absl::StatusOr<math::PrimeField<Config>> To(
+      const rapidjson::Value& json_value, std::string_view key) {
+    TF_ASSIGN_OR_RETURN(math::BigInt<N> v,
+                        JsonSerde<math::BigInt<N>>::To(json_value, key));
+
+    if (s_is_in_montgomery) {
+      return math::PrimeField<Config>::FromUnchecked(v);
+    } else {
+      return math::PrimeField<Config>(v);
+    }
+  }
+};
+
+// static
+template <typename Config>
+bool JsonSerde<math::PrimeField<Config>>::s_is_in_montgomery = true;
 
 }  // namespace base
 }  // namespace zkx
