@@ -1182,6 +1182,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateUnary(
     case HloOpcode::kCopy:
     case HloOpcode::kCopyDone:
     case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kInverse:
     case HloOpcode::kNegate:
       return CreateNary(shape, opcode, {operand});
     default:
@@ -1841,6 +1842,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kCopy:
     case HloOpcode::kOptimizationBarrier:
     case HloOpcode::kCopyDone:
+    case HloOpcode::kInverse:
     case HloOpcode::kNegate:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateUnary(shape, opcode_, new_operands[0]);
@@ -2110,6 +2112,7 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kCopyDone:
     case HloOpcode::kDivide:
     case HloOpcode::kDynamicUpdateSlice:
+    case HloOpcode::kInverse:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
@@ -2744,6 +2747,7 @@ bool HloInstruction::IsOpElementwise(HloOpcode opcode) {
     case HloOpcode::kConvert:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kCopy:
+    case HloOpcode::kInverse:
     case HloOpcode::kNegate:
       return true;
 
@@ -2942,6 +2946,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleMap(this);
     case HloOpcode::kReduce:
       return visitor->HandleReduce(this);
+    case HloOpcode::kInverse:
+      return visitor->HandleInverse(this);
     case HloOpcode::kNegate:
       return visitor->HandleNegate(this);
     case HloOpcode::kBitcast:

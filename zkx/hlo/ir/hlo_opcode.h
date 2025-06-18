@@ -109,6 +109,7 @@ namespace zkx {
   V(kGetDimensionSize, "get-dimension-size", 1)                                \
   V(kGetTupleElement, "get-tuple-element", 1)                                  \
   V(kInfeed, "infeed", 1)                                                      \
+  V(kInverse, "inverse", 1)                                                    \
   V(kMap, "map", kHloOpcodeIsVariadic)                                         \
   V(kMaximum, "maximum", 2)                                                    \
   V(kMinimum, "minimum", 2)                                                    \

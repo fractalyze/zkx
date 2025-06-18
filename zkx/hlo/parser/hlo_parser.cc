@@ -83,6 +83,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kGetDimensionSize:
     case HloOpcode::kSetDimensionSize:
     case HloOpcode::kGetTupleElement:
+    case HloOpcode::kInverse:
     case HloOpcode::kMap:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
@@ -1726,6 +1727,7 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
     case HloOpcode::kCopy:
     case HloOpcode::kCopyDone:
     case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kInverse:
     case HloOpcode::kNegate: {
       return create_unary_instruction();
     }

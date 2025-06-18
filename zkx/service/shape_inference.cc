@@ -131,6 +131,7 @@ absl::StatusOr<Shape> ShapeInference::InferUnaryOpShape(HloOpcode opcode,
 
       // TODO(chokobole): Uncomment this. Dependency: case HloOpcode::kClz
     // case HloOpcode::kClz:
+    case HloOpcode::kInverse:
     case HloOpcode::kNegate:
       if (!ShapeUtil::ElementIsIntegral(shape)) {
         return absl::InvalidArgumentError(absl::StrFormat(

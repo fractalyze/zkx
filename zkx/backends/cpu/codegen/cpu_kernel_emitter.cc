@@ -720,6 +720,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
         return value;
       }
     }
+    case HloOpcode::kInverse:
+      return b.create<mlir::zkir::field::InverseOp>(value);
     case HloOpcode::kNegate:
       return b.create<mlir::zkir::field::NegateOp>(value);
 
@@ -1251,6 +1253,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
 
   switch (instr->opcode()) {
     case HloOpcode::kConvert:
+    case HloOpcode::kInverse:
     case HloOpcode::kNegate: {
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
