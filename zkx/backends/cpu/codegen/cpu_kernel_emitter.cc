@@ -66,7 +66,6 @@ limitations under the License.
 #include "zkir/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "zkx/backends/cpu/codegen/kernel_api_ir_builder.h"
 #include "zkx/base/logging.h"
-#include "zkx/codegen/emitter_loc_op_builder.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/layout_util.h"
