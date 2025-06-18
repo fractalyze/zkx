@@ -532,7 +532,6 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
   return KernelDefinition(std::move(spec), std::move(source));
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value, bool is_signed) {
@@ -556,7 +555,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
   }
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
@@ -578,7 +576,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
   }
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
@@ -604,7 +601,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
   }
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
@@ -625,7 +621,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
       primitive_util::LowercasePrimitiveTypeName(operand_type)));
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   // TODO(chokobole): Support out-of-place FFT.
@@ -658,7 +653,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   }
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value scalars,
     mlir::Value bases) {
@@ -673,7 +667,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
   }
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
     absl::Span<const int64_t> source_dimensions) {
@@ -742,7 +735,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
   }
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,
     mlir::Value rhs) {
@@ -826,7 +818,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
   return generic_op.getResult(0);
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,
     mlir::Value rhs) {
@@ -853,7 +844,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
       "Dot op with rank %d and rank %d is not supported", rank0, rank1));
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
     absl::Span<const int64_t> start_indices,
@@ -883,7 +873,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
                                                 sizes, strides);
 }
 
-// static
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
