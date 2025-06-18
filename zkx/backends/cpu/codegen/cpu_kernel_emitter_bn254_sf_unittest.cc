@@ -191,6 +191,29 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(*(x / y)));
 }
 
+TEST_F(CpuKernelEmitterTest, FieldScalarPow) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[], y: u32[]) -> bn254.sf[] {
+  %x = bn254.sf[] parameter(0)
+  %y = u32[] parameter(1)
+
+  ROOT %ret = bn254.sf[] power(%x, %y)
+}
+)";
+
+  Compile(kHloText);
+
+  auto x = math::bn254::Fr::Random();
+  auto y = base::Uniform<uint32_t>();
+
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  literals.push_back(LiteralUtil::CreateR0<uint32_t>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
+
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(x.Pow(y)));
+}
+
 TEST_F(CpuKernelEmitterTest, FieldTensorAdd) {
   const std::string kHloText = R"(
 ENTRY %f (x: bn254.sf[2,3], y: bn254.sf[2,3]) -> bn254.sf[2,3] {

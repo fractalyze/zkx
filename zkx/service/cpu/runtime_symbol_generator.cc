@@ -158,6 +158,7 @@ static bool RegisterKnownJITSymbols() {
   registry->Register("memset", reinterpret_cast<void*>(memset), "Host");
 
   // Used by MLIR lowering.
+  registry->Register("abort", reinterpret_cast<void*>(abort), "Host");
   registry->Register("malloc", reinterpret_cast<void*>(malloc), "Host");
   registry->Register("calloc", reinterpret_cast<void*>(calloc), "Host");
   registry->Register("free", reinterpret_cast<void*>(free), "Host");

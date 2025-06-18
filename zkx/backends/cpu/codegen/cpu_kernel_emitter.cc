@@ -35,6 +35,7 @@ limitations under the License.
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/MemRef/Transforms/AllocationOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
@@ -137,6 +138,7 @@ void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
       mlir::func::FuncDialect,
       mlir::linalg::LinalgDialect,
       mlir::LLVM::LLVMDialect,
+      mlir::math::MathDialect,
       mlir::memref::MemRefDialect,
       mlir::scf::SCFDialect,
       mlir::sparse_tensor::SparseTensorDialect,
@@ -787,6 +789,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     }
     case HloOpcode::kMultiply:
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
+    case HloOpcode::kPower:
+      return b.create<mlir::math::IPowIOp>(lhs_value, rhs_value);
     case HloOpcode::kSubtract:
       return b.create<mlir::arith::SubIOp>(lhs_value, rhs_value);
 
@@ -808,6 +812,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
     }
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
+    case HloOpcode::kPower:
+      return b.create<mlir::zkir::field::PowOp>(lhs_value.getType(), lhs_value,
+                                                rhs_value);
     case HloOpcode::kSubtract:
       return b.create<mlir::zkir::field::SubOp>(lhs_value, rhs_value);
     default:
@@ -1260,6 +1267,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kAdd:
     case HloOpcode::kSubtract:
     case HloOpcode::kMultiply:
+    case HloOpcode::kPower:
     case HloOpcode::kDivide: {
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());
