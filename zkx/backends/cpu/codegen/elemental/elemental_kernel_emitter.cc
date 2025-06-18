@@ -271,10 +271,10 @@ absl::StatusOr<mlir::Value> ElementalKernelEmitter::EmitIntegerBinaryOp(
     // TODO(jingyue): add the "nsw" attribute for signed types.
     case HloOpcode::kAdd:
       return b.create<mlir::arith::AddIOp>(lhs_value, rhs_value);
-    case HloOpcode::kSubtract:
-      return b.create<mlir::arith::SubIOp>(lhs_value, rhs_value);
     case HloOpcode::kMultiply:
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
+    case HloOpcode::kSubtract:
+      return b.create<mlir::arith::SubIOp>(lhs_value, rhs_value);
     default:
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled binary integer op: %s", HloOpcodeString(instr->opcode())));
