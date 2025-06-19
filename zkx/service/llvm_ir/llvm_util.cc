@@ -140,8 +140,8 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
   }
 }
 
-mlir::Type ShapeToMLIRMemRefType(const Shape& shape,
-                                 mlir::MLIRContext* context) {
+mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,
+                                       mlir::MLIRContext* context) {
   mlir::Type result_type = PrimitiveTypeToMLIRType(
       shape.element_type(), context, shape.layout().is_montgomery_form());
   if (shape.IsTuple()) {
@@ -159,11 +159,11 @@ mlir::Type ShapeToMLIRMemRefType(const Shape& shape,
     }
     result_type = mlir::MemRefType::get(dimensions, result_type);
   }
-  return result_type;
+  return mlir::cast<mlir::MemRefType>(result_type);
 }
 
-mlir::Type ShapeToMLIRTensorType(const Shape& shape,
-                                 mlir::MLIRContext* context) {
+mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
+                                             mlir::MLIRContext* context) {
   const Layout& layout = shape.layout();
   mlir::Type result_type = PrimitiveTypeToMLIRType(
       shape.element_type(), context, layout.is_montgomery_form());
@@ -231,7 +231,7 @@ mlir::Type ShapeToMLIRTensorType(const Shape& shape,
       result_type = mlir::RankedTensorType::get(dimensions, result_type);
     }
   }
-  return result_type;
+  return mlir::cast<mlir::RankedTensorType>(result_type);
 }
 
 }  // namespace zkx::llvm_ir

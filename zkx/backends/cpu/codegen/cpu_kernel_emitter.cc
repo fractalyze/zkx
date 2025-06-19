@@ -36,6 +36,7 @@ limitations under the License.
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/MemRef/Transforms/AllocationOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
 #include "mlir/Dialect/SCF/Transforms/BufferDeallocationOpInterfaceImpl.h"
 #include "mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"
@@ -174,6 +175,13 @@ void AddPasses(mlir::OpPassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     VLOG(2) << "add pass: -one-shot-bufferize";
     OneShotBufferize(pm);
   }
+  if (flag.enable_buffer_results_to_out_params) {
+    VLOG(2) << "add pass: -buffer-results-to-out-params=hoist-static-allocs";
+    mlir::bufferization::BufferResultsToOutParamsPassOptions out_params_options;
+    out_params_options.hoistStaticAllocs = true;
+    pm.addPass(mlir::bufferization::createBufferResultsToOutParamsPass(
+        out_params_options));
+  }
 
   if (flag.enable_linalg_to_parallel_loops) {
     VLOG(2) << "add pass: -convert-linalg-to-parallel-loops";
@@ -210,6 +218,7 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
   mlir::registerBuiltinDialectTranslation(registry);
   mlir::registerLLVMDialectTranslation(registry);
   mlir::registerAllExtensions(registry);
+  mlir::memref::registerAllocationOpInterfaceExternalModels(registry);
   mlir::LLVM::registerInlinerInterface(registry);
   if (pass_flag.enable_one_shot_bufferize) {
     mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
@@ -285,9 +294,18 @@ CpuKernelEmitter::MakeFuncArguments() const {
       args.push_back(llvm_ir::ShapeToMLIRMemRefType(shape, mlir_context_));
     }
   }
-  args.push_back(
-      llvm_ir::ShapeToMLIRMemRefType(instr_->shape(), mlir_context_));
   return std::move(args);
+}
+
+absl::StatusOr<llvm::SmallVector<mlir::Type>>
+CpuKernelEmitter::MakeFuncReturnTypes() const {
+  if (LayoutUtil::IsSparseArray(instr_->shape())) {
+    return absl::UnimplementedError(absl::StrFormat(
+        "Unhandled sparse array layout: %s", instr_->ToString()));
+  }
+  llvm::SmallVector<mlir::Type> ret;
+  ret.push_back(llvm_ir::ShapeToMLIRMemRefType(instr_->shape(), mlir_context_));
+  return std::move(ret);
 }
 
 mlir::Value CpuKernelEmitter::EmitCSROperand(EmitterLocOpBuilder& b,
@@ -493,24 +511,23 @@ CpuKernelEmitter::EmitOperands(EmitterLocOpBuilder& b,
 
 absl::Status CpuKernelEmitter::EmitEpilog(EmitterLocOpBuilder& b,
                                           mlir::Block* entry_block,
-                                          mlir::Value res) const {
+                                          mlir::MemRefType ret_type,
+                                          mlir::Value result) const {
   const Shape& shape = instr_->shape();
+  mlir::Value ret_value;
   if (LayoutUtil::IsSparseArray(shape)) {
     return absl::UnimplementedError(absl::StrFormat(
         "Unhandled sparse array layout: %s", instr_->ToString()));
   } else if (ShapeUtil::IsScalar(shape)) {
-    b.create<mlir::memref::StoreOp>(
-        res, entry_block->getArgument(entry_block->getNumArguments() - 1), {});
+    ret_value = b.create<mlir::memref::AllocOp>(ret_type);
+    b.create<mlir::memref::StoreOp>(result, ret_value, {});
   } else {
     pass_flag_.enable_one_shot_bufferize = true;
 
-    b.create<mlir::bufferization::MaterializeInDestinationOp>(
-        mlir::TypeRange{}, res,
-        entry_block->getArgument(entry_block->getNumArguments() - 1),
-        /*restrict=*/true, /*writable=*/true);
+    ret_value = b.create<mlir::bufferization::ToMemrefOp>(ret_type, result);
   }
 
-  b.create<mlir::func::ReturnOp>();
+  b.create<mlir::func::ReturnOp>(mlir::ValueRange{ret_value});
   return absl::OkStatus();
 }
 
@@ -536,9 +553,11 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
 
   TF_ASSIGN_OR_RETURN(llvm::SmallVector<mlir::Type> fn_arg_types,
                       MakeFuncArguments());
+  TF_ASSIGN_OR_RETURN(llvm::SmallVector<mlir::Type> fn_ret_types,
+                      MakeFuncReturnTypes());
 
   auto fn = b.create<mlir::func::FuncOp>(
-      instr_->name(), b.getFunctionType(fn_arg_types, std::nullopt));
+      instr_->name(), b.getFunctionType(fn_arg_types, fn_ret_types));
   fn->setAttr("llvm.emit_c_interface", mlir::UnitAttr::get(mlir_context_));
 
   mlir::Block* entry_block = fn.addEntryBlock();
@@ -549,7 +568,8 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
 
   TF_ASSIGN_OR_RETURN(mlir::Value res, EmitOp(instr_, b, values));
 
-  TF_RETURN_IF_ERROR(EmitEpilog(b, entry_block, res));
+  TF_RETURN_IF_ERROR(EmitEpilog(
+      b, entry_block, mlir::cast<mlir::MemRefType>(fn_ret_types[0]), res));
 
   std::unique_ptr<llvm::Module> llvm_module = CreateLLVMModule(
       mlir_context_, mlir_module.get(), llvm_context.get(), pass_flag_);
