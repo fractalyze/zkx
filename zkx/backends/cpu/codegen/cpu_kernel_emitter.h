@@ -33,6 +33,7 @@ class CpuKernelEmitter final : public KernelEmitter {
   struct PassFlag {
     bool enable_sparsification_and_bufferization = false;
     bool enable_one_shot_bufferize = false;
+    bool enable_buffer_results_to_out_params = true;
     bool enable_poly_to_field = false;
     bool enable_tensor_ext_to_tensor = false;
     bool enable_elliptic_curve_to_field = false;
@@ -51,6 +52,7 @@ class CpuKernelEmitter final : public KernelEmitter {
 
  private:
   absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncArguments() const;
+  absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncReturnTypes() const;
 
   absl::StatusOr<absl::flat_hash_map<const HloInstruction*, mlir::Value>>
   EmitOperands(EmitterLocOpBuilder& b, mlir::Block* entry_block) const;
@@ -65,7 +67,7 @@ class CpuKernelEmitter final : public KernelEmitter {
                              int64_t i, const Shape& shape) const;
 
   absl::Status EmitEpilog(EmitterLocOpBuilder& b, mlir::Block* entry_block,
-                          mlir::Value res) const;
+                          mlir::MemRefType ret_type, mlir::Value result) const;
 
   absl::StatusOr<mlir::Value> EmitOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b,
