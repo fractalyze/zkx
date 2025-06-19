@@ -16,6 +16,8 @@ limitations under the License.
 #ifndef ZKX_BACKENDS_CPU_CODEGEN_CPU_KERNEL_EMITTER_H_
 #define ZKX_BACKENDS_CPU_CODEGEN_CPU_KERNEL_EMITTER_H_
 
+#include <string>
+
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "llvm/ADT/SmallVector.h"
@@ -42,6 +44,7 @@ class CpuKernelEmitter final : public KernelEmitter {
     bool enable_linalg_to_parallel_loops = false;
     bool enable_scf_to_cf = false;
     bool enable_expand_strided_metadata = false;
+    std::string entry_point_name;
   };
 
   CpuKernelEmitter(mlir::MLIRContext* context, const HloInstruction* instr,
@@ -51,6 +54,7 @@ class CpuKernelEmitter final : public KernelEmitter {
 
  private:
   absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncArguments() const;
+  absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncReturnTypes() const;
 
   absl::StatusOr<absl::flat_hash_map<const HloInstruction*, mlir::Value>>
   EmitOperands(EmitterLocOpBuilder& b, mlir::Block* entry_block) const;
@@ -65,7 +69,7 @@ class CpuKernelEmitter final : public KernelEmitter {
                              int64_t i, const Shape& shape) const;
 
   absl::Status EmitEpilog(EmitterLocOpBuilder& b, mlir::Block* entry_block,
-                          mlir::Value res) const;
+                          mlir::MemRefType ret_type, mlir::Value result) const;
 
   absl::StatusOr<mlir::Value> EmitOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b,

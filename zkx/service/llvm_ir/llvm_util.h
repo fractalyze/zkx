@@ -216,13 +216,13 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
 
 // Returns the MLIR memref type which represents the given ZKX shape. For
 // example, if "shape" is [5 x [10 x i32]], the function returns [5 x 10 x i32].
-mlir::Type ShapeToMLIRMemRefType(const Shape& shape,
-                                 mlir::MLIRContext* context);
+mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,
+                                       mlir::MLIRContext* context);
 
 // Returns the MLIR tensor type which represents the given ZKX shape. For
 // example, if "shape" is [5 x [10 x i32]], the function returns [5 x 10 x i32].
-mlir::Type ShapeToMLIRTensorType(const Shape& shape,
-                                 mlir::MLIRContext* context);
+mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
+                                             mlir::MLIRContext* context);
 
 }  // namespace zkx::llvm_ir
 
