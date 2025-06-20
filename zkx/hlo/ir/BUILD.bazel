@@ -88,6 +88,7 @@ zkx_cc_library(
         "//zkx:iterator_util",
         "//zkx:literal",
         "//zkx:literal_pool",
+        "//zkx:literal_util",
         "//zkx:printer",
         "//zkx:protobuf_util",
         "//zkx:shape_tree",

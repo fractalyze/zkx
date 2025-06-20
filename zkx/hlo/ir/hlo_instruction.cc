@@ -1623,6 +1623,23 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBroadcast(
                                                    broadcast_dimensions);
 }
 
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateFusion(
+    const Shape& shape, FusionKind fusion_kind, HloInstruction* fused_root,
+    std::string_view prefix) {
+  return std::make_unique<HloFusionInstruction>(shape, fusion_kind, fused_root,
+                                                prefix);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateFusion(
+    const Shape& shape, FusionKind fusion_kind,
+    absl::Span<HloInstruction* const> operands,
+    HloComputation* fusion_computation, std::string_view prefix) {
+  return std::make_unique<HloFusionInstruction>(shape, fusion_kind, operands,
+                                                fusion_computation, prefix);
+}
+
 void HloInstruction::set_single_sharding(const HloSharding& sharding) {
   CHECK(!sharding.IsTuple()) << sharding;
   if (shape().IsTuple()) {
@@ -2103,6 +2120,30 @@ void HloInstruction::AppendOperands(
   for (HloInstruction* operand : operands) {
     HloInstruction::AppendOperand(operand);
   }
+}
+
+void HloInstruction::RemoveOperandsAtAscendingIndices(
+    absl::Span<const int> ascending_indices) {
+  if (ascending_indices.empty()) {
+    return;
+  }
+  int next_index = 0;
+  int removed_count = 0;
+  for (int to_remove : ascending_indices) {
+    while (next_index < to_remove) {
+      operands_[next_index - removed_count] = operands_[next_index];
+      ++next_index;
+    }
+    CHECK_LT(to_remove, operands_.size());
+    ++removed_count;
+    ++next_index;
+  }
+  while (next_index < operands_.size()) {
+    operands_[next_index - removed_count] = operands_[next_index];
+    ++next_index;
+  }
+  CHECK_EQ(removed_count, ascending_indices.size());
+  operands_.resize(operands_.size() - removed_count);
 }
 
 bool HloInstruction::IdenticalSlowPath(
@@ -2797,6 +2838,19 @@ bool HloInstruction::IsElementwiseImpl(
   return IsOpElementwise(opcode_);
 }
 
+bool HloInstruction::IsCrossModuleAllReduce() const {
+  if (opcode() == HloOpcode::kAllReduce ||
+      opcode() == HloOpcode::kAllReduceStart) {
+    return channel_id() != std::nullopt;
+  } else if (opcode() == HloOpcode::kAllReduceDone) {
+    CHECK_EQ(operand_count(), 1);
+    const HloInstruction* operand = this->operand(0);
+    CHECK_EQ(operand->opcode(), HloOpcode::kAllReduceStart);
+    return operand->channel_id() != std::nullopt;
+  }
+  return false;
+}
+
 std::string FrontendAttributesToString(
     const FrontendAttributes& frontend_attributes) {
   std::vector<std::pair<std::string, std::string>> sorted_attributes(
@@ -2864,6 +2918,64 @@ HloInstructionProto HloInstruction::ToProto() const {
   }
 
   return proto;
+}
+
+std::string HloInstruction::ToCategory() const {
+  if (opcode() == HloOpcode::kTranspose || opcode() == HloOpcode::kCopy ||
+      opcode() == HloOpcode::kReshape ||
+      opcode() == HloOpcode::kDynamicReshape) {
+    return "data formatting";
+  }
+
+  if (IsElementwise()) {
+    return "non-fusion elementwise";
+  }
+
+  return std::string(HloOpcodeString(opcode()));
+}
+
+bool HloInstruction::IsFused() const {
+  return parent_ != nullptr && parent_->IsFusionComputation();
+}
+
+bool HloInstruction::IsInputFusion() const {
+  return opcode() == HloOpcode::kFusion && fusion_kind() == FusionKind::kInput;
+}
+
+bool HloInstruction::IsLoopFusion() const {
+  return opcode() == HloOpcode::kFusion && fusion_kind() == FusionKind::kLoop;
+}
+
+bool HloInstruction::IsOutputFusion() const {
+  return opcode() == HloOpcode::kFusion && fusion_kind() == FusionKind::kOutput;
+}
+
+bool HloInstruction::IsCustomFusion() const {
+  return opcode() == HloOpcode::kFusion && fusion_kind() == FusionKind::kCustom;
+}
+
+bool HloInstruction::IsFusible() const {
+  // Some kinds of instructions don't make sense to fuse.
+  switch (opcode_) {
+    case HloOpcode::kDomain:
+    case HloOpcode::kParameter:
+    case HloOpcode::kWhile:
+    case HloOpcode::kConditional:
+    case HloOpcode::kCall:
+      return false;
+    // Fusions are always fusible.
+    case HloOpcode::kFusion:
+    // Side effecting reduce would be invalid HLO.
+    case HloOpcode::kMap:
+    case HloOpcode::kReduce:
+      return true;
+    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kRng
+    // case HloOpcode::kRng:
+    //   return user_count() <= 1;
+    // Side effecting instructions cannot be fused.
+    default:
+      return !HasSideEffect();
+  }
 }
 
 HloInstruction::HloInstruction(HloOpcode opcode, const Shape& shape)
@@ -3324,6 +3436,81 @@ const Literal& HloInstruction::literal() const {
 
 bool HloInstruction::IsConstant() const {
   return DynCast<HloConstantInstruction>(this) != nullptr;
+}
+
+HloInstruction* HloInstruction::AddFusionOperand(HloInstruction* new_operand) {
+  return Cast<HloFusionInstruction>(this)->AddFusionOperand(new_operand);
+}
+
+// Delegates to HloFusionInstruction::MergeFusionInstruction.
+void HloInstruction::MergeFusionInstruction(
+    HloInstruction* instruction_to_merge) {
+  return Cast<HloFusionInstruction>(this)->MergeFusionInstruction(
+      Cast<HloFusionInstruction>(instruction_to_merge));
+}
+
+// Delegates to HloFusionInstruction::MergeFusionInstructionIntoMultiOutput.
+void HloInstruction::MergeFusionInstructionIntoMultiOutput(
+    HloInstruction* instruction_to_merge) {
+  return Cast<HloFusionInstruction>(this)
+      ->MergeFusionInstructionIntoMultiOutput(
+          Cast<HloFusionInstruction>(instruction_to_merge));
+}
+
+HloInstruction* HloInstruction::FuseInstruction(
+    HloInstruction* instruction_to_fuse) {
+  return Cast<HloFusionInstruction>(this)->FuseInstruction(instruction_to_fuse);
+}
+
+HloInstruction* HloInstruction::FuseInstructionIntoMultiOutput(
+    HloInstruction* instruction_to_fuse) {
+  return Cast<HloFusionInstruction>(this)->FuseInstructionIntoMultiOutput(
+      instruction_to_fuse);
+}
+
+HloComputation* HloInstruction::fused_instructions_computation() const {
+  return Cast<HloFusionInstruction>(this)->fused_instructions_computation();
+}
+
+HloInstruction* HloInstruction::fused_expression_root() const {
+  return Cast<HloFusionInstruction>(this)->fused_expression_root();
+}
+
+tsl::gtl::iterator_range<HloInstructionUnwrappingConstIterator>
+HloInstruction::fused_instructions() const {
+  return Cast<HloFusionInstruction>(this)->fused_instructions();
+}
+
+tsl::gtl::iterator_range<HloInstructionUnwrappingIterator>
+HloInstruction::fused_instructions() {
+  return Cast<HloFusionInstruction>(this)->fused_instructions();
+}
+
+int64_t HloInstruction::fused_instruction_count() const {
+  return Cast<HloFusionInstruction>(this)->fused_instruction_count();
+}
+
+HloInstruction* HloInstruction::fused_parameter(
+    int64_t parameter_number) const {
+  return Cast<HloFusionInstruction>(this)->fused_parameter(parameter_number);
+}
+
+const HloInstruction::InstructionVector& HloInstruction::fused_parameters()
+    const {
+  return Cast<HloFusionInstruction>(this)->fused_parameters();
+}
+
+bool HloInstruction::IsMultiOutputFusion() const {
+  const HloFusionInstruction* fusion = DynCast<HloFusionInstruction>(this);
+  return fusion != nullptr && fusion->IsMultiOutputFusion();
+}
+
+HloInstruction::FusionKind HloInstruction::fusion_kind() const {
+  return Cast<HloFusionInstruction>(this)->fusion_kind();
+}
+
+void HloInstruction::set_fusion_kind(FusionKind kind) {
+  return Cast<HloFusionInstruction>(this)->set_fusion_kind(kind);
 }
 
 int64_t HloInstruction::parameter_number() const {
