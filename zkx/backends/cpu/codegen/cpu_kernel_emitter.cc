@@ -161,6 +161,17 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     flag.enable_field_to_arith = true;
     pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
   }
+
+  if (flag.enable_elementwise_to_linalg) {
+    VLOG(2) << "add pass: -convert-elementwise-to-linalg "
+               "-linalg-fuse-elementwise-ops";
+    flag.enable_linalg_to_parallel_loops = true;
+    pm.addNestedPass<mlir::func::FuncOp>(
+        mlir::createConvertElementwiseToLinalgPass());
+    pm.addNestedPass<mlir::func::FuncOp>(
+        mlir::createLinalgElementwiseOpFusionPass());
+  }
+
   if (flag.enable_field_to_arith) {
     VLOG(2) << "add pass: -field-to-mod-arith -mod-arith-to-arith";
     pm.addPass(mlir::zkir::field::createFieldToModArith());
@@ -171,12 +182,6 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     VLOG(2) << "add pass: -lower-affine";
     flag.enable_scf_to_cf = true;
     pm.addPass(mlir::createLowerAffinePass());
-  }
-  if (flag.enable_elementwise_to_linalg) {
-    VLOG(2) << "add pass: -convert-elementwise-to-linalg";
-    flag.enable_linalg_to_parallel_loops = true;
-    pm.addNestedPass<mlir::func::FuncOp>(
-        mlir::createConvertElementwiseToLinalgPass());
   }
 
   if (flag.enable_one_shot_bufferize) {
