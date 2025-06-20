@@ -92,6 +92,7 @@ namespace zkx {
   V(kConcatenate, "concatenate", kHloOpcodeIsVariadic)                         \
   V(kConditional, "conditional", kHloOpcodeIsVariadic)                         \
   V(kConstant, "constant", 0)                                                  \
+  V(kConvert, "convert", 1)                                                    \
   V(kCopy, "copy", 1)                                                          \
   V(kCopyDone, "copy-done", 1)                                                 \
   V(kCopyStart, "copy-start", 1)                                               \

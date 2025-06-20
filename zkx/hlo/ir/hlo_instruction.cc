@@ -1579,6 +1579,15 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateSlice(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateConvert(
+    const Shape& shape, HloInstruction* operand) {
+  auto instruction =
+      absl::WrapUnique(new HloInstruction(HloOpcode::kConvert, shape));
+  instruction->AppendOperand(operand);
+  return instruction;
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateAddDependency(
     HloInstruction* data_operand, HloInstruction* token_operand) {
   auto instruction = absl::WrapUnique(
@@ -1843,6 +1852,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
       CHECK_EQ(new_operands.size(), 2);
       clone = CreateBinary(shape, opcode_, new_operands[0], new_operands[1]);
       break;
+    case HloOpcode::kConvert:
+      CHECK_EQ(new_operands.size(), 1);
+      clone = CreateConvert(shape, new_operands[0]);
+      break;
     case HloOpcode::kAfterAll:
       if (new_operands.empty()) {
         clone = CreateToken();
@@ -2082,6 +2095,7 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kBitcast:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kCollectivePermuteDone:
+    case HloOpcode::kConvert:
     case HloOpcode::kCopy:
     case HloOpcode::kCopyStart:
     case HloOpcode::kCopyDone:
@@ -2718,6 +2732,7 @@ std::string HloInstruction::ToString() const {
 bool HloInstruction::IsOpElementwise(HloOpcode opcode) {
   switch (opcode) {
     // Unary elementwise operations.
+    case HloOpcode::kConvert:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kCopy:
     case HloOpcode::kNegate:
@@ -2862,6 +2877,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleMinimum(this);
     case HloOpcode::kConcatenate:
       return visitor->HandleConcatenate(this);
+    case HloOpcode::kConvert:
+      return visitor->HandleConvert(this);
     case HloOpcode::kBitcastConvert:
       return visitor->HandleBitcastConvert(this);
     case HloOpcode::kCopy:

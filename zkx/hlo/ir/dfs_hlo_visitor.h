@@ -81,6 +81,9 @@ class DfsHloVisitorBase {
     return HandleElementwiseBinary(hlo);
   }
   virtual absl::Status HandleConcatenate(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleConvert(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
+  }
   virtual absl::Status HandleBitcastConvert(HloInstructionPtr hlo) {
     return HandleElementwiseUnary(hlo);
   }
