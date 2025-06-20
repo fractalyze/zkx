@@ -134,6 +134,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kBitcast:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kConstant:
+    case HloOpcode::kConvert:
     case HloOpcode::kCustomCall:
     case HloOpcode::kFusion:
     case HloOpcode::kInfeed:
@@ -1803,6 +1804,15 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           *shape, opcode, operands[0], operands[1], operands[2]));
     }
     // Other supported ops.
+    case HloOpcode::kConvert: {
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateConvert(*shape, operands[0]));
+    }
     case HloOpcode::kBitcastConvert: {
       if ((!preset_operands &&
            !ParseOperands(&operands, builder, /*expected_size=*/1)) ||

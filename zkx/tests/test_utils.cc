@@ -136,6 +136,11 @@ std::vector<HloInstruction*> FindConstrainedUses(
         //                         fused_uses.end());
       } else if (NeedsInitValue(use)) {
         constrained_uses.push_back(instruction);
+      } else if (opcode == HloOpcode::kConvert) {
+        auto converted_uses = FindConstrainedUses(dataflow, *instruction,
+                                                  treat_gte_as_data_formatting);
+        constrained_uses.insert(constrained_uses.end(), converted_uses.begin(),
+                                converted_uses.end());
       }
       // TODO(chokobole): Uncomment this. HloOpcode::kSort
       // else if (opcode == HloOpcode::kSort &&

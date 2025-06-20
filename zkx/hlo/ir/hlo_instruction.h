@@ -630,6 +630,11 @@ class HloInstruction {
   static std::unique_ptr<HloInstruction> CreatePartitionId(
       const Shape& shape = ShapeUtil::MakeShape(U32, {}));
 
+  // Creates a conversion instruction, where operand is the data to convert and
+  // shape is the target shape for the conversion.
+  static std::unique_ptr<HloInstruction> CreateConvert(const Shape& shape,
+                                                       HloInstruction* operand);
+
   // Creates a bitcast instruction, where operand is the data to
   // convert and shape is the target shape for the conversion.
   static std::unique_ptr<HloInstruction> CreateBitcast(const Shape& shape,
