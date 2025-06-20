@@ -57,6 +57,10 @@ class CpuKernelEmitter final : public KernelEmitter {
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       absl::flat_hash_map<const HloInstruction*, mlir::Value>& values);
 
+  absl::StatusOr<mlir::Value> EmitUnaryOp(const HloInstruction* instr,
+                                          EmitterLocOpBuilder& b,
+                                          mlir::Value value);
+
   absl::StatusOr<mlir::Value> EmitBinaryOp(const HloInstruction* instr,
                                            EmitterLocOpBuilder& b,
                                            mlir::Value lhs_value,
@@ -83,6 +87,14 @@ class CpuKernelEmitter final : public KernelEmitter {
       absl::Span<const int64_t> start_indices,
       absl::Span<const int64_t> limit_indices,
       absl::Span<const int64_t> strides);
+
+  absl::StatusOr<mlir::Value> EmitIntegerUnaryOp(const HloInstruction* instr,
+                                                 EmitterLocOpBuilder& b,
+                                                 mlir::Value value);
+
+  absl::StatusOr<mlir::Value> EmitFieldUnaryOp(const HloInstruction* instr,
+                                               EmitterLocOpBuilder& b,
+                                               mlir::Value value);
 
   absl::StatusOr<mlir::Value> EmitIntegerBinaryOp(const HloInstruction* instr,
                                                   EmitterLocOpBuilder& b,
