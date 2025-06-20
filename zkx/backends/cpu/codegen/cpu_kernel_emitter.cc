@@ -578,8 +578,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
-  mlir::Type ret_type = llvm_ir::PrimitiveTypeToMLIRType(
-      instr->shape().element_type(), b.getContext());
+  const Shape& shape = instr->shape();
+  mlir::Type ret_type =
+      llvm_ir::PrimitiveTypeToMLIRType(shape.element_type(), b.getContext(),
+                                       shape.layout().is_montgomery_form());
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
@@ -657,9 +659,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     mlir::Value bases) {
   if (auto tensor_type =
           mlir::dyn_cast<mlir::RankedTensorType>(bases.getType())) {
+    const Shape& shape = instr->shape();
     return b.create<mlir::zkir::elliptic_curve::MSMOp>(
-        llvm_ir::PrimitiveTypeToMLIRType(instr->shape().element_type(),
-                                         b.getContext()),
+        llvm_ir::PrimitiveTypeToMLIRType(shape.element_type(), b.getContext(),
+                                         shape.layout().is_montgomery_form()),
         scalars, bases);
   } else {
     return absl::InvalidArgumentError("bases is not a tensor");
