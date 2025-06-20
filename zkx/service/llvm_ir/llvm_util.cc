@@ -83,7 +83,8 @@ std::string IrName(const HloInstruction* a, std::string_view b) {
 }
 
 mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
-                                   mlir::MLIRContext* context) {
+                                   mlir::MLIRContext* context,
+                                   bool use_montgomery) {
   switch (element_type) {
     case S2:
     case U2:
@@ -115,19 +116,25 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
       // some placeholder type, so use int8_t*.
       return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
     case BN254_SCALAR:
-      return GetMLIRPrimeFieldType<math::bn254::Fr>(context);
+      return GetMLIRPrimeFieldType<math::bn254::Fr>(context, use_montgomery);
     case BN254_G1_AFFINE:
-      return GetMLIRAffinePointType<math::bn254::G1AffinePoint>(context);
+      return GetMLIRAffinePointType<math::bn254::G1AffinePoint>(context,
+                                                                use_montgomery);
     case BN254_G1_JACOBIAN:
-      return GetMLIRJacobianPointType<math::bn254::G1JacobianPoint>(context);
+      return GetMLIRJacobianPointType<math::bn254::G1JacobianPoint>(
+          context, use_montgomery);
     case BN254_G1_XYZZ:
-      return GetMLIRPointXyzzType<math::bn254::G1PointXyzz>(context);
+      return GetMLIRPointXyzzType<math::bn254::G1PointXyzz>(context,
+                                                            use_montgomery);
     case BN254_G2_AFFINE:
-      return GetMLIRAffinePointType<math::bn254::G2AffinePoint>(context);
+      return GetMLIRAffinePointType<math::bn254::G2AffinePoint>(context,
+                                                                use_montgomery);
     case BN254_G2_JACOBIAN:
-      return GetMLIRJacobianPointType<math::bn254::G2JacobianPoint>(context);
+      return GetMLIRJacobianPointType<math::bn254::G2JacobianPoint>(
+          context, use_montgomery);
     case BN254_G2_XYZZ:
-      return GetMLIRPointXyzzType<math::bn254::G2PointXyzz>(context);
+      return GetMLIRPointXyzzType<math::bn254::G2PointXyzz>(context,
+                                                            use_montgomery);
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }
@@ -135,8 +142,8 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
 
 mlir::Type ShapeToMLIRMemRefType(const Shape& shape,
                                  mlir::MLIRContext* context) {
-  mlir::Type result_type =
-      PrimitiveTypeToMLIRType(shape.element_type(), context);
+  mlir::Type result_type = PrimitiveTypeToMLIRType(
+      shape.element_type(), context, shape.layout().is_montgomery_form());
   if (shape.IsTuple()) {
     // A tuple buffer is an array of pointers.
     // clang-format off
@@ -157,8 +164,9 @@ mlir::Type ShapeToMLIRMemRefType(const Shape& shape,
 
 mlir::Type ShapeToMLIRTensorType(const Shape& shape,
                                  mlir::MLIRContext* context) {
-  mlir::Type result_type =
-      PrimitiveTypeToMLIRType(shape.element_type(), context);
+  const Layout& layout = shape.layout();
+  mlir::Type result_type = PrimitiveTypeToMLIRType(
+      shape.element_type(), context, layout.is_montgomery_form());
   if (shape.IsTuple()) {
     // A tuple buffer is an array of pointers.
     // clang-format off
@@ -169,7 +177,6 @@ mlir::Type ShapeToMLIRTensorType(const Shape& shape,
   } else if (shape.IsArray()) {
     // TODO(chokobole): Take `major_to_minor` into account.
     std::optional<mlir::sparse_tensor::SparseTensorEncodingAttr> encoding;
-    const Layout& layout = shape.layout();
     if (LayoutUtil::IsSparse(layout)) {
       llvm::SmallVector<mlir::sparse_tensor::LevelType> lts;
       for (int i = 0; i < layout.dim_level_types_size(); ++i) {

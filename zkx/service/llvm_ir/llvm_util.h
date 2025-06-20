@@ -94,7 +94,7 @@ mlir::zkir::mod_arith::MontgomeryAttr GetMLIRMontgomeryAttr(
 
 template <typename T>
 mlir::zkir::field::PrimeFieldType GetMLIRPrimeFieldType(
-    mlir::MLIRContext* context, bool use_montgomery = T::kUseMontgomery) {
+    mlir::MLIRContext* context, bool use_montgomery) {
   if constexpr (!T::kUseMontgomery) {
     DCHECK(!use_montgomery);
   }
@@ -128,95 +128,93 @@ mlir::zkir::field::PrimeFieldAttr GetMLIRPrimeFieldAttr(
 
 template <typename T>
 mlir::zkir::field::QuadraticExtFieldType GetMLIRQuadraticExtFieldType(
-    mlir::MLIRContext* context) {
+    mlir::MLIRContext* context, bool use_montgomery) {
   using BaseField = typename T::BaseField;
   return mlir::zkir::field::QuadraticExtFieldType::get(
-      context, GetMLIRPrimeFieldType<BaseField>(context),
-      GetMLIRPrimeFieldAttr(context, T::Config::kNonResidue,
-                            BaseField::kUseMontgomery));
+      context, GetMLIRPrimeFieldType<BaseField>(context, use_montgomery),
+      GetMLIRPrimeFieldAttr(context, T::Config::kNonResidue, use_montgomery));
 }
 
 template <typename T>
 mlir::zkir::field::QuadraticExtFieldAttr GetMLIRExtQuadraticExtFieldAttr(
-    mlir::MLIRContext* context, const T& value) {
-  using BaseField = typename T::BaseField;
+    mlir::MLIRContext* context, const T& value, bool use_montgomery) {
   return mlir::zkir::field::QuadraticExtFieldAttr::get(
-      context, GetMLIRQuadraticExtFieldType<T>(context),
-      GetMLIRPrimeFieldAttr(context, value[0], BaseField::kUseMontgomery),
-      GetMLIRPrimeFieldAttr(context, value[1], BaseField::kUseMontgomery));
+      context, GetMLIRQuadraticExtFieldType<T>(context, use_montgomery),
+      GetMLIRPrimeFieldAttr(context, value[0], use_montgomery),
+      GetMLIRPrimeFieldAttr(context, value[1], use_montgomery));
 }
 
 template <typename T>
 mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMLIRG1ShortWeierstrassAttr(
-    mlir::MLIRContext* context) {
-  using BaseField = typename T::BaseField;
-  mlir::zkir::field::PrimeFieldAttr a = GetMLIRPrimeFieldAttr(
-      context, T::Curve::Config::kA, BaseField::kUseMontgomery);
-  mlir::zkir::field::PrimeFieldAttr b = GetMLIRPrimeFieldAttr(
-      context, T::Curve::Config::kB, BaseField::kUseMontgomery);
-  mlir::zkir::field::PrimeFieldAttr x = GetMLIRPrimeFieldAttr(
-      context, T::Curve::Config::kX, BaseField::kUseMontgomery);
-  mlir::zkir::field::PrimeFieldAttr y = GetMLIRPrimeFieldAttr(
-      context, T::Curve::Config::kY, BaseField::kUseMontgomery);
+    mlir::MLIRContext* context, bool use_montgomery) {
+  mlir::zkir::field::PrimeFieldAttr a =
+      GetMLIRPrimeFieldAttr(context, T::Curve::Config::kA, use_montgomery);
+  mlir::zkir::field::PrimeFieldAttr b =
+      GetMLIRPrimeFieldAttr(context, T::Curve::Config::kB, use_montgomery);
+  mlir::zkir::field::PrimeFieldAttr x =
+      GetMLIRPrimeFieldAttr(context, T::Curve::Config::kX, use_montgomery);
+  mlir::zkir::field::PrimeFieldAttr y =
+      GetMLIRPrimeFieldAttr(context, T::Curve::Config::kY, use_montgomery);
   return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(context, a, b, x,
                                                                y);
 }
 
 template <typename T>
 mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMLIRG2ShortWeierstrassAttr(
-    mlir::MLIRContext* context) {
-  mlir::zkir::field::QuadraticExtFieldAttr a =
-      GetMLIRExtQuadraticExtFieldAttr(context, T::Curve::Config::kA);
-  mlir::zkir::field::QuadraticExtFieldAttr b =
-      GetMLIRExtQuadraticExtFieldAttr(context, T::Curve::Config::kB);
-  mlir::zkir::field::QuadraticExtFieldAttr x =
-      GetMLIRExtQuadraticExtFieldAttr(context, T::Curve::Config::kX);
-  mlir::zkir::field::QuadraticExtFieldAttr y =
-      GetMLIRExtQuadraticExtFieldAttr(context, T::Curve::Config::kY);
+    mlir::MLIRContext* context, bool use_montgomery) {
+  mlir::zkir::field::QuadraticExtFieldAttr a = GetMLIRExtQuadraticExtFieldAttr(
+      context, T::Curve::Config::kA, use_montgomery);
+  mlir::zkir::field::QuadraticExtFieldAttr b = GetMLIRExtQuadraticExtFieldAttr(
+      context, T::Curve::Config::kB, use_montgomery);
+  mlir::zkir::field::QuadraticExtFieldAttr x = GetMLIRExtQuadraticExtFieldAttr(
+      context, T::Curve::Config::kX, use_montgomery);
+  mlir::zkir::field::QuadraticExtFieldAttr y = GetMLIRExtQuadraticExtFieldAttr(
+      context, T::Curve::Config::kY, use_montgomery);
   return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(context, a, b, x,
                                                                y);
 }
 template <typename T>
 mlir::zkir::elliptic_curve::AffineType GetMLIRAffinePointType(
-    mlir::MLIRContext* context) {
+    mlir::MLIRContext* context, bool use_montgomery) {
   using BaseField = typename T::BaseField;
   if constexpr (BaseField::ExtensionDegree() == 1) {
     return mlir::zkir::elliptic_curve::AffineType::get(
-        context, GetMLIRG1ShortWeierstrassAttr<T>(context));
+        context, GetMLIRG1ShortWeierstrassAttr<T>(context, use_montgomery));
   } else {
     return mlir::zkir::elliptic_curve::AffineType::get(
-        context, GetMLIRG2ShortWeierstrassAttr<T>(context));
+        context, GetMLIRG2ShortWeierstrassAttr<T>(context, use_montgomery));
   }
 }
 
 template <typename T>
 mlir::zkir::elliptic_curve::JacobianType GetMLIRJacobianPointType(
-    mlir::MLIRContext* context) {
+    mlir::MLIRContext* context, bool use_montgomery) {
   using BaseField = typename T::BaseField;
   if constexpr (BaseField::ExtensionDegree() == 1) {
     return mlir::zkir::elliptic_curve::JacobianType::get(
-        context, GetMLIRG1ShortWeierstrassAttr<T>(context));
+        context, GetMLIRG1ShortWeierstrassAttr<T>(context, use_montgomery));
   } else {
     return mlir::zkir::elliptic_curve::JacobianType::get(
-        context, GetMLIRG2ShortWeierstrassAttr<T>(context));
+        context, GetMLIRG2ShortWeierstrassAttr<T>(context, use_montgomery));
   }
 }
 
 template <typename T>
 mlir::zkir::elliptic_curve::XYZZType GetMLIRPointXyzzType(
-    mlir::MLIRContext* context) {
+    mlir::MLIRContext* context, bool use_montgomery) {
   using BaseField = typename T::BaseField;
   if constexpr (BaseField::ExtensionDegree() == 1) {
     return mlir::zkir::elliptic_curve::XYZZType::get(
-        context, GetMLIRG1ShortWeierstrassAttr<T>(context));
+        context, GetMLIRG1ShortWeierstrassAttr<T>(context, use_montgomery));
   } else {
     return mlir::zkir::elliptic_curve::XYZZType::get(
-        context, GetMLIRG2ShortWeierstrassAttr<T>(context));
+        context, GetMLIRG2ShortWeierstrassAttr<T>(context, use_montgomery));
   }
 }
 
 mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
-                                   mlir::MLIRContext* context);
+                                   mlir::MLIRContext* context,
+                                   bool use_montgomery = false);
 
 // Returns the MLIR memref type which represents the given ZKX shape. For
 // example, if "shape" is [5 x [10 x i32]], the function returns [5 x 10 x i32].
