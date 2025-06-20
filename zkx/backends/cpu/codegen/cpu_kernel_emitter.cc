@@ -531,6 +531,52 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
   return KernelDefinition(std::move(spec), std::move(source));
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+  return absl::UnimplementedError(absl::StrFormat(
+      "Unhandled unary integer op: %s", HloOpcodeString(instr->opcode())));
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+  switch (instr->opcode()) {
+    case HloOpcode::kConvert: {
+      const Layout& from = instr->operand(0)->shape().layout();
+      const Layout& to = instr->shape().layout();
+      if (from.is_montgomery_form() && to.is_montgomery_form()) {
+        return value;
+      } else if (from.is_montgomery_form() && !to.is_montgomery_form()) {
+        return b.create<mlir::zkir::field::FromMontOp>(
+            mlir::zkir::field::getStandardFormType(value.getType()), value);
+      } else if (!from.is_montgomery_form() && to.is_montgomery_form()) {
+        return b.create<mlir::zkir::field::ToMontOp>(
+            mlir::zkir::field::getMontgomeryFormType(value.getType()), value);
+      } else {
+        return value;
+      }
+    }
+
+    default:
+      return absl::UnimplementedError(
+          absl::StrFormat("Unhandled unary prime field op: %s",
+                          HloOpcodeString(instr->opcode())));
+  }
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitUnaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+  Shape shape = instr->operand(0)->shape();
+  PrimitiveType operand_type = shape.element_type();
+  if (ShapeUtil::ElementIsIntegral(shape)) {
+    return EmitIntegerUnaryOp(instr, b, value);
+  } else if (ShapeUtil::ElementIsField(shape)) {
+    return EmitFieldUnaryOp(instr, b, value);
+  }
+  return absl::UnimplementedError(absl::StrFormat(
+      "Unhandled primitive type: %s",
+      primitive_util::LowercasePrimitiveTypeName(operand_type)));
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value, bool is_signed) {
@@ -879,6 +925,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
   switch (instr->opcode()) {
+    case HloOpcode::kConvert: {
+      return EmitUnaryOp(instr, b, values[instr->operand(0)]);
+    }
     case HloOpcode::kAdd:
     case HloOpcode::kSubtract:
     case HloOpcode::kMultiply:

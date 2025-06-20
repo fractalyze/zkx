@@ -6,6 +6,26 @@
 
 namespace zkx::cpu {
 
+TEST_F(CpuKernelEmitterTest, FieldScalarConvert) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[]) -> bn254.sf[]{:MONT(false)} {
+  %x = bn254.sf[] parameter(0)
+
+  ROOT %ret = bn254.sf[]{:MONT(false)} convert(%x)
+}
+)";
+
+  math::bn254::Fr x = math::bn254::Fr::Random();
+
+  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
+  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::Fr>(0);
+  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
+  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(
+                             math::bn254::Fr::FromUnchecked(x.MontReduce())));
+}
+
 TEST_F(CpuKernelEmitterTest, FieldScalarAdd) {
   const std::string kHloText = R"(
 ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
