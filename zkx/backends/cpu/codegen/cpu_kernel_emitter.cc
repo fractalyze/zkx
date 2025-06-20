@@ -573,6 +573,13 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
       instr_->name(), b.getFunctionType(fn_arg_types, fn_ret_types));
   fn->setAttr(mlir::LLVM::LLVMDialect::getEmitCWrapperAttrName(),
               mlir::UnitAttr::get(mlir_context_));
+  if (instr_->opcode() != HloOpcode::kFft) {
+    for (int64_t i = 0; i < fn_arg_types.size(); ++i) {
+      fn.setArgAttr(
+          i, mlir::bufferization::BufferizationDialect::kWritableAttrName,
+          b.getBoolAttr(false));
+    }
+  }
 
   mlir::Block* entry_block = fn.addEntryBlock();
   b.setInsertionPointToEnd(entry_block);
