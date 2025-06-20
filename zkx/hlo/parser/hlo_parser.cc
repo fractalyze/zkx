@@ -456,6 +456,8 @@ class HloParserImpl : public HloParser {
                            std::vector<bool>* dynamic_dimensions);
   bool ParseShape(Shape* result, bool allow_fallback_to_default_layout = true);
   bool ParseLayout(Layout* layout);
+  bool ParseLayoutBoolAttribute(bool* attr_value,
+                                std::string_view attr_description);
   bool ParseLayoutIntAttribute(int64_t* attr_value,
                                std::string_view attr_description);
   bool ParseDimLevelTypes(
@@ -4836,6 +4838,31 @@ bool HloParserImpl::ParseUnsignedIntegerType(PrimitiveType* primitive_type) {
   return true;
 }
 
+// bool_attribute
+//   ::= /*empty*/
+//   ::= attr_token '(' attr_value ')'
+// attr_token
+//   ::= 'B'
+// attr_value
+//   ::= bool
+bool HloParserImpl::ParseLayoutBoolAttribute(
+    bool* attr_value, std::string_view attr_description) {
+  if (!ParseToken(TokKind::kLparen,
+                  absl::StrCat("expects ", attr_description, " to start with ",
+                               TokKindToString(TokKind::kLparen)))) {
+    return false;
+  }
+  if (!ParseBool(attr_value)) {
+    return false;
+  }
+  if (!ParseToken(TokKind::kRparen,
+                  absl::StrCat("expects ", attr_description, " to end with ",
+                               TokKindToString(TokKind::kRparen)))) {
+    return false;
+  }
+  return true;
+}
+
 // int_attribute
 //   ::= /*empty*/
 //   ::= attr_token '(' attr_value ')'
@@ -4925,6 +4952,7 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
   int64_t dynamic_shape_metadata_prefix_bytes = 0;
   int64_t tail_padding_alignment_in_elements = 1;
   int64_t num_nonzeros = 0;
+  bool is_montgomery_form = true;
 
   auto parse_and_add_item = [&]() {
     int64_t i;
@@ -5027,6 +5055,11 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
         lexer_.Lex();
         ParseLayoutIntAttribute(&num_nonzeros, "number of non zero elements");
       }
+
+      if (lexer_.GetKind() == TokKind::kIdent && lexer_.GetStrVal() == "MONT") {
+        lexer_.Lex();
+        ParseLayoutBoolAttribute(&is_montgomery_form, "montgomery form");
+      }
     }
   }
   if (!ParseToken(TokKind::kRbrace,
@@ -5044,7 +5077,7 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
       tail_padding_alignment_in_elements, index_primitive_type,
       pointer_primitive_type, element_size_in_bits, memory_space, split_configs,
       std::move(physical_shape), dynamic_shape_metadata_prefix_bytes,
-      num_nonzeros);
+      num_nonzeros, is_montgomery_form);
   return true;
 }
 
