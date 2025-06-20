@@ -511,11 +511,13 @@ CpuKernelEmitter::EmitOperands(EmitterLocOpBuilder& b,
     } else {
       pass_flag_.enable_one_shot_bufferize = true;
 
+      // TODO(chokobole): remove this once we have a better way to handle fft.
+      bool writable = instr_->opcode() == HloOpcode::kFft;
       values[operand] = b.create<mlir::bufferization::ToTensorOp>(
           llvm_ir::ShapeToMLIRTensorType(shape, mlir_context_),
           entry_block->getArgument(i),
           /*restrict=*/true,
-          /*writable=*/false);
+          /*writable=*/writable);
     }
   }
   return std::move(values);
@@ -565,20 +567,27 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
 
   TF_ASSIGN_OR_RETURN(llvm::SmallVector<mlir::Type> fn_arg_types,
                       MakeFuncArguments());
-  TF_ASSIGN_OR_RETURN(llvm::SmallVector<mlir::Type> fn_ret_types,
-                      MakeFuncReturnTypes());
-
-  auto fn = b.create<mlir::func::FuncOp>(
-      instr_->name(), b.getFunctionType(fn_arg_types, fn_ret_types));
-  fn->setAttr(mlir::LLVM::LLVMDialect::getEmitCWrapperAttrName(),
-              mlir::UnitAttr::get(mlir_context_));
-  if (instr_->opcode() != HloOpcode::kFft) {
+  llvm::SmallVector<mlir::Type> fn_ret_types;
+  // TODO(chokobole): remove this once we have a better way to handle fft.
+  mlir::func::FuncOp fn;
+  if (instr_->opcode() == HloOpcode::kFft) {
+    pass_flag_.enable_buffer_results_to_out_params = false;
+    fn_arg_types.push_back(
+        llvm_ir::ShapeToMLIRMemRefType(instr_->shape(), mlir_context_));
+    fn = b.create<mlir::func::FuncOp>(
+        instr_->name(), b.getFunctionType(fn_arg_types, std::nullopt));
+  } else {
+    TF_ASSIGN_OR_RETURN(fn_ret_types, MakeFuncReturnTypes());
+    fn = b.create<mlir::func::FuncOp>(
+        instr_->name(), b.getFunctionType(fn_arg_types, fn_ret_types));
     for (int64_t i = 0; i < fn_arg_types.size(); ++i) {
       fn.setArgAttr(
           i, mlir::bufferization::BufferizationDialect::kWritableAttrName,
           b.getBoolAttr(false));
     }
   }
+  fn->setAttr(mlir::LLVM::LLVMDialect::getEmitCWrapperAttrName(),
+              mlir::UnitAttr::get(mlir_context_));
 
   mlir::Block* entry_block = fn.addEntryBlock();
   b.setInsertionPointToEnd(entry_block);
@@ -588,8 +597,13 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
 
   TF_ASSIGN_OR_RETURN(mlir::Value res, EmitOp(instr_, b, values));
 
-  TF_RETURN_IF_ERROR(EmitEpilog(
-      b, entry_block, mlir::cast<mlir::MemRefType>(fn_ret_types[0]), res));
+  // TODO(chokobole): remove this once we have a better way to handle fft.
+  if (instr_->opcode() == HloOpcode::kFft) {
+    b.create<mlir::func::ReturnOp>();
+  } else {
+    TF_RETURN_IF_ERROR(EmitEpilog(
+        b, entry_block, mlir::cast<mlir::MemRefType>(fn_ret_types[0]), res));
+  }
 
   std::unique_ptr<llvm::Module> llvm_module = CreateLLVMModule(
       mlir_context_, mlir_module.get(), llvm_context.get(), pass_flag_);
@@ -807,10 +821,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   pass_flag_.enable_tensor_ext_to_tensor = true;
 
   switch (instr->fft_type()) {
-    case FftType::FFT:
-      return b.create<mlir::zkir::poly::NTTOp>(value, root_attr);
-    case FftType::IFFT:
-      return b.create<mlir::zkir::poly::INTTOp>(value, root_attr);
+    case FftType::FFT: {
+      b.create<mlir::zkir::poly::NTTOp>(value, root_attr);
+      return mlir::Value();
+    }
+    case FftType::IFFT: {
+      b.create<mlir::zkir::poly::INTTOp>(value, root_attr);
+      return mlir::Value();
+    }
 
     default:
       return absl::UnimplementedError(absl::StrFormat(
