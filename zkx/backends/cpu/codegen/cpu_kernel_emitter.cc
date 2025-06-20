@@ -571,7 +571,8 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
 
   auto fn = b.create<mlir::func::FuncOp>(
       instr_->name(), b.getFunctionType(fn_arg_types, fn_ret_types));
-  fn->setAttr("llvm.emit_c_interface", mlir::UnitAttr::get(mlir_context_));
+  fn->setAttr(mlir::LLVM::LLVMDialect::getEmitCWrapperAttrName(),
+              mlir::UnitAttr::get(mlir_context_));
 
   mlir::Block* entry_block = fn.addEntryBlock();
   b.setInsertionPointToEnd(entry_block);
