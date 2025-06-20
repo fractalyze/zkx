@@ -133,7 +133,14 @@ void OneShotBufferize(mlir::OpPassManager& pm) {
   pm.addPass(mlir::createCanonicalizerPass());
 }
 
-void AddPasses(mlir::OpPassManager& pm, CpuKernelEmitter::PassFlag& flag) {
+void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
+  if (VLOG_IS_ON(4)) {
+    pm.getContext()->disableMultithreading();
+    auto print_before = [](mlir::Pass*, mlir::Operation*) { return true; };
+    auto print_after = [](mlir::Pass*, mlir::Operation*) { return true; };
+    pm.enableIRPrinting(print_before, print_after, /*printModuleScope=*/true,
+                        /*printAfterOnlyOnChange=*/true);
+  }
   if (flag.enable_sparsification_and_bufferization) {
     VLOG(2) << "add pass: -sparsification-and-bufferization";
     flag.enable_expand_strided_metadata = true;
