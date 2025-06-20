@@ -96,7 +96,8 @@ Layout LayoutUtil::MakeLayout(
     int64_t element_size_in_bits, int64_t memory_space,
     absl::Span<const SplitConfig> split_configs,
     std::optional<Shape> physical_shape,
-    int64_t dynamic_shape_metadata_prefix_bytes, int64_t num_nonzeros) {
+    int64_t dynamic_shape_metadata_prefix_bytes, int64_t num_nonzeros,
+    bool is_montgomery_form) {
   Layout layout;
   for (int64_t dimension_number : minor_to_major) {
     layout.add_minor_to_major(dimension_number);
@@ -136,6 +137,7 @@ Layout LayoutUtil::MakeLayout(
   layout.set_dynamic_shape_metadata_prefix_bytes(
       dynamic_shape_metadata_prefix_bytes);
   layout.set_num_nonzeros(num_nonzeros);
+  layout.set_is_montgomery_form(is_montgomery_form);
   return layout;
 }
 
