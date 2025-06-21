@@ -236,6 +236,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "shape_partition",
+    srcs = ["shape_partition.cc"],
+    hdrs = ["shape_partition.h"],
+    deps = [
+        "//zkx:shape_util",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "thunk_emitter",
     srcs = ["thunk_emitter.cc"],
     hdrs = ["thunk_emitter.h"],
@@ -284,11 +295,13 @@ zkx_cc_unittest(
     name = "cpu_unittests",
     srcs = [
         "cpu_runtime_unittest.cc",
+        "shape_partition_unittest.cc",
         "xfeed_manager_unittest.cc",
     ],
     deps = [
         ":cpu_runtime",
         ":runtime_custom_call_status",
+        ":shape_partition",
         ":xfeed_manager",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:status",
