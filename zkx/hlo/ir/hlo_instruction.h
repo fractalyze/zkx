@@ -1355,6 +1355,25 @@ class HloInstruction {
 
   const StatisticsViz& statistics_viz() const { return rare()->statistics_viz; }
 
+  template <typename T>
+  using EnableIfProto = typename std::enable_if_t<
+      std::is_base_of<google::protobuf::Message, T>::value>;
+
+  // Returns the backend-specific configuration for how a backend should compile
+  // this HLO. The meaning of the field is backend specific. Not for use before
+  // or during general HLO optimization, since HLO optimizations do not preserve
+  // this field and they cannot interpret it due to its meaning being backend
+  // specific. Except for CustomCall, where this field is preserved and no
+  // general HLO optimization needs to interpret it.
+  //
+  // ConfigProto should be a protobuf Message type.
+  template <typename ConfigProto, EnableIfProto<ConfigProto>* = nullptr>
+  absl::StatusOr<ConfigProto> backend_config() const {
+    ConfigProto proto;
+    TF_RETURN_IF_ERROR(backend_config_.GetProto(&proto));
+    return std::move(proto);
+  }
+
   absl::Status set_backend_config(const google::protobuf::Message& proto) {
     backend_config_ = BackendConfigWrapper(proto);
     return absl::OkStatus();
