@@ -1,6 +1,18 @@
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "backend_config_proto",
+    srcs = ["backend_config.proto"],
+)
+
+cc_proto_library(
+    name = "backend_config_cc_proto",
+    deps = [":backend_config_proto"],
+)
 
 zkx_cc_binary(
     name = "libmlir_runner_utils_ext.so",
