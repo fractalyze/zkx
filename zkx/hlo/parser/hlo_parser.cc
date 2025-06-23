@@ -581,6 +581,132 @@ class HloParserImpl : public HloParser {
     return true;
   }
   template <typename T>
+  bool ParseG2Affine(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    BaseField x;
+    if (!ParseExtensionField(type, &x)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField y;
+    if (!ParseExtensionField(type, &y)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+    *result = T(x, y);
+    return true;
+  }
+  template <typename T>
+  bool ParseG2Jacobian(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    BaseField x;
+    if (!ParseExtensionField(type, &x)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField y;
+    if (!ParseExtensionField(type, &y)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField z;
+    if (!ParseExtensionField(type, &z)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+    *result = T(x, y, z);
+    return true;
+  }
+  template <typename T>
+  bool ParseG2Xyzz(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    BaseField x;
+    if (!ParseExtensionField(type, &x)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField y;
+    if (!ParseExtensionField(type, &y)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField zz;
+    if (!ParseExtensionField(type, &zz)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField zzz;
+    if (!ParseExtensionField(type, &zzz)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+    *result = T(x, y, zz, zzz);
+    return true;
+  }
+  template <typename T>
+  bool ParseExtensionField(PrimitiveType type, T* result) {
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    for (size_t i = 0; i < T::N; ++i) {
+      if (!ParsePrimeField(type, &(*result)[i])) {
+        return false;
+      }
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+
+    return true;
+  }
+  template <typename T>
   bool ParsePrimeField(PrimitiveType type, T* result) {
     constexpr size_t kLimbNums = T::kLimbNums;
     LocTy loc = lexer_.GetLoc();
@@ -3415,6 +3541,36 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
               }
               break;
             }
+            case BN254_G2_AFFINE: {
+              math::bn254::G2AffinePoint value;
+              if (!ParseG2Affine(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_JACOBIAN: {
+              math::bn254::G2JacobianPoint value;
+              if (!ParseG2Jacobian(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_XYZZ: {
+              math::bn254::G2PointXyzz value;
+              if (!ParseG2Xyzz(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
             default:
               return TokenError(
                   absl::StrCat("unsupported ec point type ",
@@ -3510,6 +3666,39 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
                 return false;
               }
               math::bn254::G1PointXyzz value(scalar);
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_AFFINE: {
+              math::bn254::Fr scalar;
+              if (!ParsePrimeField(shape.element_type(), &scalar)) {
+                return false;
+              }
+              math::bn254::G2AffinePoint value(scalar);
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_JACOBIAN: {
+              math::bn254::Fr scalar;
+              if (!ParsePrimeField(shape.element_type(), &scalar)) {
+                return false;
+              }
+              math::bn254::G2JacobianPoint value(scalar);
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_XYZZ: {
+              math::bn254::Fr scalar;
+              if (!ParsePrimeField(shape.element_type(), &scalar)) {
+                return false;
+              }
+              math::bn254::G2PointXyzz value(scalar);
               if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
                 return false;
               }
