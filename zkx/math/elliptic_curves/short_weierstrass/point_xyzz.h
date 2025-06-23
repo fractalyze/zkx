@@ -202,6 +202,19 @@ class PointXyzz<_Curve,
     }
   }
 
+  // The xyzz point X, Y, ZZ, ZZZ is represented in the jacobian
+  // coordinates as X, Y, ZZZ/ZZ.
+  constexpr JacobianPoint ToJacobian() const {
+    if (IsZero()) {
+      return JacobianPoint::Zero();
+    } else if (zz_.IsOne()) {
+      return {x_, y_, BaseField::One()};
+    } else {
+      BaseField z = (*zz_.Inverse()) * zzz_;
+      return {x_, y_, z};
+    }
+  }
+
   template <typename XyzzContainer, typename AffineContainer>
   static absl::Status BatchToAffine(const XyzzContainer& point_xyzzs,
                                     AffineContainer* affine_points) {
