@@ -96,6 +96,10 @@ class CpuKernelEmitter final : public KernelEmitter {
                                                EmitterLocOpBuilder& b,
                                                mlir::Value value);
 
+  absl::StatusOr<mlir::Value> EmitEcPointUnaryOp(const HloInstruction* instr,
+                                                 EmitterLocOpBuilder& b,
+                                                 mlir::Value value);
+
   absl::StatusOr<mlir::Value> EmitIntegerBinaryOp(const HloInstruction* instr,
                                                   EmitterLocOpBuilder& b,
                                                   mlir::Value lhs_value,
