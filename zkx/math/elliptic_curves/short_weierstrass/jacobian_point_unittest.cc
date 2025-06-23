@@ -117,6 +117,11 @@ TEST(JacobianPointTest, ToAffine) {
   EXPECT_EQ(ap3, AffinePoint(4, 5));
 }
 
+TEST(JacobianPointTest, ToXyzz) {
+  auto p = JacobianPoint::Random();
+  EXPECT_EQ(p.ToXyzz(), p.ToAffine()->ToXyzz());
+}
+
 TEST(JacobianPointTest, BatchToAffine) {
   std::vector<JacobianPoint> jacobian_points = {
       JacobianPoint(1, 2, 0),
