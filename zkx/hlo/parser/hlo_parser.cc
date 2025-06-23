@@ -31,6 +31,7 @@ limitations under the License.
 #include "xla/tsl/lib/gtl/map_util.h"
 #include "zkx/comparison_util.h"
 #include "zkx/hlo/ir/collective_device_list.h"
+#include "zkx/hlo/ir/hlo_casting_utils.h"
 #include "zkx/hlo/ir/hlo_domain_metadata.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/hlo/ir/hlo_sharding_metadata.h"
@@ -2468,10 +2469,29 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kFusion: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateFusion
-      // clang-format on
-      return nullptr;
+      std::optional<HloComputation*> fusion_computation;
+      attrs["calls"] = {/*required=*/true, AttrTy::kHloComputation,
+                        &fusion_computation};
+      std::optional<HloInstruction::FusionKind> fusion_kind;
+      attrs["kind"] = {/*required=*/true, AttrTy::kFusionKind, &fusion_kind};
+      std::optional<
+          std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>>
+          output_to_operand_aliasing;
+      attrs["output_to_operand_aliasing"] = {/*required=*/false,
+                                             AttrTy::kInstructionAliasing,
+                                             &output_to_operand_aliasing};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      auto instr = builder->AddInstruction(HloInstruction::CreateFusion(
+          *shape, *fusion_kind, operands, *fusion_computation));
+      auto fusion_instr = Cast<HloFusionInstruction>(instr);
+      if (output_to_operand_aliasing.has_value()) {
+        fusion_instr->set_output_to_operand_aliasing(
+            std::move(*output_to_operand_aliasing));
+      }
+      return instr;
     }
     case HloOpcode::kInfeed: {
       std::optional<std::string> config;

@@ -219,6 +219,19 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
                    });
     return result;
   };
+  const auto output_to_operand_aliasing = [&proto]() {
+    std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+        output_to_operand_aliasing;
+    for (const auto& aliasing : proto.output_operand_aliasing()) {
+      output_to_operand_aliasing.emplace_back(
+          ShapeIndex(aliasing.output_shape_index().begin(),
+                     aliasing.output_shape_index().end()),
+          std::make_pair(aliasing.operand_index(),
+                         ShapeIndex(aliasing.operand_shape_index().begin(),
+                                    aliasing.operand_shape_index().end())));
+    }
+    return output_to_operand_aliasing;
+  };
   const auto computations = [&computation_map, &proto](int index) {
     return computation_map.at(proto.called_computation_ids(index));
   };
@@ -512,28 +525,24 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       // In the proto, fused computations are held exclusively within the
       // HloInstructionProto and do not appear as an HloComputationProto within
       // the HloModuleProto.
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateFusion
-      // TF_RET_CHECK(!proto.fusion_kind().empty());
-      // TF_ASSIGN_OR_RETURN(FusionKind fusion_kind,
-      //                     StringToFusionKind(proto.fusion_kind()));
+      TF_RET_CHECK(!proto.fusion_kind().empty());
+      TF_ASSIGN_OR_RETURN(FusionKind fusion_kind,
+                          StringToFusionKind(proto.fusion_kind()));
 
-      // // Find the fused computation and set its fusion instruction.
-      // TF_RET_CHECK(proto.called_computation_ids_size() == 1)
-      //     << "Expect 1 called computation for fusion instruction but sees "
-      //     << proto.called_computation_ids_size();
-      // const int64_t fusion_id = proto.called_computation_ids(0);
-      // auto* fused_computation =
-      //     tsl::gtl::FindPtrOrNull(computation_map, fusion_id);
-      // TF_RET_CHECK(fused_computation != nullptr)
-      //     << "No fusion computation with id " << fusion_id;
-      // instruction =
-      //     CreateFusion(shape, fusion_kind, all_operands(),
-      //     fused_computation);
-      // auto fusion_instr = DynCast<HloFusionInstruction>(instruction.get());
-      // fusion_instr->set_output_to_operand_aliasing(
-      //     output_to_operand_aliasing());
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Fusion not implemented");
+      // Find the fused computation and set its fusion instruction.
+      TF_RET_CHECK(proto.called_computation_ids_size() == 1)
+          << "Expect 1 called computation for fusion instruction but sees "
+          << proto.called_computation_ids_size();
+      const int64_t fusion_id = proto.called_computation_ids(0);
+      auto* fused_computation =
+          tsl::gtl::FindPtrOrNull(computation_map, fusion_id);
+      TF_RET_CHECK(fused_computation != nullptr)
+          << "No fusion computation with id " << fusion_id;
+      instruction =
+          CreateFusion(shape, fusion_kind, all_operands(), fused_computation);
+      auto fusion_instr = DynCast<HloFusionInstruction>(instruction.get());
+      fusion_instr->set_output_to_operand_aliasing(
+          output_to_operand_aliasing());
       break;
     }
     case HloOpcode::kParameter:
@@ -2273,13 +2282,10 @@ absl::Status HloInstruction::ReplaceUseWithDifferentShape(
                new_producer);
   new_producer->AddUser(user);
   // Custom fusions may not be able to handle deduplicated operands.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kFusion, HloFusionInstruction
-  // clang-format on
-  // if (user->opcode() == HloOpcode::kFusion) {
-  //   TF_RETURN_IF_ERROR(
-  //       Cast<HloFusionInstruction>(user)->DeduplicateFusionOperands());
-  // }
+  if (user->opcode() == HloOpcode::kFusion) {
+    TF_RETURN_IF_ERROR(
+        Cast<HloFusionInstruction>(user)->DeduplicateFusionOperands());
+  }
   return absl::OkStatus();
 }
 
@@ -2392,13 +2398,10 @@ absl::Status HloInstruction::ReplaceAllUsesWithDifferentShape(
       std::replace(user->operands_.begin(), user->operands_.end(), this,
                    new_producer);
       new_producer->AddUser(user);
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kFusion, HloFusionInstruction
-      // clang-format on
-      // if (user->opcode() == HloOpcode::kFusion) {
-      //   TF_RETURN_IF_ERROR(
-      //       Cast<HloFusionInstruction>(user)->DeduplicateFusionOperands());
-      // }
+      if (user->opcode() == HloOpcode::kFusion) {
+        TF_RETURN_IF_ERROR(
+            Cast<HloFusionInstruction>(user)->DeduplicateFusionOperands());
+      }
     }
   }
   users_.Clear();
