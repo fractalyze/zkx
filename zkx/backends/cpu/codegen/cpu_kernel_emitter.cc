@@ -562,6 +562,28 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
   }
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointUnaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+  switch (instr->opcode()) {
+    case HloOpcode::kConvert: {
+      const PrimitiveType from = instr->operand(0)->shape().element_type();
+      const PrimitiveType to = instr->shape().element_type();
+      if (from == to) {
+        return value;
+      }
+      return b.create<mlir::zkir::elliptic_curve::ConvertPointTypeOp>(
+          llvm_ir::PrimitiveTypeToMLIRType(
+              to, b.getContext(),
+              instr->operand(0)->shape().layout().is_montgomery_form()),
+          value);
+    }
+
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled unary ec point op: %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   Shape shape = instr->operand(0)->shape();
@@ -570,6 +592,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitUnaryOp(
     return EmitIntegerUnaryOp(instr, b, value);
   } else if (ShapeUtil::ElementIsField(shape)) {
     return EmitFieldUnaryOp(instr, b, value);
+  } else if (ShapeUtil::ElementIsEcPoint(shape)) {
+    return EmitEcPointUnaryOp(instr, b, value);
   }
   return absl::UnimplementedError(absl::StrFormat(
       "Unhandled primitive type: %s",
