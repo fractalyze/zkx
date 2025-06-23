@@ -200,6 +200,13 @@ class JacobianPoint<
     }
   }
 
+  // The jacobian point X, Y, Z is represented in the xyzz
+  // coordinates as X, Y, Z², Z³.
+  constexpr PointXyzz ToXyzz() const {
+    BaseField zz = z_.Square();
+    return {x_, y_, zz, zz * z_};
+  }
+
   template <typename JacobianContainer, typename AffineContainer>
   static absl::Status BatchToAffine(const JacobianContainer& jacobian_points,
                                     AffineContainer* affine_points) {

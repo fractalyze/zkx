@@ -113,6 +113,12 @@ TEST(PointXyzzTest, ToAffine) {
   EXPECT_EQ(ap3, AffinePoint(4, 5));
 }
 
+TEST(PointXyzzTest, ToJacobian) {
+  EXPECT_EQ(PointXyzz(1, 2, 0, 0).ToJacobian(), JacobianPoint::Zero());
+  EXPECT_EQ(PointXyzz(1, 2, 1, 1).ToJacobian(), JacobianPoint(1, 2, 1));
+  EXPECT_EQ(PointXyzz(1, 2, 2, 6).ToJacobian(), JacobianPoint(2, 2, 5));
+}
+
 TEST(PointXyzzTest, BatchToAffine) {
   std::vector<PointXyzz> point_xyzzs = {
       PointXyzz(1, 2, 0, 0),
