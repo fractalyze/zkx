@@ -59,10 +59,10 @@ def zkx_deps():
         urls = tf_mirror_urls("https://zlib.net/zlib-1.3.1.tar.gz"),
     )
 
-    ZKIR_COMMIT = "c8c1699d779790574d09df4c48ec26ad8d38bc99"
+    ZKIR_COMMIT = "b0e582104c998579ca7ff3b2105908c71ec9d37b"
     tf_http_archive(
         name = "zkir",
-        sha256 = "1aed792ac50b49dc183465eda59a2a2e686687f6ea8ccb2ec77d7ea7128d4f2c",
+        sha256 = "f0a47de94c992c55f9fba3a149e8d253264eb6fd5900b2e2a4bfc9fcf208c679",
         strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
         urls = tf_mirror_urls("https://github.com/zk-rabbit/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
     )

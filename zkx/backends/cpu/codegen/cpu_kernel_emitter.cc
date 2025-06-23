@@ -61,6 +61,7 @@ limitations under the License.
 #include "zkir/Dialect/Poly/Conversions/PolyToField/PolyToField.h"
 #include "zkir/Dialect/Poly/IR/PolyDialect.h"
 #include "zkir/Dialect/Poly/IR/PolyOps.h"
+#include "zkir/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "zkx/backends/cpu/codegen/kernel_api_ir_builder.h"
 #include "zkx/base/logging.h"
 #include "zkx/codegen/emitter_loc_op_builder.h"
@@ -129,6 +130,7 @@ void OneShotBufferize(mlir::OpPassManager& pm) {
 
 void AddPasses(mlir::OpPassManager& pm) {
   pm.addPass(mlir::zkir::poly::createPolyToField());
+  pm.addPass(mlir::zkir::tensor_ext::createTensorExtToTensor());
   pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
   pm.addPass(mlir::zkir::field::createFieldToModArith());
   pm.addPass(mlir::zkir::mod_arith::createModArithToArith());
