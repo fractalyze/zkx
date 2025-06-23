@@ -1176,9 +1176,10 @@ void HloDataflowAnalysis::Propagate() {
         //
         // Note that the same instruction can be used in multiple branches'
         // operands.
-        // TODO(chokobole): Uncomment this. Dependency:
-        // HloInstruction::branch_count for (int j = 0; j <
-        // user->branch_count(); ++j) {
+        // clang-format off
+        // TODO(chokobole): Uncomment this. Dependency: HloInstruction::branch_count
+        // clang-format on
+        // for (int j = 0; j < user->branch_count(); ++j) {
         //   if (user->operand(j + 1) == instruction) {
         //     add_to_worklist(
         //         user->branch_computation(j)->parameter_instruction(0));
