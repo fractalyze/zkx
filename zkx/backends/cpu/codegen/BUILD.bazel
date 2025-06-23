@@ -93,6 +93,7 @@ zkx_cc_library(
         "@zkir//zkir/Dialect/ModArith/IR:ModArith",
         "@zkir//zkir/Dialect/Poly/Conversions/PolyToField",
         "@zkir//zkir/Dialect/Poly/IR:Poly",
+        "@zkir//zkir/Dialect/TensorExt/Conversions/TensorExtToTensor",
     ],
 )
 
