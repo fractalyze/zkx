@@ -1677,6 +1677,44 @@ class HloInstructionPatternBinaryOperandsAnyOrderImpl {
 };
 
 // An HloInstructionPattern implementation that matches only if the instruction
+// is a fusion node with a particular kind.
+class HloInstructionPatternFusionKindImpl {
+ public:
+  explicit constexpr HloInstructionPatternFusionKindImpl(
+      HloInstruction::FusionKind kind)
+      : kind_(kind) {}
+
+  bool Match(const HloInstruction* inst, MatchOption option) const {
+    return MatchImpl(inst, option);
+  }
+
+  bool Match(HloInstruction* inst, MatchOption option) const {
+    return MatchImpl(inst, option);
+  }
+
+  void DescribeTo(std::ostream* os, int64_t indent = 0) const {
+    *os << "with fusion kind " << ToString(kind_);
+  }
+
+ private:
+  template <typename HloInstructionType>
+  bool MatchImpl(HloInstructionType* inst, MatchOption option) const {
+    if (inst->opcode() != HloOpcode::kFusion) {
+      EXPLAIN << "HloInstruction does not have fusion kind " << ToString(kind_)
+              << "; it's not a fusion";
+      return false;
+    }
+    if (inst->fusion_kind() != kind_) {
+      EXPLAIN << "HloInstruction does not have fusion kind " << ToString(kind_);
+      return false;
+    }
+    return true;
+  }
+
+  HloInstruction::FusionKind kind_;
+};
+
+// An HloInstructionPattern implementation that matches only if the instruction
 // is a kGetTupleElement with a particular tuple index.
 class HloInstructionPatternTupleIndexImpl {
  public:
@@ -2325,12 +2363,9 @@ class HloInstructionPattern {
 
   // Modifies the pattern to match only if the instruction is a fusion node with
   // the given kind.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstructionPatternFusionKindImpl
-  // clang-format on
-  // constexpr auto WithFusionKind(HloInstruction::FusionKind kind) const {
-  //   return AppendImpl(HloInstructionPatternFusionKindImpl(kind));
-  // }
+  constexpr auto WithFusionKind(HloInstruction::FusionKind kind) const {
+    return AppendImpl(HloInstructionPatternFusionKindImpl(kind));
+  }
 
   // Modifies the pattern to match only if the instruction is a
   // get-tuple-element with the given tuple index.

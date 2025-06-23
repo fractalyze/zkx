@@ -16,6 +16,8 @@ limitations under the License.
 #include "zkx/hlo/analysis/logical_buffer_analysis.h"
 
 #include "xla/tsl/platform/errors.h"
+#include "zkx/hlo/ir/hlo_casting_utils.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
 
 namespace zkx {
 
@@ -24,14 +26,11 @@ void GatherFusionInstructions(
     HloInstruction* instruction,
     std::vector<HloInstruction*>* fusion_instructions) {
   CHECK_EQ(HloOpcode::kFusion, instruction->opcode());
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::fused_instructions
-  // clang-format on
-  // for (auto* fused : instruction->fused_instructions()) {
-  //   if (fused->opcode() == HloOpcode::kFusion) {
-  //     GatherFusionInstructions(fused, fusion_instructions);
-  //   }
-  // }
+  for (auto* fused : instruction->fused_instructions()) {
+    if (fused->opcode() == HloOpcode::kFusion) {
+      GatherFusionInstructions(fused, fusion_instructions);
+    }
+  }
   fusion_instructions->push_back(instruction);
 }
 
@@ -64,12 +63,9 @@ absl::Status LogicalBufferAnalysis::Analyze() {
       GatherFusionInstructions(instruction, &fusion_instructions);
     }
   }
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::fused_expression_root
-  // clang-format on
-  // for (auto* instruction : fusion_instructions) {
-  //   TF_RETURN_IF_ERROR(instruction->fused_expression_root()->Accept(this));
-  // }
+  for (auto* instruction : fusion_instructions) {
+    TF_RETURN_IF_ERROR(instruction->fused_expression_root()->Accept(this));
+  }
   return absl::OkStatus();
 }
 
@@ -204,23 +200,18 @@ absl::Status LogicalBufferAnalysis::HandleCustomCall(
 // TODO (sacer): We might want to consider the pairs discovered by
 // GetFusionInstructionInPlaceInputOutputPairs() here as well.
 absl::Status LogicalBufferAnalysis::HandleFusion(HloInstruction* fusion) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloFusionInstruction
-  // clang-format on
-  // auto cfusion = Cast<HloFusionInstruction>(fusion);
-  // absl::flat_hash_set<ShapeIndex> aliased_outputs;
-  // for (const auto& pair : cfusion->output_to_operand_aliasing()) {
-  //   aliased_outputs.insert(pair.first);
-  // }
-  // ShapeUtil::ForEachSubshape(cfusion->shape(),
-  //                            [&](const Shape& shape, const ShapeIndex& index)
-  //                            {
-  //                              if (!aliased_outputs.contains(index)) {
-  //                                NewLogicalBuffer(fusion, index);
-  //                              }
-  //                            });
-  // return absl::OkStatus();
-  return absl::UnimplementedError("");
+  auto cfusion = Cast<HloFusionInstruction>(fusion);
+  absl::flat_hash_set<ShapeIndex> aliased_outputs;
+  for (const auto& pair : cfusion->output_to_operand_aliasing()) {
+    aliased_outputs.insert(pair.first);
+  }
+  ShapeUtil::ForEachSubshape(cfusion->shape(),
+                             [&](const Shape& shape, const ShapeIndex& index) {
+                               if (!aliased_outputs.contains(index)) {
+                                 NewLogicalBuffer(fusion, index);
+                               }
+                             });
+  return absl::OkStatus();
 }
 
 }  // namespace zkx

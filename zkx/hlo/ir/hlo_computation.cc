@@ -130,11 +130,10 @@ HloComputation::HloComputation(
 }
 
 HloComputation::~HloComputation() {
-  // TODO(chokobole): Uncomment this. Dependency: FusionInstruction
-  // if (FusionInstruction() != nullptr) {
-  //   CHECK(FusionInstruction()->fused_instructions_computation() == this);
-  //   FusionInstruction()->ClearCalledComputations();
-  // }
+  if (FusionInstruction() != nullptr) {
+    CHECK(FusionInstruction()->fused_instructions_computation() == this);
+    FusionInstruction()->ClearCalledComputations();
+  }
   if (IsAsyncComputation()) {
     CHECK(async_start_->async_wrapped_computation() == this);
     async_start_->ClearCalledComputations();
