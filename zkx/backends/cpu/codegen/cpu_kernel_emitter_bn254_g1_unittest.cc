@@ -3,6 +3,26 @@
 
 namespace zkx::cpu {
 
+TEST_F(CpuKernelEmitterTest, G1ScalarConvert) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.g1_affine[]) -> bn254.g1_xyzz[]
+{
+  %x = bn254.g1_affine[] parameter(0)
+
+  ROOT %ret = bn254.g1_xyzz[] convert(%x)
+}
+)";
+
+  auto x = math::bn254::G1AffinePoint::Random();
+
+  Literal x_literal = LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x);
+  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::G1PointXyzz>(0);
+  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
+  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+
+  EXPECT_EQ(ret_literal.data<math::bn254::G1PointXyzz>()[0], x.ToXyzz());
+}
+
 TEST_F(CpuKernelEmitterTest, G1ScalarAdd) {
   const std::string kHloText = R"(
 ENTRY %f (x: bn254.g1_affine[], y: bn254.g1_affine[]) -> bn254.g1_jacobian[]
