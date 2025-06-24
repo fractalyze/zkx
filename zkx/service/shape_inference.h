@@ -78,6 +78,12 @@ class ShapeInference {
   static absl::StatusOr<Shape> InferVariadicOpShape(
       HloOpcode opcode, absl::Span<const HloInstruction* const> operands);
 
+  // Infers the shape produced by the given FFT type on the given operand.
+  static absl::StatusOr<Shape> InferFftShape(const Shape& in, FftType fft_type);
+
+  // Infers the shape produced by the given MSM type on the given operand.
+  static absl::StatusOr<Shape> InferMsmShape(const Shape& bases);
+
   // Infers the shape produced by an all-gather with the given operand shape,
   // concat dimension, and shard count.
   static absl::StatusOr<Shape> InferAllGatherShape(
@@ -145,6 +151,16 @@ class ShapeInference {
   // Infers the shape of a collective permute operation.
   static absl::StatusOr<Shape> InferCollectivePermuteDoneShape(
       const Shape& operand_shape);
+
+  // Infers the shape produced by a broadcast operation.
+  static absl::StatusOr<Shape> InferBroadcastShape(
+      const Shape& operand, absl::Span<const int64_t> broadcast_sizes);
+
+  // Checks whether the given parameters can form a broadcast. Returns the same
+  // output_shape if it's legal.
+  static absl::StatusOr<Shape> InferBroadcastShape(
+      const Shape& operand_shape, const Shape& output_shape,
+      absl::Span<const int64_t> broadcast_dimensions);
 
  private:
   // Helper that infers the shape produced by performing an element-wise binary

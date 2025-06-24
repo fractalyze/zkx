@@ -18,7 +18,7 @@ limitations under the License.
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/casts.h"
-#include "zkx/backends/cpu/codegen/elemental/elemental_kernel_emitter.h"
+#include "zkx/backends/cpu/codegen/cpu_kernel_emitter.h"
 #include "zkx/backends/cpu/runtime/all_gather_thunk.h"
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
@@ -139,12 +139,36 @@ ThunkEmitter::ThunkEmitter(const BufferAssignment* buffer_assignment,
 absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     const HloInstruction* instr) {
   switch (instr->opcode()) {
+    // Instructions that do not have a thunk implementation and are instead
+    // fully defined by the corresponding buffer assignment.
+    case HloOpcode::kBitcast:
+    case HloOpcode::kGetTupleElement:
     case HloOpcode::kParameter:
+    case HloOpcode::kTuple:
       return ThunkSequence::Empty();
+
+    // No-op operations that are used to provide more metadata about the HLO
+    // dataflow graph.
+    case HloOpcode::kAfterAll:             // Defines an execution order.
+    case HloOpcode::kAddDependency:        // Defines an execution order.
+    case HloOpcode::kDomain:               // Defines an HLO domain.
+    case HloOpcode::kOptimizationBarrier:  // Prevents moving ops past barrier.
+      return ThunkSequence::Empty();
+
+    // Allocations for constants owned by the executable, and resolved at run
+    // time according to the buffer assignment (using allocation index). We do
+    // not need to emit any thunks for constant instructions.
+    case HloOpcode::kConstant:
+      return ThunkSequence::Empty();
+
     case HloOpcode::kAdd:
-    case HloOpcode::kSubtract:
+    case HloOpcode::kBroadcast:
+    case HloOpcode::kDivide:
+    case HloOpcode::kFft:
+    case HloOpcode::kMsm:
     case HloOpcode::kMultiply:
-      return EmitElementalKernelThunk(instr);
+    case HloOpcode::kSubtract:
+      return EmitKernelThunk(instr);
     case HloOpcode::kAllGather:
       return EmitAllGatherThunk(instr);
     case HloOpcode::kAllReduce:
@@ -213,10 +237,9 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitEntryComputation(
   return EmitHloComputation(module.entry_computation());
 }
 
-absl::StatusOr<ThunkSequence> ThunkEmitter::EmitElementalKernelThunk(
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitKernelThunk(
     const HloInstruction* instruction) {
-  ElementalKernelEmitter emitter(mlir_context_, instruction,
-                                 buffer_assignment_);
+  CpuKernelEmitter emitter(mlir_context_, instruction, buffer_assignment_);
   TF_ASSIGN_OR_RETURN(KernelDefinition kernel_definition,
                       emitter.EmitKernelDefinition());
 

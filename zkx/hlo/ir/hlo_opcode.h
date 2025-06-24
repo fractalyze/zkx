@@ -103,6 +103,7 @@ namespace zkx {
   V(kDynamicSlice, "dynamic-slice", kHloOpcodeIsVariadic)                      \
   V(kDynamicUpdateSlice, "dynamic-update-slice", kHloOpcodeIsVariadic)         \
   V(kFusion, "fusion", kHloOpcodeIsVariadic)                                   \
+  V(kFft, "fft", 1)                                                            \
   V(kGather, "gather", 2)                                                      \
   V(kGetDimensionSize, "get-dimension-size", 1)                                \
   V(kGetTupleElement, "get-tuple-element", 1)                                  \
@@ -110,6 +111,7 @@ namespace zkx {
   V(kMap, "map", kHloOpcodeIsVariadic)                                         \
   V(kMaximum, "maximum", 2)                                                    \
   V(kMinimum, "minimum", 2)                                                    \
+  V(kMsm, "msm", 2)                                                            \
   V(kMultiply, "multiply", 2)                                                  \
   V(kNegate, "negate", 1)                                                      \
   V(kOptimizationBarrier, "opt-barrier", 1)                                    \

@@ -26,6 +26,7 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
+#include "zkx/base/logging.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/service/rendezvous.h"
@@ -40,19 +41,38 @@ bool ByRank(const Participant* a, const Participant* b) {
 
 template <typename T>
 T GetInitialValue(ReductionKind reduction_kind) {
-  switch (reduction_kind) {
-    case ReductionKind::kSum:
-      return T{0};
-    case ReductionKind::kProduct:
-      return T{1};
-    case ReductionKind::kMin:
-      return std::numeric_limits<T>::has_infinity
-                 ? std::numeric_limits<T>::infinity()
-                 : std::numeric_limits<T>::max();
-    case ReductionKind::kMax:
-      return std::numeric_limits<T>::has_infinity
-                 ? -std::numeric_limits<T>::infinity()
-                 : std::numeric_limits<T>::lowest();
+  if constexpr (math::IsPrimeField<T>) {
+    switch (reduction_kind) {
+      case ReductionKind::kSum:
+        return T::Zero();
+      case ReductionKind::kProduct:
+        return T::One();
+      case ReductionKind::kMin:
+        return -T::One();
+      case ReductionKind::kMax:
+        return T::Zero();
+    }
+  } else if constexpr (math::IsEcPoint<T>) {
+    switch (reduction_kind) {
+      case ReductionKind::kSum:
+        return T::Zero();
+      case ReductionKind::kProduct:
+        return T::One();
+      case ReductionKind::kMin:
+      case ReductionKind::kMax:
+        LOG(FATAL) << "Min/Max reduction is not supported for EcPoint types.";
+    }
+  } else {
+    switch (reduction_kind) {
+      case ReductionKind::kSum:
+        return T{0};
+      case ReductionKind::kProduct:
+        return T{1};
+      case ReductionKind::kMin:
+        return std::numeric_limits<T>::max();
+      case ReductionKind::kMax:
+        return std::numeric_limits<T>::lowest();
+    }
   }
 }
 
@@ -73,21 +93,33 @@ void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kProduct) {
-    for (size_t j = 0; j < inputs.size(); ++j) {
-      for (size_t i = 0; i < acc.size(); ++i) {
-        acc[i] *= inputs[j][i];
+    if constexpr (math::IsEcPoint<T>) {
+      LOG(FATAL) << "Product reduction is not supported for EcPoint types.";
+    } else {
+      for (size_t j = 0; j < inputs.size(); ++j) {
+        for (size_t i = 0; i < acc.size(); ++i) {
+          acc[i] *= inputs[j][i];
+        }
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kMin) {
-    for (size_t j = 0; j < inputs.size(); ++j) {
-      for (size_t i = 0; i < acc.size(); ++i) {
-        acc[i] = std::min(acc[i], inputs[j][i]);
+    if constexpr (math::IsEcPoint<T>) {
+      LOG(FATAL) << "Min reduction is not supported for EcPoint types.";
+    } else {
+      for (size_t j = 0; j < inputs.size(); ++j) {
+        for (size_t i = 0; i < acc.size(); ++i) {
+          acc[i] = std::min(acc[i], inputs[j][i]);
+        }
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kMax) {
-    for (size_t j = 0; j < inputs.size(); ++j) {
-      for (size_t i = 0; i < acc.size(); ++i) {
-        acc[i] = std::max(acc[i], inputs[j][i]);
+    if constexpr (math::IsEcPoint<T>) {
+      LOG(FATAL) << "Max reduction is not supported for EcPoint types.";
+    } else {
+      for (size_t j = 0; j < inputs.size(); ++j) {
+        for (size_t i = 0; i < acc.size(); ++i) {
+          acc[i] = std::max(acc[i], inputs[j][i]);
+        }
       }
     }
   } else {

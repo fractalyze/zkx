@@ -17,14 +17,13 @@ limitations under the License.
 
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/MDBuilder.h"
 #include "llvm/Support/raw_ostream.h"
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 
 #include "zkx/base/logging.h"
 #include "zkx/layout_util.h"
+#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curves/bn/bn254/g1.h"
 
 namespace zkx::llvm_ir {
 namespace {
@@ -82,41 +81,6 @@ std::string IrName(const HloInstruction* a, std::string_view b) {
   return IrName(a->name(), b);
 }
 
-llvm::Type* PrimitiveTypeToLLVMType(PrimitiveType element_type,
-                                    llvm::LLVMContext& context) {
-  switch (element_type) {
-    case S2:
-    case U2:
-      return llvm::Type::getIntNTy(context, 2);
-    case S4:
-    case U4:
-      return llvm::Type::getIntNTy(context, 4);
-    case PRED:
-    case S8:
-    case U8:
-      return llvm::Type::getInt8Ty(context);
-    case S16:
-    case U16:
-      return llvm::Type::getInt16Ty(context);
-    case S32:
-    case U32:
-      return llvm::Type::getInt32Ty(context);
-    case S64:
-    case U64:
-      return llvm::Type::getInt64Ty(context);
-    case TUPLE:
-    // An Opaque is like a void*, use i8*.
-    case OPAQUE_TYPE:
-      return llvm::PointerType::getUnqual(context);
-    case TOKEN:
-      // Tokens do not have a physical representation, but the compiler needs
-      // some placeholder type, so use int8_t*.
-      return llvm::PointerType::getUnqual(context);
-    default:
-      LOG(FATAL) << "unsupported type " << element_type;
-  }
-}
-
 mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
                                    mlir::MLIRContext* context) {
   switch (element_type) {
@@ -139,73 +103,71 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
     case S64:
     case U64:
       return mlir::IntegerType::get(context, 64);
+      // TODO(chokobole): For Tuple, see the comments in
+      // ShapeToMLIRMemRefType().
     case TUPLE:
     // An Opaque is like a void*, use i8*.
     case OPAQUE_TYPE:
-      return mlir::LLVM::LLVMPointerType::get(context);
+      return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
     case TOKEN:
       // Tokens do not have a physical representation, but the compiler needs
       // some placeholder type, so use int8_t*.
-      return mlir::LLVM::LLVMPointerType::get(context);
+      return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
+    case BN254_SCALAR:
+      return GetMLIRPrimeFieldType<math::bn254::Fr>(context);
+    case BN254_G1_AFFINE:
+      return GetMLIRAffinePointType<math::bn254::G1AffinePoint>(context);
+    case BN254_G1_JACOBIAN:
+      return GetMLIRJacobianPointType<math::bn254::G1JacobianPoint>(context);
+    case BN254_G1_XYZZ:
+      return GetMLIRPointXyzzType<math::bn254::G1PointXyzz>(context);
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }
 }
 
-llvm::Type* ShapeToLLVMType(const Shape& shape, llvm::LLVMContext& context) {
-  llvm::Type* result_type =
-      PrimitiveTypeToLLVMType(shape.element_type(), context);
-  if (shape.IsTuple()) {
-    // A tuple buffer is an array of pointers.
-    result_type = llvm::ArrayType::get(result_type, shape.tuple_shapes_size());
-  } else if (shape.IsArray()) {
-    for (int64_t dimension : LayoutUtil::MinorToMajor(shape)) {
-      result_type =
-          llvm::ArrayType::get(result_type, shape.dimensions(dimension));
-    }
-  }
-  return result_type;
-}
-
-mlir::Type ShapeToMLIRType(const Shape& shape, mlir::MLIRContext* context) {
+mlir::Type ShapeToMLIRMemRefType(const Shape& shape,
+                                 mlir::MLIRContext* context) {
   mlir::Type result_type =
       PrimitiveTypeToMLIRType(shape.element_type(), context);
   if (shape.IsTuple()) {
     // A tuple buffer is an array of pointers.
+    // clang-format off
+    // TODO(chokobole): Use https://mlir.llvm.org/docs/Dialects/Builtin/#tupletype.
+    // clang-format on
     result_type =
-        mlir::LLVM::LLVMArrayType::get(result_type, shape.tuple_shapes_size());
+        mlir::MemRefType::get({shape.tuple_shapes_size()}, result_type);
   } else if (shape.IsArray()) {
-    for (int64_t dimension : LayoutUtil::MinorToMajor(shape)) {
-      result_type = mlir::LLVM::LLVMArrayType::get(result_type,
-                                                   shape.dimensions(dimension));
+    // TODO(chokobole): Take `major_to_minor` into account.
+    std::vector<int64_t> dimensions;
+    for (int64_t dimension : shape.dimensions()) {
+      dimensions.push_back(dimension);
     }
+    result_type = mlir::MemRefType::get(dimensions, result_type);
   }
   return result_type;
 }
 
-void SetAlignmentMetadataForLoad(llvm::LoadInst* load, uint64_t alignment) {
-  llvm::LLVMContext& context = load->getContext();
-  llvm::Type* int64_ty = llvm::Type::getInt64Ty(context);
-  llvm::Constant* alignment_constant =
-      llvm::ConstantInt::get(int64_ty, alignment);
-  llvm::MDBuilder metadata_builder(context);
-  auto* alignment_metadata =
-      metadata_builder.createConstant(alignment_constant);
-  load->setMetadata(llvm::LLVMContext::MD_align,
-                    llvm::MDNode::get(context, alignment_metadata));
-}
-
-void SetDereferenceableMetadataForLoad(llvm::LoadInst* load,
-                                       uint64_t dereferenceable_bytes) {
-  llvm::LLVMContext& context = load->getContext();
-  llvm::Type* int64_ty = llvm::Type::getInt64Ty(context);
-  llvm::Constant* dereferenceable_bytes_constant =
-      llvm::ConstantInt::get(int64_ty, dereferenceable_bytes);
-  llvm::MDBuilder metadata_builder(context);
-  auto* dereferenceable_bytes_metadata =
-      metadata_builder.createConstant(dereferenceable_bytes_constant);
-  load->setMetadata(llvm::LLVMContext::MD_dereferenceable,
-                    llvm::MDNode::get(context, dereferenceable_bytes_metadata));
+mlir::Type ShapeToMLIRTensorType(const Shape& shape,
+                                 mlir::MLIRContext* context) {
+  mlir::Type result_type =
+      PrimitiveTypeToMLIRType(shape.element_type(), context);
+  if (shape.IsTuple()) {
+    // A tuple buffer is an array of pointers.
+    // clang-format off
+    // TODO(chokobole): Use https://mlir.llvm.org/docs/Dialects/Builtin/#tupletype.
+    // clang-format on
+    result_type =
+        mlir::RankedTensorType::get({shape.tuple_shapes_size()}, result_type);
+  } else if (shape.IsArray()) {
+    // TODO(chokobole): Take `major_to_minor` into account.
+    std::vector<int64_t> dimensions;
+    for (int64_t dimension : shape.dimensions()) {
+      dimensions.push_back(dimension);
+    }
+    result_type = mlir::RankedTensorType::get(dimensions, result_type);
+  }
+  return result_type;
 }
 
 }  // namespace zkx::llvm_ir

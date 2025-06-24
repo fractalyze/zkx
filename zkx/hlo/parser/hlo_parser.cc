@@ -28,6 +28,7 @@ limitations under the License.
 #include "google/protobuf/message.h"
 
 #include "xla/tsl/lib/gtl/map_util.h"
+#include "xla/tsl/platform/env.h"
 #include "zkx/comparison_util.h"
 #include "zkx/hlo/ir/collective_device_list.h"
 #include "zkx/hlo/ir/hlo_domain_metadata.h"
@@ -77,6 +78,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kDivide:
     case HloOpcode::kDomain:
     case HloOpcode::kDot:
+    case HloOpcode::kFft:
     case HloOpcode::kGather:
     case HloOpcode::kGetDimensionSize:
     case HloOpcode::kSetDimensionSize:
@@ -84,6 +86,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kMap:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
+    case HloOpcode::kMsm:
     case HloOpcode::kMultiply:
     case HloOpcode::kNegate:
     case HloOpcode::kPartitionId:
@@ -181,6 +184,7 @@ class HloParserImpl : public HloParser {
     kBracedInt64ListList,
     kHloComputation,
     kBracedHloComputationList,
+    kFftType,
     kComparisonDirection,
     kPrimitiveType,
     kComparisonOrder,
@@ -274,6 +278,37 @@ class HloParserImpl : public HloParser {
   // given value. If the literal is dense, it must have the default layout.
   //
   // `loc` should be the source location of the value.
+  template <typename T>
+  bool SetValueInLiteral(LocTy loc, T value, int64_t index, Literal* literal) {
+    const Shape& shape = literal->shape();
+    return primitive_util::PrimitiveTypeSwitch<bool>(
+        [&](auto primitive_type_constant) -> bool {
+          if constexpr (primitive_util::IsFieldType(primitive_type_constant)) {
+            using NativeT =
+                primitive_util::NativeTypeOf<primitive_type_constant>;
+            if constexpr (std::is_same_v<T, NativeT>) {
+              return SetValueInLiteralHelper<NativeT>(loc, value, index,
+                                                      literal);
+            } else {
+              LOG(FATAL) << "value type is not prime field";
+            }
+          }
+          if constexpr (primitive_util::IsEcPointType(
+                            primitive_type_constant)) {
+            using NativeT =
+                primitive_util::NativeTypeOf<primitive_type_constant>;
+            if constexpr (std::is_same_v<T, NativeT>) {
+              return SetValueInLiteralHelper<NativeT>(loc, value, index,
+                                                      literal);
+            } else {
+              LOG(FATAL) << "value type is not ec point";
+            }
+          }
+          LOG(FATAL) << "unknown primitive type "
+                     << PrimitiveType_Name(shape.element_type());
+        },
+        shape.element_type());
+  }
   bool SetValueInLiteral(LocTy loc, int64_t value, int64_t index,
                          Literal* literal);
   bool SetValueInLiteral(LocTy loc, bool value, int64_t index,
@@ -287,8 +322,6 @@ class HloParserImpl : public HloParser {
   // `loc` should be the source location of the value.
   template <typename LiteralNativeT, typename ParsedElemT>
   bool CheckParsedValueIsInRange(LocTy loc, ParsedElemT value);
-  template <typename LiteralNativeT>
-  bool CheckParsedValueIsInRange(LocTy loc, std::complex<double> value);
 
   bool ParseOperands(std::vector<HloInstruction*>* operands,
                      HloComputation::Builder* builder);
@@ -434,10 +467,174 @@ class HloParserImpl : public HloParser {
   bool ParsePhysicalShape(Shape* physical_shape);
   bool ParseOpcode(HloOpcode* opcode,
                    std::optional<HloOpcode>* async_wrapped_opcode);
+  bool ParseFftType(FftType* result);
   bool ParsePrimitiveType(PrimitiveType* result);
   bool ParseComparisonDirection(ComparisonDirection* result);
   bool ParseComparisonOrder(ComparisonOrder* result);
   bool ParseFusionKind(HloInstruction::FusionKind* result);
+  template <typename T>
+  bool ParseG1Affine(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    BaseField x;
+    if (!ParsePrimeField(type, &x)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField y;
+    if (!ParsePrimeField(type, &y)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+    *result = T(x, y);
+    return true;
+  }
+  template <typename T>
+  bool ParseG1Jacobian(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    BaseField x;
+    if (!ParsePrimeField(type, &x)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField y;
+    if (!ParsePrimeField(type, &y)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField z;
+    if (!ParsePrimeField(type, &z)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+    *result = T(x, y, z);
+    return true;
+  }
+  template <typename T>
+  bool ParseG1Xyzz(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    BaseField x;
+    if (!ParsePrimeField(type, &x)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField y;
+    if (!ParsePrimeField(type, &y)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField zz;
+    if (!ParsePrimeField(type, &zz)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField zzz;
+    if (!ParsePrimeField(type, &zzz)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+    *result = T(x, y, zz, zzz);
+    return true;
+  }
+  template <typename T>
+  bool ParsePrimeField(PrimitiveType type, T* result) {
+    constexpr size_t kLimbNums = T::kLimbNums;
+    LocTy loc = lexer_.GetLoc();
+    switch (lexer_.GetKind()) {
+      case TokKind::kInt: {
+        int64_t value;
+        if (!ParseInt64(&value)) {
+          return Error(loc, absl::StrCat("expects integer for primitive type: ",
+                                         PrimitiveType_Name(type)));
+        }
+        *result = value;
+        break;
+      }
+      case TokKind::kString: {
+        math::BigInt<kLimbNums> bigint_value;
+        if (!ParseBigInt(&bigint_value)) {
+          return Error(loc, absl::StrCat("expects string for primitive type: ",
+                                         PrimitiveType_Name(type)));
+        }
+        *result = T(bigint_value);
+        break;
+      }
+      default:
+        return TokenError("unexpected token type for prime field literal");
+    }
+    return true;
+  }
+  template <size_t N>
+  bool ParseBigInt(math::BigInt<N>* result) {
+    VLOG(kDebugLevel) << "ParseBigInt";
+    if (lexer_.GetKind() != TokKind::kString) {
+      return TokenError("expects string");
+    }
+    std::string value = lexer_.GetStrVal();
+    if (absl::StartsWith(value, "0x")) {
+      absl::StatusOr<math::BigInt<N>> big_int =
+          math::BigInt<N>::FromHexString(value);
+      if (big_int.ok()) {
+        *result = std::move(*big_int);
+      } else {
+        return TokenError("expects hex string");
+      }
+    } else {
+      absl::StatusOr<math::BigInt<N>> big_int =
+          math::BigInt<N>::FromDecString(value);
+      if (big_int.ok()) {
+        *result = std::move(*big_int);
+      } else {
+        return TokenError("expects decimal string");
+      }
+    }
+    lexer_.Lex();
+    return true;
+  }
   bool ParseInt64(int64_t* result);
   bool ParseDouble(double* result);
   bool ParseBool(bool* result);
@@ -1383,11 +1580,47 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
     case HloOpcode::kConstant: {
       Literal literal;
       if (!ParseToken(TokKind::kLparen,
-                      "expects '(' before constant literal") ||
-          !ParseLiteral(&literal, *shape) ||
-          !ParseToken(TokKind::kRparen, "expects ')' after constant literal") ||
-          !ParseAttributes(attrs, allow_attributes, shape)) {
+                      "expects '(' before constant literal")) {
         return nullptr;
+      }
+      TokKind kind = lexer_.GetKind();
+      if (kind == TokKind::kAttributeName) {
+        if (lexer_.GetStrVal() != "path") {
+          TokenError("expect path attribute");
+          return nullptr;
+        }
+        lexer_.Lex();
+
+        std::string path;
+        if (!ParseString(&path) ||
+            !ParseToken(TokKind::kRparen,
+                        "expects ')' after constant literal") ||
+            !ParseAttributes(attrs, allow_attributes, shape)) {
+          return nullptr;
+        }
+
+        LiteralProto parsed_proto;
+        absl::Status s =
+            tsl::ReadBinaryProto(tsl::Env::Default(), path, &parsed_proto);
+        if (!s.ok()) {
+          TokenError(s.message());
+          return nullptr;
+        }
+
+        absl::StatusOr<Literal> literal_tmp =
+            Literal::CreateFromProto(parsed_proto);
+        if (!literal_tmp.ok()) {
+          TokenError(literal_tmp.status().message());
+          return nullptr;
+        }
+        literal = std::move(*literal_tmp);
+      } else {
+        if (!ParseLiteral(&literal, *shape) ||
+            !ParseToken(TokKind::kRparen,
+                        "expects ')' after constant literal") ||
+            !ParseAttributes(attrs, allow_attributes, shape)) {
+          return nullptr;
+        }
       }
       return builder->AddInstruction(
           HloInstruction::CreateConstant(std::move(literal)));
@@ -1989,6 +2222,39 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       // clang-format on
       return nullptr;
     }
+    case HloOpcode::kFft: {
+      std::optional<FftType> fft_type;
+      std::optional<int64_t> fft_length;
+      attrs["fft_type"] = {/*required=*/true, AttrTy::kFftType, &fft_type};
+      attrs["fft_length"] = {/*required=*/true, AttrTy::kInt64, &fft_length};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferFftShape(operands[0]->shape(),
+                                                 *fft_type);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateFft(
+          *shape, operands[0], *fft_type, *fft_length));
+    }
+    case HloOpcode::kMsm: {
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferMsmShape(operands[1]->shape());
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateMsm(*shape, operands[0], operands[1]));
+    }
     case HloOpcode::kCompare: {
       std::optional<ComparisonDirection> direction;
       std::optional<PrimitiveType> type;
@@ -2010,10 +2276,32 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           *shape, operands[0], operands[1], *direction, type));
     }
     case HloOpcode::kBroadcast: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateBroadcast
-      // clang-format on
-      return nullptr;
+      if (!preset_operands &&
+          !ParseOperands(&operands, builder, /*expected_size=*/1)) {
+        return nullptr;
+      }
+
+      // The `dimensions` attr is optional if the broadcasted operand is a
+      // scalar; in that case we can infer it to be {}.
+      bool operand_is_scalar = ShapeUtil::IsScalar(operands[0]->shape());
+      std::optional<std::vector<int64_t>> broadcast_dimensions;
+      attrs["dimensions"] = {/*required=*/!operand_is_scalar,
+                             AttrTy::kBracedInt64List, &broadcast_dimensions};
+      if (!ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (operand_is_scalar && !broadcast_dimensions.has_value()) {
+        broadcast_dimensions.emplace();
+      }
+
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferBroadcastShape(operands[0]->shape(),
+                                                       *broadcast_dimensions);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateBroadcast(
+          *shape, operands[0], *broadcast_dimensions));
     }
     case HloOpcode::kConcatenate: {
       // clang-format off
@@ -2748,62 +3036,6 @@ bool HloParserImpl::ParseInstructionNames(
                     "expects '}' at the end of instruction name list");
 }
 
-template <class T>
-uint64_t GetNanPayload(T val) {
-  if constexpr (std::is_same_v<T, double>) {
-    auto rep = absl::bit_cast<uint64_t>(val);
-    if (auto payload = rep & NanPayloadBitMask<double>()) {
-      return payload;
-    }
-    return QuietNanWithoutPayload<double>();
-  } else {
-    static_assert(!std::numeric_limits<T>::has_quiet_NaN);
-    static_assert(!std::numeric_limits<T>::has_signaling_NaN);
-    return 0;
-  }
-}
-
-template <typename LiteralNativeT, typename LiteralComponentT>
-LiteralNativeT LiteralNativeFromRealImag(LiteralComponentT real,
-                                         LiteralComponentT imag) {
-  if constexpr (std::is_same_v<LiteralNativeT,
-                               std::complex<LiteralComponentT>>) {
-    return LiteralNativeT(real, imag);
-  } else {
-    return real;
-  }
-}
-
-template <typename T>
-struct ComponentType {
-  using Type = T;
-};
-
-template <typename T>
-struct ComponentType<std::complex<T>> {
-  using Type = T;
-};
-
-template <typename T>
-T GetReal(T value) {
-  return value;
-}
-
-template <typename T>
-T GetReal(std::complex<T> value) {
-  return value.real();
-}
-
-template <typename T>
-T GetImag(T value) {
-  return 0;
-}
-
-template <typename T>
-T GetImag(std::complex<T> value) {
-  return value.imag();
-}
-
 // MaxFiniteValue is a type-traits helper used by
 // HloParserImpl::CheckParsedValueIsInRange.
 template <typename T>
@@ -2825,87 +3057,67 @@ bool IsFinite(T val) {
 
 template <typename LiteralNativeT, typename ParsedElemT>
 bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
-  if constexpr (std::is_floating_point_v<ParsedElemT>) {
-    auto value_as_native_t = static_cast<LiteralNativeT>(value);
-    auto value_double_converted = static_cast<ParsedElemT>(value_as_native_t);
-    if (!IsFinite(value) || IsFinite(value_double_converted)) {
-      value = value_double_converted;
+  if constexpr (math::IsPrimeField<LiteralNativeT>) {
+    if constexpr (LiteralNativeT::kUseBigModulus) {
+      return true;
+    } else {
+      LOG(ERROR) << "Not implemented for small prime field";
+      return false;
     }
-  }
-  PrimitiveType literal_ty =
-      primitive_util::NativeToPrimitiveType<LiteralNativeT>();
-  if (!IsFinite(value)) {
-    // Skip range checking for non-finite value.
-  } else if constexpr (std::is_unsigned<LiteralNativeT>::value) {
-    static_assert(std::is_same_v<ParsedElemT, int64_t> ||
-                      std::is_same_v<ParsedElemT, bool>,
-                  "Unimplemented checking for ParsedElemT");
+  } else if constexpr (math::IsEcPoint<LiteralNativeT>) {
+    using ScalarField = typename LiteralNativeT::ScalarField;
+    if constexpr (ScalarField::kUseBigModulus) {
+      return true;
+    } else {
+      LOG(ERROR) << "Not implemented for small prime field";
+      return false;
+    }
+  } else {
+    if constexpr (std::is_floating_point_v<ParsedElemT>) {
+      auto value_as_native_t = static_cast<LiteralNativeT>(value);
+      auto value_double_converted = static_cast<ParsedElemT>(value_as_native_t);
+      if (!IsFinite(value) || IsFinite(value_double_converted)) {
+        value = value_double_converted;
+      }
+    }
+    PrimitiveType literal_ty =
+        primitive_util::NativeToPrimitiveType<LiteralNativeT>();
+    if (!IsFinite(value)) {
+      // Skip range checking for non-finite value.
+    } else if constexpr (std::is_unsigned<LiteralNativeT>::value) {
+      static_assert(std::is_same_v<ParsedElemT, int64_t> ||
+                        std::is_same_v<ParsedElemT, bool>,
+                    "Unimplemented checking for ParsedElemT");
 
-    const uint64_t unsigned_value = value;
-    const uint64_t upper_bound =
-        static_cast<uint64_t>(std::numeric_limits<LiteralNativeT>::max());
-    if (unsigned_value > upper_bound) {
+      const uint64_t unsigned_value = value;
+      const uint64_t upper_bound =
+          static_cast<uint64_t>(std::numeric_limits<LiteralNativeT>::max());
+      if (unsigned_value > upper_bound) {
+        // Value is out of range for LiteralNativeT.
+        return Error(
+            loc, absl::StrCat("value ", value,
+                              " is out of range for literal's primitive type ",
+                              PrimitiveType_Name(literal_ty), " namely [0, ",
+                              upper_bound, "]."));
+      }
+    } else if (value > static_cast<ParsedElemT>(
+                           MinMaxFiniteValue<LiteralNativeT>::max()) ||
+               value < static_cast<ParsedElemT>(
+                           MinMaxFiniteValue<LiteralNativeT>::min())) {
       // Value is out of range for LiteralNativeT.
       return Error(
           loc, absl::StrCat("value ", value,
                             " is out of range for literal's primitive type ",
-                            PrimitiveType_Name(literal_ty), " namely [0, ",
-                            upper_bound, "]."));
-    }
-  } else if (value > static_cast<ParsedElemT>(
-                         MinMaxFiniteValue<LiteralNativeT>::max()) ||
-             value < static_cast<ParsedElemT>(
-                         MinMaxFiniteValue<LiteralNativeT>::min())) {
-    // Value is out of range for LiteralNativeT.
-    return Error(
-        loc,
-        absl::StrCat(
-            "value ", value, " is out of range for literal's primitive type ",
-            PrimitiveType_Name(literal_ty), " namely [",
-            static_cast<ParsedElemT>(MinMaxFiniteValue<LiteralNativeT>::min()),
-            ", ",
-            static_cast<ParsedElemT>(MinMaxFiniteValue<LiteralNativeT>::max()),
-            "]."));
-  }
-  return true;
-}
-
-template <typename LiteralNativeT>
-bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc,
-                                              std::complex<double> value) {
-  // e.g. `float` for std::complex<float>
-  using LiteralComplexComponentT =
-      decltype(std::real(std::declval<LiteralNativeT>()));
-
-  // We could do simply
-  //
-  //   return CheckParsedValueIsInRange<LiteralNativeT>(std::real(value)) &&
-  //          CheckParsedValueIsInRange<LiteralNativeT>(std::imag(value));
-  //
-  // but this would give bad error messages on failure.
-
-  auto check_component = [&](std::string_view name, double v) {
-    if (!std::isfinite(v)) {
-      // Skip range-checking for non-finite values.
-      return true;
-    }
-
-    double min = MinMaxFiniteValue<LiteralComplexComponentT>::min();
-    double max = MinMaxFiniteValue<LiteralComplexComponentT>::max();
-    if (v < min || v > max) {
-      // Value is out of range for LitearlComplexComponentT.
-      return Error(
-          loc, absl::StrCat(
-                   name, " part ", v,
-                   " is out of range for literal's primitive type ",
-                   PrimitiveType_Name(
-                       primitive_util::NativeToPrimitiveType<LiteralNativeT>()),
-                   ", namely [", min, ", ", max, "]."));
+                            PrimitiveType_Name(literal_ty), " namely [",
+                            static_cast<ParsedElemT>(
+                                MinMaxFiniteValue<LiteralNativeT>::min()),
+                            ", ",
+                            static_cast<ParsedElemT>(
+                                MinMaxFiniteValue<LiteralNativeT>::max()),
+                            "]."));
     }
     return true;
-  };
-  return check_component("real", std::real(value)) &&
-         check_component("imaginary", std::imag(value));
+  }
 }
 
 template <typename LiteralNativeT, typename ParsedElemT>
@@ -2917,73 +3129,14 @@ bool HloParserImpl::SetValueInLiteralHelper(LocTy loc, ParsedElemT value,
 
   // Check that the index is in range and assign into the literal
   if (index >= ShapeUtil::ElementsIn(literal->shape())) {
-    return Error(loc, absl::StrCat("tries to set value ", absl::StrCat(value),
+    return Error(loc, absl::StrCat("tries to set value ",
+                                   primitive_util::NativeTypeToString(value),
                                    " to a literal in shape ",
                                    ShapeUtil::HumanString(literal->shape()),
                                    " at linear index ", index,
                                    ", but the index is out of range"));
   }
-  using ParsedElemComponentT = typename ComponentType<ParsedElemT>::Type;
-  using LiteralNativeComponentT = typename ComponentType<LiteralNativeT>::Type;
-  const auto handle_nan = [this, literal, index, loc](
-                              ParsedElemComponentT parsed_value_component,
-                              LiteralNativeComponentT*
-                                  literal_value_component) {
-    if (!std::isnan(static_cast<double>(parsed_value_component))) {
-      return true;
-    }
-    auto nan_payload = GetNanPayload(parsed_value_component);
-    if constexpr (NanPayloadBits<LiteralNativeComponentT>() > 0) {
-      if (nan_payload == QuietNanWithoutPayload<double>()) {
-        nan_payload = QuietNanWithoutPayload<LiteralNativeComponentT>();
-      }
-      const auto kLargestPayload = NanPayloadBitMask<LiteralNativeComponentT>();
-      if (nan_payload > kLargestPayload) {
-        return Error(
-            loc, absl::StrCat("tries to set NaN payload 0x",
-                              absl::Hex(nan_payload), " to a literal in shape ",
-                              ShapeUtil::HumanString(literal->shape()),
-                              " at linear index ", index,
-                              ", but the NaN payload is out of range (0x",
-                              absl::Hex(kLargestPayload), ")"));
-      }
-      *literal_value_component = NanWithSignAndPayload<LiteralNativeComponentT>(
-          /*sign=*/std::signbit(static_cast<double>(parsed_value_component)),
-          /*nan_payload=*/nan_payload);
-    } else {
-      if (nan_payload != QuietNanWithoutPayload<double>()) {
-        return Error(
-            loc, absl::StrCat("tries to set NaN payload 0x",
-                              absl::Hex(nan_payload), " to a literal in shape ",
-                              ShapeUtil::HumanString(literal->shape()),
-                              " at linear index ", index, ", but ",
-                              primitive_util::LowercasePrimitiveTypeName(
-                                  literal->shape().element_type()),
-                              " does not support payloads"));
-      }
-    }
-    return true;
-  };
-  const ParsedElemComponentT parsed_real_value = GetReal(value);
-  auto literal_real_value =
-      static_cast<LiteralNativeComponentT>(parsed_real_value);
-  if (std::is_floating_point_v<ParsedElemT> ||
-      std::is_same_v<ParsedElemT, std::complex<double>>) {
-    if (!handle_nan(parsed_real_value, &literal_real_value)) {
-      return false;
-    }
-  }
-  const ParsedElemComponentT parsed_imag_value = GetImag(value);
-  auto literal_imag_value =
-      static_cast<LiteralNativeComponentT>(parsed_imag_value);
-  if constexpr (std::is_same_v<ParsedElemT, std::complex<double>>) {
-    if (!handle_nan(parsed_real_value, &literal_imag_value)) {
-      return false;
-    }
-  }
-  literal->data<LiteralNativeT>().at(index) =
-      LiteralNativeFromRealImag<LiteralNativeT>(literal_real_value,
-                                                literal_imag_value);
+  literal->data<LiteralNativeT>().at(index) = value;
   return true;
 }
 
@@ -2996,7 +3149,9 @@ bool HloParserImpl::SetValueInLiteral(LocTy loc, int64_t value, int64_t index,
           return SetValueInLiteralHelper<bool>(loc, static_cast<bool>(value),
                                                index, literal);
         }
-        if constexpr (primitive_util::IsIntegralType(primitive_type_constant)) {
+        if constexpr (primitive_util::IsIntegralType(primitive_type_constant) ||
+                      primitive_util::IsFieldType(primitive_type_constant) ||
+                      primitive_util::IsEcPointType(primitive_type_constant)) {
           using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
           return SetValueInLiteralHelper<NativeT>(loc, value, index, literal);
         }
@@ -3225,6 +3380,49 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
         // Skip.
         lexer_.Lex();
         break;
+      case TokKind::kLparen: {
+        add_one_elem_seen();
+        if (primitive_util::IsEcPointType(shape.element_type())) {
+          LocTy loc = lexer_.GetLoc();
+          switch (shape.element_type()) {
+            case BN254_G1_AFFINE: {
+              math::bn254::G1AffinePoint value;
+              if (!ParseG1Affine(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G1_JACOBIAN: {
+              math::bn254::G1JacobianPoint value;
+              if (!ParseG1Jacobian(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G1_XYZZ: {
+              math::bn254::G1PointXyzz value;
+              if (!ParseG1Xyzz(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            default:
+              return TokenError(
+                  absl::StrCat("unsupported ec point type ",
+                               PrimitiveType_Name(shape.element_type())));
+          }
+          break;
+        }
+      }
       case TokKind::kw_true:
       case TokKind::kw_false:
       case TokKind::kInt:
@@ -3241,6 +3439,8 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
           }
           lexer_.Lex();
         } else if (primitive_util::IsIntegralType(shape.element_type()) ||
+                   primitive_util::IsFieldType(shape.element_type()) ||
+                   primitive_util::IsEcPointType(shape.element_type()) ||
                    shape.element_type() == PRED) {
           LocTy loc = lexer_.GetLoc();
           int64_t value;
@@ -3258,6 +3458,74 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
                            PrimitiveType_Name(shape.element_type())));
         }
         break;
+      }
+      case TokKind::kString: {
+        if (primitive_util::IsFieldType(shape.element_type())) {
+          LocTy loc = lexer_.GetLoc();
+          switch (shape.element_type()) {
+            case BN254_SCALAR: {
+              math::bn254::Fr value;
+              if (!ParsePrimeField(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            default:
+              return TokenError(
+                  absl::StrCat("unsupported prime field type ",
+                               PrimitiveType_Name(shape.element_type())));
+          }
+          break;
+        } else if (primitive_util::IsEcPointType(shape.element_type())) {
+          LocTy loc = lexer_.GetLoc();
+          switch (shape.element_type()) {
+            case BN254_G1_AFFINE: {
+              math::bn254::Fr scalar;
+              if (!ParsePrimeField(shape.element_type(), &scalar)) {
+                return false;
+              }
+              math::bn254::G1AffinePoint value(scalar);
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G1_JACOBIAN: {
+              math::bn254::Fr scalar;
+              if (!ParsePrimeField(shape.element_type(), &scalar)) {
+                return false;
+              }
+              math::bn254::G1JacobianPoint value(scalar);
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G1_XYZZ: {
+              math::bn254::Fr scalar;
+              if (!ParsePrimeField(shape.element_type(), &scalar)) {
+                return false;
+              }
+              math::bn254::G1PointXyzz value(scalar);
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            default:
+              return TokenError(
+                  absl::StrCat("unsupported ec point type ",
+                               PrimitiveType_Name(shape.element_type())));
+          }
+          break;
+        } else {
+          return TokenError(
+              absl::StrCat("unsupported primitive type ",
+                           PrimitiveType_Name(shape.element_type())));
+        }
       }
     }  // end of switch
   } while (nest_level > 0);
@@ -3551,6 +3819,14 @@ bool HloParserImpl::ParseAttributeHelper(
         }
         static_cast<std::optional<std::vector<HloComputation*>>*>(attr_out_ptr)
             ->emplace(result);
+        return true;
+      }
+      case AttrTy::kFftType: {
+        FftType result;
+        if (!ParseFftType(&result)) {
+          return false;
+        }
+        static_cast<std::optional<FftType>*>(attr_out_ptr)->emplace(result);
         return true;
       }
       case AttrTy::kComparisonDirection: {
@@ -4890,6 +5166,19 @@ bool HloParserImpl::ParseOpcode(
     }
   } else {
     *opcode = status_or_result.value();
+  }
+  lexer_.Lex();
+  return true;
+}
+
+bool HloParserImpl::ParseFftType(FftType* result) {
+  VLOG(kDebugLevel) << "ParseFftType";
+  if (lexer_.GetKind() != TokKind::kIdent) {
+    return TokenError("expects fft type");
+  }
+  std::string val = lexer_.GetStrVal();
+  if (!FftType_Parse(val, result) || !FftType_IsValid(*result)) {
+    return TokenError(absl::StrFormat("expects fft type but sees: %s", val));
   }
   lexer_.Lex();
   return true;

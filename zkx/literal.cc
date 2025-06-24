@@ -179,6 +179,10 @@ std::string LiteralBase::GetAsString(absl::Span<const int64_t> multi_index,
         if constexpr (primitive_util::IsIntegralType(primitive_type_constant)) {
           return absl::StrCat(Get<NativeT>(multi_index, shape_index));
         }
+        if constexpr (primitive_util::IsFieldType(primitive_type_constant) ||
+                      primitive_util::IsEcPointType(primitive_type_constant)) {
+          return Get<NativeT>(multi_index, shape_index).ToString();
+        }
         if constexpr (primitive_type_constant == PRED) {
           return Get<bool>(multi_index, shape_index) ? "true" : "false";
         }
@@ -556,13 +560,18 @@ bool LiteralBase::IsAll(int8_t value) const {
   Literal scalar(ShapeUtil::MakeScalarShape(ty));
   return primitive_util::ArrayTypeSwitch<bool>(
       [&](auto primitive_type_constant) -> bool {
-        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
-        NativeT converted(value);
-        if (static_cast<int8_t>(converted) != value) {
+        if constexpr (primitive_util::IsFieldType(primitive_type_constant) ||
+                      primitive_util::IsEcPointType(primitive_type_constant)) {
           return false;
+        } else {
+          using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+          NativeT converted(value);
+          if (static_cast<int8_t>(converted) != value) {
+            return false;
+          }
+          scalar.Set<NativeT>({}, converted);
+          return root_piece().IsAll(scalar);
         }
-        scalar.Set<NativeT>({}, converted);
-        return root_piece().IsAll(scalar);
       },
       ty);
 }
@@ -1111,6 +1120,46 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
     case TOKEN:
       // Nothing to do but assign the shape which is done above.
       return;
+    case BN254_SCALAR:
+      *proto->mutable_bn254_scalars() = std::string(
+          reinterpret_cast<const char*>(data<math::bn254::Fr>().data()),
+          size_bytes_dense());
+      break;
+    case BN254_G1_AFFINE:
+      *proto->mutable_bn254_g1_affines() =
+          std::string(reinterpret_cast<const char*>(
+                          data<math::bn254::G1AffinePoint>().data()),
+                      size_bytes_dense());
+      break;
+    case BN254_G1_JACOBIAN:
+      *proto->mutable_bn254_g1_jacobians() =
+          std::string(reinterpret_cast<const char*>(
+                          data<math::bn254::G1JacobianPoint>().data()),
+                      size_bytes_dense());
+      break;
+    case BN254_G1_XYZZ:
+      *proto->mutable_bn254_g1_xyzzs() =
+          std::string(reinterpret_cast<const char*>(
+                          data<math::bn254::G1PointXyzz>().data()),
+                      size_bytes_dense());
+      break;
+    case BN254_G2_AFFINE:
+      *proto->mutable_bn254_g2_affines() =
+          std::string(reinterpret_cast<const char*>(
+                          data<math::bn254::G2AffinePoint>().data()),
+                      size_bytes_dense());
+      break;
+    case BN254_G2_JACOBIAN:
+      *proto->mutable_bn254_g2_jacobians() =
+          std::string(reinterpret_cast<const char*>(
+                          data<math::bn254::G2JacobianPoint>().data()),
+                      size_bytes_dense());
+      break;
+    case BN254_G2_XYZZ:
+      *proto->mutable_bn254_g2_xyzzs() =
+          std::string(reinterpret_cast<const char*>(
+                          data<math::bn254::G2PointXyzz>().data()),
+                      size_bytes_dense());
     default:
       // TODO(b/111551621): Support serializing more PrimitiveTypes.
       LOG(FATAL) << "Unhandled primitive type "
@@ -1254,6 +1303,61 @@ absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
       return absl::InvalidArgumentError(
           absl::StrFormat("Should not be called on tuple shapes: %s",
                           ShapeUtil::HumanString(subshape())));
+    case BN254_SCALAR: {
+      const std::string& s(proto.bn254_scalars());
+      TF_RET_CHECK(data<math::bn254::Fr>().size() * sizeof(math::bn254::Fr) ==
+                   s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case BN254_G1_AFFINE: {
+      const std::string& s(proto.bn254_g1_affines());
+      TF_RET_CHECK(data<math::bn254::G1AffinePoint>().size() *
+                       sizeof(math::bn254::G1AffinePoint) ==
+                   s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case BN254_G1_JACOBIAN: {
+      const std::string& s(proto.bn254_g1_jacobians());
+      TF_RET_CHECK(data<math::bn254::G1JacobianPoint>().size() *
+                       sizeof(math::bn254::G1JacobianPoint) ==
+                   s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case BN254_G1_XYZZ: {
+      const std::string& s(proto.bn254_g1_xyzzs());
+      TF_RET_CHECK(data<math::bn254::G1PointXyzz>().size() *
+                       sizeof(math::bn254::G1PointXyzz) ==
+                   s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case BN254_G2_AFFINE: {
+      const std::string& s(proto.bn254_g2_affines());
+      TF_RET_CHECK(data<math::bn254::G2AffinePoint>().size() *
+                       sizeof(math::bn254::G2AffinePoint) ==
+                   s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case BN254_G2_JACOBIAN: {
+      const std::string& s(proto.bn254_g2_jacobians());
+      TF_RET_CHECK(data<math::bn254::G2JacobianPoint>().size() *
+                       sizeof(math::bn254::G2JacobianPoint) ==
+                   s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
+    case BN254_G2_XYZZ: {
+      const std::string& s(proto.bn254_g2_xyzzs());
+      TF_RET_CHECK(data<math::bn254::G2PointXyzz>().size() *
+                       sizeof(math::bn254::G2PointXyzz) ==
+                   s.size());
+      memcpy(untyped_data(), s.data(), s.size());
+      break;
+    }
     default:
       return absl::InvalidArgumentError(
           absl::StrFormat("Is called on unsupported shape: %s",

@@ -16,6 +16,13 @@
 
 """Utilities for defining TensorFlow Bazel dependencies."""
 
+load(
+    "@bazel_tools//tools/build_defs/repo:utils.bzl",
+    "read_netrc",
+    "read_user_netrc",
+    "use_netrc",
+)
+
 def tf_mirror_urls(url):
     """A helper for generating TF-mirror versions of URLs.
 
@@ -49,6 +56,16 @@ def _get_link_dict(ctx, link_files, build_file):
         link_dict[ctx.path("BUILD.bazel")] = ctx.path(Label(build_file))
     return link_dict
 
+def _get_auth(ctx, urls):
+    """Given the list of URLs obtain the correct auth dict."""
+    if ctx.attr.netrc:
+        netrc = read_netrc(ctx, ctx.attr.netrc)
+    elif "NETRC" in ctx.os.environ:
+        netrc = read_netrc(ctx, ctx.os.environ["NETRC"])
+    else:
+        netrc = read_user_netrc(ctx)
+    return use_netrc(netrc, urls, ctx.attr.auth_patterns)
+
 def _tf_http_archive_impl(ctx):
     # Construct all paths early on to prevent rule restart. We want the
     # attributes to be strings instead of labels because they refer to files
@@ -77,6 +94,7 @@ def _tf_http_archive_impl(ctx):
             sha256 = ctx.attr.sha256,
             type = ctx.attr.type,
             stripPrefix = ctx.attr.strip_prefix,
+            auth = _get_auth(ctx, ctx.attr.urls),
         )
         if patch_files:
             for patch_file in patch_files:
@@ -100,6 +118,8 @@ _tf_http_archive = repository_rule(
         "system_build_file": attr.string(),
         "link_files": attr.string_dict(),
         "system_link_files": attr.string_dict(),
+        "netrc": attr.string(),
+        "auth_patterns": attr.string_dict(),
     },
     environ = ["TF_SYSTEM_LIBS"],
 )

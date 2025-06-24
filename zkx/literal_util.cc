@@ -19,6 +19,8 @@ limitations under the License.
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/status.h"
+#include "zkx/base/containers/container_util.h"
+#include "zkx/math/base/big_int.h"
 
 namespace zkx {
 namespace {
@@ -155,6 +157,65 @@ void PopulateWithRandomIntegralDataWithBounds(Literal* literal,
   }
 }
 
+template <typename T>
+void PopulateWithRandomFieldTypeData(Literal* literal,
+                                     std::minstd_rand0* engine) {
+  using BigInt = math::BigInt<T::kLimbNums>;
+  CHECK(engine != nullptr);
+  CHECK_EQ(literal->shape().element_type(),
+           primitive_util::NativeToPrimitiveType<T>());
+  BigInt max_value = T::Config::kModulus;
+  std::uniform_int_distribution<uint64_t> generator;
+  for (T& value : literal->data<T>()) {
+    BigInt v;
+    do {
+      for (size_t i = 0; i < BigInt::kLimbNums; ++i) {
+        v[i] = static_cast<uint64_t>(generator(*engine));
+      }
+    } while (v >= max_value);
+    value = T::FromUnchecked(v);
+  }
+}
+
+template <typename T>
+void PopulateWithRandomEcPointData(Literal* literal, std::minstd_rand0* engine,
+                                   bool is_sorted) {
+  using ScalarField = typename T::ScalarField;
+  using BigInt = math::BigInt<ScalarField::kLimbNums>;
+  CHECK(engine != nullptr);
+  CHECK_EQ(literal->shape().element_type(),
+           primitive_util::NativeToPrimitiveType<T>());
+  BigInt max_value = ScalarField::Config::kModulus;
+  std::uniform_int_distribution<uint64_t> generator;
+  std::vector<ScalarField> scalars;
+  scalars.reserve(literal->data<T>().size());
+  for (T& _ : literal->data<T>()) {
+    BigInt v;
+    do {
+      for (size_t i = 0; i < BigInt::kLimbNums; ++i) {
+        v[i] = static_cast<uint64_t>(generator(*engine));
+      }
+    } while (v >= max_value);
+    scalars.push_back(ScalarField::FromUnchecked(v));
+  }
+  if (is_sorted) {
+    std::sort(scalars.begin(), scalars.end());
+  }
+
+  if constexpr (math::IsAffinePoint<T>) {
+    using JacobianPoint = typename T::JacobianPoint;
+    std::vector<JacobianPoint> jacobian_points = base::Map(
+        scalars,
+        [](const ScalarField& scalar) { return JacobianPoint(scalar); });
+    absl::Span<T> data = literal->data<T>();
+    CHECK(JacobianPoint::BatchToAffine(jacobian_points, &data).ok());
+  } else {
+    for (size_t i = 0; i < literal->data<T>().size(); i++) {
+      literal->data<T>()[i] = T(scalars[i]);
+    }
+  }
+}
+
 }  // namespace
 
 // static
@@ -230,6 +291,19 @@ absl::StatusOr<Literal> MakeFakeLiteral(
               std::sort(literal.data<NativeT>().begin(),
                         literal.data<NativeT>().end());
             }
+            return absl::OkStatus();
+          }
+          if constexpr (primitive_util::IsFieldType(primitive_type_constant)) {
+            PopulateWithRandomFieldTypeData<NativeT>(&literal, engine);
+            if (is_sorted) {
+              std::sort(literal.data<NativeT>().begin(),
+                        literal.data<NativeT>().end());
+            }
+            return absl::OkStatus();
+          }
+          if constexpr (primitive_util::IsEcPointType(
+                            primitive_type_constant)) {
+            PopulateWithRandomEcPointData<NativeT>(&literal, engine, is_sorted);
             return absl::OkStatus();
           }
         }

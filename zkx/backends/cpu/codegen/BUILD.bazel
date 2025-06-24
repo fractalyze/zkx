@@ -46,6 +46,57 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cpu_kernel_emitter",
+    srcs = ["cpu_kernel_emitter.cc"],
+    hdrs = ["cpu_kernel_emitter.h"],
+    deps = [
+        ":kernel_api_ir_builder",
+        "//xla/tsl/platform:statusor",
+        "//zkx:permutation_util",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx/base:logging",
+        "//zkx/codegen:emitter_loc_op_builder",
+        "//zkx/codegen:kernel_emitter",
+        "//zkx/codegen:llvm_ir_kernel_source",
+        "//zkx/math/poly:root_of_unity",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service/llvm_ir:llvm_util",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineToStandard",
+        "@llvm-project//mlir:AllExtensions",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:BufferizationToMemRef",
+        "@llvm-project//mlir:BufferizationTransforms",
+        "@llvm-project//mlir:BuiltinToLLVMIRTranslation",
+        "@llvm-project//mlir:ControlFlowDialect",
+        "@llvm-project//mlir:ConvertToLLVM",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:LLVMIRTransforms",
+        "@llvm-project//mlir:LLVMToLLVMIRTranslation",
+        "@llvm-project//mlir:LinalgDialect",
+        "@llvm-project//mlir:LinalgTransforms",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:MemRefTransforms",
+        "@llvm-project//mlir:SCFToControlFlow",
+        "@llvm-project//mlir:Transforms",
+        "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField",
+        "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@zkir//zkir/Dialect/Field/Conversions/FieldToModArith",
+        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@zkir//zkir/Dialect/ModArith/Conversions/ModArithToArith",
+        "@zkir//zkir/Dialect/ModArith/IR:ModArith",
+        "@zkir//zkir/Dialect/Poly/Conversions/PolyToField",
+        "@zkir//zkir/Dialect/Poly/IR:Poly",
+    ],
+)
+
+zkx_cc_library(
     name = "execution_engine",
     srcs = ["execution_engine.cc"],
     hdrs = ["execution_engine.h"],
@@ -124,7 +175,6 @@ zkx_cc_library(
         "//zkx/runtime:buffer_use",
         "//zkx/service:buffer_assignment",
         "//zkx/service:hlo_module_config",
-        "//zkx/service/llvm_ir:llvm_array",
         "//zkx/service/llvm_ir:llvm_util",
         "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -136,6 +186,7 @@ zkx_cc_library(
         "@com_google_absl//absl/types:span",
         "@llvm-project//llvm:Core",
         "@llvm-project//llvm:Support",
+        "@zkir//zkir/Dialect/Field/IR:Field",
     ],
 )
 
@@ -174,12 +225,33 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "cpu_kernel_emitter_test",
+    testonly = True,
+    srcs = ["cpu_kernel_emitter_test.cc"],
+    hdrs = ["cpu_kernel_emitter_test.h"],
+    deps = [
+        ":cpu_kernel_emitter",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:permutation_util",
+        "//zkx:primitive_util",
+        "//zkx/backends/cpu/runtime:thread_pool_task_runner",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/service/cpu:cpu_compiler",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
 zkx_cc_unittest(
     name = "codegen_unittests",
     srcs = [
         "jit_compiler_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: HloTestBase
         # "kernel_api_ir_builder_unittest.cc",
+        # TODO(chokobole): Add elemental_kernel_emitter_unittest.cc Dependency: HloTestBase
         "object_loader_unittest.cc",
     ],
     deps = [
@@ -190,5 +262,25 @@ zkx_cc_unittest(
         "@llvm-project//llvm:AsmParser",
         "@llvm-project//llvm:ExecutionEngine",
         "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "cpu_kernel_emitter_bn254_sf_unittest",
+    srcs = ["cpu_kernel_emitter_bn254_sf_unittest.cc"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//zkx:literal_util",
+        "//zkx/math/poly:root_of_unity",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "cpu_kernel_emitter_bn254_g1_unittest",
+    timeout = "moderate",
+    srcs = ["cpu_kernel_emitter_bn254_g1_unittest.cc"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//zkx:literal_util",
     ],
 )

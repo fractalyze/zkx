@@ -1,0 +1,555 @@
+/* Copyright 2024 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#include "zkx/backends/cpu/codegen/cpu_kernel_emitter.h"
+
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Linker/Linker.h"
+#include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
+#include "mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"
+#include "mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"
+#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"
+#include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/Linalg/Passes.h"
+#include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/MemRef/Transforms/Passes.h"
+#include "mlir/Dialect/SCF/Transforms/BufferDeallocationOpInterfaceImpl.h"
+#include "mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/OwningOpRef.h"
+#include "mlir/InitAllExtensions.h"
+#include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Export.h"
+#include "mlir/Transforms/Passes.h"
+
+#include "xla/tsl/platform/statusor.h"
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
+#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
+#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
+#include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
+#include "zkir/Dialect/Field/IR/FieldDialect.h"
+#include "zkir/Dialect/Field/IR/FieldOps.h"
+#include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
+#include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
+#include "zkir/Dialect/Poly/Conversions/PolyToField/PolyToField.h"
+#include "zkir/Dialect/Poly/IR/PolyDialect.h"
+#include "zkir/Dialect/Poly/IR/PolyOps.h"
+#include "zkx/backends/cpu/codegen/kernel_api_ir_builder.h"
+#include "zkx/base/logging.h"
+#include "zkx/codegen/emitter_loc_op_builder.h"
+#include "zkx/codegen/llvm_ir_kernel_source.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
+#include "zkx/math/poly/root_of_unity.h"
+#include "zkx/primitive_util.h"
+#include "zkx/service/llvm_ir/llvm_util.h"
+#include "zkx/shape_util.h"
+
+namespace zkx::cpu {
+
+namespace {
+
+template <typename T>
+absl::StatusOr<mlir::zkir::poly::PrimitiveRootAttr> GetPrimitiveRootAttr(
+    mlir::MLIRContext* mlir_context, int64_t fft_length) {
+  TF_ASSIGN_OR_RETURN(T root_of_unity, math::GetRootOfUnity<T>(fft_length));
+  auto root_of_unity_attr = mlir::zkir::field::RootOfUnityAttr::get(
+      mlir_context, /*root=*/
+      llvm_ir::GetMLIRPrimeFieldAttr(mlir_context, root_of_unity,
+                                     /*use_montgomery=*/false),
+      /*degree=*/
+      mlir::IntegerAttr::get(mlir::IntegerType::get(mlir_context, 64),
+                             fft_length));
+  return mlir::zkir::poly::PrimitiveRootAttr::get(
+      mlir_context, root_of_unity_attr,
+      /*montgomery=*/llvm_ir::GetMLIRMontgomeryAttr<T>(mlir_context));
+}
+
+void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
+  mlir_context->loadDialect<
+      // clang-format off
+      mlir::arith::ArithDialect,
+      mlir::bufferization::BufferizationDialect,
+      mlir::cf::ControlFlowDialect,
+      mlir::func::FuncDialect,
+      mlir::linalg::LinalgDialect,
+      mlir::LLVM::LLVMDialect,
+      mlir::memref::MemRefDialect,
+      mlir::zkir::elliptic_curve::EllipticCurveDialect,
+      mlir::zkir::field::FieldDialect,
+      mlir::zkir::mod_arith::ModArithDialect,
+      mlir::zkir::poly::PolyDialect
+      // clang-format on
+      >();
+}
+
+void OneShotBufferize(mlir::OpPassManager& pm) {
+  // NOTE: One-shot bufferize does not deallocate buffers. This is done by the
+  // ownership-based buffer deallocation pass.
+  // https://mlir.llvm.org/docs/OwnershipBasedBufferDeallocation/
+  mlir::bufferization::OneShotBufferizationOptions bufferizationOptions;
+  bufferizationOptions.bufferizeFunctionBoundaries = true;
+  pm.addPass(
+      mlir::bufferization::createOneShotBufferizePass(bufferizationOptions));
+  pm.addPass(mlir::memref::createExpandReallocPass());
+  pm.addPass(mlir::bufferization::createOwnershipBasedBufferDeallocationPass());
+  pm.addPass(mlir::createCanonicalizerPass());
+  pm.addPass(mlir::bufferization::createBufferDeallocationSimplificationPass());
+  pm.addPass(mlir::bufferization::createLowerDeallocationsPass());
+  pm.addPass(mlir::createCSEPass());
+  pm.addPass(mlir::createBufferizationToMemRefPass());
+  pm.addPass(mlir::createCanonicalizerPass());
+}
+
+void AddPasses(mlir::OpPassManager& pm) {
+  pm.addPass(mlir::zkir::poly::createPolyToField());
+  pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
+  pm.addPass(mlir::zkir::field::createFieldToModArith());
+  pm.addPass(mlir::zkir::mod_arith::createModArithToArith());
+
+  pm.addPass(mlir::createLowerAffinePass());
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::createConvertElementwiseToLinalgPass());
+
+  OneShotBufferize(pm);
+
+  pm.addNestedPass<mlir::func::FuncOp>(
+      mlir::createConvertLinalgToParallelLoopsPass());
+  pm.addPass(mlir::createConvertSCFToCFPass());
+  pm.addPass(mlir::createConvertToLLVMPass());
+}
+
+std::unique_ptr<llvm::Module> TranslateMLIRToLLVM(
+    mlir::ModuleOp module, llvm::LLVMContext* llvm_context) {
+  std::unique_ptr<llvm::Module> llvm_module =
+      mlir::translateModuleToLLVMIR(module, *llvm_context);
+  CHECK(llvm_module) << "Failed to translate module to LLVM IR.";
+  VLOG(2) << "LLVM module after translation";
+  ZKX_VLOG_LINES(2, llvm_ir::DumpToString(llvm_module.get()));
+  return llvm_module;
+}
+
+std::unique_ptr<llvm::Module> CreateLLVMModule(
+    mlir::MLIRContext* mlir_context, mlir::ModuleOp module,
+    llvm::LLVMContext* llvm_context) {
+  mlir::DialectRegistry registry;
+  mlir::registerBuiltinDialectTranslation(registry);
+  mlir::registerLLVMDialectTranslation(registry);
+  mlir::registerAllExtensions(registry);
+  mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::bufferization::func_ext::registerBufferizableOpInterfaceExternalModels(
+      registry);
+  mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::LLVM::registerInlinerInterface(registry);
+  mlir::scf::registerBufferDeallocationOpInterfaceExternalModels(registry);
+  mlir::scf::registerBufferizableOpInterfaceExternalModels(registry);
+  mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
+  module->getContext()->appendDialectRegistry(registry);
+
+  VLOG(2) << "MLIR before optimizations";
+  ZKX_VLOG_LINES(2, llvm_ir::DumpToString(module));
+  mlir::PassManager pm(mlir_context);
+  AddPasses(pm);
+
+  CHECK(mlir::succeeded(pm.run(module)));
+
+  VLOG(2) << "MLIR after optimizations";
+  ZKX_VLOG_LINES(2, llvm_ir::DumpToString(module));
+
+  return TranslateMLIRToLLVM(module, llvm_context);
+}
+
+void Postprocess(std::unique_ptr<llvm::Module> llvm_module,
+                 llvm::Module* new_llvm_module,
+                 KernelApiIrBuilder::KernelPrototype& kernel_prototype,
+                 std::string_view name) {
+  llvm::Linker linker(*new_llvm_module);
+  bool failed = linker.linkInModule(std::move(llvm_module));
+  CHECK(!failed) << "Linking failed";
+
+  llvm::Function* impl_fn_c_iface =
+      new_llvm_module->getFunction(absl::StrCat("_mlir_ciface_", name));
+  CHECK(impl_fn_c_iface);
+
+  llvm::Instruction* instr =
+      kernel_prototype.function->getEntryBlock().getTerminator();
+  llvm::IRBuilder<> b(instr);
+  llvm::SmallVector<llvm::Value*> args;
+  for (const auto& ir_array : kernel_prototype.arguments) {
+    args.push_back(ir_array);
+  }
+  args.push_back(kernel_prototype.results[0]);
+  b.CreateCall(impl_fn_c_iface, args);
+}
+
+}  // namespace
+
+CpuKernelEmitter::CpuKernelEmitter(mlir::MLIRContext* context,
+                                   const HloInstruction* instr,
+                                   const BufferAssignment* buffer_assignment)
+    : mlir_context_(context),
+      instr_(instr),
+      buffer_assignment_(buffer_assignment) {}
+
+absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
+  VLOG(2) << "Emit host kernel: " << instr_->name();
+
+  auto llvm_context = std::make_unique<llvm::LLVMContext>();
+
+  const HloModule* hlo_module = instr_->GetModule();
+  if (hlo_module == nullptr) {
+    return absl::InternalError("HloModule is null");
+  }
+
+  LoadMlirDialects(mlir_context_);
+
+  auto loc =
+      mlir::NameLoc::get(mlir::StringAttr::get(mlir_context_, instr_->name()));
+  EmitterLocOpBuilder b(loc, mlir_context_);
+
+  mlir::OwningOpRef<mlir::ModuleOp> mlir_module(
+      mlir::ModuleOp::create(std::move(loc)));
+  b.setInsertionPointToEnd(mlir_module->getBody());
+
+  llvm::SmallVector<mlir::Type> fn_arg_types;
+  fn_arg_types.reserve(instr_->operand_count() + 1);
+  for (int64_t i = 0; i < instr_->operand_count(); ++i) {
+    const HloInstruction* operand = instr_->operand(i);
+    fn_arg_types.push_back(
+        llvm_ir::ShapeToMLIRMemRefType(operand->shape(), mlir_context_));
+  }
+  fn_arg_types.push_back(
+      llvm_ir::ShapeToMLIRMemRefType(instr_->shape(), mlir_context_));
+
+  auto fn = b.create<mlir::func::FuncOp>(
+      instr_->name(), b.getFunctionType(fn_arg_types, std::nullopt));
+  fn->setAttr("llvm.emit_c_interface", mlir::UnitAttr::get(mlir_context_));
+
+  mlir::Block* entry_block = fn.addEntryBlock();
+  b.setInsertionPointToEnd(entry_block);
+
+  absl::flat_hash_map<const HloInstruction*, mlir::Value> values;
+  for (int64_t i = 0; i < instr_->operand_count(); ++i) {
+    const HloInstruction* operand = instr_->operand(i);
+    if (ShapeUtil::IsScalar(operand->shape())) {
+      values[operand] =
+          b.create<mlir::memref::LoadOp>(entry_block->getArgument(i), {});
+    } else {
+      values[operand] = b.create<mlir::bufferization::ToTensorOp>(
+          llvm_ir::ShapeToMLIRTensorType(operand->shape(), mlir_context_),
+          entry_block->getArgument(i),
+          /*restrict=*/true,
+          /*writable=*/false);
+    }
+  }
+
+  TF_ASSIGN_OR_RETURN(mlir::Value res, EmitOp(instr_, b, values));
+  if (ShapeUtil::IsScalar(instr_->shape())) {
+    b.create<mlir::memref::StoreOp>(
+        res, entry_block->getArgument(instr_->operand_count()), {});
+  } else {
+    b.create<mlir::bufferization::MaterializeInDestinationOp>(
+        mlir::TypeRange{}, res,
+        entry_block->getArgument(instr_->operand_count()),
+        /*restrict=*/true, /*writable=*/true);
+  }
+
+  b.create<mlir::func::ReturnOp>();
+
+  std::unique_ptr<llvm::Module> llvm_module =
+      CreateLLVMModule(mlir_context_, mlir_module.get(), llvm_context.get());
+
+  KernelApiIrBuilder kernel_api_ir_builder(
+      *llvm_context,
+      KernelApiIrBuilder::Options::FromHloModuleConfig(hlo_module->config()));
+
+  std::unique_ptr<llvm::Module> new_llvm_module =
+      KernelApiIrBuilder::CreateModule(
+          absl::StrCat(instr_->name(), "_kernel_module"), *llvm_context);
+
+  TF_ASSIGN_OR_RETURN(
+      KernelApiIrBuilder::KernelPrototype kernel_prototype,
+      kernel_api_ir_builder.EmitKernelPrototype(*new_llvm_module, instr_,
+                                                buffer_assignment_, "_kernel"));
+
+  Postprocess(std::move(llvm_module), new_llvm_module.get(), kernel_prototype,
+              instr_->name());
+
+  auto source = std::make_unique<LlvmIrKernelSource>(
+      std::move(llvm_context), std::move(new_llvm_module));
+
+  KernelSpec spec(kernel_prototype.function->getName(), se::ThreadDim(),
+                  std::move(kernel_prototype.buffer_uses));
+
+  return KernelDefinition(std::move(spec), std::move(source));
+}
+
+// static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
+    mlir::Value rhs_value, bool is_signed) {
+  switch (instr->opcode()) {
+    // TODO(jingyue): add the "nsw" attribute for signed types.
+    case HloOpcode::kAdd:
+      return b.create<mlir::arith::AddIOp>(lhs_value, rhs_value);
+    case HloOpcode::kDivide: {
+      if (is_signed) {
+        return b.create<mlir::arith::DivSIOp>(lhs_value, rhs_value);
+      } else {
+        return b.create<mlir::arith::DivUIOp>(lhs_value, rhs_value);
+      }
+    }
+    case HloOpcode::kMultiply:
+      return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
+    case HloOpcode::kSubtract:
+      return b.create<mlir::arith::SubIOp>(lhs_value, rhs_value);
+
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled binary integer op: %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
+// static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
+    mlir::Value rhs_value) {
+  switch (instr->opcode()) {
+    case HloOpcode::kAdd:
+      return b.create<mlir::zkir::field::AddOp>(lhs_value, rhs_value);
+    case HloOpcode::kDivide: {
+      auto inv = b.create<mlir::zkir::field::InverseOp>(rhs_value);
+      return b.create<mlir::zkir::field::MulOp>(lhs_value, inv);
+    }
+    case HloOpcode::kMultiply:
+      return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
+    case HloOpcode::kSubtract:
+      return b.create<mlir::zkir::field::SubOp>(lhs_value, rhs_value);
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled binary field op: %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
+// static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
+    mlir::Value rhs_value) {
+  mlir::Type ret_type = llvm_ir::PrimitiveTypeToMLIRType(
+      instr->shape().element_type(), b.getContext());
+  switch (instr->opcode()) {
+    case HloOpcode::kAdd:
+      return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
+                                                         rhs_value);
+      break;
+    case HloOpcode::kMultiply:
+      return b.create<mlir::zkir::elliptic_curve::ScalarMulOp>(
+          ret_type, lhs_value, rhs_value);
+      break;
+    case HloOpcode::kSubtract:
+      return b.create<mlir::zkir::elliptic_curve::SubOp>(ret_type, lhs_value,
+                                                         rhs_value);
+      break;
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled binary ec point op %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
+// static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
+    mlir::Value rhs_value) {
+  Shape shape = instr->operand(0)->shape();
+  PrimitiveType operand_type = shape.element_type();
+  if (ShapeUtil::ElementIsIntegral(shape)) {
+    return EmitIntegerBinaryOp(
+        instr, b, lhs_value, rhs_value,
+        primitive_util::IsSignedIntegralType(operand_type));
+  } else if (ShapeUtil::ElementIsEcPoint(shape) ||
+             ShapeUtil::ElementIsEcPoint(instr->operand(1)->shape())) {
+    return EmitEcPointBinaryOp(instr, b, lhs_value, rhs_value);
+  } else if (ShapeUtil::ElementIsField(shape)) {
+    return EmitFieldBinaryOp(instr, b, lhs_value, rhs_value);
+  }
+  return absl::UnimplementedError(absl::StrFormat(
+      "Unhandled primitive type: %s",
+      primitive_util::LowercasePrimitiveTypeName(operand_type)));
+}
+
+// static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+  // TODO(chokobole): Support out-of-place FFT.
+  PrimitiveType operand_type = instr->operand(0)->shape().element_type();
+  mlir::zkir::poly::PrimitiveRootAttr root_attr;
+  switch (operand_type) {
+    case BN254_SCALAR: {
+      absl::StatusOr<mlir::zkir::poly::PrimitiveRootAttr> root =
+          GetPrimitiveRootAttr<math::bn254::Fr>(value.getContext(),
+                                                instr->fft_length());
+      if (!root.ok()) return root.status();
+      root_attr = root.value();
+      break;
+    }
+    default:
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Invalid primitive type: %s",
+          primitive_util::LowercasePrimitiveTypeName(operand_type)));
+  }
+
+  switch (instr->fft_type()) {
+    case FftType::FFT:
+      return b.create<mlir::zkir::poly::NTTOp>(value, root_attr);
+    case FftType::IFFT:
+      return b.create<mlir::zkir::poly::INTTOp>(value, root_attr);
+
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled fft type: %s", FftType_Name(instr->fft_type())));
+  }
+}
+
+// static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value scalars,
+    mlir::Value bases) {
+  if (auto tensor_type =
+          mlir::dyn_cast<mlir::RankedTensorType>(bases.getType())) {
+    return b.create<mlir::zkir::elliptic_curve::MSMOp>(
+        llvm_ir::PrimitiveTypeToMLIRType(instr->shape().element_type(),
+                                         b.getContext()),
+        scalars, bases);
+  } else {
+    return absl::InvalidArgumentError("bases is not a tensor");
+  }
+}
+
+// static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
+    absl::Span<const int64_t> source_dimensions) {
+  int64_t rank = instr->shape().rank();
+  auto target_dimensions = [source_dimensions, rank]() {
+    std::unordered_set<int64_t> source_set(source_dimensions.begin(),
+                                           source_dimensions.end());
+    std::vector<int64_t> target_dimensions;
+
+    if (source_dimensions.empty()) {
+      // If no source dims, return all dims in order
+      for (int64_t i = 0; i < rank; ++i) {
+        target_dimensions.push_back(i);
+      }
+      return target_dimensions;
+    }
+
+    int64_t pivot = source_dimensions[0];
+
+    // Step 1: dims > pivot (after)
+    for (int64_t i = pivot + 1; i < rank; ++i) {
+      if (source_set.count(i) == 0) {
+        target_dimensions.push_back(i);
+      }
+    }
+
+    // Step 2: dims < pivot (before)
+    for (int64_t i = 0; i < pivot; ++i) {
+      if (source_set.count(i) == 0) {
+        target_dimensions.push_back(i);
+      }
+    }
+
+    return target_dimensions;
+  };
+
+  auto init = b.create<mlir::tensor::EmptyOp>(
+      llvm_ir::ShapeToMLIRTensorType(instr->shape(), b.getContext()),
+      mlir::ValueRange{});
+
+  switch (instr->opcode()) {
+    case HloOpcode::kBroadcast: {
+      if (ShapeUtil::IsScalar(instr->operand(0)->shape())) {
+        const HloInstruction* input_instr = instr->operand(0);
+        if (ShapeUtil::IsScalar(input_instr->shape())) {
+          mlir::memref::LoadOp load =
+              mlir::dyn_cast<mlir::memref::LoadOp>(input.getDefiningOp());
+          if (!load) {
+            return absl::InternalError("input is not a memref");
+          }
+          input = b.create<mlir::bufferization::ToTensorOp>(
+              llvm_ir::ShapeToMLIRTensorType(input_instr->shape(),
+                                             b.getContext()),
+              load.getMemref(),
+              /*restrict=*/true,
+              /*writable=*/false);
+        }
+      }
+      auto broadcast =
+          b.create<mlir::linalg::BroadcastOp>(input, init, target_dimensions());
+      return broadcast.getResult()[0];
+    }
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled dimensions op: %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
+// static
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b,
+    absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
+  switch (instr->opcode()) {
+    case HloOpcode::kAdd:
+    case HloOpcode::kSubtract:
+    case HloOpcode::kMultiply:
+    case HloOpcode::kDivide: {
+      return EmitBinaryOp(instr, b, values[instr->operand(0)],
+                          values[instr->operand(1)]);
+    }
+    case HloOpcode::kFft: {
+      return EmitFftOp(instr, b, values[instr->operand(0)]);
+    }
+    case HloOpcode::kMsm: {
+      return EmitMsmOp(instr, b, values[instr->operand(0)],
+                       values[instr->operand(1)]);
+    }
+    case HloOpcode::kBroadcast: {
+      return EmitDimensionsOp(instr, b, values[instr->operand(0)],
+                              instr->dimensions());
+    }
+
+    default:
+      return absl::UnimplementedError(
+          absl::StrFormat("Unhandled opcode for IR emission: %s",
+                          HloOpcodeString(instr->opcode())));
+  }
+}
+
+}  // namespace zkx::cpu

@@ -18,16 +18,21 @@ limitations under the License.
 
 #include <string>
 
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 
+#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
+#include "zkir/Dialect/Field/IR/FieldAttributes.h"
+#include "zkir/Dialect/Field/IR/FieldTypes.h"
+#include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
+#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkx/hlo/ir/hlo_instruction.h"
 #include "zkx/shape.h"
 #include "zkx/zkx_data.pb.h"
@@ -66,31 +71,110 @@ std::string IrName(std::string_view a);
 std::string IrName(std::string_view a, std::string_view b);
 std::string IrName(const HloInstruction* a, std::string_view b = "");
 
-// Returns the LLVM type which represents the given ZKX primitive type.
-llvm::Type* PrimitiveTypeToLLVMType(PrimitiveType element_type,
-                                    llvm::LLVMContext& context);
+template <typename T>
+llvm::APInt ConvertBigIntToAPInt(const T& value) {
+  return {T::kBitWidth, T::kLimbNums, value.limbs()};
+}
 
-// Returns the MLIR type which represents the given ZKX primitive type.
+template <typename T>
+mlir::zkir::mod_arith::ModArithType GetMLIRModArithType(
+    mlir::MLIRContext* context) {
+  auto type = mlir::IntegerType::get(context, T::kBitWidth);
+  auto modulus =
+      mlir::IntegerAttr::get(type, ConvertBigIntToAPInt(T::Config::kModulus));
+  return mlir::zkir::mod_arith::ModArithType::get(context, modulus);
+}
+
+template <typename T>
+mlir::zkir::mod_arith::MontgomeryAttr GetMLIRMontgomeryAttr(
+    mlir::MLIRContext* context) {
+  return mlir::zkir::mod_arith::MontgomeryAttr::get(
+      context, GetMLIRModArithType<T>(context));
+}
+
+template <typename T>
+mlir::zkir::field::PrimeFieldType GetMLIRPrimeFieldType(
+    mlir::MLIRContext* context, bool use_montgomery = T::kUseMontgomery) {
+  if constexpr (!T::kUseMontgomery) {
+    DCHECK(!use_montgomery);
+  }
+  auto type = mlir::IntegerType::get(context, T::kBitWidth);
+  auto modulus =
+      mlir::IntegerAttr::get(type, ConvertBigIntToAPInt(T::Config::kModulus));
+  return mlir::zkir::field::PrimeFieldType::get(context, modulus,
+                                                use_montgomery);
+}
+
+template <typename T>
+mlir::zkir::field::PrimeFieldAttr GetMLIRPrimeFieldAttr(
+    mlir::MLIRContext* context, const T& value, bool use_montgomery) {
+  if constexpr (T::kUseMontgomery) {
+    if (use_montgomery) {
+      return mlir::zkir::field::PrimeFieldAttr::get(
+          GetMLIRPrimeFieldType<T>(context, true),
+          ConvertBigIntToAPInt(value.value()));
+    } else {
+      return mlir::zkir::field::PrimeFieldAttr::get(
+          GetMLIRPrimeFieldType<T>(context, false),
+          ConvertBigIntToAPInt(value.MontReduce()));
+    }
+  } else {
+    DCHECK(!use_montgomery);
+    return mlir::zkir::field::PrimeFieldAttr::get(
+        GetMLIRPrimeFieldType<T>(context, false),
+        ConvertBigIntToAPInt(value.value()));
+  }
+}
+
+template <typename T>
+mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMLIRShortWeierstrassAttr(
+    mlir::MLIRContext* context) {
+  using BaseField = typename T::BaseField;
+  mlir::zkir::field::PrimeFieldAttr a = GetMLIRPrimeFieldAttr(
+      context, T::Curve::Config::kA, BaseField::kUseMontgomery);
+  mlir::zkir::field::PrimeFieldAttr b = GetMLIRPrimeFieldAttr(
+      context, T::Curve::Config::kB, BaseField::kUseMontgomery);
+  mlir::zkir::field::PrimeFieldAttr x = GetMLIRPrimeFieldAttr(
+      context, T::Curve::Config::kX, BaseField::kUseMontgomery);
+  mlir::zkir::field::PrimeFieldAttr y = GetMLIRPrimeFieldAttr(
+      context, T::Curve::Config::kY, BaseField::kUseMontgomery);
+  return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(context, a, b, x,
+                                                               y);
+}
+
+template <typename T>
+mlir::zkir::elliptic_curve::AffineType GetMLIRAffinePointType(
+    mlir::MLIRContext* context) {
+  return mlir::zkir::elliptic_curve::AffineType::get(
+      context, GetMLIRShortWeierstrassAttr<T>(context));
+}
+
+template <typename T>
+mlir::zkir::elliptic_curve::JacobianType GetMLIRJacobianPointType(
+    mlir::MLIRContext* context) {
+  return mlir::zkir::elliptic_curve::JacobianType::get(
+      context, GetMLIRShortWeierstrassAttr<T>(context));
+}
+
+template <typename T>
+mlir::zkir::elliptic_curve::XYZZType GetMLIRPointXyzzType(
+    mlir::MLIRContext* context) {
+  return mlir::zkir::elliptic_curve::XYZZType::get(
+      context, GetMLIRShortWeierstrassAttr<T>(context));
+}
+
 mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
                                    mlir::MLIRContext* context);
 
-// Returns the LLVM type which represents the given ZKX shape. For example,
-// if "shape" is [5 x [10 x i32]], the function returns [5 x [10 x i32]].
-llvm::Type* ShapeToLLVMType(const Shape& shape, llvm::LLVMContext& context);
+// Returns the MLIR memref type which represents the given ZKX shape. For
+// example, if "shape" is [5 x [10 x i32]], the function returns [5 x 10 x i32].
+mlir::Type ShapeToMLIRMemRefType(const Shape& shape,
+                                 mlir::MLIRContext* context);
 
-// Returns the MLIR type which represents the given ZKX shape. For example,
-// if "shape" is [5 x [10 x i32]], the function returns [5 x [10 x i32]].
-mlir::Type ShapeToMLIRType(const Shape& shape, mlir::MLIRContext* context);
-
-// Adds alignment metadata to a load instruction using the given alignment.
-// The alignment refers to the result of the load, not the load itself.
-void SetAlignmentMetadataForLoad(llvm::LoadInst* load, uint64_t alignment);
-
-// Adds dereferenceable metadata to a load instruction using the given
-// the number of dereferenceable bytes.
-// Dereferenceable refers to the result of the load, not the load itself.
-void SetDereferenceableMetadataForLoad(llvm::LoadInst* load,
-                                       uint64_t dereferenceable_bytes);
+// Returns the MLIR tensor type which represents the given ZKX shape. For
+// example, if "shape" is [5 x [10 x i32]], the function returns [5 x 10 x i32].
+mlir::Type ShapeToMLIRTensorType(const Shape& shape,
+                                 mlir::MLIRContext* context);
 
 }  // namespace zkx::llvm_ir
 

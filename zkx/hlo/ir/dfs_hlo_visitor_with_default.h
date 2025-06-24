@@ -75,6 +75,12 @@ class DfsHloVisitorWithDefaultBase
   absl::Status HandleOptimizationBarrier(HloInstructionPtr hlo) override {
     return DefaultAction(hlo);
   }
+  absl::Status HandleFft(HloInstructionPtr fft) override {
+    return DefaultAction(fft);
+  }
+  absl::Status HandleMsm(HloInstructionPtr msm) override {
+    return DefaultAction(msm);
+  }
   absl::Status HandleAllGather(HloInstructionPtr crs) override {
     return DefaultAction(crs);
   }

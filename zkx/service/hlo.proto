@@ -106,6 +106,12 @@ message HloInstructionProto {
   // Shape of outfeed request.
   ShapeProto outfeed_shape = 29;
 
+  // FFT type (FFT, IFFT).
+  FftType fft_type = 31;
+
+  // FFT length.
+  int64 fft_length = 32;
+
   // Comparison direction only used for kCompare.
   string comparison_direction = 63;
 

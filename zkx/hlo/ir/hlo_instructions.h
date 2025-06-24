@@ -80,6 +80,60 @@ class HloDimensionsInstruction : public HloInstruction {
   std::vector<int64_t> dimensions_;
 };
 
+class HloBroadcastInstruction : public HloDimensionsInstruction {
+ public:
+  explicit HloBroadcastInstruction(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<const int64_t> broadcast_dimension);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kBroadcast;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
+
+class HloFftInstruction : public HloInstruction {
+ public:
+  explicit HloFftInstruction(const Shape& shape, HloInstruction* operand,
+                             FftType fft_type, int64_t fft_length);
+  FftType fft_type() const { return fft_type_; }
+
+  int64_t fft_length() const { return fft_length_; }
+
+  // Returns a serialized representation of this instruction.
+  HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kFft;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  // Describes FFT type for an FFT instruction.
+  FftType fft_type_ = FftType::FFT;
+
+  // Indicates the FFT length for an FFT instruction.
+  int64_t fft_length_;
+};
+
 class HloAsyncInstruction : public HloInstruction {
  public:
   // Constructs async-{update,done}.

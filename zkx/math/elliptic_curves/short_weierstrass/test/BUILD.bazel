@@ -1,0 +1,16 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "sw_curve_config",
+    testonly = True,
+    hdrs = ["sw_curve_config.h"],
+    deps = [
+        "//zkx/math/base:prime_field",
+        "//zkx/math/elliptic_curves/short_weierstrass:affine_point",
+        "//zkx/math/elliptic_curves/short_weierstrass:jacobian_point",
+        "//zkx/math/elliptic_curves/short_weierstrass:point_xyzz",
+        "//zkx/math/elliptic_curves/short_weierstrass:sw_curve",
+    ],
+)

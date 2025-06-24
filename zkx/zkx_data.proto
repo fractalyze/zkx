@@ -49,8 +49,8 @@ enum PrimitiveType {
 
   // A tuple is a polymorphic sequence; e.g. a shape that holds different
   // sub-shapes. They are used for things like returning multiple values from a
-  // computation; e.g. a computation that returns weights and biases may have a
-  // signature that results in a tuple like (f32[784x2000], f32[2000])
+  // computation; e.g. a a bn254 G1 affine point can be represented as
+  // tuple(bn254.sf, bn254.sf) for its (x, y) coordinates.
   //
   // If a shape proto has the tuple element type, it may not have any entries
   // in the dimensions field.
@@ -67,6 +67,14 @@ enum PrimitiveType {
   // A token type threaded between side-effecting operations. Shapes of this
   // primitive type will have empty dimensions and tuple_shapes fields.
   TOKEN = 18;
+
+  BN254_SCALAR = 19;
+  BN254_G1_AFFINE = 20;
+  BN254_G1_JACOBIAN = 21;
+  BN254_G1_XYZZ = 22;
+  BN254_G2_AFFINE = 23;
+  BN254_G2_JACOBIAN = 24;
+  BN254_G2_XYZZ = 25;
 }
 
 // A DimLevelType indicates the encoding method for a dimension in an array.
@@ -458,7 +466,23 @@ message LiteralProto {
   repeated uint64 u64s = 16;
   repeated LiteralProto tuple_literals = 17;
   repeated int64 sparse_indices = 18;
+
+  bytes bn254_scalars = 19;
+  bytes bn254_g1_affines = 20;
+  bytes bn254_g1_jacobians = 21;
+  bytes bn254_g1_xyzzs = 22;
+  bytes bn254_g2_affines = 23;
+  bytes bn254_g2_jacobians = 24;
+  bytes bn254_g2_xyzzs = 25;
 }
+
+enum FftType {
+  // Forward FFT
+  FFT = 0;
+  // Inverse FFT
+  IFFT = 1;
+}
+
 
 enum SparsityType {
   SPARSITY_INVALID = 0;

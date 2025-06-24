@@ -37,7 +37,6 @@ limitations under the License.
 #include "zkx/runtime/buffer_use.h"
 #include "zkx/service/buffer_assignment.h"
 #include "zkx/service/hlo_module_config.h"
-#include "zkx/service/llvm_ir/llvm_array.h"
 #include "zkx/shape.h"
 
 namespace zkx::cpu {
@@ -86,8 +85,8 @@ class KernelApiIrBuilder {
     // LLVM values corresponding to the kernel arguments and results arrays. All
     // tuples are flattened as we do not have any tuples at run time and only
     // read and write data from/to leaf arrays.
-    std::vector<llvm_ir::LlvmArray> arguments;
-    std::vector<llvm_ir::LlvmArray> results;
+    std::vector<llvm::Value*> arguments;
+    std::vector<llvm::Value*> results;
 
     // Set containing all invariant (read-only) buffers indices. A buffer is
     // read-only if it is not aliased with any result.
@@ -122,9 +121,9 @@ class KernelApiIrBuilder {
                                   llvm::Value* call_frame);
   ThreadId EmitKernelThread(llvm::IRBuilderBase& builder,
                             llvm::Value* call_frame);
-  llvm_ir::LlvmArray EmitKernelArgument(llvm::IRBuilderBase& builder,
-                                        llvm::Value* call_frame, int64_t index,
-                                        const Shape& shape);
+  llvm::Value* EmitKernelArgument(llvm::IRBuilderBase& builder,
+                                  llvm::Value* call_frame, int64_t index,
+                                  const Shape& shape);
   llvm::Function* EmitKernelFunction(llvm::Module& module,
                                      std::string_view name);
 
