@@ -820,13 +820,18 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   }
   pass_flag_.enable_tensor_ext_to_tensor = true;
 
+  mlir::UnitAttr no_bit_reverse_attr = nullptr;
+  if (!instr->fft_bit_reverse()) {
+    no_bit_reverse_attr = mlir::UnitAttr::get(value.getContext());
+  }
+
   switch (instr->fft_type()) {
     case FftType::FFT: {
-      b.create<mlir::zkir::poly::NTTOp>(value, root_attr);
+      b.create<mlir::zkir::poly::NTTOp>(value, root_attr, no_bit_reverse_attr);
       return mlir::Value();
     }
     case FftType::IFFT: {
-      b.create<mlir::zkir::poly::INTTOp>(value, root_attr);
+      b.create<mlir::zkir::poly::INTTOp>(value, root_attr, no_bit_reverse_attr);
       return mlir::Value();
     }
 

@@ -115,6 +115,9 @@ message HloInstructionProto {
   // FFT length.
   int64 fft_length = 32;
 
+  // FFT bit-reverse.
+  bool fft_bit_reverse = 10000;
+
   // Comparison direction only used for kCompare.
   string comparison_direction = 63;
 
