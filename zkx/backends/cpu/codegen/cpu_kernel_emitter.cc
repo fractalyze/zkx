@@ -823,11 +823,13 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
 
   switch (instr->fft_type()) {
     case FftType::FFT: {
-      b.create<mlir::zkir::poly::NTTOp>(value, root_attr);
+      b.create<mlir::zkir::poly::NTTOp>(value, root_attr,
+                                        instr->fft_no_bit_reverse());
       return mlir::Value();
     }
     case FftType::IFFT: {
-      b.create<mlir::zkir::poly::INTTOp>(value, root_attr);
+      b.create<mlir::zkir::poly::INTTOp>(value, root_attr,
+                                         instr->fft_no_bit_reverse());
       return mlir::Value();
     }
 
