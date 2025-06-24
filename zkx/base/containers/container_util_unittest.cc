@@ -5,6 +5,15 @@
 
 namespace zkx::base {
 
+TEST(ContainerUtilTest, CreateVector) {
+  auto result1 = CreateVector(3, []() { return 42; });
+  EXPECT_THAT(result1, testing::ContainerEq(std::vector<int>{42, 42, 42}));
+
+  auto result2 =
+      CreateVector(4, [](size_t idx) { return static_cast<int>(idx * 2); });
+  EXPECT_THAT(result2, testing::ContainerEq(std::vector<int>{0, 2, 4, 6}));
+}
+
 TEST(ContainerUtilTest, Map) {
   std::vector<int> arr({1, 2, 3});
   EXPECT_THAT(Map(arr.begin(), arr.end(),
