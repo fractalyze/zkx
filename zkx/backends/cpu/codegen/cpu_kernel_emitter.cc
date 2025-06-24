@@ -52,6 +52,7 @@ limitations under the License.
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
 
+#include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
@@ -96,6 +97,35 @@ absl::StatusOr<mlir::zkir::poly::PrimitiveRootAttr> GetPrimitiveRootAttr(
       /*montgomery=*/llvm_ir::GetMLIRMontgomeryAttr<T>(mlir_context));
 }
 
+absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,
+                                            const Shape& shape) {
+  bool use_montgomery = shape.layout().is_montgomery_form();
+  switch (shape.element_type()) {
+    case BN254_G1_AFFINE:
+      return llvm_ir::CreateMLIREcPointConstant(
+          b, math::bn254::G1AffinePoint::Zero(), use_montgomery);
+    case BN254_G1_JACOBIAN:
+      return llvm_ir::CreateMLIREcPointConstant(
+          b, math::bn254::G1JacobianPoint::Zero(), use_montgomery);
+    case BN254_G1_XYZZ:
+      return llvm_ir::CreateMLIREcPointConstant(
+          b, math::bn254::G1PointXyzz::Zero(), use_montgomery);
+    case BN254_G2_AFFINE:
+      return llvm_ir::CreateMLIREcPointConstant(
+          b, math::bn254::G2AffinePoint::Zero(), use_montgomery);
+    case BN254_G2_JACOBIAN:
+      return llvm_ir::CreateMLIREcPointConstant(
+          b, math::bn254::G2JacobianPoint::Zero(), use_montgomery);
+    case BN254_G2_XYZZ:
+      return llvm_ir::CreateMLIREcPointConstant(
+          b, math::bn254::G2PointXyzz::Zero(), use_montgomery);
+    default:
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Invalid primitive type: %s",
+          primitive_util::LowercasePrimitiveTypeName(shape.element_type())));
+  }
+}
+
 void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
   mlir_context->loadDialect<
       // clang-format off
@@ -106,6 +136,7 @@ void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
       mlir::linalg::LinalgDialect,
       mlir::LLVM::LLVMDialect,
       mlir::memref::MemRefDialect,
+      mlir::scf::SCFDialect,
       mlir::sparse_tensor::SparseTensorDialect,
       mlir::zkir::elliptic_curve::EllipticCurveDialect,
       mlir::zkir::field::FieldDialect,
@@ -854,13 +885,102 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
           mlir::dyn_cast<mlir::RankedTensorType>(bases.getType())) {
     int64_t num_scalar_mul = instr->operand(0)->shape().dimensions(0);
     CHECK_GT(num_scalar_mul, 0);
-    int32_t degree = static_cast<int32_t>(
-        base::Log2Ceiling(static_cast<uint64_t>(num_scalar_mul)));
+    int64_t num_threads = tsl::port::MaxParallelism();
+
     const Shape& shape = instr->shape();
-    return b.create<mlir::zkir::elliptic_curve::MSMOp>(
+    auto result_type =
         llvm_ir::PrimitiveTypeToMLIRType(shape.element_type(), b.getContext(),
-                                         shape.layout().is_montgomery_form()),
-        scalars, bases, degree);
+                                         shape.layout().is_montgomery_form());
+    if (num_scalar_mul < num_threads) {
+      int32_t degree = static_cast<int32_t>(
+          base::Log2Ceiling(static_cast<uint64_t>(num_scalar_mul)));
+      return b.create<mlir::zkir::elliptic_curve::MSMOp>(result_type, scalars,
+                                                         bases, degree);
+    }
+
+    pass_flag_.enable_expand_strided_metadata = true;
+
+    int64_t chunk_size = (num_scalar_mul + num_threads - 1) / num_threads;
+    int32_t degree = static_cast<int32_t>(
+        base::Log2Ceiling(static_cast<uint64_t>(chunk_size)));
+
+    auto zero = b.create<mlir::arith::ConstantOp>(
+        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), 0));
+    auto one = b.create<mlir::arith::ConstantOp>(
+        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), 1));
+
+    mlir::Value num_scalar_mul_value = b.create<mlir::arith::ConstantOp>(
+        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), num_scalar_mul));
+    mlir::Value num_threads_value = b.create<mlir::arith::ConstantOp>(
+        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), num_threads));
+    mlir::Value chunk_size_value = b.create<mlir::arith::ConstantOp>(
+        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), chunk_size));
+
+    TF_ASSIGN_OR_RETURN(mlir::Value zero_point, CreateZeroPoint(b, shape));
+
+    auto results_type = mlir::MemRefType::get({num_threads}, result_type);
+    mlir::Value results = b.create<mlir::memref::AllocOp>(results_type);
+
+    // Initialize results
+    b.create<mlir::scf::ForOp>(
+        /*lowerBound=*/zero, /*upperBound=*/num_threads_value, /*step=*/one,
+        /*initArgs=*/std::nullopt,
+        [zero_point, results](mlir::OpBuilder& nested_b, mlir::Location loc,
+                              mlir::Value iv, mlir::ValueRange loop_vars) {
+          mlir::ImplicitLocOpBuilder b(loc, nested_b);
+          b.create<mlir::memref::StoreOp>(zero_point, results, iv);
+          b.create<mlir::scf::YieldOp>();
+        });
+
+    // Parallel MSM computation
+    b.create<mlir::scf::ParallelOp>(
+        /*lowerBounds=*/mlir::ValueRange{zero},
+        /*upperBounds=*/mlir::ValueRange{num_threads_value},
+        /*steps=*/mlir::ValueRange{one},
+        [&](mlir::OpBuilder& nested_b, mlir::Location loc,
+            mlir::ValueRange ivs) {
+          mlir::ImplicitLocOpBuilder b(loc, nested_b);
+          auto i = ivs[0];
+
+          auto start = b.create<mlir::arith::MulIOp>(i, chunk_size_value);
+          auto next_i = b.create<mlir::arith::AddIOp>(i, one);
+          auto end = b.create<mlir::arith::MulIOp>(next_i, chunk_size_value);
+
+          auto actual_end =
+              b.create<mlir::arith::MinUIOp>(end, num_scalar_mul_value);
+          auto actual_chunk_size =
+              b.create<mlir::arith::SubIOp>(actual_end, start);
+
+          // Extract chunks
+          auto scalars_chunk = b.create<mlir::tensor::ExtractSliceOp>(
+              scalars, mlir::ValueRange{start},
+              mlir::ValueRange{actual_chunk_size}, mlir::ValueRange{one});
+          auto bases_chunk = b.create<mlir::tensor::ExtractSliceOp>(
+              bases, mlir::ValueRange{start},
+              mlir::ValueRange{actual_chunk_size}, mlir::ValueRange{one});
+
+          // Compute MSM for chunk
+          auto msm_result = b.create<mlir::zkir::elliptic_curve::MSMOp>(
+              result_type, scalars_chunk, bases_chunk, degree);
+
+          b.create<mlir::memref::StoreOp>(msm_result, results, i);
+        });
+
+    // Combine results using reduction loop
+    auto final_result = b.create<mlir::scf::ForOp>(
+        /*lowerBound=*/zero, /*upperBound=*/num_threads_value, /*step=*/one,
+        /*initArgs=*/mlir::ValueRange{zero_point},
+        [result_type, results](mlir::OpBuilder& nested_b, mlir::Location loc,
+                               mlir::Value iv, mlir::ValueRange loop_vars) {
+          mlir::ImplicitLocOpBuilder b(loc, nested_b);
+          auto acc = loop_vars[0];
+          auto partial_result = b.create<mlir::memref::LoadOp>(results, iv);
+          auto sum = b.create<mlir::zkir::elliptic_curve::AddOp>(
+              result_type, partial_result, acc);
+          b.create<mlir::scf::YieldOp>(mlir::ValueRange{sum});
+        });
+
+    return final_result.getResult(0);
   } else {
     return absl::InvalidArgumentError("bases is not a tensor");
   }
