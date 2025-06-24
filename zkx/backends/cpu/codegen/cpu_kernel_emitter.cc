@@ -175,7 +175,21 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
   if (flag.enable_sparsification_and_bufferization) {
     VLOG(2) << "add pass: -sparsification-and-bufferization";
     flag.enable_expand_strided_metadata = true;
-    pm.addPass(mlir::createSparsificationAndBufferizationPass());
+    mlir::bufferization::OneShotBufferizationOptions bufferization_options;
+    bufferization_options.bufferizeFunctionBoundaries = true;
+    mlir::SparsificationOptions sparsification_options;
+    pm.addPass(mlir::createSparsificationAndBufferizationPass(
+        bufferization_options, sparsification_options,
+        /*createSparseDeallocs=*/false,
+        /*enableRuntimeLibrary=*/false,
+        /*enableBufferInitialization=*/false,
+        /*vectorLength=*/0,
+        /*enableVLAVectorization=*/false,
+        /*enableSIMDIndex32=*/false,
+        /*enableGPULibgen=*/false,
+        /*sparseEmitStrategy=*/mlir::SparseEmitStrategy::kFunctional,
+        /*parallelizationStrategy=*/
+        mlir::SparseParallelizationStrategy::kDenseOuterLoop));
   }
 
   if (flag.enable_poly_to_field) {
