@@ -55,6 +55,7 @@ zkx_cc_library(
         "//zkx:permutation_util",
         "//zkx:primitive_util",
         "//zkx:shape_util",
+        "//zkx/base:bits",
         "//zkx/base:logging",
         "//zkx/codegen:emitter_loc_op_builder",
         "//zkx/codegen:kernel_emitter",
@@ -296,7 +297,9 @@ zkx_cc_unittest(
     srcs = ["cpu_kernel_emitter_bn254_g1_msm_unittest.cc"],
     deps = [
         ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:cpu_info",
         "//zkx:literal_util",
+        "//zkx/base/containers:container_util",
     ],
 )
 
@@ -316,6 +319,8 @@ zkx_cc_unittest(
     srcs = ["cpu_kernel_emitter_bn254_g2_msm_unittest.cc"],
     deps = [
         ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:cpu_info",
         "//zkx:literal_util",
+        "//zkx/base/containers:container_util",
     ],
 )
