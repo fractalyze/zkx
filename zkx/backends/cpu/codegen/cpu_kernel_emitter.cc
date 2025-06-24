@@ -201,14 +201,20 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     pm.addNestedPass<mlir::func::FuncOp>(
         mlir::createConvertLinalgToParallelLoopsPass());
   }
-  if (flag.enable_scf_to_cf) {
-    VLOG(2) << "add pass: -convert-scf-to-cf";
-    pm.addPass(mlir::createSCFToControlFlowPass());
-  }
+
   if (flag.enable_expand_strided_metadata) {
     VLOG(2) << "add pass: -expand-strided-metadata";
     pm.addNestedPass<mlir::func::FuncOp>(
         mlir::memref::createExpandStridedMetadataPass());
+
+    VLOG(2) << "add pass: -lower-affine";
+    flag.enable_scf_to_cf = true;
+    pm.addPass(mlir::createLowerAffinePass());
+  }
+
+  if (flag.enable_scf_to_cf) {
+    VLOG(2) << "add pass: -convert-scf-to-cf";
+    pm.addPass(mlir::createSCFToControlFlowPass());
   }
   pm.addPass(mlir::createConvertToLLVMPass());
 }
