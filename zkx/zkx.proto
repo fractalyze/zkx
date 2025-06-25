@@ -58,6 +58,27 @@ message DebugOptions {
   // value is `256` (AVX2 on x86 platforms).
   int32 zkx_cpu_prefer_vector_width = 308;
 
+  // File to write autotune logs to. It will stored in txt format.
+  string zkx_gpu_dump_autotune_logs_to = 292;
+
+  // File to write autotune results to. It will be a binary file unless the name
+  // ends with .txt or .textproto. Warning: The results are written at every
+  // compilation, possibly multiple times per process. This only works on CUDA.
+  string zkx_gpu_dump_autotune_results_to = 222;
+
+  bool zkx_gpu_dump_autotuned_gemm_fusions = 232;
+
+  // If true, every time an HLO module is run, we will dump an
+  // HloUnoptimizedSnapshot (essentially, a serialized unoptimizedmodule plus
+  // its inputs) to the --zkx_dump_to directory.
+  bool zkx_gpu_dump_hlo_unoptimized_snapshots = 352;
+
+  // Whether to dump llvm ir when compiling to ptx.
+  bool zkx_gpu_dump_llvmir = 155;
+
+  // Dump FDO profiles in a binary format to a separate file.
+  bool zkx_gpu_experimental_dump_fdo_profiles = 338;
+
   // If true, ZKX will annotate instructions in the dumps with emitter code
   // location (source:line) annotations. This helps to identify the source of
   // the code that emits a particular instruction.
@@ -83,16 +104,117 @@ message DebugOptions {
   // If true, a set of expensive LLVM optimization passes will not be run.
   bool zkx_llvm_disable_expensive_passes = 73;
 
+    //
+  // BEGIN flags controlling dumping HLO modules for debugging.
+  //
+  // When dumping is enabled, HLO modules dumped at the very beginning and end
+  // of compilation, and optionally also during the pass pipeline.
+  //
+  // In general, if you set one of these flags, we will try to infer reasonable
+  // defaults for the others.  For example:
+  //
+  //  * Setting --zkx_dump_to=/tmp/foo without specifying a format
+  //    with --zkx_dump_hlo_as_* will turn on --zkx_dump_hlo_as_text.
+  //
+  //  * Setting --zkx_dump_hlo_as_text without specifying --zkx_dump_to will
+  //    dump to stdout.
+  //
+
+  // Directory to dump into.
+  string zkx_dump_to = 109;
   bool zkx_flags_reset = 364;
+
+  // If specified, will only dump modules which match this regexp.
+  string zkx_dump_hlo_module_re = 110;
+
+  // If this flag is specified, will also dump HLO before and after passes that
+  // match this regular expression.  Set to .* to dump before/after all passes.
+  string zkx_dump_hlo_pass_re = 111;
+
+  // Specifies the format that HLO is dumped in.  Multiple of these may be
+  // specified.
+  bool zkx_dump_hlo_as_text = 112;
+  bool zkx_dump_hlo_as_proto = 113;
+  bool zkx_dump_hlo_as_dot = 114;
+  bool zkx_dump_hlo_as_url = 115;
+
+  // Dump HLO graphs as an HTML (DOT -> SVG inlined in HTML)
+  bool zkx_dump_hlo_as_html = 116;
+
+  // Dump the visualization of the fusion progress.
+  bool zkx_dump_fusion_visualization = 149;
 
   // If true, every time an HLO module is run, we will dump an HloSnapshot
   // (essentially, a serialized module plus its inputs) to the --zkx_dump_to
   // directory.
   bool zkx_dump_hlo_snapshots = 118;
 
+  // Include a timestamp in the dumped filenames.
+  bool zkx_dump_include_timestamp = 131;
+
+  // Max number of hlo module dumps in a directory. Set to < 0 for unbounded.
+  int32 zkx_dump_max_hlo_modules = 132;
+
+  // Dump HloModuleMetadata as a text proto for each HLO module.
+  bool zkx_dump_module_metadata = 144;
+
+  // GZip-compress protos dumped via --zkx_dump_hlo_as_proto.
+  bool zkx_dump_compress_protos = 151;
+
+  // Dump HLO in long text format. Ignored unless zkx_dump_hlo_as_text is true.
+  bool zkx_dump_hlo_as_long_text = 164;
+
+  //
+  // END flags controlling dumping HLO modules.
+  //
+
+  // Whether to dump mlir using pretty print form.
+  bool zkx_dump_enable_mlir_pretty_form = 185;
+
+  // Enable HLO dumping. If this is disabled, no HLO modules will be dumped.
+  bool zkx_enable_dumping = 253;
+
+  // Disable dumping metadata in HLO dumps.
+  bool zkx_dump_disable_metadata = 153;
+
+  // If this flag is specified, will only dump HLO before and after passes in
+  // the pass pipeline that matches this regular expression. Default empty value
+  // enables dumping in all pipelines.
+  string zkx_dump_hlo_pipeline_re = 154;
+
   // Per-heap size constraint. New heaps will be created if per-heap max size is
   // reached.
   int32 zkx_multiheap_size_constraint_per_heap = 142;
+
+  // If true, large constants will be printed out when dumping HLOs.
+  bool zkx_dump_large_constants = 290;
+
+  // This flag is used for controlling HLO dumping and NVTX marker. If turned
+  // on, both HLO dumping and NVTX marker will use syntactic sugar wrappers
+  // as op names, while the actual op names will be shown if turned off.
+  //
+  // Here is an example HLO excerpt with the flag off:
+  //
+  //   async_computation {
+  //    param_0 = f32[1,4,8]{1,0,2} parameter(0)
+  //    ROOT all-to-all.3.1 = f32[1,4,8]{1,0,2} all-to-all(param_0),
+  //                          replica_groups={{0,1,2,3,4,5,6,7}}, dimensions={2}
+  //   }
+  //  ...
+  //
+  //  all-to-all-start =
+  //    ((f32[1,4,8]{1,0,2}), f32[1,4,8]{1,0,2}) async-start(bitcast.24.0),
+  //    calls=async_computation, backend_config={...}
+  //  all-to-all-done = f32[1,4,8]{1,0,2} async-done(all-to-all-start)
+  //
+  // and with the flag on:
+  //
+  //  all-to-all-start = ((f32[1,4,8]{1,0,2}), f32[1,4,8]{1,0,2})
+  //                     all-to-all-start(bitcast.24.0),
+  //                     replica_groups={{0,1,2,3,4,5,6,7}}, dimensions={2},
+  //                     backend_config={...}
+  //  all-to-all-done = f32[1,4,8]{1,0,2} all-to-all-done(all-to-all-start)
+  bool zkx_syntax_sugar_async_ops = 315;
 
   bool zkx_pjrt_allow_auto_layout_in_hlo = 344;
 
