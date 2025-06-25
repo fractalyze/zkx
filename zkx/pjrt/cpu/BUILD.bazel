@@ -67,6 +67,7 @@ zkx_cc_library(
         "//zkx/pjrt/plugin/cpu:cpu_client_options",
         "//zkx/pjrt/plugin/cpu:cpu_topology_description",
         "//zkx/service:custom_call_status",
+        "//zkx/service:dump",
         "//zkx/service:executable",
         "//zkx/service:hlo_module_util",
         "//zkx/service/cpu:cpu_compiler",

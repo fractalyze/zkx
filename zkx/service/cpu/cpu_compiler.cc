@@ -40,6 +40,7 @@ limitations under the License.
 #include "zkx/service/cpu/cpu_options.h"
 #include "zkx/service/cpu/runtime_symbol_generator.h"
 #include "zkx/service/cpu/thunk_emitter.h"
+#include "zkx/service/dump.h"
 #include "zkx/service/llvm_ir/llvm_command_line_options.h"
 #include "zkx/shape_util.h"
 #include "zkx/stream_executor/host/host_platform_id.h"
@@ -66,8 +67,10 @@ std::pair<LlvmCompiler::ModuleHook, LlvmCompiler::ModuleHook> GetIRModuleHooks(
   //  * Calls the user supplied module hook.
   //  * Writes out the IR to a file in the output directory designated by
   //    --zkx_dump_to
-  auto hook = [user_pre_optimization_hook, user_post_optimization_hook](
-                  bool optimized, const llvm::Module& llvm_module) {
+  const HloModule* hlo_module_ptr = &hlo_module;
+  auto hook = [user_pre_optimization_hook, user_post_optimization_hook,
+               hlo_module_ptr](bool optimized,
+                               const llvm::Module& llvm_module) {
     const auto& user_hook =
         !optimized ? user_pre_optimization_hook : user_post_optimization_hook;
     if (user_hook) {
@@ -76,11 +79,10 @@ std::pair<LlvmCompiler::ModuleHook, LlvmCompiler::ModuleHook> GetIRModuleHooks(
 
     // Include LLVM module identifier suffix in case `llvm_module` is just a
     // part of the original LLVM module constructed by the ZKX.
-    // TODO(chokobole): Uncomment this. Dependency: DumpIrIfEnabled
-    // std::string_view id = llvm_module.getModuleIdentifier();
-    // size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
-    // llvm_ir::DumpIrIfEnabled(*hlo_module_ptr, llvm_module, optimized,
-    //                          /*filename_suffix=*/id.substr(pos));
+    std::string_view id = llvm_module.getModuleIdentifier();
+    size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
+    DumpIrIfEnabled(*hlo_module_ptr, llvm_module, optimized,
+                    /*filename_suffix=*/id.substr(pos));
   };
   return {[hook](const llvm::Module& llvm_module) {
             return hook(/*optimized=*/false, llvm_module);
@@ -170,18 +172,15 @@ CreateOrcJITPostCompilationHook(const HloModule* hlo_module,
              const llvm::object::ObjectFile& obj_file) {
     if (obj_files) obj_files->push_back(obj_file.getData().str());
 
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: DumpingEnabledForHloModule. DumpToFileInDir
-    // clang-format on
-    // if (DumpingEnabledForHloModule(*hlo_module)) {
-    //   std::string_view id = llvm_module.getModuleIdentifier();
-    //   size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
-    //   DumpToFileInDir(
-    //       *hlo_module, /*file_prefix=*/"",
-    //       /*file_suffix=*/absl::StrCat("obj-file.", id.substr(pos), ".o"),
-    //       std::string_view(obj_file.getData().data(),
-    //                        obj_file.getData().size()));
-    // }
+    if (DumpingEnabledForHloModule(*hlo_module)) {
+      std::string_view id = llvm_module.getModuleIdentifier();
+      size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
+      DumpToFileInDir(
+          *hlo_module, /*file_prefix=*/"",
+          /*file_suffix=*/absl::StrCat("obj-file.", id.substr(pos), ".o"),
+          std::string_view(obj_file.getData().data(),
+                           obj_file.getData().size()));
+    }
   };
 }
 
@@ -480,9 +479,8 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
 
   TF_ASSIGN_OR_RETURN(std::unique_ptr<BufferAssignment> assignment,
                       CreateBufferAssignment(*module));
-  // TODO(chokobole): Uncomment this. Dependency: DumpHloModuleIfEnabled
-  // DumpHloModuleIfEnabled(*module, *assignment,
-  //                        absl::StrCat("cpu_", kAfterOptimizationsDumpName));
+  DumpHloModuleIfEnabled(*module, *assignment,
+                         absl::StrCat("cpu_", kAfterOptimizationsDumpName));
 
   // Thunk emitter is responsible for building a Thunk sequence that will
   // resolved kernels in the compiled LLVM module and execute them together
