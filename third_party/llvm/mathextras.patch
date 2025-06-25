@@ -1,5 +1,5 @@
 diff --git a/llvm/include/llvm/Support/MathExtras.h b/llvm/include/llvm/Support/MathExtras.h
-index 7e26e01f617f..b72d483df186 100644
+index 246080aa45ce..f1b5dd39e167 100644
 --- a/llvm/include/llvm/Support/MathExtras.h
 +++ b/llvm/include/llvm/Support/MathExtras.h
 @@ -17,6 +17,7 @@
