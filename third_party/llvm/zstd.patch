@@ -1,8 +1,8 @@
 diff --git a/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel b/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel
-index eb887a2e04a2..3ca71bc623e3 100644
+index b67f554d6f45..2d7624afb6bb 100644
 --- a/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel
 +++ b/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel
-@@ -274,14 +274,6 @@ cc_library(
+@@ -319,14 +319,6 @@ cc_library(
      deps = [
          ":config",
          ":Demangle",

@@ -117,7 +117,7 @@ void OneShotBufferize(mlir::OpPassManager& pm) {
   // NOTE: One-shot bufferize does not deallocate buffers. This is done by the
   // ownership-based buffer deallocation pass.
   // https://mlir.llvm.org/docs/OwnershipBasedBufferDeallocation/
-  mlir::bufferization::OneShotBufferizationOptions bufferizationOptions;
+  mlir::bufferization::OneShotBufferizePassOptions bufferizationOptions;
   bufferizationOptions.bufferizeFunctionBoundaries = true;
   pm.addPass(
       mlir::bufferization::createOneShotBufferizePass(bufferizationOptions));
@@ -127,7 +127,7 @@ void OneShotBufferize(mlir::OpPassManager& pm) {
   pm.addPass(mlir::bufferization::createBufferDeallocationSimplificationPass());
   pm.addPass(mlir::bufferization::createLowerDeallocationsPass());
   pm.addPass(mlir::createCSEPass());
-  pm.addPass(mlir::createBufferizationToMemRefPass());
+  pm.addPass(mlir::createConvertBufferizationToMemRefPass());
   pm.addPass(mlir::createCanonicalizerPass());
 }
 
@@ -148,7 +148,7 @@ void AddPasses(mlir::OpPassManager& pm) {
 
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::createConvertLinalgToParallelLoopsPass());
-  pm.addPass(mlir::createConvertSCFToCFPass());
+  pm.addPass(mlir::createSCFToControlFlowPass());
   pm.addNestedPass<mlir::func::FuncOp>(
       mlir::memref::createExpandStridedMetadataPass());
   pm.addPass(mlir::createConvertToLLVMPass());
