@@ -372,6 +372,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_proto_util",
+    srcs = ["hlo_proto_util.cc"],
+    hdrs = ["hlo_proto_util.h"],
+    deps = [
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:hlo_cc_proto",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_runner",
     srcs = ["hlo_runner.cc"],
     hdrs = ["hlo_runner.h"],
@@ -721,6 +733,7 @@ zkx_cc_unittest(
         "custom_call_status_test_c_caller.h",
         "custom_call_target_registry_unittest.cc",
         "hlo_module_config_unittest.cc",
+        "hlo_proto_util_unittest.cc",
         "mapped_ptr_container_sorter_unittest.cc",
         "name_uniquer_unittest.cc",
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
@@ -738,6 +751,7 @@ zkx_cc_unittest(
         ":custom_call_status",
         ":custom_call_target_registry",
         ":hlo_module_config",
+        ":hlo_proto_util",
         ":mapped_ptr_container_sorter",
         ":name_uniquer",
         ":phi_graph",
