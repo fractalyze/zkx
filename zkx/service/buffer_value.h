@@ -25,6 +25,7 @@ limitations under the License.
 #include "absl/log/check.h"
 
 #include "zkx/hlo/ir/hlo_instruction.h"
+#include "zkx/service/hlo.pb.h"
 #include "zkx/shape_util.h"
 
 namespace zkx {
@@ -153,6 +154,14 @@ class BufferValue {
   bool operator<(const BufferValue& other) const { return id_ < other.id_; }
 
   virtual std::string ToString() const = 0;
+
+  // TODO(lauj) rename LogicalBufferProto to BufferValueProto.
+  LogicalBufferProto ToProto(const SizeFunction& size_fn) const;
+
+  // Returns the LogicalBufferProto::Location that serializes the given
+  // instruction and index.
+  static LogicalBufferProto::Location ToLocationProto(
+      const HloInstruction& instruction, const ShapeIndex& index);
 
   static constexpr Color kInvalidColor = -1;
 

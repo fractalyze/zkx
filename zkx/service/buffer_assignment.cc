@@ -30,6 +30,59 @@ limitations under the License.
 namespace zkx {
 namespace {
 
+absl::flat_hash_map<int64_t, const HloInstruction*> BuildIdToHloInstructionMap(
+    const HloModule* module) {
+  // Build a map from a unique_id to corresponding HloInstruction in the module.
+  absl::flat_hash_map<int64_t, const HloInstruction*> id_to_hlo_instruction;
+  for (const HloComputation* computation : module->computations()) {
+    for (const HloInstruction* instruction : computation->instructions()) {
+      id_to_hlo_instruction[instruction->unique_id()] = instruction;
+    }
+  }
+  return id_to_hlo_instruction;
+}
+
+absl::StatusOr<absl::flat_hash_map<int64_t, const HloValue*>>
+BuildIdToLogicalBufferMap(
+    const BufferAssignmentProto& proto,
+    const absl::flat_hash_map<int64_t, const HloInstruction*>&
+        id_to_hlo_instruction,
+    const std::unique_ptr<HloAliasAnalysis>& alias_analysis) {
+  absl::flat_hash_map<int64_t, const HloValue*> id_to_logical_buffer;
+  // Process each logical buffer in the proto.
+  for (const LogicalBufferProto& logical_buffer_proto :
+       proto.logical_buffers()) {
+    TF_RET_CHECK(logical_buffer_proto.has_defined_at())
+        << "Expected logical buffer to have location information in the proto.";
+    TF_RET_CHECK(id_to_hlo_instruction.contains(
+        logical_buffer_proto.defined_at().instruction_id()))
+        << "Expected hlo instruction " << "with the id '"
+        << logical_buffer_proto.defined_at().instruction_id()
+        << "' in the proto to also exist in the "
+           "HLO module.";
+    // Assumption: An hlo module loaded from an hlo proto
+    // preserves each instruction's unique_id. An instruction's name is a
+    // deprecated field in the LocationProto.
+    const HloInstruction* hlo_instruction = id_to_hlo_instruction.at(
+        logical_buffer_proto.defined_at().instruction_id());
+
+    std::vector<int64_t> shape_idx_vals;
+    absl::c_copy(logical_buffer_proto.defined_at().shape_index(),
+                 std::back_inserter(shape_idx_vals));
+    ShapeIndex proto_shape_index(shape_idx_vals);
+
+    // Look up logical buffer by hlo instruction and shape index.
+    auto& logical_buffer = alias_analysis->dataflow_analysis().GetUniqueValueAt(
+        hlo_instruction, proto_shape_index);
+
+    // Assign color to a logical buffer from the proto.
+    logical_buffer.set_color(logical_buffer_proto.color());
+
+    id_to_logical_buffer[logical_buffer_proto.id()] = &logical_buffer;
+  }
+  return id_to_logical_buffer;
+}
+
 bool CompareHloValuesById(const HloValue* a, const HloValue* b) {
   return a->id() < b->id();
 }
@@ -206,6 +259,37 @@ void BufferAllocation::AddAssignment(const HloValue& buffer, int64_t offset,
       shape->mutable_layout()->set_memory_space(buffer.color());
     }
   }
+}
+
+BufferAllocationProto BufferAllocation::ToProto() const {
+  BufferAllocationProto proto;
+  proto.set_index(index_);
+  proto.set_size(size_);
+  proto.set_is_thread_local(is_thread_local_);
+  proto.set_is_tuple(is_tuple_);
+  proto.set_color(color_);
+  if (is_entry_computation_parameter_) {
+    proto.set_is_entry_computation_parameter(true);
+    for (int64_t idx : param_shape_index()) {
+      proto.add_parameter_shape_index(idx);
+    }
+    proto.set_parameter_number(parameter_number_);
+  }
+  proto.set_is_constant(is_constant_);
+  proto.set_maybe_live_out(maybe_live_out_);
+  for (const auto& buffer_offset_size : assigned_buffers_) {
+    BufferAllocationProto::Assigned* proto_assigned = proto.add_assigned();
+    proto_assigned->set_logical_buffer_id(buffer_offset_size.first->id());
+    proto_assigned->set_offset(buffer_offset_size.second.offset);
+    proto_assigned->set_size(buffer_offset_size.second.size);
+  }
+  absl::c_sort(*proto.mutable_assigned(),
+               [](const BufferAllocationProto::Assigned& assign1,
+                  const BufferAllocationProto::Assigned& assign2) {
+                 return assign1.logical_buffer_id() <
+                        assign2.logical_buffer_id();
+               });
+  return proto;
 }
 
 std::string BufferAllocation::ToShortString(bool human_readable_size) const {
@@ -1014,6 +1098,121 @@ std::string BufferAssignment::BufferInfoString() const {
     absl::StrAppend(&binfo, "\n");
   }
   return binfo;
+}
+
+BufferAssignmentProto BufferAssignment::ToProto() const {
+  BufferAssignmentProto proto;
+  // NOTE: DataflowAnalysis state is serialized here in BufferAssignment,
+  // because we need to do the HasAllocation check for each buffer. Otherwise
+  // the buffer_size_ call might fail for some backends.
+  const HloDataflowAnalysis& dataflow = this->dataflow_analysis();
+  for (BufferValue::Id id = 0; id < dataflow.values().size(); id++) {
+    auto& value = dataflow.values().at(id);
+    if (HasAllocation(*value)) {
+      LogicalBufferProto proto_buffer = value->ToProto(buffer_size_);
+      proto.add_logical_buffers()->Swap(&proto_buffer);
+
+      // Fill buffer aliases.
+      for (const HloValue* alias :
+           alias_analysis().GetBufferContainingValue(*value).values()) {
+        if (alias->instruction() == value->instruction() &&
+            alias->index() == value->index()) {
+          continue;  // skip self-aliases
+        }
+        BufferAssignmentProto::BufferAlias* proto_alias =
+            proto.add_buffer_aliases();
+        LogicalBufferProto::Location proto_alias_location =
+            BufferValue::ToLocationProto(*alias->instruction(), alias->index());
+        proto_alias->set_source_buffer_id(value->id());
+        proto_alias->mutable_location()->Swap(&proto_alias_location);
+      }
+    }
+  }
+  for (const BufferAllocation& allocation : Allocations()) {
+    BufferAllocationProto proto_allocation = allocation.ToProto();
+    proto.add_buffer_allocations()->Swap(&proto_allocation);
+    for (const HeapSimulatorTrace& heap_trace : allocation.HeapTraces()) {
+      *proto.add_heap_simulator_traces() = heap_trace;
+    }
+  }
+  return proto;
+}
+
+// static
+absl::StatusOr<std::unique_ptr<BufferAssignment>> BufferAssignment::FromProto(
+    const BufferAssignmentProto& proto, const HloModule* module,
+    BufferValue::SizeFunction buffer_size,
+    HloDataflowAnalysis::CanShareBuffer can_share_buffer) {
+  // Create alias and dataflow analysis.
+  TF_ASSIGN_OR_RETURN(std::unique_ptr<HloAliasAnalysis> alias_analysis,
+                      HloAliasAnalysis::Run(module, can_share_buffer));
+
+  // Build a map from a unique_id to corresponding HloInstruction in the module.
+  auto id_to_hlo_instruction = BuildIdToHloInstructionMap(module);
+
+  // Build a map from logical buffer id in the proto to hlo value in the
+  // existing dataflow analysis.
+  absl::flat_hash_map<int64_t, const HloValue*> id_to_logical_buffer;
+  TF_ASSIGN_OR_RETURN(
+      id_to_logical_buffer,
+      BuildIdToLogicalBufferMap(proto, id_to_hlo_instruction, alias_analysis));
+
+  std::unique_ptr<BufferAssignment> buffer_assignment =
+      absl::WrapUnique(new BufferAssignment(
+          module, /*hlo_ordering=*/nullptr, std::move(buffer_size),
+          /*color_alignment=*/nullptr, std::move(alias_analysis),
+          /*hlo_live_range=*/nullptr));
+
+  // Process each buffer allocation entry in the proto to create a new
+  // allocation.
+  for (const auto& alloc_proto : proto.buffer_allocations()) {
+    BufferAllocation* allocation = buffer_assignment->NewEmptyAllocation(
+        alloc_proto.size(), alloc_proto.color());
+
+    // We don't copy allocation index as it gets automatically assigned.
+    CHECK(allocation->index() == alloc_proto.index())
+        << "Expected allocations in BufferAssignment proto to be sorted by "
+           "index.";
+
+    // Set allocation properties for a newly constructed BufferAllocation.
+    allocation->set_is_thread_local(alloc_proto.is_thread_local());
+    allocation->set_is_tuple(alloc_proto.is_tuple());
+    allocation->set_constant(alloc_proto.is_constant());
+
+    // If allocation corresponds to an entry computation parameter, copy
+    // parameter properties to a BufferAllocation.
+    if (alloc_proto.is_entry_computation_parameter()) {
+      std::vector<int64_t> shape_idx_vals;
+      absl::c_copy(alloc_proto.parameter_shape_index(),
+                   std::back_inserter(shape_idx_vals));
+      ShapeIndex shape_index(shape_idx_vals);
+      allocation->set_entry_computation_parameter(
+          alloc_proto.parameter_number(), shape_index, false);
+    }
+
+    // Process each logical buffer assigned to the current allocation and create
+    // buffer assignment entries.
+    for (const auto& assignee : alloc_proto.assigned()) {
+      HloValue::Id logical_buffer_id = assignee.logical_buffer_id();
+      const auto& buffer_val = id_to_logical_buffer[logical_buffer_id];
+      buffer_assignment->AddAssignment(allocation, *buffer_val,
+                                       assignee.offset(), assignee.size());
+    }
+
+    // We don't set `maybe_live_out` as it is inferred automatically by
+    // buffer assignment when we call `AddAssignment` above.
+    CHECK_EQ(allocation->maybe_live_out(), alloc_proto.maybe_live_out())
+        << "Dataflow analysis differs from proto.";
+  }
+
+  // Ensure each buffer in the proto has an allocation assigned.
+  TF_RET_CHECK(proto.logical_buffers_size() ==
+               buffer_assignment->allocation_index_for_value_.size());
+  for (auto& logical_buffer_proto : proto.logical_buffers()) {
+    TF_RET_CHECK(buffer_assignment->HasAllocation(
+        *id_to_logical_buffer[logical_buffer_proto.id()]));
+  }
+  return buffer_assignment;
 }
 
 // static

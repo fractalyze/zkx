@@ -228,6 +228,8 @@ class BufferAllocation {
                                 float percentile = 0.05,
                                 int64_t more_than_k = 50) const;
 
+  BufferAllocationProto ToProto() const;
+
   // Whether the buffer is a parameter to or live out of the entry computation.
   bool IsInputOrOutput() const {
     return is_entry_computation_parameter() || maybe_live_out();
@@ -496,6 +498,13 @@ class BufferAssignment {
 
   // Is in use by tpu compiler to dump the buffer info.
   std::string BufferInfoString() const;
+
+  // Convert BufferAssignment to or from a proto.
+  BufferAssignmentProto ToProto() const;
+  static absl::StatusOr<std::unique_ptr<BufferAssignment>> FromProto(
+      const BufferAssignmentProto& proto, const HloModule* module,
+      BufferValue::SizeFunction buffer_size,
+      HloDataflowAnalysis::CanShareBuffer can_share_buffer);
 
   // Returns string representation of buffer assignment statistics. Also
   // calculates and returns the total fragmentation if
