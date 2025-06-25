@@ -32,4 +32,27 @@ std::ostream& operator<<(std::ostream& out, const BufferValue& buffer) {
   return out;
 }
 
+// static
+LogicalBufferProto::Location BufferValue::ToLocationProto(
+    const HloInstruction& instruction, const ShapeIndex& index) {
+  LogicalBufferProto::Location proto;
+  proto.set_instruction_id(instruction.unique_id());
+  absl::c_copy(index, google::protobuf::RepeatedFieldBackInserter(
+                          proto.mutable_shape_index()));
+  return proto;
+}
+
+LogicalBufferProto BufferValue::ToProto(const SizeFunction& size_fn) const {
+  LogicalBufferProto proto;
+  proto.set_id(id());
+  proto.set_size(size_fn(*this));
+  LogicalBufferProto::Location proto_location =
+      ToLocationProto(*instruction(), index());
+  proto.mutable_defined_at()->Swap(&proto_location);
+  if (has_color()) {
+    proto.set_color(color());
+  }
+  return proto;
+}
+
 }  // namespace zkx
