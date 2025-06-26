@@ -1859,6 +1859,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateConvert(shape, new_operands[0]);
       break;
+    case HloOpcode::kTuple:
+      clone = CreateTuple(new_operands);
+      *clone->mutable_shape() = shape;
+      break;
     case HloOpcode::kAfterAll:
       if (new_operands.empty()) {
         clone = CreateToken();
