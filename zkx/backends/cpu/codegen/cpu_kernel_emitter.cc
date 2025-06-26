@@ -65,6 +65,7 @@ limitations under the License.
 #include "zkir/Dialect/Poly/IR/PolyOps.h"
 #include "zkir/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "zkx/backends/cpu/codegen/kernel_api_ir_builder.h"
+#include "zkx/base/bits.h"
 #include "zkx/base/logging.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
@@ -728,11 +729,15 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     mlir::Value bases) {
   if (auto tensor_type =
           mlir::dyn_cast<mlir::RankedTensorType>(bases.getType())) {
+    int64_t num_scalar_mul = instr->operand(0)->shape().dimensions(0);
+    CHECK_GT(num_scalar_mul, 0);
+    int32_t degree = static_cast<int32_t>(
+        base::Log2Ceiling(static_cast<uint64_t>(num_scalar_mul)));
     const Shape& shape = instr->shape();
     return b.create<mlir::zkir::elliptic_curve::MSMOp>(
         llvm_ir::PrimitiveTypeToMLIRType(shape.element_type(), b.getContext(),
                                          shape.layout().is_montgomery_form()),
-        scalars, bases);
+        scalars, bases, degree);
   } else {
     return absl::InvalidArgumentError("bases is not a tensor");
   }

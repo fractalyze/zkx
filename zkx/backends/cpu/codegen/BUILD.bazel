@@ -55,6 +55,7 @@ zkx_cc_library(
         "//zkx:permutation_util",
         "//zkx:primitive_util",
         "//zkx:shape_util",
+        "//zkx/base:bits",
         "//zkx/base:logging",
         "//zkx/codegen:emitter_loc_op_builder",
         "//zkx/codegen:kernel_emitter",
