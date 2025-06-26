@@ -637,6 +637,15 @@ absl::StatusOr<HloModuleConfig> HloModule::CreateModuleConfigFromProto(
   return config;
 }
 
+absl::StatusOr<std::unique_ptr<HloModule>> HloModule::CreateFromProtoWithConfig(
+    const HloModuleProtoWithConfig& proto, bool prohibit_empty_literal) {
+  const auto& hlo_module_proto = proto.hlo_module();
+  TF_ASSIGN_OR_RETURN(std::unique_ptr<HloModuleConfig> config_ptr,
+                      HloModuleConfig::CreateFromProto(proto.config()));
+  return HloModule::CreateFromProto(hlo_module_proto, *config_ptr,
+                                    prohibit_empty_literal);
+}
+
 int64_t HloModule::instruction_count() const {
   int64_t n = 0;
   for (const auto& computation : computations_) {
