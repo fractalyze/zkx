@@ -1,6 +1,22 @@
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_test", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "thunk_proto",
+    srcs = ["thunk.proto"],
+    deps = [
+        "//zkx:zkx_data_proto",
+        "//zkx/service:hlo_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "thunk_cc_proto",
+    deps = [":thunk_proto"],
+)
 
 zkx_cc_library(
     name = "all_gather_thunk",
@@ -268,6 +284,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "serdes_base",
+    hdrs = ["serdes_base.h"],
+    deps = ["@com_google_absl//absl/status:statusor"],
+)
+
+zkx_cc_library(
     name = "thread_pool_task_runner",
     hdrs = ["thread_pool_task_runner.h"],
     deps = [
@@ -295,6 +317,34 @@ zkx_cc_library(
         "//zkx/service/cpu:xfeed_manager",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
+    name = "thunk_proto_serdes",
+    srcs = ["thunk_proto_serdes.cc"],
+    hdrs = ["thunk_proto_serdes.h"],
+    deps = [
+        ":all_gather_thunk",
+        ":all_reduce_thunk",
+        ":all_to_all_thunk",
+        ":collective_permute_thunk",
+        ":copy_thunk",
+        ":infeed_thunk",
+        ":kernel_thunk",
+        ":outfeed_thunk",
+        ":reduce_scatter_thunk",
+        ":resource_use",
+        ":serdes_base",
+        ":thunk",
+        ":thunk_cc_proto",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:util",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )
 
@@ -368,6 +418,7 @@ zkx_cc_unittest(
         "outfeed_thunk_unittest.cc",
         "resource_use_unittest.cc",
         "thunk_executor_unittest.cc",
+        "thunk_sequence_serdes_unittest.cc",
         "thunk_unittest.cc",
         "work_queue_unittest.cc",
     ],
@@ -380,6 +431,7 @@ zkx_cc_unittest(
         ":resource_use",
         ":thunk",
         ":thunk_executor",
+        ":thunk_proto_serdes",
         ":thunk_testlib",
         ":work_queue",
         "//xla/tsl/concurrency:async_value",
