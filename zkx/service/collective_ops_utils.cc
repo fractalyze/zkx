@@ -36,6 +36,21 @@ std::string_view ReductionKindToString(ReductionKind reduction_kind) {
   }
 }
 
+absl::StatusOr<ReductionKind> StringToReductionKind(
+    std::string_view reduction_kind) {
+  if (reduction_kind == "sum") {
+    return ReductionKind::kSum;
+  } else if (reduction_kind == "prod") {
+    return ReductionKind::kProduct;
+  } else if (reduction_kind == "min") {
+    return ReductionKind::kMin;
+  } else if (reduction_kind == "max") {
+    return ReductionKind::kMax;
+  }
+  return absl::InvalidArgumentError(
+      absl::StrFormat("Invalid reduction kind: %s", reduction_kind));
+}
+
 // Match the instruction to a reduction kind. We can represent and/or of pred as
 // min/max. This works because pred is stored as an 8-bit int of value 0 or 1.
 std::optional<ReductionKind> MatchReductionInstruction(
