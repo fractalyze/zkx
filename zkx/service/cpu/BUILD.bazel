@@ -98,6 +98,7 @@ zkx_cc_library(
     srcs = ["cpu_executable.cc"],
     hdrs = ["cpu_executable.h"],
     deps = [
+        ":executable_cc_proto",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
         "//zkx:literal",

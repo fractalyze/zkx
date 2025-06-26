@@ -20,6 +20,7 @@
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/literal.h"
 #include "zkx/service/buffer_assignment.h"
+#include "zkx/service/cpu/executable.pb.h"
 #include "zkx/service/custom_call_status.h"
 #include "zkx/service/executable.h"
 #include "zkx/service/maybe_owning_device_memory.h"
@@ -70,17 +71,16 @@ class CpuExecutable : public Executable {
 
   absl::Span<const std::string> obj_files() const { return obj_files_; }
 
-  // TODO(chokobole): Uncomment this. Dependency: SymbolProto
-  // std::vector<SymbolProto> get_compiled_symbols_proto() const {
-  //   std::vector<SymbolProto> symbols;
-  //   for (const auto& symbol : compiled_symbols_) {
-  //     SymbolProto symbol_proto;
-  //     symbol_proto.set_name(symbol.name);
-  //     symbol_proto.set_function_type_id(GetFunctionTypeId(symbol.type_id));
-  //     symbols.push_back(std::move(symbol_proto));
-  //   }
-  //   return symbols;
-  // }
+  std::vector<SymbolProto> get_compiled_symbols_proto() const {
+    std::vector<SymbolProto> symbols;
+    for (const auto& symbol : compiled_symbols_) {
+      SymbolProto symbol_proto;
+      symbol_proto.set_name(symbol.name);
+      symbol_proto.set_function_type_id(GetFunctionTypeId(symbol.type_id));
+      symbols.push_back(std::move(symbol_proto));
+    }
+    return symbols;
+  }
 
   void set_obj_files(std::vector<std::string> obj_files) {
     obj_files_ = std::move(obj_files);
@@ -91,24 +91,21 @@ class CpuExecutable : public Executable {
     compiled_symbols_ = std::move(compiled_symbols);
   }
 
-  // TODO(chokobole): Uncomment this. Dependency: SymbolProto
-  // void set_symbol_type_id_to_function_type_id(
-  //     absl::flat_hash_map<FunctionLibrary::TypeId,
-  //     SymbolProto::FunctionTypeId>
-  //         symbol_type_id_to_function_type_id) {
-  //   symbol_type_id_to_function_type_id_ =
-  //       std::move(symbol_type_id_to_function_type_id);
-  // }
+  void set_symbol_type_id_to_function_type_id(
+      absl::flat_hash_map<FunctionLibrary::TypeId, SymbolProto::FunctionTypeId>
+          symbol_type_id_to_function_type_id) {
+    symbol_type_id_to_function_type_id_ =
+        std::move(symbol_type_id_to_function_type_id);
+  }
 
-  // TODO(chokobole): Uncomment this. Dependency: SymbolProto
-  // SymbolProto::FunctionTypeId GetFunctionTypeId(
-  //     const FunctionLibrary::TypeId type_id) const {
-  //   auto it = symbol_type_id_to_function_type_id_.find(type_id);
-  //   if (it == symbol_type_id_to_function_type_id_.end()) {
-  //     return SymbolProto::UNKNOWN;
-  //   }
-  //   return it->second;
-  // }
+  SymbolProto::FunctionTypeId GetFunctionTypeId(
+      const FunctionLibrary::TypeId type_id) const {
+    auto it = symbol_type_id_to_function_type_id_.find(type_id);
+    if (it == symbol_type_id_to_function_type_id_.end()) {
+      return SymbolProto::UNKNOWN;
+    }
+    return it->second;
+  }
 
   // This should be called after set_ir_module_string.
   const std::string& ir_module_string() const { return ir_module_string_; }
@@ -191,9 +188,8 @@ class CpuExecutable : public Executable {
   // them to AOT compilation result.
   std::vector<FunctionLibrary::Symbol> compiled_symbols_;
 
-  // TODO(chokobole): Uncomment this. Dependency: SymbolProto
-  // absl::flat_hash_map<FunctionLibrary::TypeId, SymbolProto::FunctionTypeId>
-  //     symbol_type_id_to_function_type_id_;
+  absl::flat_hash_map<FunctionLibrary::TypeId, SymbolProto::FunctionTypeId>
+      symbol_type_id_to_function_type_id_;
 
   // Buffer assignment for the buffers we need to allocate.
   const std::unique_ptr<const BufferAssignment> assignment_;
