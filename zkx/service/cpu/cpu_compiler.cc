@@ -550,14 +550,17 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
 
   // Collect compiled symbols from all LLVM module parts.
   std::vector<FunctionLibrary::Symbol> compiled_symbols;
+
+  absl::flat_hash_map<FunctionLibrary::TypeId, SymbolProto::FunctionTypeId>
+      symbol_type_id_to_function_type_id;
   for (auto& [name, module] : thunk_emitter.kernels()) {
     compiled_symbols.push_back(
         FunctionLibrary::Sym<FunctionLibrary::Kernel>(name));
     // clang-format off
     // TODO(chokobole): Uncomment this. Dependency: symbol_type_id_to_function_type_id
     // clang-format on
-    // symbol_type_id_to_function_type_id.emplace(compiled_symbols.back().type_id,
-    //                                            SymbolProto::KERNEL);
+    symbol_type_id_to_function_type_id.emplace(compiled_symbols.back().type_id,
+                                               SymbolProto::KERNEL);
     // TODO(chokobole): Uncomment this. Dependency: kernel_dylib_index
     // TF_CHECK_OK(jit_compiler.AddModule(std::move(module),
     // kernel_dylib_index));
@@ -592,8 +595,8 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
   // clang-format off
   // TODO(chokobole): Uncomment this. Dependency: symbol_type_id_to_function_type_id
   // clang-format on
-  // cpu_executable->set_symbol_type_id_to_function_type_id(
-  //     symbol_type_id_to_function_type_id);
+  cpu_executable->set_symbol_type_id_to_function_type_id(
+      symbol_type_id_to_function_type_id);
 
   return std::move(cpu_executable);
   // TODO(chokobole): Implement other branch.
