@@ -140,6 +140,39 @@ class HloFftInstruction : public HloInstruction {
   bool fft_no_bit_reverse_ = false;
 };
 
+class HloMsmInstruction : public HloInstruction {
+ public:
+  explicit HloMsmInstruction(const Shape& shape, HloInstruction* scalars,
+                             HloInstruction* bases,
+                             int32_t window_bits);
+  int32_t window_bits() const { return window_bits_; }
+
+  // Returns a serialized representation of this instruction.
+  HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kMsm;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  // Describes window bits for an MSM instruction.
+  int32_t window_bits_;
+};
+
 class HloAsyncInstruction : public HloInstruction {
  public:
   // Constructs async-{update,done}.

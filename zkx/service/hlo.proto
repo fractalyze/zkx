@@ -118,6 +118,9 @@ message HloInstructionProto {
   // Whether to apply bit-reverse to the FFT.
   bool fft_no_bit_reverse = 10000;
 
+  // MSM window bits.
+  int32 window_bits = 10001;
+
   // Comparison direction only used for kCompare.
   string comparison_direction = 63;
 

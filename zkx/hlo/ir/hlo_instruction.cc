@@ -241,6 +241,11 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
                               proto.fft_length(), proto.fft_no_bit_reverse());
       break;
     }
+    case HloOpcode::kMsm: {
+      instruction =
+          CreateMsm(shape, operands(0), operands(1), proto.window_bits());
+      break;
+    }
     case HloOpcode::kAsyncStart: {
       TF_RET_CHECK(proto.called_computation_ids_size() == 1)
           << "Async start instruction should have 1 called computation but "
@@ -1241,12 +1246,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateFft(
 
 // static
 std::unique_ptr<HloInstruction> HloInstruction::CreateMsm(
-    const Shape& shape, HloInstruction* scalars, HloInstruction* bases) {
-  auto instruction =
-      absl::WrapUnique(new HloInstruction(HloOpcode::kMsm, shape));
-  instruction->AppendOperand(scalars);
-  instruction->AppendOperand(bases);
-  return instruction;
+    const Shape& shape, HloInstruction* scalars, HloInstruction* bases,
+    uint32_t window_bits) {
+  return std::make_unique<HloMsmInstruction>(shape, scalars, bases,
+                                             window_bits);
 }
 
 // static
@@ -3217,6 +3220,10 @@ int64_t HloInstruction::fft_length() const {
 
 bool HloInstruction::fft_no_bit_reverse() const {
   return Cast<HloFftInstruction>(this)->fft_no_bit_reverse();
+}
+
+int32_t HloInstruction::window_bits() const {
+  return Cast<HloMsmInstruction>(this)->window_bits();
 }
 
 int64_t HloInstruction::concatenate_dimension() const {
