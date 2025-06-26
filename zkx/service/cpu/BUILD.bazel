@@ -15,6 +15,21 @@ cc_proto_library(
     deps = [":backend_config_proto"],
 )
 
+proto_library(
+    name = "executable_proto",
+    srcs = ["executable.proto"],
+    deps = [
+        "//zkx:zkx_proto",
+        "//zkx/backends/cpu/runtime:thunk_proto",
+        "//zkx/service:hlo_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "executable_cc_proto",
+    deps = [":executable_proto"],
+)
+
 zkx_cc_binary(
     name = "libmlir_runner_utils_ext.so",
     linkshared = True,
