@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/service/cpu/runtime_symbol_generator.h"
 
+#include <dlfcn.h>  // for dlopen, dlsym on Linux/macOS
 #include <stdio.h>
 #include <string.h>
 
@@ -28,6 +29,12 @@ limitations under the License.
 #include "zkx/service/custom_call_target_registry.h"
 
 namespace zkx::cpu {
+
+[[maybe_unused]] static void* GetSymbolFromCurrentProcess(const char* symbol_name) {
+  void* symbol_ptr = dlsym(RTLD_DEFAULT, symbol_name);
+  CHECK(symbol_ptr) << symbol_name << " not found in process symbols.";
+  return symbol_ptr;
+}
 
 llvm::Error RuntimeSymbolGenerator::tryToGenerate(
     llvm::orc::LookupState&, llvm::orc::LookupKind kind,
@@ -172,6 +179,21 @@ static bool RegisterKnownJITSymbols() {
 
 #if defined(PLATFORM_WINDOWS)
   registry->Register("__chkstk", reinterpret_cast<void*>(__chkstk), "Host");
+#endif
+
+#ifdef ZKX_HAS_OPENMP
+  const char* openmp_symbols[] = {
+      "__kmpc_barrier",
+      "__kmpc_for_static_fini",
+      "__kmpc_for_static_init_8u",
+      "__kmpc_fork_call",
+      "__kmpc_global_thread_num",
+  };
+  for (const char* symbol : openmp_symbols) {
+    registry->Register(
+        symbol, reinterpret_cast<void*>(GetSymbolFromCurrentProcess(symbol)),
+        "Host");
+  }
 #endif
 
   return true;

@@ -1,5 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//bazel:zkx.bzl", "if_has_openmp_on_macos")
 load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
@@ -228,11 +229,12 @@ zkx_cc_library(
         ":runtime_custom_call_status",
         ":runtime_fork_join",
         ":runtime_print",
+        "//bazel:openmp_flags",
         "//zkx/service:custom_call_target_registry",
         "@llvm-project//llvm:Core",
         "@llvm-project//llvm:OrcJIT",
         "@llvm-project//mlir:_mlir_c_runner_utils",
-    ],
+    ] + if_has_openmp_on_macos(["@local_config_omp//:omp"]),
 )
 
 zkx_cc_library(
