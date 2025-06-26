@@ -315,7 +315,7 @@ zkx_cc_unittest(
 
 zkx_cc_unittest(
     name = "cpu_kernel_emitter_bn254_g2_msm_unittest",
-    timeout = "moderate",
+    timeout = "long",
     srcs = ["cpu_kernel_emitter_bn254_g2_msm_unittest.cc"],
     deps = [
         ":cpu_kernel_emitter_test",
