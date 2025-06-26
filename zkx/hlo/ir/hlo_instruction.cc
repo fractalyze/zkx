@@ -1201,6 +1201,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBinary(
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
+    case HloOpcode::kMsm:
     case HloOpcode::kPower:
     case HloOpcode::kSubtract:
       break;
@@ -1851,6 +1852,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kSubtract:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
+    case HloOpcode::kMsm:
     case HloOpcode::kPower:
       CHECK_EQ(new_operands.size(), 2);
       clone = CreateBinary(shape, opcode_, new_operands[0], new_operands[1]);
