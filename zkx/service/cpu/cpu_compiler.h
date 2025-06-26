@@ -174,16 +174,12 @@ class CpuCompiler : public LlvmCompiler {
   }
 
   absl::StatusOr<std::unique_ptr<AotCompilationResult>> Export(
-      Executable* executable) const override {
-    return absl::UnimplementedError("...");
-  }
+      Executable* executable) const override;
 
   // Returns a (deserialized) AotCompilationResult from a serialized
   // AotCompilationResult.
   absl::StatusOr<std::unique_ptr<AotCompilationResult>>
-  LoadAotCompilationResult(const std::string& serialized_aot_result) override {
-    return absl::UnimplementedError("...");
-  }
+  LoadAotCompilationResult(const std::string& serialized_aot_result) override;
 
   absl::StatusOr<HloSchedule> CreateHloSchedule(
       const HloModule& hlo_module) const;
