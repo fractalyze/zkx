@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/fingerprint.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/service/mapped_ptr_container_sorter.h"
 
 namespace zkx {
 
@@ -793,6 +794,78 @@ std::vector<HloComputation*> HloModule::MakeNonfusionComputationsSorted(
     SortComputationsByContent(&result);
   }
   return result;
+}
+
+namespace {
+std::unique_ptr<HloModule> CreateModule(
+    std::string_view suffix, std::optional<const HloModuleConfig> config_in,
+    const HloModule& source) {
+  std::string div = suffix.empty() ? "" : "-";
+  std::string new_name = absl::StrCat(source.name(), div, suffix);
+  VLOG(1) << "Cloning module :" << source.name() << " --> " << new_name << "\n";
+  std::shared_ptr<const HloModuleConfig> new_config =
+      config_in.has_value()
+          ? std::make_shared<const HloModuleConfig>(*config_in)
+          : source.shared_config();
+  return std::make_unique<HloModule>(
+      new_name, new_config,
+      std::make_unique<CompilationEnvironments>(source.comp_envs()));
+}
+}  // namespace
+
+std::unique_ptr<HloModule> HloModule::Clone(
+    const std::string& suffix,
+    std::optional<const HloModuleConfig> config_in) const {
+  auto module = CreateModule(suffix, config_in, *this);
+
+  HloCloneContext context(module.get(), suffix);
+  if (entry_computation_) {
+    auto cloned_computation = entry_computation_->Clone(suffix, &context);
+    module->AddEntryComputation(std::move(cloned_computation));
+  }
+  module->input_output_alias_config() = input_output_alias_config();
+  module->buffer_donor_config() = buffer_donor_config();
+  module->set_is_dynamic(is_dynamic());
+  module->set_frontend_attributes(frontend_attributes());
+  if (has_schedule() && schedule().Verify().ok()) {
+    HloSchedule clone_schedule(module.get());
+    for (HloComputation* computation : computations()) {
+      if (schedule().is_computation_scheduled(computation)) {
+        HloComputation* new_computation = context.FindComputation(computation);
+        // The module being cloned may have computations that are dead, i.e.,
+        // unreachable from the entry computation. In that case, new_computation
+        // is nullptr.
+        if (new_computation != nullptr) {
+          HloInstructionSequence& clone_sequence =
+              clone_schedule.GetOrCreateSequence(new_computation);
+          for (const HloInstruction* instruction :
+               schedule().sequence(computation).instructions()) {
+            clone_sequence.push_back(context.GetInstruction(instruction));
+          }
+        }
+      }
+    }
+    TF_CHECK_OK(module->set_schedule(std::move(clone_schedule)));
+  }
+  for (const auto& [parameter, indices, offset] : CrossProgramPrefetches()) {
+    module->AddCrossProgramPrefetch(parameter, indices, offset);
+  }
+
+  // To make clone behavior match uncloned behavior, we reorder
+  // module->computations_ to match the order in computations_.
+  using ComputationSorter = MappedPtrContainerSorter<HloComputation>;
+  auto computation_map_fn = [&context](const HloComputation* c) {
+    return context.FindComputation(c);
+  };
+  auto status = ComputationSorter::Sort(
+      computation_map_fn, ComputationSorter::IndexAfterMappedElementsFn(),
+      computations_, module->computations_);
+  if (!status.ok()) {
+    LOG(ERROR) << "Failed to sort module computations for " << name() << "; "
+               << status;
+  }
+
+  return module;
 }
 
 absl::Status HloModule::RemoveUnusedComputations() {
