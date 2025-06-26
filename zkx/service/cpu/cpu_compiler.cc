@@ -166,6 +166,23 @@ inline void VlogMaxIsa(std::string_view max_cpu_isa) {
   }
 }
 
+// We keep HloProto in the CpuExecutable, but we don't need to keep literals
+// payload in it as we use it only for debugging and memory analysis.
+void StripPayloadFromLiteralProto(HloProto& proto) {
+  auto* module = proto.mutable_hlo_module();
+  for (auto& computation : *module->mutable_computations()) {
+    for (auto& instruction : *computation.mutable_instructions()) {
+      // We only keep literal shape to correctly estimate memory usage of the
+      // HLO module, but we don't need the actual literal data.
+      if (instruction.has_literal()) {
+        LiteralProto literal;
+        *literal.mutable_shape() = instruction.literal().shape();
+        *instruction.mutable_literal() = std::move(literal);
+      }
+    }
+  }
+}
+
 // Post-compilation callback functor for use by SimpleOrcJIT.
 //
 // Dumps machine code if dumping is enabled for the module.
@@ -486,6 +503,18 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
   DumpHloModuleIfEnabled(*module, *assignment,
                          absl::StrCat("cpu_", kAfterOptimizationsDumpName));
 
+  // Dump computation proto state and buffer assignment for
+  // GetCompiledMemoryStats results.
+  auto with_hlo_proto = [&](std::unique_ptr<CpuExecutable> cpu_executable) {
+    auto hlo_proto = std::make_unique<HloProto>();
+    *hlo_proto->mutable_hlo_module() = cpu_executable->module().ToProto();
+    *hlo_proto->mutable_buffer_assignment() =
+        cpu_executable->buffer_assignment().ToProto();
+    StripPayloadFromLiteralProto(*hlo_proto);
+    cpu_executable->set_hlo_proto(std::move(hlo_proto));
+    return cpu_executable;
+  };
+
   // Thunk emitter is responsible for building a Thunk sequence that will
   // resolved kernels in the compiled LLVM module and execute them together
   // with Thunks implemented as library calls (e.g. oneDNN or Eigen).
@@ -602,7 +631,7 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
   cpu_executable->set_symbol_type_id_to_function_type_id(
       symbol_type_id_to_function_type_id);
 
-  return std::move(cpu_executable);
+  return with_hlo_proto(std::move(cpu_executable));
   // TODO(chokobole): Implement other branch.
   // if (!module->config().debug_options().xla_cpu_use_thunk_runtime()) {
 }
