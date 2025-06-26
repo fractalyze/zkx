@@ -336,7 +336,8 @@ class HloInstruction {
   // Creates a MSM op
   static std::unique_ptr<HloInstruction> CreateMsm(const Shape& shape,
                                                    HloInstruction* scalars,
-                                                   HloInstruction* bases);
+                                                   HloInstruction* bases,
+                                                   uint32_t window_bits);
 
   // Creates an asynchronous start, update, and done op.
   static std::unique_ptr<HloInstruction> CreateAsyncStart(
@@ -1430,6 +1431,9 @@ class HloInstruction {
 
   // Delegates to HloFftInstruction::fft_no_bit_reverse.
   bool fft_no_bit_reverse() const;
+
+  // Delegates to HloMsmInstruction::window_bits.
+  int32_t window_bits() const;
 
   // Delegates to HloChannelInstruction::channel_id.
   std::optional<int64_t> channel_id() const;

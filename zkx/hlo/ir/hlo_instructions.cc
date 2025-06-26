@@ -131,6 +131,35 @@ std::unique_ptr<HloInstruction> HloFftInstruction::CloneWithNewOperandsImpl(
                                              fft_length_, fft_no_bit_reverse_);
 }
 
+HloMsmInstruction::HloMsmInstruction(const Shape& shape,
+                                     HloInstruction* scalars,
+                                     HloInstruction* bases, int32_t window_bits)
+    : HloInstruction(HloOpcode::kMsm, shape), window_bits_(window_bits) {
+  AppendOperand(scalars);
+  AppendOperand(bases);
+}
+
+HloInstructionProto HloMsmInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.set_window_bits(window_bits_);
+  return proto;
+}
+
+bool HloMsmInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloMsmInstruction&>(other);
+  return window_bits() == casted_other.window_bits();
+}
+
+std::unique_ptr<HloInstruction> HloMsmInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  return std::make_unique<HloMsmInstruction>(shape, new_operands[0],
+                                             new_operands[1], window_bits_);
+}
+
 HloAsyncInstruction::HloAsyncInstruction(
     HloOpcode opcode, const Shape& shape,
     absl::Span<HloInstruction* const> operands, HloOpcode async_wrapped_opcode)

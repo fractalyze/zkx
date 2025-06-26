@@ -886,6 +886,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     int64_t num_scalar_mul = instr->operand(0)->shape().dimensions(0);
     CHECK_GT(num_scalar_mul, 0);
     int64_t num_threads = tsl::port::MaxParallelism();
+    int32_t window_bits = instr->window_bits();
 
     const Shape& shape = instr->shape();
     auto result_type =
@@ -894,8 +895,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     if (num_scalar_mul < num_threads) {
       int32_t degree = static_cast<int32_t>(
           base::Log2Ceiling(static_cast<uint64_t>(num_scalar_mul)));
-      return b.create<mlir::zkir::elliptic_curve::MSMOp>(result_type, scalars,
-                                                         bases, degree);
+      return b.create<mlir::zkir::elliptic_curve::MSMOp>(
+          result_type, scalars, bases, degree, window_bits);
     }
 
     pass_flag_.enable_expand_strided_metadata = true;
@@ -961,7 +962,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
 
           // Compute MSM for chunk
           auto msm_result = b.create<mlir::zkir::elliptic_curve::MSMOp>(
-              result_type, scalars_chunk, bases_chunk, degree);
+              result_type, scalars_chunk, bases_chunk, degree, window_bits);
 
           b.create<mlir::memref::StoreOp>(msm_result, results, i);
         });
