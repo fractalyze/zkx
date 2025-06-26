@@ -52,6 +52,11 @@ limitations under the License.
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
 
+#ifdef ZKX_HAS_OPENMP
+#include "mlir/Conversion/SCFToOpenMP/SCFToOpenMP.h"
+#include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
+#endif
+
 #include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
@@ -248,6 +253,18 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
         mlir::createConvertLinalgToParallelLoopsPass());
   }
 
+  if (flag.enable_omp) {
+#ifdef ZKX_HAS_OPENMP
+    VLOG(2) << "add pass: -convert-scf-to-openmp";
+    // NOTE(batzor): This pass introduces memref.alloca ops that have to be
+    // lowered before the -convert-scf-to-cf pass.
+    flag.enable_finalize_memref_to_llvm = true;
+    pm.addPass(mlir::createConvertSCFToOpenMPPass());
+#else
+    VLOG(2) << "ZKX is not built with OpenMP. Skipping OpenMP pass...";
+#endif
+  }
+
   if (flag.enable_expand_strided_metadata) {
     VLOG(2) << "add pass: -expand-strided-metadata";
     pm.addNestedPass<mlir::func::FuncOp>(
@@ -258,11 +275,17 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     pm.addPass(mlir::createLowerAffinePass());
   }
 
+  if (flag.enable_finalize_memref_to_llvm) {
+    VLOG(2) << "add pass: -finalize-memref-to-llvm";
+    pm.addPass(mlir::createFinalizeMemRefToLLVMConversionPass());
+  }
+
   if (flag.enable_scf_to_cf) {
     VLOG(2) << "add pass: -convert-scf-to-cf";
     pm.addPass(mlir::createSCFToControlFlowPass());
   }
   pm.addPass(mlir::createConvertToLLVMPass());
+  pm.addPass(mlir::createCanonicalizerPass());
 }
 
 std::unique_ptr<llvm::Module> TranslateMLIRToLLVM(
@@ -281,6 +304,9 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
   mlir::DialectRegistry registry;
   mlir::registerBuiltinDialectTranslation(registry);
   mlir::registerLLVMDialectTranslation(registry);
+#ifdef ZKX_HAS_OPENMP
+  mlir::registerOpenMPDialectTranslation(registry);
+#endif
   mlir::registerAllExtensions(registry);
   mlir::memref::registerAllocationOpInterfaceExternalModels(registry);
   mlir::LLVM::registerInlinerInterface(registry);

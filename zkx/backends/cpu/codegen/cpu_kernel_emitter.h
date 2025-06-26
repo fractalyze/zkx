@@ -43,6 +43,12 @@ class CpuKernelEmitter final : public KernelEmitter {
     bool enable_linalg_to_parallel_loops = false;
     bool enable_scf_to_cf = false;
     bool enable_expand_strided_metadata = false;
+    bool enable_finalize_memref_to_llvm = false;
+#ifdef ZKX_HAS_OPENMP
+    bool enable_omp = true;
+#else
+    bool enable_omp = false;
+#endif
   };
 
   CpuKernelEmitter(mlir::MLIRContext* context, const HloInstruction* instr,
