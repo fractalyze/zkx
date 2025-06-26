@@ -126,6 +126,12 @@ class HloModule {
   // the names of instructions within the computations are unchanged.
   void MoveComputationsFrom(HloModule* module, bool make_names_unique = false);
 
+  // Returns a deep copy of this module including all reachable computations.
+  // Optionally, a custom config can be provided.
+  std::unique_ptr<HloModule> Clone(
+      const std::string& suffix = "clone",
+      std::optional<const HloModuleConfig> config = std::nullopt) const;
+
   // Return a pointer to the entry computation of the module.
   HloComputation* entry_computation() const {
     CHECK_NE(nullptr, entry_computation_);

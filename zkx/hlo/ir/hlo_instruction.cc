@@ -3210,6 +3210,33 @@ void HloInstruction::UniquifyName(HloModule* module) {
   UniquifyName(&module->instruction_name_uniquer());
 }
 
+void HloInstruction::SortInstructionUsersAndControlLists(
+    const MappedPtrContainerSorter<HloInstruction>::MapPtrFn& map_fn,
+    const HloInstruction& sorted_instruction) {
+  using Sorter = MappedPtrContainerSorter<HloInstruction>;
+  users_.SortInstructionUsers(map_fn, sorted_instruction.users_);
+
+  absl::Status status;
+  if (has_rare()) {
+    status = Sorter::Sort(map_fn, Sorter::IndexAfterMappedElementsFn(),
+                          sorted_instruction.control_predecessors(),
+                          mutable_rare()->control_predecessors);
+  }
+  if (!status.ok()) {
+    LOG(ERROR) << "Failed to sort instruction control predecessors for "
+               << name() << "; " << status;
+  }
+  if (has_rare()) {
+    status = Sorter::Sort(map_fn, Sorter::IndexAfterMappedElementsFn(),
+                          sorted_instruction.control_successors(),
+                          mutable_rare()->control_successors);
+  }
+  if (!status.ok()) {
+    LOG(ERROR) << "Failed to sort instruction control successors for " << name()
+               << "; " << status;
+  }
+}
+
 FftType HloInstruction::fft_type() const {
   return Cast<HloFftInstruction>(this)->fft_type();
 }

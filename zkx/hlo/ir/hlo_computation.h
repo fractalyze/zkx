@@ -573,6 +573,66 @@ class HloComputation {
   absl::Status AcceptOrdered(DfsHloVisitorBase<HloInstructionPtr>* visitor,
                              absl::Span<HloInstruction* const> order) const;
 
+  // Returns a deep copy of this computation including all instructions.
+  // If the clone context is specified, it will be populated with the cloned
+  // object mappings, and its module() will be used to add new computations
+  // into.
+  std::unique_ptr<HloComputation> Clone(const std::string& suffix = "clone",
+                                        HloCloneContext* context = nullptr);
+  // Like Clone(), but if an instruction is present in replacement_map, we use
+  // the map's value to replace that instruction in the cloned computation.
+  //
+  // If replacements is nullptr, don't perform replacement.
+  // If replacements maps a key to nullptr, we remove that instruction from the
+  // new computation.  If an element of `replacements` references an instruction
+  // that's not already in the computation, it's cloned and added to the new
+  // computation.
+  //
+  // 'extra_parameters' allows to specify additional parameters that should be
+  // added to the computation.
+  //
+  // All relevant instructions are cloned, *including* unique_ptr in the
+  // `replacements` map.
+  std::unique_ptr<HloComputation> CloneWithReplacements(
+      const absl::flat_hash_map<const HloInstruction*,
+                                std::unique_ptr<HloInstruction>>* replacements,
+      absl::Span<const HloInstruction* const> extra_parameters = {},
+      HloCloneContext* context = nullptr, const std::string& suffix = "clone",
+      const HloInstruction* new_root = nullptr);
+
+  // Like CloneWithReplacements(), but this is a const method and `context` must
+  // be specified.
+  std::unique_ptr<HloComputation> CloneInContext(
+      HloCloneContext& context,
+      const absl::flat_hash_map<const HloInstruction*,
+                                std::unique_ptr<HloInstruction>>* replacements =
+          nullptr,
+      absl::Span<const HloInstruction* const> extra_parameters = {},
+      const std::string& suffix = "clone",
+      const HloInstruction* new_root = nullptr) const;
+
+  // Convenience overloads for CloneWithReplacements.  You want to do
+  //
+  //   CloneWithReplacements({{a, std::move(b)}, {c, std::move(d)}})  // ERROR
+  //
+  // but that doesn't work because std::initializer_list is not movable.  These
+  // overloads let you do
+  //
+  //   CloneWithReplacementPairs({a, std::move(b)}, {c, std::move(d)});   // OK
+  //
+  std::unique_ptr<HloComputation> CloneWithReplacementPairs(
+      std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r1,
+      HloCloneContext* context = nullptr, const std::string& suffix = "clone");
+  std::unique_ptr<HloComputation> CloneWithReplacementPairs(
+      std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r1,
+      std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r2,
+      HloCloneContext* context = nullptr, const std::string& suffix = "clone");
+  std::unique_ptr<HloComputation> CloneWithReplacementPairs(
+      std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r1,
+      std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r2,
+      std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r3,
+      HloCloneContext* context = nullptr, const std::string& suffix = "clone");
+
   // Returns true if the given instruction can be removed from the computation.
   // Parameter instructions cannot be removed without violating invariants of
   // the HLO computation with the exception of fusion computation. A parameter

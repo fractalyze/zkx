@@ -1423,6 +1423,13 @@ class HloInstruction {
   // Returns the module for this instruction.
   HloModule* GetModule() const;
 
+  // A method that sorts users_, control_predecessors_, and control_successors_
+  // according to the orders used in sorted_instruction. The sorting is used
+  // during cloning, to make clone behavior match uncloned behavior.
+  void SortInstructionUsersAndControlLists(
+      const MappedPtrContainerSorter<HloInstruction>::MapPtrFn& map_fn,
+      const HloInstruction& sorted_instruction);
+
   // Delegates to HloFftInstruction::fft_type.
   FftType fft_type() const;
 
