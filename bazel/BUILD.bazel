@@ -1,0 +1,9 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_openmp_defines", "zkx_openmp_linkopts")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "openmp_flags",
+    defines = zkx_openmp_defines(),
+    linkopts = zkx_openmp_linkopts(),
+)

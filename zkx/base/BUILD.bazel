@@ -38,7 +38,9 @@ zkx_cc_library(
 zkx_cc_library(
     name = "openmp_util",
     hdrs = ["openmp_util.h"],
-    deps = if_has_openmp_on_macos(["@local_config_omp//:omp"]),
+    deps = [
+        "//bazel:openmp_flags",
+    ] + if_has_openmp_on_macos(["@local_config_omp//:omp"]),
 )
 
 zkx_cc_library(
