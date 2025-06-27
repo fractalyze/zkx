@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
+#include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/MLIRContext.h"
 
 #include "zkx/codegen/emitter_loc_op_builder.h"
@@ -35,39 +36,89 @@ class CpuKernelEmitter final : public KernelEmitter {
   absl::StatusOr<KernelDefinition> EmitKernelDefinition() override;
 
  private:
-  static absl::StatusOr<mlir::Value> EmitOp(
+  absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncArguments() const;
+
+  absl::StatusOr<absl::flat_hash_map<const HloInstruction*, mlir::Value>>
+  EmitOperands(EmitterLocOpBuilder& b, mlir::Block* entry_block) const;
+
+  mlir::Value EmitCSROperand(EmitterLocOpBuilder& b, mlir::Block* entry_block,
+                             int64_t i, const Shape& shape) const;
+
+  mlir::Value EmitCSCOperand(EmitterLocOpBuilder& b, mlir::Block* entry_block,
+                             int64_t i, const Shape& shape) const;
+
+  mlir::Value EmitCOOOperand(EmitterLocOpBuilder& b, mlir::Block* entry_block,
+                             int64_t i, const Shape& shape) const;
+
+  absl::Status EmitEpilog(EmitterLocOpBuilder& b, mlir::Block* entry_block,
+                          mlir::Value res) const;
+
+  absl::StatusOr<mlir::Value> EmitOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       absl::flat_hash_map<const HloInstruction*, mlir::Value>& values);
 
-  static absl::StatusOr<mlir::Value> EmitBinaryOp(const HloInstruction* instr,
+  absl::StatusOr<mlir::Value> EmitUnaryOp(const HloInstruction* instr,
+                                          EmitterLocOpBuilder& b,
+                                          mlir::Value value);
+
+  absl::StatusOr<mlir::Value> EmitBinaryOp(const HloInstruction* instr,
+                                           EmitterLocOpBuilder& b,
+                                           mlir::Value lhs_value,
+                                           mlir::Value rhs_value);
+
+  absl::StatusOr<mlir::Value> EmitFftOp(const HloInstruction* instr,
+                                        EmitterLocOpBuilder& b,
+                                        mlir::Value value);
+
+  absl::StatusOr<mlir::Value> EmitMsmOp(const HloInstruction* instr,
+                                        EmitterLocOpBuilder& b,
+                                        mlir::Value scalars, mlir::Value bases);
+
+  absl::StatusOr<mlir::Value> EmitDimensionsOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
+      absl::Span<const int64_t> source_dimensions);
+
+  absl::StatusOr<mlir::Value> EmitDotOp(const HloInstruction* instr,
+                                        EmitterLocOpBuilder& b, mlir::Value lhs,
+                                        mlir::Value rhs);
+
+  absl::StatusOr<mlir::Value> EmitSliceOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
+      absl::Span<const int64_t> start_indices,
+      absl::Span<const int64_t> limit_indices,
+      absl::Span<const int64_t> strides);
+
+  absl::StatusOr<mlir::Value> EmitIntegerUnaryOp(const HloInstruction* instr,
+                                                 EmitterLocOpBuilder& b,
+                                                 mlir::Value value);
+
+  absl::StatusOr<mlir::Value> EmitFieldUnaryOp(const HloInstruction* instr,
+                                               EmitterLocOpBuilder& b,
+                                               mlir::Value value);
+
+  absl::StatusOr<mlir::Value> EmitEcPointUnaryOp(const HloInstruction* instr,
+                                                 EmitterLocOpBuilder& b,
+                                                 mlir::Value value);
+
+  absl::StatusOr<mlir::Value> EmitIntegerBinaryOp(const HloInstruction* instr,
+                                                  EmitterLocOpBuilder& b,
+                                                  mlir::Value lhs_value,
+                                                  mlir::Value rhs_value,
+                                                  bool is_signed);
+
+  absl::StatusOr<mlir::Value> EmitFieldBinaryOp(const HloInstruction* instr,
+                                                EmitterLocOpBuilder& b,
+                                                mlir::Value lhs_value,
+                                                mlir::Value rhs_value);
+
+  absl::StatusOr<mlir::Value> EmitEcPointBinaryOp(const HloInstruction* instr,
                                                   EmitterLocOpBuilder& b,
                                                   mlir::Value lhs_value,
                                                   mlir::Value rhs_value);
 
-  static absl::StatusOr<mlir::Value> EmitFftOp(const HloInstruction* instr,
-                                               EmitterLocOpBuilder& b,
-                                               mlir::Value value);
-
-  static absl::StatusOr<mlir::Value> EmitMsmOp(const HloInstruction* instr,
-                                               EmitterLocOpBuilder& b,
-                                               mlir::Value scalars,
-                                               mlir::Value bases);
-
-  static absl::StatusOr<mlir::Value> EmitDimensionsOp(
-      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
-      absl::Span<const int64_t> source_dimensions);
-
-  static absl::StatusOr<mlir::Value> EmitIntegerBinaryOp(
-      const HloInstruction* instr, EmitterLocOpBuilder& b,
-      mlir::Value lhs_value, mlir::Value rhs_value, bool is_signed);
-
-  static absl::StatusOr<mlir::Value> EmitFieldBinaryOp(
-      const HloInstruction* instr, EmitterLocOpBuilder& b,
-      mlir::Value lhs_value, mlir::Value rhs_value);
-
-  static absl::StatusOr<mlir::Value> EmitEcPointBinaryOp(
-      const HloInstruction* instr, EmitterLocOpBuilder& b,
-      mlir::Value lhs_value, mlir::Value rhs_value);
+  absl::StatusOr<mlir::Value> EmitMatrixVectorMultiplicationOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,
+      mlir::Value rhs);
 
   mlir::MLIRContext* const mlir_context_;
   const HloInstruction* const instr_;

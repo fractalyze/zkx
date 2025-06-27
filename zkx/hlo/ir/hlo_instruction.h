@@ -287,6 +287,10 @@ class HloInstruction {
   // Creates a literal constant instruction.
   static std::unique_ptr<HloInstruction> CreateConstant(Literal literal);
 
+  // Creates a literal constant instruction.
+  static std::unique_ptr<HloInstruction> CreateConstant(Literal literal,
+                                                        const Shape& shape);
+
   // Creates a get tuple element instruction.
   static std::unique_ptr<HloInstruction> CreateGetTupleElement(
       const Shape& shape, HloInstruction* operand, int64_t index);
@@ -354,6 +358,17 @@ class HloInstruction {
       const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
       Comparison::Direction direction,
       std::optional<PrimitiveType> type = std::nullopt);
+
+  // Creates a dot op with operands `lhs` and `rhs` with contracting and batch
+  // dimensions specified in `dimension_numbers`. If `sparsity` is set, then
+  // `sparse_meta` must also be present (and have the same size).
+  // Note: `sparsity` argument is eventually moved in the HloDotInstruction
+  // constructor, so no extra copies are created.
+  static std::unique_ptr<HloInstruction> CreateDot(
+      const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
+      const DotDimensionNumbers& dimension_numbers,
+      std::vector<SparsityDescriptor> sparsity = {},
+      absl::Span<HloInstruction* const> sparse_meta = {});
 
   // Creates an all-gather op, which concats the operands of all participants
   // along all_gather_dimension. The replica_groups, channel_id, and
@@ -615,6 +630,11 @@ class HloInstruction {
   static std::unique_ptr<HloInstruction> CreatePartitionId(
       const Shape& shape = ShapeUtil::MakeShape(U32, {}));
 
+  // Creates a conversion instruction, where operand is the data to convert and
+  // shape is the target shape for the conversion.
+  static std::unique_ptr<HloInstruction> CreateConvert(const Shape& shape,
+                                                       HloInstruction* operand);
+
   // Creates a bitcast instruction, where operand is the data to
   // convert and shape is the target shape for the conversion.
   static std::unique_ptr<HloInstruction> CreateBitcast(const Shape& shape,
@@ -668,6 +688,14 @@ class HloInstruction {
   static std::unique_ptr<HloInstruction> CreateRecvDone(
       HloInstruction* operand, std::optional<int64_t> channel_id,
       bool is_host_transfer);
+
+  // Creates a slice instruction, where the operand is sliced by the given
+  // start/limit indices.
+  static std::unique_ptr<HloInstruction> CreateSlice(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<const int64_t> start_indices,
+      absl::Span<const int64_t> limit_indices,
+      absl::Span<const int64_t> strides);
 
   // Creates a broadcast instruction.
   static std::unique_ptr<HloInstruction> CreateBroadcast(
@@ -1398,6 +1426,21 @@ class HloInstruction {
   // Delegates to HloConcatenateInstruction::concatenate_dimension.
   virtual int64_t concatenate_dimension() const;
 
+  // Delegates to HloSliceInstruction::slice_start.
+  int64_t slice_starts(int64_t dimension) const;
+  const std::vector<int64_t>& slice_starts() const;
+  std::vector<int64_t>* mutable_slice_starts();
+
+  // Delegates to HloSliceInstruction::slice_limits.
+  int64_t slice_limits(int64_t dimension) const;
+  const std::vector<int64_t>& slice_limits() const;
+  std::vector<int64_t>* mutable_slice_limits();
+
+  // Delegates to HloSliceInstruction::slice_strides.
+  int64_t slice_strides(int64_t dimension) const;
+  const std::vector<int64_t>& slice_strides() const;
+  std::vector<int64_t>* mutable_slice_strides();
+
   // Returns the literal associated with this instruction.
   const Literal& literal() const;
 
@@ -1469,6 +1512,12 @@ class HloInstruction {
   void set_original_value(std::shared_ptr<OriginalValue> original_value) {
     original_value_ = original_value;
   }
+
+  // Delegates to HloDotInstruction::dot_dimension_numbers().
+  const DotDimensionNumbers& dot_dimension_numbers() const;
+
+  // Delegates to HloDotInstruction::sparsity().
+  absl::Span<const SparsityDescriptor> sparsity() const;
 
   // Returns true if the instruction is an async-start, async-update, or
   // async-done.

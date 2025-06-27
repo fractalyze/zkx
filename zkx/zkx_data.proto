@@ -189,6 +189,12 @@ message LayoutProto {
   // different memories.
   repeated SplitConfigProto split_configs = 17;
 
+  // The number of non-zero elements in the sparse tensor.
+  int64 num_nonzeros = 18;
+
+  // Whether the elements are in Montgomery form.
+  bool is_montgomery_form = 19;
+
   // Important: if any field is added, be sure to modify ShapeUtil::Equal() and
   // LayoutUtil::Hash appropriately to account for the new field.
 
@@ -483,6 +489,16 @@ enum FftType {
   IFFT = 1;
 }
 
+message DotDimensionNumbers {
+  // The dimension numbers that represent the 'lhs' contracting dimensions.
+  repeated int64 lhs_contracting_dimensions = 1;
+  // The dimension numbers that represent the 'rhs' contracting dimensions.
+  repeated int64 rhs_contracting_dimensions = 2;
+  // The dimension numbers that represent the 'lhs' batch dimensions.
+  repeated int64 lhs_batch_dimensions = 3;
+  // The dimension numbers that represent the 'rhs' batch dimensions.
+  repeated int64 rhs_batch_dimensions = 4;
+}
 
 enum SparsityType {
   SPARSITY_INVALID = 0;

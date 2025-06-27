@@ -32,9 +32,12 @@ zkx_cc_library(
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
         "//zkx/base:random",
+        "//zkx/base/buffer:serde",
+        "//zkx/base/json:json_serde",
         "//zkx/base/strings:string_util",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/numeric:bits",
         "@com_google_absl//absl/numeric:int128",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -99,7 +102,10 @@ zkx_cc_library(
         ":big_int",
         ":byinverter",
         ":pow",
+        "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
+        "//zkx/base/buffer:serde",
+        "//zkx/base/json:json_serde",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -114,6 +120,21 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "sparse_matrix",
+    hdrs = ["sparse_matrix.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//zkx/base:auto_reset",
+        "//zkx/base:random",
+        "//zkx/base/buffer:serde",
+        "//zkx/base/buffer:vector_buffer",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
 zkx_cc_unittest(
     name = "base_unittests",
     srcs = [
@@ -123,6 +144,7 @@ zkx_cc_unittest(
         "byinverter_unittest.cc",
         "extension_field_unittest.cc",
         "prime_field_unittest.cc",
+        "sparse_matrix_unittest.cc",
     ],
     deps = [
         ":batch_inverse",
@@ -131,11 +153,16 @@ zkx_cc_unittest(
         ":byinverter",
         ":extension_field",
         ":prime_field",
+        ":sparse_matrix",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
+        "//zkx/base:auto_reset",
+        "//zkx/base/buffer:vector_buffer",
         "//zkx/math/elliptic_curves/bn/bn254:fq2",
         "//zkx/math/elliptic_curves/bn/bn254:fr",
+        "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
     ],
 )

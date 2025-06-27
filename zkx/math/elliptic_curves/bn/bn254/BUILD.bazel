@@ -3,6 +3,15 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "curve",
+    hdrs = ["curve.h"],
+    deps = [
+        ":g1",
+        ":g2",
+    ],
+)
+
+zkx_cc_library(
     name = "fq",
     hdrs = ["fq.h"],
     deps = ["//zkx/math/base:prime_field"],

@@ -1,7 +1,13 @@
-load("//bazel:zkx.bzl", "if_android")
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx.bzl", "if_android", "if_has_openmp_on_macos")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "auto_reset",
+    hdrs = ["auto_reset.h"],
+    deps = ["@com_google_absl//absl/log:check"],
+)
 
 zkx_cc_library(
     name = "bits",
@@ -30,10 +36,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "openmp_util",
+    hdrs = ["openmp_util.h"],
+    deps = if_has_openmp_on_macos(["@local_config_omp//:omp"]),
+)
+
+zkx_cc_library(
     name = "random",
     srcs = ["random.cc"],
     hdrs = ["random.h"],
-    deps = ["@com_google_absl//absl/random"],
+    deps = [
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/random",
+    ],
 )
 
 zkx_cc_library(
@@ -44,4 +59,10 @@ zkx_cc_library(
 zkx_cc_library(
     name = "type_list",
     hdrs = ["type_list.h"],
+)
+
+zkx_cc_unittest(
+    name = "base_unittests",
+    srcs = ["auto_reset_unittest.cc"],
+    deps = [":auto_reset"],
 )

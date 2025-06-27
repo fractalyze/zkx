@@ -9,14 +9,17 @@
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/serde.h"
 #include "zkx/base/containers/container_util.h"
+#include "zkx/base/json/json_serde.h"
 #include "zkx/base/template_util.h"
 #include "zkx/math/base/batch_inverse.h"
 #include "zkx/math/base/scalar_mul.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
-namespace zkx::math {
+namespace zkx {
+namespace math {
 
 template <typename _Curve>
 class PointXyzz<_Curve,
@@ -199,6 +202,19 @@ class PointXyzz<_Curve,
     }
   }
 
+  // The xyzz point X, Y, ZZ, ZZZ is represented in the jacobian
+  // coordinates as X, Y, ZZZ/ZZ.
+  constexpr JacobianPoint ToJacobian() const {
+    if (IsZero()) {
+      return JacobianPoint::Zero();
+    } else if (zz_.IsOne()) {
+      return {x_, y_, BaseField::One()};
+    } else {
+      BaseField z = (*zz_.Inverse()) * zzz_;
+      return {x_, y_, z};
+    }
+  }
+
   template <typename XyzzContainer, typename AffineContainer>
   static absl::Status BatchToAffine(const XyzzContainer& point_xyzzs,
                                     AffineContainer* affine_points) {
@@ -252,7 +268,64 @@ class PointXyzz<_Curve,
   BaseField zzz_;
 };
 
-}  // namespace zkx::math
+}  // namespace math
+
+namespace base {
+
+template <typename Curve>
+class Serde<math::PointXyzz<
+    Curve,
+    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+ public:
+  static absl::Status WriteTo(const math::PointXyzz<Curve>& point,
+                              Buffer* buffer) {
+    return buffer->WriteMany(point.x(), point.y(), point.zz(), point.zzz());
+  }
+
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
+                               math::PointXyzz<Curve>* point) {
+    using BaseField = typename math::PointXyzz<Curve>::BaseField;
+    BaseField x, y, zz, zzz;
+    TF_RETURN_IF_ERROR(buffer.ReadMany(&x, &y, &zz, &zzz));
+    *point = math::PointXyzz<Curve>(x, y, zz, zzz);
+    return absl::OkStatus();
+  }
+
+  static size_t EstimateSize(const math::PointXyzz<Curve>& point) {
+    return base::EstimateSize(point.x(), point.y(), point.zz(), point.zzz());
+  }
+};
+
+template <typename Curve>
+class JsonSerde<math::PointXyzz<
+    Curve,
+    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+ public:
+  using Field = typename math::PointXyzz<Curve>::BaseField;
+
+  template <typename Allocator>
+  static rapidjson::Value From(const math::PointXyzz<Curve>& value,
+                               Allocator& allocator) {
+    rapidjson::Value object(rapidjson::kObjectType);
+    AddJsonElement(object, "x", value.x(), allocator);
+    AddJsonElement(object, "y", value.y(), allocator);
+    AddJsonElement(object, "zz", value.zz(), allocator);
+    AddJsonElement(object, "zzz", value.zzz(), allocator);
+    return object;
+  }
+
+  static absl::StatusOr<math::PointXyzz<Curve>> To(
+      const rapidjson::Value& json_value, std::string_view key) {
+    TF_ASSIGN_OR_RETURN(Field x, ParseJsonElement<Field>(json_value, "x"));
+    TF_ASSIGN_OR_RETURN(Field y, ParseJsonElement<Field>(json_value, "y"));
+    TF_ASSIGN_OR_RETURN(Field zz, ParseJsonElement<Field>(json_value, "zz"));
+    TF_ASSIGN_OR_RETURN(Field zzz, ParseJsonElement<Field>(json_value, "zzz"));
+    return math::PointXyzz<Curve>(x, y, zz, zzz);
+  }
+};
+
+}  // namespace base
+}  // namespace zkx
 
 #include "zkx/math/elliptic_curves/short_weierstrass/point_xyzz_impl.h"
 

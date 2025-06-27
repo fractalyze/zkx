@@ -1,0 +1,74 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "endian",
+    srcs = ["endian.cc"],
+    hdrs = ["endian.h"],
+)
+
+zkx_cc_library(
+    name = "buffer",
+    srcs = ["buffer.cc"],
+    hdrs = ["buffer.h"],
+    deps = [
+        ":read_only_buffer",
+        "//xla/tsl/platform:errors",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:endian",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "read_only_buffer",
+    srcs = ["read_only_buffer.cc"],
+    hdrs = ["read_only_buffer.h"],
+    deps = [
+        ":endian",
+        ":serde_forward",
+        "//xla/tsl/platform:errors",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:endian",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "serde_forward",
+    hdrs = ["serde_forward.h"],
+    deps = ["//zkx/base/types:cxx20_is_bounded_array"],
+)
+
+zkx_cc_library(
+    name = "serde",
+    hdrs = ["serde.h"],
+    deps = [
+        ":buffer",
+        ":serde_forward",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "vector_buffer",
+    srcs = ["vector_buffer.cc"],
+    hdrs = ["vector_buffer.h"],
+    deps = [":buffer"],
+)
+
+zkx_cc_unittest(
+    name = "buffer_unittests",
+    srcs = [
+        "buffer_unittest.cc",
+        "serde_unittest.cc",
+    ],
+    deps = [
+        ":serde",
+        ":vector_buffer",
+        "//xla/tsl/platform:status",
+    ],
+)

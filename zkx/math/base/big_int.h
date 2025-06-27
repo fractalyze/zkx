@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
+#include <bitset>
 #include <initializer_list>
 #include <ostream>
 #include <string>
@@ -12,16 +14,20 @@
 #include "absl/base/internal/endian.h"
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
+#include "absl/numeric/bits.h"
 #include "absl/status/statusor.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/serde.h"
+#include "zkx/base/json/json_serde.h"
 #include "zkx/base/random.h"
 #include "zkx/math/base/arithmetics.h"
 #include "zkx/math/base/bit_traits_forward.h"
 #include "zkx/math/base/endian_utils.h"
 
-namespace zkx::math {
+namespace zkx {
+namespace math {
 namespace internal {
 
 absl::Status StringToLimbs(std::string_view str, uint64_t* limbs,
@@ -46,8 +52,12 @@ class BigInt {
   constexpr static size_t kSmallestLimbIdx = N - 1;
   constexpr static size_t kBiggestLimbIdx = 0;
 #endif
+  constexpr static size_t kLimbByteWidth = sizeof(uint64_t);
+  constexpr static size_t kLimbBitWidth = kLimbByteWidth * 8;
+
   constexpr static size_t kLimbNums = N;
-  constexpr static size_t kBitWidth = N * 64;
+  constexpr static size_t kBitWidth = N * kLimbBitWidth;
+  constexpr static size_t kByteWidth = N * kLimbByteWidth;
 
   constexpr BigInt() : BigInt(0) {}
   template <typename T, std::enable_if_t<std::is_signed_v<T>>* = nullptr>
@@ -88,6 +98,115 @@ class BigInt {
   static absl::StatusOr<BigInt> FromHexString(std::string_view str) {
     BigInt ret(0);
     TF_RETURN_IF_ERROR(internal::HexStringToLimbs(str, ret.limbs_, N));
+    return ret;
+  }
+
+  // Constructs a BigInt value from a given array of bits in little-endian
+  // order.
+  template <size_t BitNums = kBitWidth>
+  constexpr static BigInt FromBitsLE(const std::bitset<BitNums>& bits) {
+    static_assert(BitNums <= kBitWidth);
+    BigInt ret;
+    size_t bit_idx = 0;
+    size_t limb_idx = 0;
+    std::bitset<kLimbBitWidth> limb_bits;
+    FOR_FROM_SMALLEST(i, 0, BitNums) {
+      limb_bits.set(bit_idx++, bits[i]);
+      bool set = bit_idx == kLimbBitWidth;
+#if ABSL_IS_LITTLE_ENDIAN
+      set |= (i == BitNums - 1);
+#else
+      set |= (i == 0);
+#endif
+      if (set) {
+        uint64_t limb = absl::bit_cast<uint64_t>(limb_bits.to_ullong());
+        ret.limbs_[limb_idx++] = limb;
+        limb_bits.reset();
+        bit_idx = 0;
+      }
+    }
+    return ret;
+  }
+
+  // Constructs a BigInt value from a given array of bits in big-endian order.
+  template <size_t BitNums = kBitWidth>
+  constexpr static BigInt FromBitsBE(const std::bitset<BitNums>& bits) {
+    static_assert(BitNums <= kBitWidth);
+    BigInt ret;
+    std::bitset<kLimbBitWidth> limb_bits;
+    size_t bit_idx = 0;
+    size_t limb_idx = 0;
+    FOR_FROM_BIGGEST(i, 0, BitNums) {
+      limb_bits.set(bit_idx++, bits[i]);
+      bool set = bit_idx == kLimbBitWidth;
+#if ABSL_IS_LITTLE_ENDIAN
+      set |= (i == 0);
+#else
+      set |= (i == BitNums - 1);
+#endif
+      if (set) {
+        uint64_t limb = absl::bit_cast<uint64_t>(limb_bits.to_ullong());
+        ret.limbs_[limb_idx++] = limb;
+        limb_bits.reset();
+        bit_idx = 0;
+      }
+    }
+    return ret;
+  }
+
+  // Constructs a BigInt value from a given byte container interpreted in
+  // little-endian order. The method processes each byte of the input, packs
+  // them into 64-bit limbs, and then sets these limbs in the resulting BigInt.
+  // If the system is big-endian, adjustments are made to ensure correct byte
+  // ordering.
+  template <typename ByteContainer>
+  constexpr static BigInt FromBytesLE(const ByteContainer& bytes) {
+    BigInt ret;
+    size_t byte_idx = 0;
+    size_t limb_idx = 0;
+    uint64_t limb = 0;
+    FOR_FROM_SMALLEST(i, 0, std::size(bytes)) {
+      reinterpret_cast<uint8_t*>(&limb)[byte_idx++] = bytes[i];
+      bool set = byte_idx == kLimbByteWidth;
+#if ABSL_IS_LITTLE_ENDIAN
+      set |= (i == std::size(bytes) - 1);
+#else
+      set |= (i == 0);
+#endif
+      if (set) {
+        ret.limbs_[limb_idx++] = limb;
+        limb = 0;
+        byte_idx = 0;
+      }
+    }
+    return ret;
+  }
+
+  // Constructs a BigInt value from a given byte container interpreted in
+  // big-endian order. The method processes each byte of the input, packs them
+  // into 64-bit limbs, and then sets these limbs in the resulting BigInt. If
+  // the system is little-endian, adjustments are made to ensure correct byte
+  // ordering.
+  template <typename ByteContainer>
+  constexpr static BigInt FromBytesBE(const ByteContainer& bytes) {
+    BigInt ret;
+    size_t byte_idx = 0;
+    size_t limb_idx = 0;
+    uint64_t limb = 0;
+    FOR_FROM_BIGGEST(i, 0, std::size(bytes)) {
+      reinterpret_cast<uint8_t*>(&limb)[byte_idx++] = bytes[i];
+      bool set = byte_idx == kLimbByteWidth;
+#if ABSL_IS_LITTLE_ENDIAN
+      set |= (i == 0);
+#else
+      set |= (i == std::size(bytes) - 1);
+#endif
+      if (set) {
+        ret.limbs_[limb_idx++] = limb;
+        limb = 0;
+        byte_idx = 0;
+      }
+    }
     return ret;
   }
 
@@ -261,6 +380,64 @@ class BigInt {
     return internal::LimbsToHexString(limbs_, N, pad_zero);
   }
 
+  // Converts the BigInt to a bit array in little-endian.
+  template <size_t BitNums = kBitWidth>
+  std::bitset<BitNums> ToBitsLE() const {
+    std::bitset<BitNums> ret;
+    size_t bit_w_idx = 0;
+    FOR_FROM_SMALLEST(i, 0, BitNums) {
+      size_t limb_idx = i / kLimbBitWidth;
+      size_t bit_r_idx = i % kLimbBitWidth;
+      bool bit = (limbs_[limb_idx] & (uint64_t{1} << bit_r_idx)) >> bit_r_idx;
+      ret.set(bit_w_idx++, bit);
+    }
+    return ret;
+  }
+
+  // Converts the BigInt to a bit array in big-endian.
+  template <size_t BitNums = kBitWidth>
+  std::bitset<BitNums> ToBitsBE() const {
+    std::bitset<BitNums> ret;
+    size_t bit_w_idx = 0;
+    FOR_FROM_BIGGEST(i, 0, BitNums) {
+      size_t limb_idx = i / kLimbBitWidth;
+      size_t bit_r_idx = i % kLimbBitWidth;
+      bool bit = (limbs_[limb_idx] & (uint64_t{1} << bit_r_idx)) >> bit_r_idx;
+      ret.set(bit_w_idx++, bit);
+    }
+    return ret;
+  }
+
+  // Converts the BigInt to a byte array in little-endian order. This method
+  // processes the limbs of the BigInt, extracts individual bytes, and sets them
+  // in the resulting array.
+  std::array<uint8_t, kByteWidth> ToBytesLE() const {
+    std::array<uint8_t, kByteWidth> ret;
+    auto it = ret.begin();
+    FOR_FROM_SMALLEST(i, 0, kByteWidth) {
+      size_t limb_idx = i / kLimbByteWidth;
+      uint64_t limb = limbs_[limb_idx];
+      size_t byte_r_idx = i % kLimbByteWidth;
+      *(it++) = reinterpret_cast<uint8_t*>(&limb)[byte_r_idx];
+    }
+    return ret;
+  }
+
+  // Converts the BigInt to a byte array in big-endian order. This method
+  // processes the limbs of the BigInt, extracts individual bytes, and sets them
+  // in the resulting array.
+  std::array<uint8_t, kByteWidth> ToBytesBE() const {
+    std::array<uint8_t, kByteWidth> ret;
+    auto it = ret.begin();
+    FOR_FROM_BIGGEST(i, 0, kByteWidth) {
+      size_t limb_idx = i / kLimbByteWidth;
+      uint64_t limb = limbs_[limb_idx];
+      size_t byte_r_idx = i % kLimbByteWidth;
+      *(it++) = reinterpret_cast<uint8_t*>(&limb)[byte_r_idx];
+    }
+    return ret;
+  }
+
   constexpr static uint64_t Add(const BigInt& a, const BigInt& b, BigInt& c) {
     internal::AddResult<uint64_t> add_result;
     FOR_FROM_SMALLEST(i, 0, N) {
@@ -344,6 +521,8 @@ class BigInt {
   }
 
  private:
+  friend class base::Serde<BigInt<N>>;
+
   uint64_t limbs_[N];
 };
 
@@ -381,6 +560,60 @@ class BitTraits<BigInt<N>> {
   }
 };
 
-}  // namespace zkx::math
+}  // namespace math
+
+namespace base {
+
+template <size_t N>
+class Serde<math::BigInt<N>> {
+ public:
+  static absl::Status WriteTo(const math::BigInt<N>& bigint, Buffer* buffer) {
+    return buffer->Write(bigint.limbs_);
+  }
+
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
+                               math::BigInt<N>* bigint) {
+    return buffer.Read(bigint->limbs_);
+  }
+
+  static size_t EstimateSize(const math::BigInt<N>& bigint) {
+    return base::EstimateSize(bigint.limbs_);
+  }
+};
+
+template <size_t N>
+class JsonSerde<math::BigInt<N>> {
+ public:
+  template <typename Allocator>
+  static rapidjson::Value From(const math::BigInt<N>& value,
+                               Allocator& allocator) {
+    if (value < math::BigInt<N>(std::numeric_limits<uint64_t>::max())) {
+#if ABSL_IS_LITTLE_ENDIAN
+      return rapidjson::Value(value.limbs()[0]);
+#else
+      return rapidjson::Value(value.limbs()[N - 1]);
+#endif
+    } else {
+      return rapidjson::Value(value.ToString(), allocator);
+    }
+  }
+
+  static absl::StatusOr<math::BigInt<N>> To(const rapidjson::Value& json_value,
+                                            std::string_view key) {
+    if (json_value.IsUint64()) {
+      return math::BigInt<N>(json_value.GetUint64());
+    } else if (json_value.IsString()) {
+      TF_ASSIGN_OR_RETURN(std::string value,
+                          JsonSerde<std::string>::To(json_value, key));
+      return math::BigInt<N>::FromDecString(value);
+    } else {
+      return absl::InvalidArgumentError(
+          RapidJsonMismatchedTypeError(key, "string", json_value));
+    }
+  }
+};
+
+}  // namespace base
+}  // namespace zkx
 
 #endif  // ZKX_MATH_BASE_BIG_INT_H_

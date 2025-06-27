@@ -2,7 +2,10 @@
 
 #include "gtest/gtest.h"
 
+#include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/auto_reset.h"
+#include "zkx/base/buffer/vector_buffer.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fr.h"
 
 namespace zkx::math::bn254 {
@@ -34,6 +37,45 @@ TEST(PrimeFieldTest, Operations) {
   TF_ASSERT_OK_AND_ASSIGN(Fr a_inverse, a.Inverse());
   EXPECT_TRUE((a * a_inverse).IsOne());
   // clang-format on
+}
+
+TEST(PrimeFieldTest, Serde) {
+  Fr expected = Fr::Random();
+
+  for (size_t i = 0; i < 2; ++i) {
+    bool s_is_in_montgomery = i == 0;
+    SCOPED_TRACE(
+        absl::Substitute("s_is_in_montgomery: $0", s_is_in_montgomery));
+    base::AutoReset<bool> auto_reset(&base::Serde<Fr>::s_is_in_montgomery,
+                                     s_is_in_montgomery);
+    base::Uint8VectorBuffer write_buf;
+    TF_ASSERT_OK(write_buf.Grow(base::EstimateSize(expected)));
+    TF_ASSERT_OK(write_buf.Write(expected));
+    ASSERT_TRUE(write_buf.Done());
+
+    write_buf.set_buffer_offset(0);
+
+    Fr value;
+    TF_ASSERT_OK(write_buf.Read(&value));
+    EXPECT_EQ(expected, value);
+  }
+}
+
+TEST(PrimeFieldTest, JsonSerde) {
+  rapidjson::Document doc;
+
+  Fr expected = Fr::Random();
+  for (size_t i = 0; i < 2; ++i) {
+    bool s_is_in_montgomery = i == 0;
+    SCOPED_TRACE(
+        absl::Substitute("s_is_in_montgomery: $0", s_is_in_montgomery));
+    base::AutoReset<bool> auto_reset(&base::JsonSerde<Fr>::s_is_in_montgomery,
+                                     s_is_in_montgomery);
+    rapidjson::Value json_value =
+        base::JsonSerde<Fr>::From(expected, doc.GetAllocator());
+    TF_ASSERT_OK_AND_ASSIGN(Fr value, base::JsonSerde<Fr>::To(json_value, ""));
+    EXPECT_EQ(expected, value);
+  }
 }
 
 }  // namespace zkx::math::bn254

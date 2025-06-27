@@ -1,0 +1,8 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "cxx20_is_bounded_array",
+    hdrs = ["cxx20_is_bounded_array.h"],
+)

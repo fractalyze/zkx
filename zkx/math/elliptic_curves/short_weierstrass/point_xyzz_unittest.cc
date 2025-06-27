@@ -5,6 +5,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include "xla/tsl/platform/status.h"
+#include "zkx/base/buffer/vector_buffer.h"
 #include "zkx/math/elliptic_curves/short_weierstrass/test/sw_curve_config.h"
 
 namespace zkx::math::test {
@@ -111,6 +113,11 @@ TEST(PointXyzzTest, ToAffine) {
   EXPECT_EQ(ap3, AffinePoint(4, 5));
 }
 
+TEST(PointXyzzTest, ToJacobian) {
+  auto p = PointXyzz::Random();
+  EXPECT_EQ(p.ToJacobian(), p.ToAffine()->ToJacobian());
+}
+
 TEST(PointXyzzTest, BatchToAffine) {
   std::vector<PointXyzz> point_xyzzs = {
       PointXyzz(1, 2, 0, 0),
@@ -127,6 +134,38 @@ TEST(PointXyzzTest, BatchToAffine) {
   std::vector<AffinePoint> expected_affine_points = {
       AffinePoint::Zero(), AffinePoint(1, 2), AffinePoint(4, 5)};
   EXPECT_EQ(affine_points, expected_affine_points);
+}
+
+TEST(PointXyzzTest, Serde) {
+  PointXyzz expected = PointXyzz::Random();
+
+  base::Uint8VectorBuffer write_buf;
+  TF_ASSERT_OK(write_buf.Grow(base::EstimateSize(expected)));
+  TF_ASSERT_OK(write_buf.Write(expected));
+  ASSERT_TRUE(write_buf.Done());
+
+  write_buf.set_buffer_offset(0);
+
+  PointXyzz value;
+  TF_ASSERT_OK(write_buf.Read(&value));
+  EXPECT_EQ(expected, value);
+}
+
+TEST(PointXyzzTest, JsonSerde) {
+  rapidjson::Document doc;
+
+  PointXyzz expected = PointXyzz::Random();
+  rapidjson::Value json_value =
+      base::JsonSerde<PointXyzz>::From(expected, doc.GetAllocator());
+  EXPECT_TRUE(json_value.IsObject());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["x"].GetInt()), expected.x());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["y"].GetInt()), expected.y());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["zz"].GetInt()), expected.zz());
+  EXPECT_EQ(Fq::FromUnchecked(json_value["zzz"].GetInt()), expected.zzz());
+
+  TF_ASSERT_OK_AND_ASSIGN(PointXyzz value,
+                          base::JsonSerde<PointXyzz>::To(json_value, ""));
+  EXPECT_EQ(expected, value);
 }
 
 }  // namespace zkx::math::test

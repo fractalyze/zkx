@@ -36,7 +36,7 @@ namespace {
 // Checks that all buffers are aligned to the minimum alignment. We codegen
 // with the assumption that all buffers are aligned, and if they are not, we
 // will crash with a segmentation fault, or worse, produce incorrect results.
-absl::Status CheckBufferAlignment(
+[[maybe_unused]] absl::Status CheckBufferAlignment(
     const Thunk::Info& info, uint64_t min_alignment,
     absl::Span<const ZKX_CPU_KernelArg> kernel_args) {
   if (min_alignment == 0) return absl::OkStatus();
@@ -235,8 +235,9 @@ KernelThunk<num_arguments, num_results>::ExecuteInternal(
   return OkExecuteEvent();
 }
 
-static bool Contains(absl::Span<const ZKX_CPU_KernelArg> container,
-                     const ZKX_CPU_KernelArg& memory) {
+[[maybe_unused]] static bool Contains(
+    absl::Span<const ZKX_CPU_KernelArg> container,
+    const ZKX_CPU_KernelArg& memory) {
   return absl::c_any_of(container, [&](const ZKX_CPU_KernelArg& element) {
     return element.aligned == memory.aligned &&
            element.sizes[0] == memory.sizes[0];

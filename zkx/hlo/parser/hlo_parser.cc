@@ -134,6 +134,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kBitcast:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kConstant:
+    case HloOpcode::kConvert:
     case HloOpcode::kCustomCall:
     case HloOpcode::kFusion:
     case HloOpcode::kInfeed:
@@ -456,6 +457,8 @@ class HloParserImpl : public HloParser {
                            std::vector<bool>* dynamic_dimensions);
   bool ParseShape(Shape* result, bool allow_fallback_to_default_layout = true);
   bool ParseLayout(Layout* layout);
+  bool ParseLayoutBoolAttribute(bool* attr_value,
+                                std::string_view attr_description);
   bool ParseLayoutIntAttribute(int64_t* attr_value,
                                std::string_view attr_description);
   bool ParseDimLevelTypes(
@@ -578,6 +581,132 @@ class HloParserImpl : public HloParser {
       return false;
     }
     *result = T(x, y, zz, zzz);
+    return true;
+  }
+  template <typename T>
+  bool ParseG2Affine(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    BaseField x;
+    if (!ParseExtensionField(type, &x)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField y;
+    if (!ParseExtensionField(type, &y)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+    *result = T(x, y);
+    return true;
+  }
+  template <typename T>
+  bool ParseG2Jacobian(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    BaseField x;
+    if (!ParseExtensionField(type, &x)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField y;
+    if (!ParseExtensionField(type, &y)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField z;
+    if (!ParseExtensionField(type, &z)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+    *result = T(x, y, z);
+    return true;
+  }
+  template <typename T>
+  bool ParseG2Xyzz(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    BaseField x;
+    if (!ParseExtensionField(type, &x)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField y;
+    if (!ParseExtensionField(type, &y)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField zz;
+    if (!ParseExtensionField(type, &zz)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kComma, "expects ','")) {
+      return false;
+    }
+
+    BaseField zzz;
+    if (!ParseExtensionField(type, &zzz)) {
+      return false;
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+    *result = T(x, y, zz, zzz);
+    return true;
+  }
+  template <typename T>
+  bool ParseExtensionField(PrimitiveType type, T* result) {
+    if (!ParseToken(TokKind::kLparen, "expects '('")) {
+      return false;
+    }
+
+    for (size_t i = 0; i < T::N; ++i) {
+      if (!ParsePrimeField(type, &(*result)[i])) {
+        return false;
+      }
+    }
+
+    if (!ParseToken(TokKind::kRparen, "expects ')'")) {
+      return false;
+    }
+
     return true;
   }
   template <typename T>
@@ -1623,7 +1752,7 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
         }
       }
       return builder->AddInstruction(
-          HloInstruction::CreateConstant(std::move(literal)));
+          HloInstruction::CreateConstant(std::move(literal), *shape));
     }
     // Unary ops.
     case HloOpcode::kAllGatherDone:
@@ -1675,6 +1804,15 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           *shape, opcode, operands[0], operands[1], operands[2]));
     }
     // Other supported ops.
+    case HloOpcode::kConvert: {
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateConvert(*shape, operands[0]));
+    }
     case HloOpcode::kBitcastConvert: {
       if ((!preset_operands &&
            !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
@@ -2328,10 +2466,16 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kSlice: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateSlice
-      // clang-format on
-      return nullptr;
+      std::optional<SliceRanges> slice_ranges;
+      attrs["slice"] = {/*required=*/true, AttrTy::kSliceRanges, &slice_ranges};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateSlice(
+          *shape, operands[0], slice_ranges->starts, slice_ranges->limits,
+          slice_ranges->strides));
     }
     case HloOpcode::kDynamicSlice: {
       // clang-format off
@@ -2409,8 +2553,69 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kDot: {
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateDot
-      return nullptr;
+      std::optional<std::vector<int64_t>> lhs_contracting_dims;
+      attrs["lhs_contracting_dims"] = {
+          /*required=*/false, AttrTy::kBracedInt64List, &lhs_contracting_dims};
+      std::optional<std::vector<int64_t>> rhs_contracting_dims;
+      attrs["rhs_contracting_dims"] = {
+          /*required=*/false, AttrTy::kBracedInt64List, &rhs_contracting_dims};
+      std::optional<std::vector<int64_t>> lhs_batch_dims;
+      attrs["lhs_batch_dims"] = {/*required=*/false, AttrTy::kBracedInt64List,
+                                 &lhs_batch_dims};
+      std::optional<std::vector<int64_t>> rhs_batch_dims;
+      attrs["rhs_batch_dims"] = {/*required=*/false, AttrTy::kBracedInt64List,
+                                 &rhs_batch_dims};
+      std::vector<SparsityDescriptor> sparsity;
+      attrs["sparsity"] = {/*required=*/false, AttrTy::kSparsityDescriptor,
+                           &sparsity};
+
+      LocTy loc = lexer_.GetLoc();
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+
+      int expected_size = HloDotInstruction::kOperands + sparsity.size();
+      if (sparsity.size() > HloDotInstruction::kOperands) {
+        Error(loc, absl::StrCat("too many sparse dot descriptors: ",
+                                sparsity.size()));
+        return nullptr;
+      }
+      if (operands.size() != expected_size) {
+        Error(loc,
+              absl::StrCat("expects ", expected_size, " operands, but has ",
+                           operands.size(), " operands"));
+        return nullptr;
+      }
+
+      DotDimensionNumbers dnum;
+      if (lhs_contracting_dims) {
+        *dnum.mutable_lhs_contracting_dimensions() = {
+            lhs_contracting_dims->begin(), lhs_contracting_dims->end()};
+      }
+      if (rhs_contracting_dims) {
+        *dnum.mutable_rhs_contracting_dimensions() = {
+            rhs_contracting_dims->begin(), rhs_contracting_dims->end()};
+      }
+      if (lhs_batch_dims) {
+        *dnum.mutable_lhs_batch_dimensions() = {lhs_batch_dims->begin(),
+                                                lhs_batch_dims->end()};
+      }
+      if (rhs_batch_dims) {
+        *dnum.mutable_rhs_batch_dimensions() = {rhs_batch_dims->begin(),
+                                                rhs_batch_dims->end()};
+      }
+
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferDotOpShape(
+                operands[0]->shape(), operands[1]->shape(), dnum,
+                /*preferred_element_type=*/std::nullopt, sparsity);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateDot(
+          *shape, operands[0], operands[1], dnum, sparsity,
+          absl::MakeSpan(operands).subspan(HloDotInstruction::kOperands)));
     }
     case HloOpcode::kRaggedDot: {
       // clang-format off
@@ -3415,6 +3620,36 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
               }
               break;
             }
+            case BN254_G2_AFFINE: {
+              math::bn254::G2AffinePoint value;
+              if (!ParseG2Affine(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_JACOBIAN: {
+              math::bn254::G2JacobianPoint value;
+              if (!ParseG2Jacobian(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_XYZZ: {
+              math::bn254::G2PointXyzz value;
+              if (!ParseG2Xyzz(shape.element_type(), &value)) {
+                return false;
+              }
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
             default:
               return TokenError(
                   absl::StrCat("unsupported ec point type ",
@@ -3510,6 +3745,39 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
                 return false;
               }
               math::bn254::G1PointXyzz value(scalar);
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_AFFINE: {
+              math::bn254::Fr scalar;
+              if (!ParsePrimeField(shape.element_type(), &scalar)) {
+                return false;
+              }
+              math::bn254::G2AffinePoint value(scalar);
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_JACOBIAN: {
+              math::bn254::Fr scalar;
+              if (!ParsePrimeField(shape.element_type(), &scalar)) {
+                return false;
+              }
+              math::bn254::G2JacobianPoint value(scalar);
+              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
+                return false;
+              }
+              break;
+            }
+            case BN254_G2_XYZZ: {
+              math::bn254::Fr scalar;
+              if (!ParsePrimeField(shape.element_type(), &scalar)) {
+                return false;
+              }
+              math::bn254::G2PointXyzz value(scalar);
               if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
                 return false;
               }
@@ -4580,6 +4848,31 @@ bool HloParserImpl::ParseUnsignedIntegerType(PrimitiveType* primitive_type) {
   return true;
 }
 
+// bool_attribute
+//   ::= /*empty*/
+//   ::= attr_token '(' attr_value ')'
+// attr_token
+//   ::= 'B'
+// attr_value
+//   ::= bool
+bool HloParserImpl::ParseLayoutBoolAttribute(
+    bool* attr_value, std::string_view attr_description) {
+  if (!ParseToken(TokKind::kLparen,
+                  absl::StrCat("expects ", attr_description, " to start with ",
+                               TokKindToString(TokKind::kLparen)))) {
+    return false;
+  }
+  if (!ParseBool(attr_value)) {
+    return false;
+  }
+  if (!ParseToken(TokKind::kRparen,
+                  absl::StrCat("expects ", attr_description, " to end with ",
+                               TokKindToString(TokKind::kRparen)))) {
+    return false;
+  }
+  return true;
+}
+
 // int_attribute
 //   ::= /*empty*/
 //   ::= attr_token '(' attr_value ')'
@@ -4668,6 +4961,8 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
   std::optional<Shape> physical_shape;
   int64_t dynamic_shape_metadata_prefix_bytes = 0;
   int64_t tail_padding_alignment_in_elements = 1;
+  int64_t num_nonzeros = 0;
+  bool is_montgomery_form = true;
 
   auto parse_and_add_item = [&]() {
     int64_t i;
@@ -4765,6 +5060,16 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
         ParseLayoutIntAttribute(&dynamic_shape_metadata_prefix_bytes,
                                 "dynamic shape metadata prefix bytes");
       }
+
+      if (lexer_.GetKind() == TokKind::kIdent && lexer_.GetStrVal() == "NNZ") {
+        lexer_.Lex();
+        ParseLayoutIntAttribute(&num_nonzeros, "number of non zero elements");
+      }
+
+      if (lexer_.GetKind() == TokKind::kIdent && lexer_.GetStrVal() == "MONT") {
+        lexer_.Lex();
+        ParseLayoutBoolAttribute(&is_montgomery_form, "montgomery form");
+      }
     }
   }
   if (!ParseToken(TokKind::kRbrace,
@@ -4781,7 +5086,8 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
       minor_to_major, dim_level_types, dim_unique, dim_ordered, vec_tiles,
       tail_padding_alignment_in_elements, index_primitive_type,
       pointer_primitive_type, element_size_in_bits, memory_space, split_configs,
-      std::move(physical_shape), dynamic_shape_metadata_prefix_bytes);
+      std::move(physical_shape), dynamic_shape_metadata_prefix_bytes,
+      num_nonzeros, is_montgomery_form);
   return true;
 }
 

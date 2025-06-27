@@ -15,8 +15,11 @@ limitations under the License.
 
 #include "zkx/hlo/ir/hlo_instructions.h"
 
+#include "absl/algorithm/container.h"
+
 #include "zkx/hlo/ir/hlo_casting_utils.h"
 #include "zkx/hlo/ir/hlo_module.h"
+#include "zkx/protobuf_util.h"
 
 namespace zkx {
 namespace {
@@ -1084,6 +1087,72 @@ HloConcatenateInstruction::CloneWithNewOperandsImpl(
                                                      concatenate_dimension());
 }
 
+HloSliceInstruction::HloSliceInstruction(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> start_indices,
+    absl::Span<const int64_t> limit_indices, absl::Span<const int64_t> strides)
+    : HloInstruction(HloOpcode::kSlice, shape),
+      slice_starts_(start_indices.begin(), start_indices.end()),
+      slice_limits_(limit_indices.begin(), limit_indices.end()),
+      slice_strides_(strides.begin(), strides.end()) {
+  AppendOperand(operand);
+  // For backward compatibility with old serialized computations: if there are
+  // no strides, assume all strides are 1.
+  // TODO(b/63317920): remove this code.
+  if (slice_strides_.empty()) {
+    slice_strides_ = std::vector<int64_t>(start_indices.size(), 1LL);
+  }
+}
+
+HloInstructionProto HloSliceInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  for (int i = 0; i < slice_starts_.size(); ++i) {
+    auto* slice_dimension = proto.add_slice_dimensions();
+    slice_dimension->set_start(slice_starts_[i]);
+    slice_dimension->set_limit(slice_limits_[i]);
+    slice_dimension->set_stride(slice_strides_[i]);
+  }
+  return proto;
+}
+
+// TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+// void HloSliceInstruction::PrintExtraAttributesImpl(
+//     AttributePrinter& printer, const HloPrintOptions& options) const {
+//   printer.Next([this](Printer* printer) {
+//     const bool omit_stride = absl::c_all_of(
+//         slice_strides_, [](int64_t stride) { return stride == 1; });
+//     printer->Append("slice={");
+//     AppendJoin(printer, slice_starts_, ", ",
+//                [&](Printer* printer, auto& slice_start) {
+//                  const auto i = &slice_start - slice_starts_.data();
+//                  AppendCat(printer, "[", slice_start, ":", slice_limits_[i]);
+//                  if (!omit_stride) {
+//                    AppendCat(printer, ":", slice_strides_[i]);
+//                  }
+//                  printer->Append("]");
+//                });
+//     printer->Append("}");
+//   });
+// }
+
+bool HloSliceInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& other_slice = static_cast<const HloSliceInstruction&>(other);
+  return slice_starts_ == other_slice.slice_starts_ &&
+         slice_limits_ == other_slice.slice_limits_ &&
+         slice_strides_ == other_slice.slice_strides_;
+}
+
+std::unique_ptr<HloInstruction> HloSliceInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), 1);
+  return std::make_unique<HloSliceInstruction>(
+      shape, new_operands[0], slice_starts_, slice_limits_, slice_strides_);
+}
+
 HloConstantInstruction::HloConstantInstruction(Literal literal)
     : HloInstruction(HloOpcode::kConstant, literal.shape()),
       literal_(new Literal(std::move(literal))) {}
@@ -1378,6 +1447,68 @@ std::unique_ptr<HloInstruction> HloOutfeedInstruction::CloneWithNewOperandsImpl(
   CHECK_EQ(new_operands.size(), 2);
   return std::make_unique<HloOutfeedInstruction>(
       outfeed_shape(), new_operands[0], new_operands[1], outfeed_config());
+}
+
+HloDotInstruction::HloDotInstruction(
+    const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
+    const DotDimensionNumbers& dimension_numbers,
+    std::vector<SparsityDescriptor> sparsity,
+    absl::Span<HloInstruction* const> sparse_meta)
+    : HloInstruction(HloOpcode::kDot, shape),
+      dot_dimension_numbers_(dimension_numbers),
+      sparsity_(std::move(sparsity)) {
+  AppendOperand(lhs);
+  AppendOperand(rhs);
+  CHECK_LE(sparsity_.size(), kOperands);
+  CHECK_EQ(sparsity_.size(), sparse_meta.size());
+  for (HloInstruction* meta : sparse_meta) {
+    AppendOperand(meta);
+  }
+  if (sparsity_.size() == kOperands &&
+      sparsity_[0].index() > sparsity_[1].index()) {
+    std::swap(sparsity_[0], sparsity_[1]);  // Keep descriptors ordered.
+    std::swap(mutable_operands()[2], mutable_operands()[3]);
+  }
+}
+
+HloInstructionProto HloDotInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  *proto.mutable_dot_dimension_numbers() = dot_dimension_numbers_;
+  for (const SparsityDescriptor& descriptor : sparsity_) {
+    *proto.add_dot_sparsity() = descriptor;
+  }
+  return proto;
+}
+
+// TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+// void HloDotInstruction::PrintExtraAttributesImpl(
+//     AttributePrinter& printer, const HloPrintOptions& options) const {
+//   printer.Next([this](Printer* printer) {
+//     printer->Append(DotDimensionNumbersToString(dot_dimension_numbers_));
+//   });
+//   if (!sparsity_.empty()) {
+//     PrintSparsityDescriptor(printer, absl::MakeSpan(sparsity_));
+//   }
+// }
+
+bool HloDotInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloDotInstruction&>(other);
+  return protobuf_util::ProtobufEquals(dot_dimension_numbers(),
+                                       casted_other.dot_dimension_numbers()) &&
+         absl::c_equal(sparsity_, casted_other.sparsity_,
+                       protobuf_util::ProtobufEquals);
+}
+
+std::unique_ptr<HloInstruction> HloDotInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), kOperands + sparse_operands());
+  return std::make_unique<HloDotInstruction>(
+      shape, new_operands[0], new_operands[1], dot_dimension_numbers_,
+      sparsity_, new_operands.subspan(kOperands));
 }
 
 }  //  namespace zkx

@@ -295,6 +295,11 @@ class ShapeUtil {
   // Returns an empty tuple shape. Can be used as a sentinel Shape value.
   static Shape MakeNil() { return MakeTupleShape({}); }
 
+  // Checks whether the shape is initialized.
+  static bool IsInitialized(const Shape& shape) {
+    return shape.element_type() != PRIMITIVE_TYPE_INVALID;
+  }
+
   // Constructs a new shape with the given element type and sequence of
   // dimensions.
   static Shape MakeShape(PrimitiveType element_type,
@@ -746,6 +751,10 @@ class ShapeUtil {
   // Returns the size of array data in bytes, ignoring the trailing padding
   // due to the tiling requirement.
   static int64_t ArrayDataSize(const Shape& shape);
+
+  // Returns the size of sparse array data in bytes, ignoring the trailing
+  // padding due to the tiling requirement.
+  static int64_t SparseArrayDataSize(const Shape& shape);
 
   // Updates element_size_in_bits on each subshape's layout. If
   // `pack_subbyte_types` is true, sets the element size to the dtype bitwidth

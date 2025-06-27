@@ -163,10 +163,13 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
 
     case HloOpcode::kAdd:
     case HloOpcode::kBroadcast:
+    case HloOpcode::kConvert:
     case HloOpcode::kDivide:
+    case HloOpcode::kDot:
     case HloOpcode::kFft:
     case HloOpcode::kMsm:
     case HloOpcode::kMultiply:
+    case HloOpcode::kSlice:
     case HloOpcode::kSubtract:
       return EmitKernelThunk(instr);
     case HloOpcode::kAllGather:

@@ -461,19 +461,15 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           "HloInstruction::CreateFromProto: Map not implemented");
       break;
     case HloOpcode::kSlice: {
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateSlice
-      // std::vector<int64_t> slice_starts, slice_limits, slice_strides;
-      // for (const HloInstructionProto::SliceDimensions& slice_dimensions :
-      //      proto.slice_dimensions()) {
-      //   slice_starts.push_back(slice_dimensions.start());
-      //   slice_limits.push_back(slice_dimensions.limit());
-      //   slice_strides.push_back(slice_dimensions.stride());
-      // }
-      // instruction = CreateSlice(shape, operands(0), slice_starts,
-      // slice_limits,
-      //                           slice_strides);
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Slice not implemented");
+      std::vector<int64_t> slice_starts, slice_limits, slice_strides;
+      for (const HloInstructionProto::SliceDimensions& slice_dimensions :
+           proto.slice_dimensions()) {
+        slice_starts.push_back(slice_dimensions.start());
+        slice_limits.push_back(slice_dimensions.limit());
+        slice_strides.push_back(slice_dimensions.stride());
+      }
+      instruction = CreateSlice(shape, operands(0), slice_starts, slice_limits,
+                                slice_strides);
       break;
     }
     case HloOpcode::kConstant: {
@@ -869,36 +865,26 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kDot: {
-      // TODO(chokobole): Uncomment this. Dependency: HloDotInstruction
-      // int expected_operands =
-      //     HloDotInstruction::kOperands + proto.dot_sparsity_size();
-      // TF_RET_CHECK(proto.dot_sparsity_size() <= HloDotInstruction::kOperands)
-      //     << "Too many sparse dot descriptors: " <<
-      //     proto.dot_sparsity_size();
-      // TF_RET_CHECK(proto.operand_ids_size() == expected_operands)
-      //     << proto.opcode() << " instruction should have " <<
-      //     expected_operands
-      //     << " operands but sees " << proto.operand_ids_size();
-      // TF_RET_CHECK(proto.has_dot_dimension_numbers())
-      //     << "Dot instruction should have dot_dimension_numbers.";
-      // TF_RET_CHECK(absl::c_all_of(proto.precision_config().operand_precision(),
-      //                             PrecisionConfig::Precision_IsValid));
-      // PrecisionConfig precision_config = proto.precision_config();
-      // precision_config.mutable_operand_precision()->Resize(
-      //     HloDotInstruction::kOperands, PrecisionConfig::DEFAULT);
-      // std::vector<SparsityDescriptor> sparsity(proto.dot_sparsity().begin(),
-      //                                          proto.dot_sparsity().end());
-      // auto operand_vector = all_operands();
-      // instruction = std::make_unique<HloDotInstruction>(
-      //     shape, operands(0), operands(1), proto.dot_dimension_numbers(),
-      //     precision_config, std::move(sparsity),
-      //     absl::MakeSpan(operand_vector).subspan(HloDotInstruction::kOperands));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Dot not implemented");
+      int expected_operands =
+          HloDotInstruction::kOperands + proto.dot_sparsity_size();
+      TF_RET_CHECK(proto.dot_sparsity_size() <= HloDotInstruction::kOperands)
+          << "Too many sparse dot descriptors: " << proto.dot_sparsity_size();
+      TF_RET_CHECK(proto.operand_ids_size() == expected_operands)
+          << proto.opcode() << " instruction should have " << expected_operands
+          << " operands but sees " << proto.operand_ids_size();
+      TF_RET_CHECK(proto.has_dot_dimension_numbers())
+          << "Dot instruction should have dot_dimension_numbers.";
+      std::vector<SparsityDescriptor> sparsity(proto.dot_sparsity().begin(),
+                                               proto.dot_sparsity().end());
+      auto operand_vector = all_operands();
+      instruction = std::make_unique<HloDotInstruction>(
+          shape, operands(0), operands(1), proto.dot_dimension_numbers(),
+          std::move(sparsity),
+          absl::MakeSpan(operand_vector).subspan(HloDotInstruction::kOperands));
       break;
     }
     case HloOpcode::kRaggedDot: {
-      // TODO(chokobole): Uncomment this. Dependency: HloDotInstruction
+      // TODO(chokobole): Uncomment this. Dependency: HloRaggedDotInstruction
       // int expected_operands = HloRaggedDotInstruction::kOperands;
       // TF_RET_CHECK(proto.operand_ids_size() == expected_operands)
       //     << proto.opcode() << " instruction should have " <<
@@ -1145,6 +1131,12 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateConstant(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateConstant(
+    Literal literal, const Shape& shape) {
+  return std::make_unique<HloConstantInstruction>(std::move(literal), shape);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateGetTupleElement(
     const Shape& shape, HloInstruction* operand, int64_t index) {
   return std::make_unique<HloGetTupleElementInstruction>(shape, operand, index);
@@ -1295,6 +1287,16 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateCompare(
     ComparisonDirection direction, std::optional<PrimitiveType> type) {
   return std::make_unique<HloCompareInstruction>(shape, lhs, rhs, direction,
                                                  type);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateDot(
+    const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
+    const DotDimensionNumbers& dimension_numbers,
+    std::vector<SparsityDescriptor> sparsity,
+    absl::Span<HloInstruction* const> sparse_meta) {
+  return std::make_unique<HloDotInstruction>(shape, lhs, rhs, dimension_numbers,
+                                             std::move(sparsity), sparse_meta);
 }
 
 // static
@@ -1567,6 +1569,25 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateToken() {
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateSlice(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> start_indices,
+    absl::Span<const int64_t> limit_indices,
+    absl::Span<const int64_t> strides) {
+  return std::make_unique<HloSliceInstruction>(shape, operand, start_indices,
+                                               limit_indices, strides);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateConvert(
+    const Shape& shape, HloInstruction* operand) {
+  auto instruction =
+      absl::WrapUnique(new HloInstruction(HloOpcode::kConvert, shape));
+  instruction->AppendOperand(operand);
+  return instruction;
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateAddDependency(
     HloInstruction* data_operand, HloInstruction* token_operand) {
   auto instruction = absl::WrapUnique(
@@ -1831,6 +1852,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
       CHECK_EQ(new_operands.size(), 2);
       clone = CreateBinary(shape, opcode_, new_operands[0], new_operands[1]);
       break;
+    case HloOpcode::kConvert:
+      CHECK_EQ(new_operands.size(), 1);
+      clone = CreateConvert(shape, new_operands[0]);
+      break;
     case HloOpcode::kAfterAll:
       if (new_operands.empty()) {
         clone = CreateToken();
@@ -2070,6 +2095,7 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kBitcast:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kCollectivePermuteDone:
+    case HloOpcode::kConvert:
     case HloOpcode::kCopy:
     case HloOpcode::kCopyStart:
     case HloOpcode::kCopyDone:
@@ -2706,6 +2732,7 @@ std::string HloInstruction::ToString() const {
 bool HloInstruction::IsOpElementwise(HloOpcode opcode) {
   switch (opcode) {
     // Unary elementwise operations.
+    case HloOpcode::kConvert:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kCopy:
     case HloOpcode::kNegate:
@@ -2850,6 +2877,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleMinimum(this);
     case HloOpcode::kConcatenate:
       return visitor->HandleConcatenate(this);
+    case HloOpcode::kConvert:
+      return visitor->HandleConvert(this);
     case HloOpcode::kBitcastConvert:
       return visitor->HandleBitcastConvert(this);
     case HloOpcode::kCopy:
@@ -3190,6 +3219,42 @@ int64_t HloInstruction::concatenate_dimension() const {
   return Cast<HloConcatenateInstruction>(this)->concatenate_dimension();
 }
 
+int64_t HloInstruction::slice_starts(int64_t dimension) const {
+  return Cast<HloSliceInstruction>(this)->slice_starts(dimension);
+}
+
+const std::vector<int64_t>& HloInstruction::slice_starts() const {
+  return Cast<HloSliceInstruction>(this)->slice_starts();
+}
+
+std::vector<int64_t>* HloInstruction::mutable_slice_starts() {
+  return Cast<HloSliceInstruction>(this)->mutable_slice_starts();
+}
+
+int64_t HloInstruction::slice_limits(int64_t dimension) const {
+  return Cast<HloSliceInstruction>(this)->slice_limits(dimension);
+}
+
+const std::vector<int64_t>& HloInstruction::slice_limits() const {
+  return Cast<HloSliceInstruction>(this)->slice_limits();
+}
+
+std::vector<int64_t>* HloInstruction::mutable_slice_limits() {
+  return Cast<HloSliceInstruction>(this)->mutable_slice_limits();
+}
+
+int64_t HloInstruction::slice_strides(int64_t dimension) const {
+  return Cast<HloSliceInstruction>(this)->slice_strides(dimension);
+}
+
+const std::vector<int64_t>& HloInstruction::slice_strides() const {
+  return Cast<HloSliceInstruction>(this)->slice_strides();
+}
+
+std::vector<int64_t>* HloInstruction::mutable_slice_strides() {
+  return Cast<HloSliceInstruction>(this)->mutable_slice_strides();
+}
+
 const Literal& HloInstruction::literal() const {
   return Cast<HloConstantInstruction>(this)->literal();
 }
@@ -3274,6 +3339,14 @@ std::optional<int64_t> HloInstruction::channel_id() const {
 
 void HloInstruction::set_channel_id(const std::optional<int64_t>& channel_id) {
   return Cast<HloChannelInstruction>(this)->set_channel_id(channel_id);
+}
+
+const DotDimensionNumbers& HloInstruction::dot_dimension_numbers() const {
+  return Cast<HloDotInstruction>(this)->dot_dimension_numbers();
+}
+
+absl::Span<const SparsityDescriptor> HloInstruction::sparsity() const {
+  return Cast<HloDotInstruction>(this)->sparsity();
 }
 
 bool HloInstruction::IsAsynchronous() const {

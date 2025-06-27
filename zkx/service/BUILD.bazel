@@ -52,6 +52,37 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "backend",
+    srcs = ["backend.cc"],
+    hdrs = ["backend.h"],
+    deps = [
+        ":compiler",
+        ":computation_placer",
+        ":platform_util",
+        ":stream_pool",
+        ":transfer_manager",
+        "//xla/tsl/platform:cpu_info",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:statusor",
+        "//zkx:util",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory_allocator",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:stream_executor_memory_allocator",
+        "//zkx/stream_executor/host:host_platform_id",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@eigen_archive//:eigen3",
+    ],
+)
+
+zkx_cc_library(
     name = "buffer_assignment",
     srcs = ["buffer_assignment.cc"],
     hdrs = ["buffer_assignment.h"],
@@ -252,6 +283,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "generic_transfer_manager",
+    srcs = ["generic_transfer_manager.cc"],
+    hdrs = ["generic_transfer_manager.h"],
+    deps = [
+        ":transfer_manager",
+        "//xla/tsl/platform:casts",
+        "//xla/tsl/platform:errors",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx/base:logging",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "global_device_id",
     srcs = ["global_device_id.cc"],
     hdrs = ["global_device_id.h"],
@@ -318,6 +366,70 @@ zkx_cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "hlo_runner",
+    srcs = ["hlo_runner.cc"],
+    hdrs = ["hlo_runner.h"],
+    deps = [
+        ":backend",
+        ":compiler",
+        ":computation_layout",
+        ":computation_placer",
+        ":executable",
+        ":hlo_module_util",
+        ":hlo_runner_interface",
+        ":maybe_owning_device_memory",
+        ":service_executable_run_options",
+        ":shaped_buffer",
+        ":transfer_manager",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:executable_run_options",
+        "//zkx:literal",
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:device_memory_allocator",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:stream_executor_memory_allocator",
+        "@com_google_absl//absl/base:nullability",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "hlo_runner_interface",
+    srcs = ["hlo_runner_interface.cc"],
+    hdrs = ["hlo_runner_interface.h"],
+    deps = [
+        ":hlo_module_config",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/parser:hlo_parser",
+        "@com_google_absl//absl/base:nullability",
+        "@com_google_absl//absl/log:die_if_null",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -445,11 +557,14 @@ zkx_cc_library(
         ":compiler",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
+        "//zkx:debug_options_flags",
         "//zkx/base:logging",
         "//zkx/stream_executor:platform",
         "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor/host:host_platform_id",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )
 
@@ -493,6 +608,7 @@ zkx_cc_library(
         "//zkx:zkx_data_cc_proto",
         "//zkx/hlo/ir:hlo",
         "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
@@ -545,6 +661,36 @@ zkx_cc_library(
 zkx_cc_library(
     name = "time_utils",
     hdrs = ["time_utils.h"],
+)
+
+zkx_cc_library(
+    name = "transfer_manager",
+    srcs = ["transfer_manager.cc"],
+    hdrs = ["transfer_manager.h"],
+    deps = [
+        ":compiler",
+        ":maybe_owning_device_memory",
+        ":shaped_buffer",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:logging",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:platform",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
 )
 
 zkx_cc_library(

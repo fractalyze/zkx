@@ -178,26 +178,24 @@ class Compiler {
   // Note: The default implementation of the API here does not utilize the given
   // buffer assignment. Different backends are a expected to override the
   // following method to achieve this functionality.
-  // TODO(chokobole): Uncomment this. Dependency: BufferAssignmentProto
-  // virtual absl::StatusOr<std::unique_ptr<Executable>>
-  // RunBackendWithBufferAssignment(
-  //     std::unique_ptr<HloModule> module,
-  //     const BufferAssignmentProto* /*buffer_assignment_proto*/,
-  //     se::StreamExecutor* executor, const CompileOptions& options) {
-  //   LOG(WARNING) << "Ignoring the buffer assignment proto provided.";
-  //   return RunBackend(std::move(module), executor, options);
-  // }
+  virtual absl::StatusOr<std::unique_ptr<Executable>>
+  RunBackendWithBufferAssignment(
+      std::unique_ptr<HloModule> module,
+      const BufferAssignmentProto* /*buffer_assignment_proto*/,
+      se::StreamExecutor* executor, const CompileOptions& options) {
+    LOG(WARNING) << "Ignoring the buffer assignment proto provided.";
+    return RunBackend(std::move(module), executor, options);
+  }
 
-  // TODO(chokobole): Uncomment this. Dependency: BufferAssignmentProto
-  // absl::StatusOr<std::unique_ptr<Executable>> RunBackendWithBufferAssignment(
-  //     std::unique_ptr<HloModule> module,
-  //     const BufferAssignmentProto* buffer_assignment_proto,
-  //     se::StreamExecutor* executor,
-  //     se::DeviceMemoryAllocator* device_allocator) {
-  //   return RunBackendWithBufferAssignment(std::move(module),
-  //                                         buffer_assignment_proto, executor,
-  //                                         CompileOptions{device_allocator});
-  // }
+  absl::StatusOr<std::unique_ptr<Executable>> RunBackendWithBufferAssignment(
+      std::unique_ptr<HloModule> module,
+      const BufferAssignmentProto* buffer_assignment_proto,
+      se::StreamExecutor* executor,
+      se::DeviceMemoryAllocator* device_allocator) {
+    return RunBackendWithBufferAssignment(std::move(module),
+                                          buffer_assignment_proto, executor,
+                                          CompileOptions{device_allocator});
+  }
 
   // Returns a (deserialized) AotCompilationResult from a serialized
   // AotCompilationResult.

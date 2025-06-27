@@ -6,12 +6,16 @@
 
 #include "absl/strings/substitute.h"
 
+#include "xla/tsl/platform/errors.h"
+#include "zkx/base/buffer/serde.h"
+#include "zkx/base/json/json_serde.h"
 #include "zkx/base/logging.h"
 #include "zkx/math/base/scalar_mul.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
-namespace zkx::math {
+namespace zkx {
+namespace math {
 
 template <typename _Curve>
 class AffinePoint<
@@ -122,6 +126,59 @@ class AffinePoint<
   BaseField y_;
 };
 
-}  // namespace zkx::math
+}  // namespace math
+
+namespace base {
+
+template <typename Curve>
+class Serde<math::AffinePoint<
+    Curve,
+    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+ public:
+  static absl::Status WriteTo(const math::AffinePoint<Curve>& point,
+                              Buffer* buffer) {
+    return buffer->WriteMany(point.x(), point.y());
+  }
+
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
+                               math::AffinePoint<Curve>* point) {
+    using BaseField = typename math::AffinePoint<Curve>::BaseField;
+    BaseField x, y;
+    TF_RETURN_IF_ERROR(buffer.ReadMany(&x, &y));
+    *point = math::AffinePoint<Curve>(x, y);
+    return absl::OkStatus();
+  }
+
+  static size_t EstimateSize(const math::AffinePoint<Curve>& point) {
+    return base::EstimateSize(point.x(), point.y());
+  }
+};
+
+template <typename Curve>
+class JsonSerde<math::AffinePoint<
+    Curve,
+    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+ public:
+  using Field = typename math::AffinePoint<Curve>::BaseField;
+
+  template <typename Allocator>
+  static rapidjson::Value From(const math::AffinePoint<Curve>& value,
+                               Allocator& allocator) {
+    rapidjson::Value object(rapidjson::kObjectType);
+    AddJsonElement(object, "x", value.x(), allocator);
+    AddJsonElement(object, "y", value.y(), allocator);
+    return object;
+  }
+
+  static absl::StatusOr<math::AffinePoint<Curve>> To(
+      const rapidjson::Value& json_value, std::string_view key) {
+    TF_ASSIGN_OR_RETURN(Field x, ParseJsonElement<Field>(json_value, "x"));
+    TF_ASSIGN_OR_RETURN(Field y, ParseJsonElement<Field>(json_value, "y"));
+    return math::AffinePoint<Curve>(x, y);
+  }
+};
+
+}  // namespace base
+}  // namespace zkx
 
 #endif  // ZKX_MATH_ELLIPTIC_CURVES_AFFINE_POINT_H_

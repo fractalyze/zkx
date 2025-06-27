@@ -1,8 +1,30 @@
+#include "xla/tsl/platform/status.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/literal_util.h"
+#include "zkx/math/base/sparse_matrix.h"
 #include "zkx/math/poly/root_of_unity.h"
 
 namespace zkx::cpu {
+
+TEST_F(CpuKernelEmitterTest, FieldScalarConvert) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[]) -> bn254.sf[]{:MONT(false)} {
+  %x = bn254.sf[] parameter(0)
+
+  ROOT %ret = bn254.sf[]{:MONT(false)} convert(%x)
+}
+)";
+
+  auto x = math::bn254::Fr::Random();
+
+  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
+  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::Fr>(0);
+  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
+  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(
+                             math::bn254::Fr::FromUnchecked(x.MontReduce())));
+}
 
 TEST_F(CpuKernelEmitterTest, FieldScalarAdd) {
   const std::string kHloText = R"(
@@ -274,6 +296,66 @@ TEST_F(CpuKernelEmitterTest, BroadcastTensor) {
 
     EXPECT_EQ(kAnswers[i], ret_literal);
   }
+}
+
+TEST_F(CpuKernelEmitterTest, FieldCSRMatrixVectorMultiplication) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[4,3]{1,0:D(D, C)NNZ(8)}, y: bn254.sf[3]) -> bn254.sf[4] {
+  %x = bn254.sf[4,3]{1,0:D(D, C)NNZ(8)} parameter(0)
+  %y = bn254.sf[3] parameter(1)
+
+  ROOT %ret = bn254.sf[4] dot(%x, %y)
+}
+)";
+
+  math::SparseMatrix<math::bn254::Fr> x =
+      math::SparseMatrix<math::bn254::Fr>::Random(4, 3, 8);
+
+  std::vector<uint32_t> x_row_ptrs, x_col_indices;
+  std::vector<math::bn254::Fr> x_values;
+  x.ToCSR(x_row_ptrs, x_col_indices, x_values);
+
+  TF_ASSERT_OK_AND_ASSIGN(std::vector<uint8_t> x_buffer, x.ToCSRBuffer());
+  std::array<math::bn254::Fr, 3> y = {math::bn254::Fr::Random(),
+                                      math::bn254::Fr::Random(),
+                                      math::bn254::Fr::Random()};
+
+  Literal x_label = LiteralUtil::CreateR1<uint8_t>(absl::MakeSpan(x_buffer));
+  Literal y_label = LiteralUtil::CreateR1<math::bn254::Fr>(absl::MakeSpan(y));
+  Literal ret_label = LiteralUtil::CreateR1<math::bn254::Fr>({0, 0, 0, 0});
+  std::vector<Literal*> literals_ptrs = {&x_label, &y_label, &ret_label};
+  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+
+  std::vector<math::bn254::Fr> expected(x_row_ptrs.size() - 1);
+  for (int64_t i = 0; i < expected.size(); ++i) {
+    for (int64_t j = x_row_ptrs[i]; j < x_row_ptrs[i + 1]; ++j) {
+      expected[i] += x_values[j] * y[x_col_indices[j]];
+    }
+  }
+
+  for (int64_t i = 0; i < expected.size(); ++i) {
+    EXPECT_EQ(ret_label.Get<math::bn254::Fr>({i}), expected[i]);
+  }
+}
+
+TEST_F(CpuKernelEmitterTest, Slice) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[]) -> bn254.sf[3] {
+  %x = bn254.sf[6] parameter(0)
+
+  ROOT ret = bn254.sf[3] slice(%x), slice={[2:5]}
+}
+)";
+
+  std::vector<math::bn254::Fr> x = {1, 2, 3, 4, 5, 6};
+
+  Literal x_literal = LiteralUtil::CreateR1<math::bn254::Fr>(absl::MakeSpan(x));
+  Literal ret_literal = LiteralUtil::CreateR1<math::bn254::Fr>({0, 0, 0});
+  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
+  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+
+  absl::Span expected = absl::MakeSpan(x).subspan(2, 3);
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR1<math::bn254::Fr>(expected));
 }
 
 }  // namespace zkx::cpu

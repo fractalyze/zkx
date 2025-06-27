@@ -347,38 +347,36 @@ class Executable {
   virtual int64_t SizeOfGeneratedCodeInBytes() const;
 
   // Dumping helpers.
-  // TODO(chokobole): Uncomment this. Dependency: HloProto
-  // void set_hlo_proto(std::unique_ptr<HloProto> hlo_proto) {
-  //   // Despite the mutex lock, this function is NOT thread-safe.
-  //   // The mutex is needed for the lazy HLO module loading in `hlo_proto()`.
-  //   // Since both `hlo_proto()` and `buffer_assignment_proto()` return a
-  //   // pointer to hlo_proto_, having the mutex is not enough to make this
-  //   // function thread-safe.
-  //   absl::MutexLock lock(&hlo_proto_mutex_);
-  //   hlo_proto_ = std::move(hlo_proto);
-  // }
+  void set_hlo_proto(std::unique_ptr<HloProto> hlo_proto) {
+    // Despite the mutex lock, this function is NOT thread-safe.
+    // The mutex is needed for the lazy HLO module loading in `hlo_proto()`.
+    // Since both `hlo_proto()` and `buffer_assignment_proto()` return a
+    // pointer to hlo_proto_, having the mutex is not enough to make this
+    // function thread-safe.
+    absl::MutexLock lock(&hlo_proto_mutex_);
+    hlo_proto_ = std::move(hlo_proto);
+  }
+
   bool dumping_snapshot() const {
     return has_module()
                ? module_config().debug_options().zkx_dump_hlo_snapshots()
                : false;
   }
 
-  // TODO(chokobole): Uncomment this. Dependency: HloProto
-  // HloProto const* hlo_proto() const {
-  //   absl::MutexLock lock(&hlo_proto_mutex_);
-  //   if (hlo_proto_ != nullptr && !hlo_proto_->has_hlo_module()) {
-  //     *hlo_proto_->mutable_hlo_module() = module().ToProto();
-  //   }
-  //   return hlo_proto_.get();
-  // }
+  HloProto const* hlo_proto() const {
+    absl::MutexLock lock(&hlo_proto_mutex_);
+    if (hlo_proto_ != nullptr && !hlo_proto_->has_hlo_module()) {
+      *hlo_proto_->mutable_hlo_module() = module().ToProto();
+    }
+    return hlo_proto_.get();
+  }
 
-  // TODO(chokobole): Uncomment this. Dependency: BufferAssignmentProto
-  // const BufferAssignmentProto* buffer_assignment_proto() const {
-  //   absl::MutexLock lock(&hlo_proto_mutex_);
-  //   return hlo_proto_ != nullptr && hlo_proto_->has_buffer_assignment()
-  //              ? &hlo_proto_->buffer_assignment()
-  //              : nullptr;
-  // }
+  const BufferAssignmentProto* buffer_assignment_proto() const {
+    absl::MutexLock lock(&hlo_proto_mutex_);
+    return hlo_proto_ != nullptr && hlo_proto_->has_buffer_assignment()
+               ? &hlo_proto_->buffer_assignment()
+               : nullptr;
+  }
 
   std::string& debug_info() { return debug_info_; }
   void set_debug_info(const std::string& debug_info) {
@@ -426,8 +424,7 @@ class Executable {
   // hlo_proto_->buffer_assignment is set and hlo_proto_->hlo_module isn't, the
   // hlo_module proto will be computed on the fly when requested with
   // hlo_proto(). This avoids wasting CPU and memory if the proto isn't needed.
-  // TODO(chokobole): Uncomment this. Dependency: HloProto
-  // std::unique_ptr<HloProto> hlo_proto_ ABSL_GUARDED_BY(hlo_proto_mutex_);
+  std::unique_ptr<HloProto> hlo_proto_ ABSL_GUARDED_BY(hlo_proto_mutex_);
   mutable absl::Mutex hlo_proto_mutex_;
 };
 

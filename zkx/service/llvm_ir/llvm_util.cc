@@ -19,6 +19,7 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "llvm/Support/raw_ostream.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 
 #include "zkx/base/logging.h"
 #include "zkx/layout_util.h"
@@ -82,7 +83,8 @@ std::string IrName(const HloInstruction* a, std::string_view b) {
 }
 
 mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
-                                   mlir::MLIRContext* context) {
+                                   mlir::MLIRContext* context,
+                                   bool use_montgomery) {
   switch (element_type) {
     case S2:
     case U2:
@@ -114,13 +116,25 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
       // some placeholder type, so use int8_t*.
       return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
     case BN254_SCALAR:
-      return GetMLIRPrimeFieldType<math::bn254::Fr>(context);
+      return GetMLIRPrimeFieldType<math::bn254::Fr>(context, use_montgomery);
     case BN254_G1_AFFINE:
-      return GetMLIRAffinePointType<math::bn254::G1AffinePoint>(context);
+      return GetMLIRAffinePointType<math::bn254::G1AffinePoint>(context,
+                                                                use_montgomery);
     case BN254_G1_JACOBIAN:
-      return GetMLIRJacobianPointType<math::bn254::G1JacobianPoint>(context);
+      return GetMLIRJacobianPointType<math::bn254::G1JacobianPoint>(
+          context, use_montgomery);
     case BN254_G1_XYZZ:
-      return GetMLIRPointXyzzType<math::bn254::G1PointXyzz>(context);
+      return GetMLIRPointXyzzType<math::bn254::G1PointXyzz>(context,
+                                                            use_montgomery);
+    case BN254_G2_AFFINE:
+      return GetMLIRAffinePointType<math::bn254::G2AffinePoint>(context,
+                                                                use_montgomery);
+    case BN254_G2_JACOBIAN:
+      return GetMLIRJacobianPointType<math::bn254::G2JacobianPoint>(
+          context, use_montgomery);
+    case BN254_G2_XYZZ:
+      return GetMLIRPointXyzzType<math::bn254::G2PointXyzz>(context,
+                                                            use_montgomery);
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }
@@ -128,8 +142,8 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
 
 mlir::Type ShapeToMLIRMemRefType(const Shape& shape,
                                  mlir::MLIRContext* context) {
-  mlir::Type result_type =
-      PrimitiveTypeToMLIRType(shape.element_type(), context);
+  mlir::Type result_type = PrimitiveTypeToMLIRType(
+      shape.element_type(), context, shape.layout().is_montgomery_form());
   if (shape.IsTuple()) {
     // A tuple buffer is an array of pointers.
     // clang-format off
@@ -150,8 +164,9 @@ mlir::Type ShapeToMLIRMemRefType(const Shape& shape,
 
 mlir::Type ShapeToMLIRTensorType(const Shape& shape,
                                  mlir::MLIRContext* context) {
-  mlir::Type result_type =
-      PrimitiveTypeToMLIRType(shape.element_type(), context);
+  const Layout& layout = shape.layout();
+  mlir::Type result_type = PrimitiveTypeToMLIRType(
+      shape.element_type(), context, layout.is_montgomery_form());
   if (shape.IsTuple()) {
     // A tuple buffer is an array of pointers.
     // clang-format off
@@ -161,11 +176,60 @@ mlir::Type ShapeToMLIRTensorType(const Shape& shape,
         mlir::RankedTensorType::get({shape.tuple_shapes_size()}, result_type);
   } else if (shape.IsArray()) {
     // TODO(chokobole): Take `major_to_minor` into account.
+    std::optional<mlir::sparse_tensor::SparseTensorEncodingAttr> encoding;
+    if (LayoutUtil::IsSparse(layout)) {
+      llvm::SmallVector<mlir::sparse_tensor::LevelType> lts;
+      for (int i = 0; i < layout.dim_level_types_size(); ++i) {
+        DimLevelType dlt = layout.dim_level_type(i);
+        bool ordered =
+            i < layout.dim_ordered_size() ? layout.dim_ordered(i) : true;
+        bool unique =
+            i < layout.dim_unique_size() ? layout.dim_unique(i) : true;
+        auto convert_to_mlir_level = [](DimLevelType dlt, bool ordered,
+                                        bool unique) {
+          switch (dlt) {
+            case DimLevelType::DIM_DENSE:
+              return *mlir::sparse_tensor::buildLevelType(
+                  mlir::sparse_tensor::LevelFormat::Dense, ordered, unique);
+            case DimLevelType::DIM_COMPRESSED:
+              return *mlir::sparse_tensor::buildLevelType(
+                  mlir::sparse_tensor::LevelFormat::Compressed, ordered,
+                  unique);
+            case DimLevelType::DIM_SINGLETON:
+              return *mlir::sparse_tensor::buildLevelType(
+                  mlir::sparse_tensor::LevelFormat::Singleton, ordered, unique);
+            case DimLevelType::DIM_LOOSE_COMPRESSED:
+              return *mlir::sparse_tensor::buildLevelType(
+                  mlir::sparse_tensor::LevelFormat::LooseCompressed, ordered,
+                  unique);
+            case DimLevelType_INT_MIN_SENTINEL_DO_NOT_USE_:
+            case DimLevelType_INT_MAX_SENTINEL_DO_NOT_USE_:
+              break;
+          }
+          ABSL_UNREACHABLE();
+          return mlir::sparse_tensor::LevelType(0);
+        };
+        lts.push_back(convert_to_mlir_level(dlt, ordered, unique));
+      }
+      absl::Span<const int64_t> ordering = layout.minor_to_major();
+      llvm::SmallVector<int64_t> major_to_minor = {ordering.rbegin(),
+                                                   ordering.rend()};
+      mlir::AffineMap id_map =
+          mlir::AffineMap::getPermutationMap(major_to_minor, context);
+      encoding = mlir::sparse_tensor::SparseTensorEncodingAttr::get(
+          context, lts, id_map, mlir::AffineMap(), 32, 32);
+    }
+
     std::vector<int64_t> dimensions;
     for (int64_t dimension : shape.dimensions()) {
       dimensions.push_back(dimension);
     }
-    result_type = mlir::RankedTensorType::get(dimensions, result_type);
+    if (encoding.has_value()) {
+      result_type = mlir::RankedTensorType::get(dimensions, result_type,
+                                                encoding.value());
+    } else {
+      result_type = mlir::RankedTensorType::get(dimensions, result_type);
+    }
   }
   return result_type;
 }

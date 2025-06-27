@@ -2,6 +2,7 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load(
     "//bazel:zkx.bzl",
     "if_has_exception",
+    "if_has_openmp",
     "if_has_rtti",
 )
 
@@ -34,14 +35,30 @@ def zkx_copts(safe_code = True):
 def zkx_cxxopts(safe_code = True, force_exceptions = False, force_rtti = False):
     return zkx_copts(safe_code) + zkx_exceptions(force_exceptions) + zkx_rtti(force_rtti)
 
+def zkx_openmp_defines():
+    return if_has_openmp(["ZKX_HAS_OPENMP"])
+
 def zkx_defines():
-    return []
+    return zkx_openmp_defines()
 
 def zkx_local_defines():
     return []
 
+def zkx_openmp_linkopts():
+    return select({
+        "@zkx//:zkx_has_openmp_on_macos": ["-Xclang -fopenmp"],
+        "@zkx//:zkx_has_openmp": ["-fopenmp"],
+        "@zkx//:zkx_has_intel_openmp": ["-liomp5"],
+        "//conditions:default": [],
+    })
+
 def zkx_linkopts():
-    return []
+    return zkx_openmp_linkopts()
+
+def zkx_openmp_num_threads_env(n):
+    return if_has_openmp({
+        "OMP_NUM_THREADS": "{}".format(n),
+    }, {})
 
 def zkx_cc_library(
         name,
