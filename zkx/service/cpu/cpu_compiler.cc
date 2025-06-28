@@ -21,6 +21,7 @@ limitations under the License.
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/substitute.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/LLVMContext.h"
@@ -31,6 +32,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/errors.h"
+#include "xla/tsl/platform/path.h"
 #include "xla/tsl/platform/statusor.h"
 #include "xla/tsl/platform/thread_pool.h"
 #include "zkx/backends/cpu/codegen/cpu_features.h"
@@ -740,8 +742,22 @@ class CpuExecutableAotCompilationResult : public AotCompilationResult {
         hlo_module->config().ToProto();
     *proto_.mutable_buffer_assignment() = buffer_assignment->ToProto();
     proto_.set_entry_function_name(std::string(function_name));
-    for (std::string& obj_file : obj_files) {
-      proto_.add_obj_files(std::move(obj_file));
+    const std::string& obj_file_dir =
+        hlo_module->config().debug_options().zkx_obj_file_dir();
+    if (obj_file_dir.empty()) {
+      for (std::string& obj_file : obj_files) {
+        proto_.add_obj_files(std::move(obj_file));
+      }
+    } else {
+      for (size_t i = 0; i < obj_files.size(); ++i) {
+        std::string obj_file_path =
+            tsl::io::JoinPath(obj_file_dir, absl::Substitute("$0.o", i));
+        proto_.add_obj_file_paths(obj_file_path);
+        absl::Status s = tsl::WriteStringToFile(tsl::Env::Default(),
+                                                obj_file_path, obj_files[i]);
+        CHECK(s.ok()) << "Failed to write object file to " << obj_file_path;
+      }
+      obj_files.clear();
     }
 
     for (const auto& symbol : symbols) {
@@ -818,9 +834,28 @@ CpuExecutableAotCompilationResult::LoadExecutable(
           << " object files; entry_function_name="
           << proto_.entry_function_name();
 
+  std::vector<std::string> owned_obj_files;
+  std::vector<llvm::StringRef> obj_datas;
+  if (proto_.obj_files_size() > 0) {
+    obj_datas.reserve(proto_.obj_files_size());
+    for (auto& obj_file : proto_.obj_files()) {
+      llvm::StringRef data(obj_file.data(), obj_file.size());
+      obj_datas.push_back(data);
+    }
+  } else {
+    obj_datas.reserve(proto_.obj_file_paths_size());
+    owned_obj_files.reserve(proto_.obj_file_paths_size());
+    for (auto& obj_file_path : proto_.obj_file_paths()) {
+      std::string obj_file;
+      TF_RETURN_IF_ERROR(
+          tsl::ReadFileToString(tsl::Env::Default(), obj_file_path, &obj_file));
+      llvm::StringRef data(obj_file.data(), obj_file.size());
+      owned_obj_files.push_back(std::move(obj_file));
+      obj_datas.push_back(data);
+    }
+  }
   size_t obj_file_index = 0;
-  for (auto& obj_file : proto_.obj_files()) {
-    llvm::StringRef data(obj_file.data(), obj_file.size());
+  for (llvm::StringRef data : obj_datas) {
     TF_RETURN_IF_ERROR(
         object_loader.AddObjFile(llvm::MemoryBuffer::getMemBuffer(
             data, absl::StrCat(proto_.entry_function_name(), "_",

@@ -374,6 +374,12 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
                 bool_setter_for(&DebugOptions::set_zkx_syntax_sugar_async_ops),
                 debug_options->zkx_syntax_sugar_async_ops(),
                 "Enable syntax sugar for async ops in HLO dumps."));
+  flag_list->push_back(
+      tsl::Flag("zkx_obj_file_dir",
+                string_setter_for(&DebugOptions::set_zkx_obj_file_dir),
+                debug_options->zkx_obj_file_dir(),
+                "The directory to save object file when exporting AOT "
+                "compilation result."));
 }
 
 // Allocates flag_values and flag_objects; this function must not be called more

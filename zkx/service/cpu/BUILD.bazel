@@ -53,6 +53,7 @@ zkx_cc_library(
         "//xla/tsl/platform:cpu_info",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
         "//xla/tsl/platform:statusor",
         "//zkx:shape_util",
         "//zkx:util",

@@ -221,6 +221,9 @@ message DebugOptions {
   // Extra options to pass to the compilation backend (e.g. LLVM); specific
   // interpretation of these values is left to the backend.
   map<string, string> zkx_backend_extra_options = 500;
+
+  // The directory to save object file when exporting AOT compilation result.
+  string zkx_obj_file_dir = 10000;
 }
 
 message ShardableValueUpdatePairProto {

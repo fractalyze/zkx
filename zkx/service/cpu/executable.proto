@@ -52,4 +52,6 @@ message CompilationResultProto {
   ObjFileKind obj_files_kind = 5;
   ThunkSequenceProto thunk_sequence = 6;
   repeated SymbolProto compiled_symbols = 7;
+
+  repeated string obj_file_paths = 10000;
 }
