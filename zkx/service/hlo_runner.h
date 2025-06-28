@@ -64,7 +64,7 @@ class HloRunner : public HloRunnerInterface {
 
   // Transfers data between the host and device.
   absl::StatusOr<ScopedShapedBuffer> TransferLiteralToDevice(
-      const Literal& literal, int64_t param_no);
+      const LiteralSlice& literal, int64_t param_no);
   absl::StatusOr<std::vector<ScopedShapedBuffer>> TransferLiteralsToDevice(
       absl::Span<const Literal* const> literals);
   absl::StatusOr<std::vector<ScopedShapedBuffer>> TransferLiteralsToDevice(

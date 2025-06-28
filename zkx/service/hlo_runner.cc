@@ -99,7 +99,7 @@ se::DeviceMemoryAllocator* HloRunner::GetAllocator() {
 }
 
 absl::StatusOr<ScopedShapedBuffer> HloRunner::TransferLiteralToDevice(
-    const Literal& literal, int64_t param_no) {
+    const LiteralSlice& literal, int64_t param_no) {
   auto shape_representation_fn = [this, param_no](const Shape& shape) {
     Shape new_shape = device_shape_representation_fn_(shape);
     if (entry_computation_layout_ == nullptr) {
