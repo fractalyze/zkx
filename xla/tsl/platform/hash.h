@@ -20,6 +20,7 @@ limitations under the License.
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <functional>
 #include <string>

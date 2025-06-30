@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "zkx/hlo/ir/hlo_module.h"
 
+#include <stack>
+
 #include "absl/strings/escaping.h"
 
 #include "xla/tsl/platform/fingerprint.h"

@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+load("//bazel:zkx_cc.bzl", "zkx_openmp_copts", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -6,6 +6,7 @@ zkx_cc_library(
     name = "bit_reverse",
     srcs = ["bit_reverse.cc"],
     hdrs = ["bit_reverse.h"],
+    copts = zkx_openmp_copts(),
     deps = [
         "//zkx/base:bits",
         "//zkx/base:openmp_util",

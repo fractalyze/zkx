@@ -16,6 +16,7 @@ limitations under the License.
 #include "xla/tsl/platform/cpu_info.h"
 
 #include "absl/base/call_once.h"
+#include "absl/log/check.h"
 #include "absl/base/internal/sysinfo.h"
 
 #include "zkx/base/logging.h"
