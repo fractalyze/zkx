@@ -852,7 +852,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     return b.create<mlir::zkir::elliptic_curve::MSMOp>(
         llvm_ir::PrimitiveTypeToMLIRType(shape.element_type(), b.getContext(),
                                          shape.layout().is_montgomery_form()),
-        scalars, bases);
+        scalars, bases, 20, true);
   } else {
     return absl::InvalidArgumentError("bases is not a tensor");
   }

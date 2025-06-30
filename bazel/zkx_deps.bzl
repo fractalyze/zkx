@@ -2,11 +2,13 @@ load("@zkx//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
 load("@zkx//third_party/farmhash:workspace.bzl", farmhash = "repo")
 load("@zkx//third_party/gloo:workspace.bzl", gloo = "repo")
+load("@zkx//third_party/gpus:cuda_configure.bzl", "cuda_configure")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 
 def zkx_deps():
+    cuda_configure(name = "local_config_cuda")
     omp_configure(name = "local_config_omp")
 
     eigen3()
@@ -70,15 +72,15 @@ def zkx_deps():
         urls = tf_mirror_urls("https://github.com/Tencent/rapidjson/archive/v1.1.0.zip"),
     )
 
-    ZKIR_COMMIT = "83985c6579d4ed3652769e1788f5523aa6ba18a1"
-    tf_http_archive(
-        name = "zkir",
-        sha256 = "e6c929d9fea05578d5bcbd900840d995bd9678d7c730af568054f98a243dbb7d",
-        strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
-        urls = tf_mirror_urls("https://github.com/zk-rabbit/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
-    )
+    #ZKIR_COMMIT = "b0e582104c998579ca7ff3b2105908c71ec9d37b"
+    #tf_http_archive(
+    #    name = "zkir",
+    #    sha256 = "f0a47de94c992c55f9fba3a149e8d253264eb6fd5900b2e2a4bfc9fcf208c679",
+    #    strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
+    #    urls = tf_mirror_urls("https://github.com/zk-rabbit/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
+    #)
     # Uncomment this for development!
-    # native.local_repository(
-    #     name = "zkir",
-    #     path = "../zkir",
-    # )
+    native.local_repository(
+        name = "zkir",
+        path = "../zkir",
+    )
