@@ -38,6 +38,7 @@ limitations under the License.
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/MemRef/Transforms/AllocationOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/Transforms/Passes.h"
+#include "mlir/Dialect/SCF/Transforms/Passes.h"
 #include "mlir/Dialect/SCF/Transforms/BufferDeallocationOpInterfaceImpl.h"
 #include "mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
@@ -225,7 +226,11 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
   if (flag.enable_field_to_arith) {
     VLOG(2) << "add pass: -field-to-mod-arith -mod-arith-to-arith";
     pm.addPass(mlir::zkir::field::createFieldToModArith());
+    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCSEPass());
     pm.addPass(mlir::zkir::mod_arith::createModArithToArith());
+    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCSEPass());
   }
 
   if (flag.enable_lower_affine) {
@@ -279,6 +284,8 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     VLOG(2) << "add pass: -finalize-memref-to-llvm";
     pm.addPass(mlir::createFinalizeMemRefToLLVMConversionPass());
   }
+
+  pm.addPass(mlir::createSCFForLoopCanonicalizationPass());
 
   if (flag.enable_scf_to_cf) {
     VLOG(2) << "add pass: -convert-scf-to-cf";
