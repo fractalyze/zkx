@@ -15,6 +15,9 @@ limitations under the License.
 
 #include "zkx/hlo/ir/hlo_computation.h"
 
+#include <queue>
+#include <stack>
+
 #include "absl/memory/memory.h"
 
 #include "xla/tsl/platform/status.h"

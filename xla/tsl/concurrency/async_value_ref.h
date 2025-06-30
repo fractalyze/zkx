@@ -890,7 +890,7 @@ class CountDownAsyncValueRef {
     //    should be visible to other threads after the fetch_sub -- otherwise
     //    other threads might not see updated values.
     bool is_complete =
-        state_->cnt.fetch_sub(count, std::memory_order_acq_rel) == count;
+        static_cast<size_t>(state_->cnt.fetch_sub(count, std::memory_order_acq_rel)) == count;
 
     // If this was the last count down, we have to decide if we set async value
     // to concrete or error state.

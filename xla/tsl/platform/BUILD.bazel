@@ -22,6 +22,7 @@ zkx_cc_library(
         ":platform",
         "//zkx/base:logging",
         "@com_google_absl//absl/base",
+        "@com_google_absl//absl/log:check",
     ],
 )
 

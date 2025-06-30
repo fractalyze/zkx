@@ -30,6 +30,8 @@ std::string_view HloOpcodeString(HloOpcode opcode) {
     HLO_OPCODE_LIST(CASE_OPCODE_STRING)
 #undef CASE_OPCODE_STRING
   }
+  ABSL_UNREACHABLE();
+  return "";
 }
 
 absl::StatusOr<HloOpcode> StringToHloOpcode(std::string_view opcode_name) {
@@ -56,6 +58,8 @@ std::optional<int8_t> HloOpcodeArity(HloOpcode opcode) {
     HLO_OPCODE_LIST(CASE_ARITY)
 #undef CASE_ARITY
   }
+  ABSL_UNREACHABLE();
+  return std::nullopt;
 }
 
 }  // namespace zkx
