@@ -1,5 +1,5 @@
 load("//bazel:zkx.bzl", "if_aarch64", "if_has_openmp", "if_x86_32", "if_x86_64")
-load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+load("//bazel:zkx_cc.bzl", "zkx_cc_benchmark", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -326,5 +326,21 @@ zkx_cc_unittest(
         "//xla/tsl/platform:cpu_info",
         "//zkx:literal_util",
         "//zkx/base/containers:container_util",
+    ],
+)
+
+zkx_cc_benchmark(
+    name = "msm_benchmark",
+    srcs = ["msm_benchmark.cc"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal_util",
+        "//zkx/base:openmp_util",
+        "//zkx/math/elliptic_curves/bn/bn254:g1",
+        "//zkx/service:hlo_runner",
+        "//zkx/service:platform_util",
+        "//zkx/service/cpu:cpu_compiler_registerer",
+        "//zkx/service/cpu:cpu_transfer_manager",
+        "//zkx/stream_executor/host:host_platform",
     ],
 )
