@@ -121,6 +121,9 @@ message HloInstructionProto {
   // MSM window bits.
   int32 window_bits = 10001;
 
+  // MSM parallel type.
+  MsmParallelType msm_parallel_type = 10002;
+
   // Comparison direction only used for kCompare.
   string comparison_direction = 63;
 

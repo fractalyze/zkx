@@ -489,6 +489,13 @@ enum FftType {
   IFFT = 1;
 }
 
+enum MsmParallelType {
+  // Term-based parallelization
+  TERM_PARALLEL = 0;
+  // Window-based parallelization
+  WINDOW_PARALLEL = 1;
+}
+
 message DotDimensionNumbers {
   // The dimension numbers that represent the 'lhs' contracting dimensions.
   repeated int64 lhs_contracting_dimensions = 1;

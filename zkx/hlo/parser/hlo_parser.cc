@@ -186,6 +186,7 @@ class HloParserImpl : public HloParser {
     kHloComputation,
     kBracedHloComputationList,
     kFftType,
+    kMsmParallelType,
     kComparisonDirection,
     kPrimitiveType,
     kComparisonOrder,
@@ -471,6 +472,7 @@ class HloParserImpl : public HloParser {
   bool ParseOpcode(HloOpcode* opcode,
                    std::optional<HloOpcode>* async_wrapped_opcode);
   bool ParseFftType(FftType* result);
+  bool ParseMsmParallelType(MsmParallelType* result);
   bool ParsePrimitiveType(PrimitiveType* result);
   bool ParseComparisonDirection(ComparisonDirection* result);
   bool ParseComparisonOrder(ComparisonOrder* result);
@@ -2386,6 +2388,9 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
     case HloOpcode::kMsm: {
       std::optional<int32_t> window_bits;
       attrs["window_bits"] = {/*required=*/false, AttrTy::kInt32, &window_bits};
+      std::optional<MsmParallelType> msm_parallel_type;
+      attrs["msm_parallel_type"] = {
+          /*required=*/false, AttrTy::kMsmParallelType, &msm_parallel_type};
 
       if ((!preset_operands &&
            !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
@@ -2398,7 +2403,9 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
         return nullptr;
       }
       return builder->AddInstruction(HloInstruction::CreateMsm(
-          *shape, operands[0], operands[1], window_bits ? *window_bits : 0));
+          *shape, operands[0], operands[1], window_bits ? *window_bits : 0,
+          msm_parallel_type ? *msm_parallel_type
+                            : MsmParallelType::TERM_PARALLEL));
     }
     case HloOpcode::kCompare: {
       std::optional<ComparisonDirection> direction;
@@ -4104,6 +4111,15 @@ bool HloParserImpl::ParseAttributeHelper(
         static_cast<std::optional<FftType>*>(attr_out_ptr)->emplace(result);
         return true;
       }
+      case AttrTy::kMsmParallelType: {
+        MsmParallelType result;
+        if (!ParseMsmParallelType(&result)) {
+          return false;
+        }
+        static_cast<std::optional<MsmParallelType>*>(attr_out_ptr)
+            ->emplace(result);
+        return true;
+      }
       case AttrTy::kComparisonDirection: {
         ComparisonDirection result;
         if (!ParseComparisonDirection(&result)) {
@@ -5492,6 +5508,21 @@ bool HloParserImpl::ParseFftType(FftType* result) {
   std::string val = lexer_.GetStrVal();
   if (!FftType_Parse(val, result) || !FftType_IsValid(*result)) {
     return TokenError(absl::StrFormat("expects fft type but sees: %s", val));
+  }
+  lexer_.Lex();
+  return true;
+}
+
+bool HloParserImpl::ParseMsmParallelType(MsmParallelType* result) {
+  VLOG(kDebugLevel) << "ParseMsmParallelType";
+  if (lexer_.GetKind() != TokKind::kIdent) {
+    return TokenError("expects msm parallel type");
+  }
+  std::string val = lexer_.GetStrVal();
+  if (!MsmParallelType_Parse(val, result) ||
+      !MsmParallelType_IsValid(*result)) {
+    return TokenError(
+        absl::StrFormat("expects msm parallel type but sees: %s", val));
   }
   lexer_.Lex();
   return true;

@@ -932,11 +932,13 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     auto result_type =
         llvm_ir::PrimitiveTypeToMLIRType(shape.element_type(), b.getContext(),
                                          shape.layout().is_montgomery_form());
-    if (num_scalar_mul < num_threads) {
+    if (instr->msm_parallel_type() == MsmParallelType::WINDOW_PARALLEL ||
+        num_scalar_mul < num_threads) {
       int32_t degree = static_cast<int32_t>(
           base::Log2Ceiling(static_cast<uint64_t>(num_scalar_mul)));
       return b.create<mlir::zkir::elliptic_curve::MSMOp>(
-          result_type, scalars, bases, degree, window_bits);
+          result_type, scalars, bases, degree, window_bits,
+          instr->msm_parallel_type() == MsmParallelType::WINDOW_PARALLEL);
     }
 
     pass_flag_.enable_expand_strided_metadata = true;

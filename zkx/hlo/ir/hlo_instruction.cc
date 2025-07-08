@@ -242,8 +242,8 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kMsm: {
-      instruction =
-          CreateMsm(shape, operands(0), operands(1), proto.window_bits());
+      instruction = CreateMsm(shape, operands(0), operands(1),
+                              proto.window_bits(), proto.msm_parallel_type());
       break;
     }
     case HloOpcode::kAsyncStart: {
@@ -1248,9 +1248,9 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateFft(
 // static
 std::unique_ptr<HloInstruction> HloInstruction::CreateMsm(
     const Shape& shape, HloInstruction* scalars, HloInstruction* bases,
-    uint32_t window_bits) {
-  return std::make_unique<HloMsmInstruction>(shape, scalars, bases,
-                                             window_bits);
+    uint32_t window_bits, MsmParallelType msm_parallel_type) {
+  return std::make_unique<HloMsmInstruction>(shape, scalars, bases, window_bits,
+                                             msm_parallel_type);
 }
 
 // static
@@ -3257,6 +3257,10 @@ bool HloInstruction::fft_no_bit_reverse() const {
 
 int32_t HloInstruction::window_bits() const {
   return Cast<HloMsmInstruction>(this)->window_bits();
+}
+
+MsmParallelType HloInstruction::msm_parallel_type() const {
+  return Cast<HloMsmInstruction>(this)->msm_parallel_type();
 }
 
 int64_t HloInstruction::concatenate_dimension() const {

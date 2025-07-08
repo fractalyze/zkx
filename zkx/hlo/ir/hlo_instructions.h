@@ -143,9 +143,10 @@ class HloFftInstruction : public HloInstruction {
 class HloMsmInstruction : public HloInstruction {
  public:
   explicit HloMsmInstruction(const Shape& shape, HloInstruction* scalars,
-                             HloInstruction* bases,
-                             int32_t window_bits);
+                             HloInstruction* bases, int32_t window_bits,
+                             MsmParallelType msm_parallel_type);
   int32_t window_bits() const { return window_bits_; }
+  MsmParallelType msm_parallel_type() const { return msm_parallel_type_; }
 
   // Returns a serialized representation of this instruction.
   HloInstructionProto ToProto() const override;
@@ -171,6 +172,9 @@ class HloMsmInstruction : public HloInstruction {
 
   // Describes window bits for an MSM instruction.
   int32_t window_bits_;
+
+  // Describes parallel type for an MSM instruction.
+  MsmParallelType msm_parallel_type_;
 };
 
 class HloAsyncInstruction : public HloInstruction {
