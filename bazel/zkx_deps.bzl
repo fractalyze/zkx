@@ -28,6 +28,13 @@ def zkx_deps():
         ],
     )
 
+    tf_http_archive(
+        name = "com_github_google_benchmark",
+        sha256 = "b334658edd35efcf06a99d9be21e4e93e092bd5f95074c1673d5c8705d95c104",
+        strip_prefix = "benchmark-1.9.4",
+        urls = tf_mirror_urls("https://github.com/google/benchmark/archive/v1.9.4.tar.gz"),
+    )
+
     # Needed by com_google_googletest
     tf_http_archive(
         name = "com_googlesource_code_re2",

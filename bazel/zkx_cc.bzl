@@ -165,3 +165,28 @@ def zkx_cc_unittest(
         size = size,
         **kwargs
     )
+
+def zkx_cc_benchmark(
+        name,
+        copts = [],
+        defines = [],
+        local_defines = [],
+        linkopts = [],
+        tags = [],
+        linkstatic = True,
+        deps = [],
+        safe_code = True,
+        force_exceptions = False,
+        force_rtti = False,
+        **kwargs):
+    cc_test(
+        name = name,
+        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions, force_rtti = force_rtti),
+        defines = defines + zkx_defines(),
+        local_defines = local_defines + zkx_local_defines(),
+        linkopts = linkopts + zkx_linkopts(),
+        linkstatic = linkstatic,
+        tags = tags + ["benchmark"],
+        deps = deps + ["@com_github_google_benchmark//:benchmark_main"],
+        **kwargs
+    )
