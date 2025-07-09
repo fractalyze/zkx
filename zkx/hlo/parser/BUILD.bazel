@@ -23,7 +23,6 @@ zkx_cc_library(
     deps = [
         ":hlo_lexer",
         "//xla/tsl/lib/gtl:map_util",
-        "//xla/tsl/platform:env",
         "//zkx:comparison_util",
         "//zkx:literal",
         "//zkx:literal_util",
