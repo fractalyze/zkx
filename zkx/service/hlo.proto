@@ -116,7 +116,7 @@ message HloInstructionProto {
   int64 fft_length = 32;
 
   // Whether to apply bit-reverse to the FFT.
-  bool fft_no_bit_reverse = 10000;
+  bool fft_do_bit_reverse = 10000;
 
   // MSM window bits.
   int32 window_bits = 10001;

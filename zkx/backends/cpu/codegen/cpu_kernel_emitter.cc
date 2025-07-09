@@ -88,19 +88,16 @@ namespace zkx::cpu {
 namespace {
 
 template <typename T>
-absl::StatusOr<mlir::zkir::poly::PrimitiveRootAttr> GetPrimitiveRootAttr(
+absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> GetRootOfUnityAttr(
     mlir::MLIRContext* mlir_context, int64_t fft_length) {
   TF_ASSIGN_OR_RETURN(T root_of_unity, math::GetRootOfUnity<T>(fft_length));
-  auto root_of_unity_attr = mlir::zkir::field::RootOfUnityAttr::get(
+  return mlir::zkir::field::RootOfUnityAttr::get(
       mlir_context, /*root=*/
       llvm_ir::GetMLIRPrimeFieldAttr(mlir_context, root_of_unity,
                                      /*use_montgomery=*/false),
       /*degree=*/
       mlir::IntegerAttr::get(mlir::IntegerType::get(mlir_context, 64),
                              fft_length));
-  return mlir::zkir::poly::PrimitiveRootAttr::get(
-      mlir_context, root_of_unity_attr,
-      /*montgomery=*/llvm_ir::GetMLIRMontgomeryAttr<T>(mlir_context));
 }
 
 absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,
@@ -879,7 +876,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
-    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
+    mlir::Value twiddle_factor) {
   pass_flag_.enable_poly_to_field = true;
   pass_flag_.enable_lower_affine = true;
   if (instr->fft_type() == FftType::IFFT) {
@@ -888,12 +886,12 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
 
   // TODO(chokobole): Support out-of-place FFT.
   PrimitiveType operand_type = instr->operand(0)->shape().element_type();
-  mlir::zkir::poly::PrimitiveRootAttr root_attr;
+  mlir::zkir::field::RootOfUnityAttr root_attr;
   switch (operand_type) {
     case BN254_SCALAR: {
-      absl::StatusOr<mlir::zkir::poly::PrimitiveRootAttr> root =
-          GetPrimitiveRootAttr<math::bn254::Fr>(value.getContext(),
-                                                instr->fft_length());
+      absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> root =
+          GetRootOfUnityAttr<math::bn254::Fr>(value.getContext(),
+                                              instr->fft_length());
       if (!root.ok()) return root.status();
       root_attr = root.value();
       break;
@@ -907,13 +905,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
 
   switch (instr->fft_type()) {
     case FftType::FFT: {
-      b.create<mlir::zkir::poly::NTTOp>(value, root_attr,
-                                        instr->fft_no_bit_reverse());
+      b.create<mlir::zkir::poly::NTTOp>(value, twiddle_factor, root_attr,
+                                        instr->fft_do_bit_reverse());
       return mlir::Value();
     }
     case FftType::IFFT: {
-      b.create<mlir::zkir::poly::INTTOp>(value, root_attr,
-                                         instr->fft_no_bit_reverse());
+      b.create<mlir::zkir::poly::NTTOp>(
+          value, twiddle_factor, root_attr, instr->fft_do_bit_reverse(),
+          /*inverse=*/true);
       return mlir::Value();
     }
 
@@ -1277,8 +1276,15 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
                           values[instr->operand(1)]);
     }
     case HloOpcode::kFft: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      return EmitFftOp(instr, b, values[instr->operand(0)]);
+      if (instr->operand_count() == 1) {
+        enable_flag(instr->operand(0)->shape().element_type());
+        return EmitFftOp(instr, b, values[instr->operand(0)]);
+      } else if (instr->operand_count() == 2) {
+        enable_flag(instr->operand(0)->shape().element_type());
+        enable_flag(instr->operand(1)->shape().element_type());
+        return EmitFftOp(instr, b, values[instr->operand(0)],
+                         values[instr->operand(1)]);
+      }
     }
     case HloOpcode::kMsm: {
       enable_flag(instr->operand(0)->shape().element_type());

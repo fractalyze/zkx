@@ -91,8 +91,10 @@ mlir::zkir::mod_arith::ModArithType GetMLIRModArithType(
 template <typename T>
 mlir::zkir::mod_arith::MontgomeryAttr GetMLIRMontgomeryAttr(
     mlir::MLIRContext* context) {
-  return mlir::zkir::mod_arith::MontgomeryAttr::get(
-      context, GetMLIRModArithType<T>(context));
+  auto type = mlir::IntegerType::get(context, T::kBitWidth);
+  auto modulus =
+      mlir::IntegerAttr::get(type, ConvertBigIntToAPInt(T::Config::kModulus));
+  return mlir::zkir::mod_arith::MontgomeryAttr::get(context, modulus);
 }
 
 template <typename T>

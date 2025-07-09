@@ -82,21 +82,21 @@ HloBroadcastInstruction::CloneWithNewOperandsImpl(
 }
 
 HloFftInstruction::HloFftInstruction(const Shape& shape,
-                                     HloInstruction* operand, FftType fft_type,
-                                     int64_t fft_length,
-                                     bool fft_no_bit_reverse)
+                                     absl::Span<HloInstruction* const> new_operands,
+                                     FftType fft_type, int64_t fft_length,
+                                     bool fft_do_bit_reverse)
     : HloInstruction(HloOpcode::kFft, shape),
       fft_type_(fft_type),
       fft_length_(fft_length),
-      fft_no_bit_reverse_(fft_no_bit_reverse) {
-  AppendOperand(operand);
+      fft_do_bit_reverse_(fft_do_bit_reverse) {
+  AppendOperands(new_operands);
 }
 
 HloInstructionProto HloFftInstruction::ToProto() const {
   HloInstructionProto proto = HloInstruction::ToProto();
   proto.set_fft_type(fft_type_);
   proto.set_fft_length(fft_length_);
-  proto.set_fft_no_bit_reverse(fft_no_bit_reverse_);
+  proto.set_fft_do_bit_reverse(fft_do_bit_reverse_);
   return proto;
 }
 
@@ -120,15 +120,14 @@ bool HloFftInstruction::IdenticalSlowPath(
   const auto& casted_other = static_cast<const HloFftInstruction&>(other);
   return fft_type() == casted_other.fft_type() &&
          fft_length() == casted_other.fft_length() &&
-         fft_no_bit_reverse() == casted_other.fft_no_bit_reverse();
+         fft_do_bit_reverse() == casted_other.fft_do_bit_reverse();
 }
 
 std::unique_ptr<HloInstruction> HloFftInstruction::CloneWithNewOperandsImpl(
     const Shape& shape, absl::Span<HloInstruction* const> new_operands,
     HloCloneContext* context) const {
-  CHECK_EQ(new_operands.size(), 1);
-  return std::make_unique<HloFftInstruction>(shape, new_operands[0], fft_type_,
-                                             fft_length_, fft_no_bit_reverse_);
+  return std::make_unique<HloFftInstruction>(shape, new_operands, fft_type_,
+                                             fft_length_, fft_do_bit_reverse_);
 }
 
 HloMsmInstruction::HloMsmInstruction(const Shape& shape,
