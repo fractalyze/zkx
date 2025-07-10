@@ -55,7 +55,7 @@ class LayoutUtil {
       absl::Span<const SplitConfig> split_configs = {},
       std::optional<Shape> physical_shape = std::nullopt,
       int64_t dynamic_shape_metadata_prefix_bytes = 0, int64_t num_nonzeros = 0,
-      bool is_montgomery_form = false);
+      std::optional<bool> is_montgomery_form = std::nullopt);
 
   // Similar to MakeLayout, but take indices in reverse order.
   static Layout MakeLayoutFromMajorToMinor(

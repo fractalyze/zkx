@@ -416,36 +416,36 @@ mlir::Value CpuKernelEmitter::EmitCSROperand(EmitterLocOpBuilder& b,
   auto offset2_op = b.create<mlir::arith::ConstantOp>(
       b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset2));
 
+  Shape row_ptrs_shape = ShapeUtil::MakeShape(U32, {num_rows + 1});
+  Shape col_indices_shape = ShapeUtil::MakeShape(U32, {num_nonzeros});
+  Shape values_array_shape =
+      ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros});
+  // TODO(chokobole): This is added to set `is_montgomery_form` to true, but
+  // this might not reflect the actual layout of the values array.
+  LayoutUtil::SetToDefaultLayout(&values_array_shape);
+
   auto row_ptrs_memref = b.create<mlir::memref::ViewOp>(
-      llvm_ir::ShapeToMLIRMemRefType(ShapeUtil::MakeShape(U32, {num_rows + 1}),
-                                     mlir_context_),
+      llvm_ir::ShapeToMLIRMemRefType(row_ptrs_shape, mlir_context_),
       entry_block->getArgument(i), offset0_op, mlir::ValueRange{});
   auto col_indices_memref = b.create<mlir::memref::ViewOp>(
-      llvm_ir::ShapeToMLIRMemRefType(ShapeUtil::MakeShape(U32, {num_nonzeros}),
-                                     mlir_context_),
+      llvm_ir::ShapeToMLIRMemRefType(col_indices_shape, mlir_context_),
       entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
   auto values_array_memref = b.create<mlir::memref::ViewOp>(
-      llvm_ir::ShapeToMLIRMemRefType(
-          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
-          mlir_context_),
+      llvm_ir::ShapeToMLIRMemRefType(values_array_shape, mlir_context_),
       entry_block->getArgument(i), offset2_op, mlir::ValueRange{});
 
   auto row_ptrs = b.create<mlir::bufferization::ToTensorOp>(
-      llvm_ir::ShapeToMLIRTensorType(ShapeUtil::MakeShape(U32, {num_rows + 1}),
-                                     mlir_context_),
+      llvm_ir::ShapeToMLIRTensorType(row_ptrs_shape, mlir_context_),
       row_ptrs_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto col_indices = b.create<mlir::bufferization::ToTensorOp>(
-      llvm_ir::ShapeToMLIRTensorType(ShapeUtil::MakeShape(U32, {num_nonzeros}),
-                                     mlir_context_),
+      llvm_ir::ShapeToMLIRTensorType(col_indices_shape, mlir_context_),
       col_indices_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto values_array = b.create<mlir::bufferization::ToTensorOp>(
-      llvm_ir::ShapeToMLIRTensorType(
-          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
-          mlir_context_),
+      llvm_ir::ShapeToMLIRTensorType(values_array_shape, mlir_context_),
       values_array_memref,
       /*restrict=*/true,
       /*writable=*/false);
@@ -473,36 +473,36 @@ mlir::Value CpuKernelEmitter::EmitCSCOperand(EmitterLocOpBuilder& b,
   auto offset2_op = b.create<mlir::arith::ConstantOp>(
       b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset2));
 
+  Shape col_ptrs_shape = ShapeUtil::MakeShape(U32, {num_cols + 1});
+  Shape row_indices_shape = ShapeUtil::MakeShape(U32, {num_nonzeros});
+  Shape values_array_shape =
+      ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros});
+  // TODO(chokobole): This is added to set `is_montgomery_form` to true, but
+  // this might not reflect the actual layout of the values array.
+  LayoutUtil::SetToDefaultLayout(&values_array_shape);
+
   auto col_ptrs_memref = b.create<mlir::memref::ViewOp>(
-      llvm_ir::ShapeToMLIRMemRefType(ShapeUtil::MakeShape(U32, {num_cols + 1}),
-                                     mlir_context_),
+      llvm_ir::ShapeToMLIRMemRefType(col_ptrs_shape, mlir_context_),
       entry_block->getArgument(i), offset0_op, mlir::ValueRange{});
   auto row_indices_memref = b.create<mlir::memref::ViewOp>(
-      llvm_ir::ShapeToMLIRMemRefType(ShapeUtil::MakeShape(U32, {num_nonzeros}),
-                                     mlir_context_),
+      llvm_ir::ShapeToMLIRMemRefType(row_indices_shape, mlir_context_),
       entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
   auto values_array_memref = b.create<mlir::memref::ViewOp>(
-      llvm_ir::ShapeToMLIRMemRefType(
-          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
-          mlir_context_),
+      llvm_ir::ShapeToMLIRMemRefType(values_array_shape, mlir_context_),
       entry_block->getArgument(i), offset2_op, mlir::ValueRange{});
 
   auto col_ptrs = b.create<mlir::bufferization::ToTensorOp>(
-      llvm_ir::ShapeToMLIRTensorType(ShapeUtil::MakeShape(U32, {num_cols + 1}),
-                                     mlir_context_),
+      llvm_ir::ShapeToMLIRTensorType(col_ptrs_shape, mlir_context_),
       col_ptrs_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto row_indices = b.create<mlir::bufferization::ToTensorOp>(
-      llvm_ir::ShapeToMLIRTensorType(ShapeUtil::MakeShape(U32, {num_nonzeros}),
-                                     mlir_context_),
+      llvm_ir::ShapeToMLIRTensorType(row_indices_shape, mlir_context_),
       row_indices_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto values_array = b.create<mlir::bufferization::ToTensorOp>(
-      llvm_ir::ShapeToMLIRTensorType(
-          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
-          mlir_context_),
+      llvm_ir::ShapeToMLIRTensorType(values_array_shape, mlir_context_),
       values_array_memref,
       /*restrict=*/true,
       /*writable=*/false);
@@ -534,26 +534,27 @@ mlir::Value CpuKernelEmitter::EmitCOOOperand(EmitterLocOpBuilder& b,
   auto offset1_op = b.create<mlir::arith::ConstantOp>(
       b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset1));
 
+  Shape indices_shape = ShapeUtil::MakeShape(U32, {num_nonzeros, 2});
+  Shape values_array_shape =
+      ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros});
+  // TODO(chokobole): This is added to set `is_montgomery_form` to true, but
+  // this might not reflect the actual layout of the values array.
+  LayoutUtil::SetToDefaultLayout(&values_array_shape);
+
   auto indices_memref = b.create<mlir::memref::ViewOp>(
-      llvm_ir::ShapeToMLIRMemRefType(
-          ShapeUtil::MakeShape(U32, {num_nonzeros, 2}), mlir_context_),
+      llvm_ir::ShapeToMLIRMemRefType(indices_shape, mlir_context_),
       entry_block->getArgument(i), offset0_op, mlir::ValueRange{});
   auto values_array_memref = b.create<mlir::memref::ViewOp>(
-      llvm_ir::ShapeToMLIRMemRefType(
-          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
-          mlir_context_),
+      llvm_ir::ShapeToMLIRMemRefType(values_array_shape, mlir_context_),
       entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
 
   auto indices = b.create<mlir::bufferization::ToTensorOp>(
-      llvm_ir::ShapeToMLIRTensorType(
-          ShapeUtil::MakeShape(U32, {num_nonzeros, 2}), mlir_context_),
+      llvm_ir::ShapeToMLIRTensorType(indices_shape, mlir_context_),
       indices_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto values_array = b.create<mlir::bufferization::ToTensorOp>(
-      llvm_ir::ShapeToMLIRTensorType(
-          ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros}),
-          mlir_context_),
+      llvm_ir::ShapeToMLIRTensorType(values_array_shape, mlir_context_),
       values_array_memref,
       /*restrict=*/true,
       /*writable=*/false);
