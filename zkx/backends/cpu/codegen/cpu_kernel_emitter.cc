@@ -279,6 +279,10 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     pm.addPass(mlir::createLowerAffinePass());
   }
 
+  if (flag.enable_promote_buffers_to_stack) {
+    VLOG(2) << "add pass: -promote-buffers-to-stack";
+    pm.addPass(mlir::bufferization::createPromoteBuffersToStackPass());
+  }
   if (flag.enable_finalize_memref_to_llvm) {
     VLOG(2) << "add pass: -finalize-memref-to-llvm";
     pm.addPass(mlir::createFinalizeMemRefToLLVMConversionPass());
@@ -928,6 +932,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value scalars,
     mlir::Value bases) {
   pass_flag_.enable_elementwise_to_linalg = true;
+  pass_flag_.enable_promote_buffers_to_stack = true;
 
   if (auto tensor_type =
           mlir::dyn_cast<mlir::RankedTensorType>(bases.getType())) {
