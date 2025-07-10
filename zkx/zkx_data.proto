@@ -190,10 +190,10 @@ message LayoutProto {
   repeated SplitConfigProto split_configs = 17;
 
   // The number of non-zero elements in the sparse tensor.
-  int64 num_nonzeros = 18;
+  int64 num_nonzeros = 10000;
 
   // Whether the elements are in Montgomery form.
-  bool is_montgomery_form = 19;
+  bool is_montgomery_form = 10001;
 
   // Important: if any field is added, be sure to modify ShapeUtil::Equal() and
   // LayoutUtil::Hash appropriately to account for the new field.
