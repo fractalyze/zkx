@@ -112,7 +112,7 @@ Layout::Layout(absl::Span<const int64_t> minor_to_major,
                absl::Span<const SplitConfig> split_configs,
                std::unique_ptr<Shape> physical_shape,
                int64_t dynamic_shape_metadata_prefix_bytes,
-               int64_t num_nonzeros, bool is_montgomery_form)
+               int64_t num_nonzeros, std::optional<bool> is_montgomery_form)
     : index_primitive_type_(index_primitive_type),
       pointer_primitive_type_(element_primitive_type),
       memory_space_(memory_space),
@@ -235,7 +235,9 @@ Layout& Layout::operator=(Layout&& other) = default;
   layout.set_dynamic_shape_metadata_prefix_bytes(
       proto.dynamic_shape_metadata_prefix_bytes());
   layout.set_num_nonzeros(proto.num_nonzeros());
-  layout.set_is_montgomery_form(proto.is_montgomery_form());
+  if (proto.has_is_montgomery_form()) {
+    layout.set_is_montgomery_form(proto.is_montgomery_form());
+  }
   return layout;
 }
 
@@ -278,7 +280,9 @@ void Layout::SetProto(LayoutProto& proto) const {
   proto.set_dynamic_shape_metadata_prefix_bytes(
       dynamic_shape_metadata_prefix_bytes_);
   proto.set_num_nonzeros(num_nonzeros_);
-  proto.set_is_montgomery_form(is_montgomery_form_);
+  if (has_is_montgomery_form()) {
+    proto.set_is_montgomery_form(is_montgomery_form());
+  }
 }
 
 namespace {
@@ -412,7 +416,7 @@ void Layout::Print(Printer* printer) const {
     printer->Append(")");
   }
 
-  if (is_montgomery_form()) {
+  if (has_is_montgomery_form()) {
     print_colon();
     printer->Append("MONT(");
     printer->Append(is_montgomery_form());
@@ -500,9 +504,15 @@ bool Layout::Equal::operator()(const Layout& lhs, const Layout& rhs) {
   if (!ignore_num_nonzeros_ && lhs.num_nonzeros() != rhs.num_nonzeros()) {
     return false;
   }
-  if (!ignore_is_montgomery_form_ &&
-      lhs.is_montgomery_form() != rhs.is_montgomery_form()) {
-    return false;
+  if (!ignore_is_montgomery_form_) {
+    if (lhs.has_is_montgomery_form() || rhs.has_is_montgomery_form()) {
+      if (!lhs.has_is_montgomery_form() || !rhs.has_is_montgomery_form()) {
+        return false;
+      }
+      if (lhs.is_montgomery_form() != rhs.is_montgomery_form()) {
+        return false;
+      }
+    }
   }
   return true;
 }
@@ -529,6 +539,8 @@ Shape* Layout::mutable_physical_shape() {
 }
 
 void Layout::clear_physical_shape() { physical_shape_ = nullptr; }
+
+void Layout::clear_is_montgomery_form() { is_montgomery_form_ = std::nullopt; }
 
 Layout& Layout::DeleteDimension(int64_t dim_to_delete) {
   for (int64_t i = 0; i < minor_to_major_.size();) {

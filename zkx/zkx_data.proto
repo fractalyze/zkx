@@ -193,7 +193,7 @@ message LayoutProto {
   int64 num_nonzeros = 10000;
 
   // Whether the elements are in Montgomery form.
-  bool is_montgomery_form = 10001;
+  optional bool is_montgomery_form = 10001;
 
   // Important: if any field is added, be sure to modify ShapeUtil::Equal() and
   // LayoutUtil::Hash appropriately to account for the new field.
