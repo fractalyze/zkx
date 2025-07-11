@@ -336,7 +336,8 @@ class HloInstruction {
   // Creates a MSM op
   static std::unique_ptr<HloInstruction> CreateMsm(
       const Shape& shape, HloInstruction* scalars, HloInstruction* bases,
-      uint32_t window_bits, MsmParallelType msm_parallel_type);
+      uint32_t window_bits, MsmParallelType msm_parallel_type,
+      MsmPippengersType msm_pippengers_type);
 
   // Creates an asynchronous start, update, and done op.
   static std::unique_ptr<HloInstruction> CreateAsyncStart(
@@ -1443,6 +1444,9 @@ class HloInstruction {
 
   // Delegates to HloMsmInstruction::msm_parallel_type.
   MsmParallelType msm_parallel_type() const;
+
+  // Delegates to HloMsmInstruction::msm_pippengers_type.
+  MsmPippengersType msm_pippengers_type() const;
 
   // Delegates to HloChannelInstruction::channel_id.
   std::optional<int64_t> channel_id() const;

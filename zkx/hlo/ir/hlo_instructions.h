@@ -144,9 +144,11 @@ class HloMsmInstruction : public HloInstruction {
  public:
   explicit HloMsmInstruction(const Shape& shape, HloInstruction* scalars,
                              HloInstruction* bases, int32_t window_bits,
-                             MsmParallelType msm_parallel_type);
+                             MsmParallelType msm_parallel_type,
+                             MsmPippengersType msm_pippengers_type);
   int32_t window_bits() const { return window_bits_; }
   MsmParallelType msm_parallel_type() const { return msm_parallel_type_; }
+  MsmPippengersType msm_pippengers_type() const { return msm_pippengers_type_; }
 
   // Returns a serialized representation of this instruction.
   HloInstructionProto ToProto() const override;
@@ -175,6 +177,9 @@ class HloMsmInstruction : public HloInstruction {
 
   // Describes parallel type for an MSM instruction.
   MsmParallelType msm_parallel_type_;
+
+  // Describes pippengers type for an MSM instruction.
+  MsmPippengersType msm_pippengers_type_;
 };
 
 class HloAsyncInstruction : public HloInstruction {

@@ -134,10 +134,12 @@ std::unique_ptr<HloInstruction> HloFftInstruction::CloneWithNewOperandsImpl(
 HloMsmInstruction::HloMsmInstruction(const Shape& shape,
                                      HloInstruction* scalars,
                                      HloInstruction* bases, int32_t window_bits,
-                                     MsmParallelType msm_parallel_type)
+                                     MsmParallelType msm_parallel_type,
+                                     MsmPippengersType msm_pippengers_type)
     : HloInstruction(HloOpcode::kMsm, shape),
       window_bits_(window_bits),
-      msm_parallel_type_(msm_parallel_type) {
+      msm_parallel_type_(msm_parallel_type),
+      msm_pippengers_type_(msm_pippengers_type) {
   AppendOperand(scalars);
   AppendOperand(bases);
 }
@@ -146,6 +148,7 @@ HloInstructionProto HloMsmInstruction::ToProto() const {
   HloInstructionProto proto = HloInstruction::ToProto();
   proto.set_window_bits(window_bits_);
   proto.set_msm_parallel_type(msm_parallel_type_);
+  proto.set_msm_pippengers_type(msm_pippengers_type_);
   return proto;
 }
 
@@ -155,7 +158,8 @@ bool HloMsmInstruction::IdenticalSlowPath(
         eq_computations) const {
   const auto& casted_other = static_cast<const HloMsmInstruction&>(other);
   return window_bits() == casted_other.window_bits() &&
-         msm_parallel_type() == casted_other.msm_parallel_type();
+         msm_parallel_type() == casted_other.msm_parallel_type() &&
+         msm_pippengers_type() == casted_other.msm_pippengers_type();
 }
 
 std::unique_ptr<HloInstruction> HloMsmInstruction::CloneWithNewOperandsImpl(
@@ -163,7 +167,8 @@ std::unique_ptr<HloInstruction> HloMsmInstruction::CloneWithNewOperandsImpl(
     HloCloneContext* context) const {
   return std::make_unique<HloMsmInstruction>(shape, new_operands[0],
                                              new_operands[1], window_bits_,
-                                             msm_parallel_type_);
+                                             msm_parallel_type_,
+                                             msm_pippengers_type_);
 }
 
 HloAsyncInstruction::HloAsyncInstruction(

@@ -243,7 +243,8 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
     }
     case HloOpcode::kMsm: {
       instruction = CreateMsm(shape, operands(0), operands(1),
-                              proto.window_bits(), proto.msm_parallel_type());
+                              proto.window_bits(), proto.msm_parallel_type(),
+                              proto.msm_pippengers_type());
       break;
     }
     case HloOpcode::kAsyncStart: {
@@ -1248,9 +1249,11 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateFft(
 // static
 std::unique_ptr<HloInstruction> HloInstruction::CreateMsm(
     const Shape& shape, HloInstruction* scalars, HloInstruction* bases,
-    uint32_t window_bits, MsmParallelType msm_parallel_type) {
+    uint32_t window_bits, MsmParallelType msm_parallel_type,
+    MsmPippengersType msm_pippengers_type) {
   return std::make_unique<HloMsmInstruction>(shape, scalars, bases, window_bits,
-                                             msm_parallel_type);
+                                             msm_parallel_type,
+                                             msm_pippengers_type);
 }
 
 // static
@@ -3261,6 +3264,10 @@ int32_t HloInstruction::window_bits() const {
 
 MsmParallelType HloInstruction::msm_parallel_type() const {
   return Cast<HloMsmInstruction>(this)->msm_parallel_type();
+}
+
+MsmPippengersType HloInstruction::msm_pippengers_type() const {
+  return Cast<HloMsmInstruction>(this)->msm_pippengers_type();
 }
 
 int64_t HloInstruction::concatenate_dimension() const {

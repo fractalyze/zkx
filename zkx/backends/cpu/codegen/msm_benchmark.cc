@@ -1,4 +1,5 @@
 #include "benchmark/benchmark.h"
+#include "absl/log/globals.h"
 
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/openmp_util.h"
@@ -31,8 +32,9 @@ struct TestInput {
   std::vector<math::bn254::G1AffinePoint> y;
 };
 
-template <typename Point, MsmParallelType ParallelType>
+template <typename Point, MsmParallelType ParallelType, MsmPippengersType PippengersType>
 absl::Status RunPippenger(benchmark::State& state) {
+  // absl::SetVLogLevel("cpu_kernel_emitter", 4);
   size_t num_scalar_muls = state.range(0);
 
   const std::string kHloText = absl::Substitute(
@@ -41,12 +43,13 @@ absl::Status RunPippenger(benchmark::State& state) {
       %x = bn254.sf[$0] parameter(0)
       %y = bn254.g1_affine[$0] parameter(1)
 
-      ROOT %ret = bn254.g1_xyzz[] msm(%x, %y), msm_parallel_type=$1
+      ROOT %ret = bn254.g1_xyzz[] msm(%x, %y), msm_parallel_type=$1, msm_pippengers_type=$2
     }
     )",
       num_scalar_muls,
       ParallelType == MsmParallelType::WINDOW_PARALLEL ? "WINDOW_PARALLEL"
-                                                       : "TERM_PARALLEL");
+                                                       : "TERM_PARALLEL",
+      PippengersType == MsmPippengersType::GENERIC ? "GENERIC" : "SIGNED_BUCKET_INDEX");
 
   TF_ASSIGN_OR_RETURN(std::unique_ptr<HloModule> module,
                       ParseAndReturnUnverifiedModule(kHloText));
@@ -71,20 +74,20 @@ absl::Status RunPippenger(benchmark::State& state) {
   return absl::OkStatus();
 }
 
-template <typename Point, MsmParallelType ParallelType>
+template <typename Point, MsmParallelType ParallelType, MsmPippengersType PippengersType>
 void BM_Pippenger(benchmark::State& state) {
-  absl::Status status = RunPippenger<Point, ParallelType>(state);
+  absl::Status status = RunPippenger<Point, ParallelType, PippengersType>(state);
   CHECK(status.ok());
 }
 
 BENCHMARK_TEMPLATE(BM_Pippenger, bn254::G1AffinePoint,
-                   MsmParallelType::WINDOW_PARALLEL)
+                   MsmParallelType::WINDOW_PARALLEL, MsmPippengersType::SIGNED_BUCKET_INDEX)
     ->Unit(::benchmark::kMillisecond)
     ->RangeMultiplier(2)
     ->Range(1 << 18, 1 << 22);
 
 BENCHMARK_TEMPLATE(BM_Pippenger, bn254::G1AffinePoint,
-                   MsmParallelType::TERM_PARALLEL)
+                   MsmParallelType::TERM_PARALLEL, MsmPippengersType::GENERIC)
     ->Unit(::benchmark::kMillisecond)
     ->RangeMultiplier(2)
     ->Range(1 << 18, 1 << 22);

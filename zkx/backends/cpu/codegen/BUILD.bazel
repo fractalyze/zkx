@@ -300,6 +300,7 @@ zkx_cc_unittest(
     timeout = "moderate",
     srcs = ["cpu_kernel_emitter_bn254_g1_msm_unittest.cc"],
     deps = [
+        "//zkx/base:openmp_util",
         ":cpu_kernel_emitter_test",
         "//xla/tsl/platform:cpu_info",
         "//zkx:literal_util",

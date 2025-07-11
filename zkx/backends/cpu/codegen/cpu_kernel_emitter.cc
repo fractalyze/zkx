@@ -938,7 +938,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
           base::Log2Ceiling(static_cast<uint64_t>(num_scalar_mul)));
       return b.create<mlir::zkir::elliptic_curve::MSMOp>(
           result_type, scalars, bases, degree, window_bits,
-          instr->msm_parallel_type() == MsmParallelType::WINDOW_PARALLEL);
+          true,
+          instr->msm_pippengers_type() == MsmPippengersType::SIGNED_BUCKET_INDEX);
     }
 
     pass_flag_.enable_expand_strided_metadata = true;
@@ -1004,7 +1005,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
 
           // Compute MSM for chunk
           auto msm_result = b.create<mlir::zkir::elliptic_curve::MSMOp>(
-              result_type, scalars_chunk, bases_chunk, degree, window_bits);
+              result_type, scalars_chunk, bases_chunk, degree, window_bits, false, true);
 
           b.create<mlir::memref::StoreOp>(msm_result, results, i);
         });

@@ -496,6 +496,13 @@ enum MsmParallelType {
   WINDOW_PARALLEL = 1;
 }
 
+enum MsmPippengersType {
+  // Generic pippengers
+  GENERIC = 0;
+  // Signed bucket index
+  SIGNED_BUCKET_INDEX = 1;
+}
+
 message DotDimensionNumbers {
   // The dimension numbers that represent the 'lhs' contracting dimensions.
   repeated int64 lhs_contracting_dimensions = 1;
