@@ -101,12 +101,12 @@ class HloFftInstruction : public HloInstruction {
  public:
   explicit HloFftInstruction(const Shape& shape, HloInstruction* operand,
                              FftType fft_type, int64_t fft_length,
-                             bool fft_no_bit_reverse);
+                             bool fft_do_bit_reverse);
   FftType fft_type() const { return fft_type_; }
 
   int64_t fft_length() const { return fft_length_; }
 
-  bool fft_no_bit_reverse() const { return fft_no_bit_reverse_; }
+  bool fft_do_bit_reverse() const { return fft_do_bit_reverse_; }
 
   // Returns a serialized representation of this instruction.
   HloInstructionProto ToProto() const override;
@@ -137,7 +137,7 @@ class HloFftInstruction : public HloInstruction {
   int64_t fft_length_;
 
   // Indicates whether to apply bit-reverse to the FFT.
-  bool fft_no_bit_reverse_ = false;
+  bool fft_do_bit_reverse_ = true;
 };
 
 class HloMsmInstruction : public HloInstruction {

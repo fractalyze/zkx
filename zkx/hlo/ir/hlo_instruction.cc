@@ -238,7 +238,7 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
   switch (opcode) {
     case HloOpcode::kFft: {
       instruction = CreateFft(shape, operands(0), proto.fft_type(),
-                              proto.fft_length(), proto.fft_no_bit_reverse());
+                              proto.fft_length(), proto.fft_do_bit_reverse());
       break;
     }
     case HloOpcode::kMsm: {
@@ -1240,9 +1240,9 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateVariadic(
 // static
 std::unique_ptr<HloInstruction> HloInstruction::CreateFft(
     const Shape& shape, HloInstruction* operand, FftType fft_type,
-    int64_t fft_length, bool fft_no_bit_reverse) {
+    int64_t fft_length, bool fft_do_bit_reverse) {
   return std::make_unique<HloFftInstruction>(shape, operand, fft_type,
-                                             fft_length, fft_no_bit_reverse);
+                                             fft_length, fft_do_bit_reverse);
 }
 
 // static
@@ -3251,8 +3251,8 @@ int64_t HloInstruction::fft_length() const {
   return Cast<HloFftInstruction>(this)->fft_length();
 }
 
-bool HloInstruction::fft_no_bit_reverse() const {
-  return Cast<HloFftInstruction>(this)->fft_no_bit_reverse();
+bool HloInstruction::fft_do_bit_reverse() const {
+  return Cast<HloFftInstruction>(this)->fft_do_bit_reverse();
 }
 
 int32_t HloInstruction::window_bits() const {

@@ -87,19 +87,16 @@ namespace zkx::cpu {
 namespace {
 
 template <typename T>
-absl::StatusOr<mlir::zkir::poly::PrimitiveRootAttr> GetPrimitiveRootAttr(
+absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> GetRootOfUnityAttr(
     mlir::MLIRContext* mlir_context, int64_t fft_length) {
   TF_ASSIGN_OR_RETURN(T root_of_unity, math::GetRootOfUnity<T>(fft_length));
-  auto root_of_unity_attr = mlir::zkir::field::RootOfUnityAttr::get(
+  return mlir::zkir::field::RootOfUnityAttr::get(
       mlir_context, /*root=*/
       llvm_ir::GetMLIRPrimeFieldAttr(mlir_context, root_of_unity,
                                      /*use_montgomery=*/false),
       /*degree=*/
       mlir::IntegerAttr::get(mlir::IntegerType::get(mlir_context, 64),
                              fft_length));
-  return mlir::zkir::poly::PrimitiveRootAttr::get(
-      mlir_context, root_of_unity_attr,
-      /*montgomery=*/llvm_ir::GetMLIRMontgomeryAttr<T>(mlir_context));
 }
 
 absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,
@@ -884,12 +881,12 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
 
   // TODO(chokobole): Support out-of-place FFT.
   PrimitiveType operand_type = instr->operand(0)->shape().element_type();
-  mlir::zkir::poly::PrimitiveRootAttr root_attr;
+  mlir::zkir::field::RootOfUnityAttr root_attr;
   switch (operand_type) {
     case BN254_SCALAR: {
-      absl::StatusOr<mlir::zkir::poly::PrimitiveRootAttr> root =
-          GetPrimitiveRootAttr<math::bn254::Fr>(value.getContext(),
-                                                instr->fft_length());
+      absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> root =
+          GetRootOfUnityAttr<math::bn254::Fr>(value.getContext(),
+                                              instr->fft_length());
       if (!root.ok()) return root.status();
       root_attr = root.value();
       break;
@@ -903,13 +900,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
 
   switch (instr->fft_type()) {
     case FftType::FFT: {
-      b.create<mlir::zkir::poly::NTTOp>(value, root_attr,
-                                        instr->fft_no_bit_reverse());
+      b.create<mlir::zkir::poly::NTTOp>(value, mlir::Value(), root_attr,
+                                        instr->fft_do_bit_reverse());
       return mlir::Value();
     }
     case FftType::IFFT: {
-      b.create<mlir::zkir::poly::INTTOp>(value, root_attr,
-                                         instr->fft_no_bit_reverse());
+      b.create<mlir::zkir::poly::NTTOp>(value, mlir::Value(), root_attr,
+                                        instr->fft_do_bit_reverse(),
+                                        /*inverse=*/true);
       return mlir::Value();
     }
 
