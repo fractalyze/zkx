@@ -81,15 +81,15 @@ HloBroadcastInstruction::CloneWithNewOperandsImpl(
                                                    dimensions());
 }
 
-HloFftInstruction::HloFftInstruction(const Shape& shape,
-                                     HloInstruction* operand, FftType fft_type,
-                                     int64_t fft_length,
-                                     bool fft_do_bit_reverse)
+HloFftInstruction::HloFftInstruction(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    FftType fft_type, int64_t fft_length, bool fft_do_bit_reverse)
     : HloInstruction(HloOpcode::kFft, shape),
       fft_type_(fft_type),
       fft_length_(fft_length),
       fft_do_bit_reverse_(fft_do_bit_reverse) {
-  AppendOperand(operand);
+  CHECK_LE(new_operands.size(), 2);
+  AppendOperands(new_operands);
 }
 
 HloInstructionProto HloFftInstruction::ToProto() const {
@@ -126,8 +126,7 @@ bool HloFftInstruction::IdenticalSlowPath(
 std::unique_ptr<HloInstruction> HloFftInstruction::CloneWithNewOperandsImpl(
     const Shape& shape, absl::Span<HloInstruction* const> new_operands,
     HloCloneContext* context) const {
-  CHECK_EQ(new_operands.size(), 1);
-  return std::make_unique<HloFftInstruction>(shape, new_operands[0], fft_type_,
+  return std::make_unique<HloFftInstruction>(shape, new_operands, fft_type_,
                                              fft_length_, fft_do_bit_reverse_);
 }
 

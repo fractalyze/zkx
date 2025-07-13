@@ -99,7 +99,8 @@ class HloBroadcastInstruction : public HloDimensionsInstruction {
 
 class HloFftInstruction : public HloInstruction {
  public:
-  explicit HloFftInstruction(const Shape& shape, HloInstruction* operand,
+  explicit HloFftInstruction(const Shape& shape,
+                             absl::Span<HloInstruction* const> new_operands,
                              FftType fft_type, int64_t fft_length,
                              bool fft_do_bit_reverse);
   FftType fft_type() const { return fft_type_; }

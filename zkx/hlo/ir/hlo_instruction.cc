@@ -237,7 +237,7 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
 
   switch (opcode) {
     case HloOpcode::kFft: {
-      instruction = CreateFft(shape, operands(0), proto.fft_type(),
+      instruction = CreateFft(shape, all_operands(), proto.fft_type(),
                               proto.fft_length(), proto.fft_do_bit_reverse());
       break;
     }
@@ -1239,10 +1239,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateVariadic(
 
 // static
 std::unique_ptr<HloInstruction> HloInstruction::CreateFft(
-    const Shape& shape, HloInstruction* operand, FftType fft_type,
-    int64_t fft_length, bool fft_do_bit_reverse) {
-  return std::make_unique<HloFftInstruction>(shape, operand, fft_type,
-                                             fft_length, fft_do_bit_reverse);
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    FftType fft_type, int64_t fft_length, bool fft_do_bit_reverse) {
+  return std::make_unique<HloFftInstruction>(
+      shape, operands, fft_type, fft_length, fft_do_bit_reverse);
 }
 
 // static

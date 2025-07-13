@@ -104,7 +104,7 @@ namespace zkx {
   V(kDynamicSlice, "dynamic-slice", kHloOpcodeIsVariadic)                      \
   V(kDynamicUpdateSlice, "dynamic-update-slice", kHloOpcodeIsVariadic)         \
   V(kFusion, "fusion", kHloOpcodeIsVariadic)                                   \
-  V(kFft, "fft", 1)                                                            \
+  V(kFft, "fft", kHloOpcodeIsVariadic)                                         \
   V(kGather, "gather", 2)                                                      \
   V(kGetDimensionSize, "get-dimension-size", 1)                                \
   V(kGetTupleElement, "get-tuple-element", 1)                                  \

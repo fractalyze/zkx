@@ -872,7 +872,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
-    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
+    mlir::Value twiddle_factor) {
   pass_flag_.enable_poly_to_field = true;
   pass_flag_.enable_lower_affine = true;
   if (instr->fft_type() == FftType::IFFT) {
@@ -900,12 +901,12 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
 
   switch (instr->fft_type()) {
     case FftType::FFT: {
-      b.create<mlir::zkir::poly::NTTOp>(value, mlir::Value(), root_attr,
+      b.create<mlir::zkir::poly::NTTOp>(value, twiddle_factor, root_attr,
                                         instr->fft_do_bit_reverse());
       return mlir::Value();
     }
     case FftType::IFFT: {
-      b.create<mlir::zkir::poly::NTTOp>(value, mlir::Value(), root_attr,
+      b.create<mlir::zkir::poly::NTTOp>(value, twiddle_factor, root_attr,
                                         instr->fft_do_bit_reverse(),
                                         /*inverse=*/true);
       return mlir::Value();
@@ -1271,8 +1272,18 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
                           values[instr->operand(1)]);
     }
     case HloOpcode::kFft: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      return EmitFftOp(instr, b, values[instr->operand(0)]);
+      if (instr->operand_count() == 1) {
+        enable_flag(instr->operand(0)->shape().element_type());
+        return EmitFftOp(instr, b, values[instr->operand(0)]);
+      } else if (instr->operand_count() == 2) {
+        enable_flag(instr->operand(0)->shape().element_type());
+        enable_flag(instr->operand(1)->shape().element_type());
+        return EmitFftOp(instr, b, values[instr->operand(0)],
+                         values[instr->operand(1)]);
+      } else {
+        return absl::InternalError(
+            "HloFftInstruction shouldn't have more than 2 arguments");
+      }
     }
     case HloOpcode::kMsm: {
       enable_flag(instr->operand(0)->shape().element_type());

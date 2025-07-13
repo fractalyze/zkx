@@ -2331,8 +2331,7 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       std::optional<bool> fft_do_bit_reverse;
       attrs["fft_do_bit_reverse"] = {/*required=*/false, AttrTy::kBool,
                                      &fft_do_bit_reverse};
-      if ((!preset_operands &&
-           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
           !ParseAttributes(attrs, allow_attributes, shape)) {
         return nullptr;
       }
@@ -2343,7 +2342,7 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
         return nullptr;
       }
       return builder->AddInstruction(HloInstruction::CreateFft(
-          *shape, operands[0], *fft_type, *fft_length,
+          *shape, operands, *fft_type, *fft_length,
           fft_do_bit_reverse ? *fft_do_bit_reverse : true));
     }
     case HloOpcode::kMsm: {

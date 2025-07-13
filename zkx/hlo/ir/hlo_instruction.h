@@ -328,7 +328,7 @@ class HloInstruction {
 
   // Creates an FFT op, of the type indicated by fft_type.
   static std::unique_ptr<HloInstruction> CreateFft(const Shape& shape,
-                                                   HloInstruction* operand,
+                                                   absl::Span<HloInstruction* const> operands,
                                                    FftType fft_type,
                                                    int64_t fft_length,
                                                    bool fft_do_bit_reverse);
