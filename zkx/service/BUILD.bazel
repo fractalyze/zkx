@@ -444,6 +444,7 @@ zkx_cc_library(
         "//zkx:util",
         "//zkx:zkx_data_cc_proto",
         "//zkx/hlo/ir:hlo",
+        "//zkx/service/gpu:gpu_executable_run_options",
         "//zkx/stream_executor",
         "//zkx/stream_executor:device_description",
         "//zkx/stream_executor:device_memory",
