@@ -79,6 +79,13 @@ message DebugOptions {
   // Dump FDO profiles in a binary format to a separate file.
   bool zkx_gpu_experimental_dump_fdo_profiles = 338;
 
+  // If true, ZKX runtime will retain exclusive ownership of the GPU when
+  // running a module, so there are no multi-thread conflicts on the GPU. This
+  // can enable some optimizations that reduce the cost of resource management,
+  // e.g., command buffer updates to ensure correctness when running in
+  // multi-thread mode.
+  bool zkx_gpu_require_exclusive_lock = 347;
+
   // If true, ZKX will annotate instructions in the dumps with emitter code
   // location (source:line) annotations. This helps to identify the source of
   // the code that emits a particular instruction.
