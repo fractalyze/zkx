@@ -1,0 +1,18 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "buffer_allocations",
+    srcs = ["buffer_allocations.cc"],
+    hdrs = ["buffer_allocations.h"],
+    deps = [
+        "//zkx/service:buffer_assignment",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:device_memory_allocator",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
