@@ -2365,6 +2365,9 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       std::optional<int64_t> fft_length;
       attrs["fft_type"] = {/*required=*/true, AttrTy::kFftType, &fft_type};
       attrs["fft_length"] = {/*required=*/true, AttrTy::kInt64, &fft_length};
+      std::optional<bool> fft_no_bit_reverse;
+      attrs["fft_no_bit_reverse"] = {/*required=*/false, AttrTy::kBool,
+                                     &fft_no_bit_reverse};
       if ((!preset_operands &&
            !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
           !ParseAttributes(attrs, allow_attributes, shape)) {
@@ -2377,9 +2380,13 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
         return nullptr;
       }
       return builder->AddInstruction(HloInstruction::CreateFft(
-          *shape, operands[0], *fft_type, *fft_length));
+          *shape, operands[0], *fft_type, *fft_length,
+          fft_no_bit_reverse ? *fft_no_bit_reverse : false));
     }
     case HloOpcode::kMsm: {
+      std::optional<int32_t> window_bits;
+      attrs["window_bits"] = {/*required=*/false, AttrTy::kInt32, &window_bits};
+
       if ((!preset_operands &&
            !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
           !ParseAttributes(attrs, allow_attributes, shape)) {
@@ -2390,8 +2397,8 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           })) {
         return nullptr;
       }
-      return builder->AddInstruction(
-          HloInstruction::CreateMsm(*shape, operands[0], operands[1]));
+      return builder->AddInstruction(HloInstruction::CreateMsm(
+          *shape, operands[0], operands[1], window_bits ? *window_bits : 0));
     }
     case HloOpcode::kCompare: {
       std::optional<ComparisonDirection> direction;

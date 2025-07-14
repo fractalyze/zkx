@@ -186,8 +186,7 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
       math::bn254::Fr::Random(),
   };
 
-  Literal literal =
-      LiteralUtil::CreateR1<math::bn254::Fr>(absl::MakeSpan(coeffs));
+  Literal literal = LiteralUtil::CreateR1<math::bn254::Fr>(coeffs);
   std::vector<Literal*> literals_ptrs = {&literal};
   RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
 
@@ -221,8 +220,7 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
       math::bn254::Fr::Random(),
   };
 
-  Literal literal =
-      LiteralUtil::CreateR1<math::bn254::Fr>(absl::MakeSpan(evals));
+  Literal literal = LiteralUtil::CreateR1<math::bn254::Fr>(evals);
   std::vector<Literal*> literals_ptrs = {&literal};
   RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
 
@@ -287,8 +285,7 @@ TEST_F(CpuKernelEmitterTest, BroadcastTensor) {
   )",
                                                   i);
 
-    Literal x_literal =
-        LiteralUtil::CreateR1<math::bn254::Fr>(absl::MakeSpan(x));
+    Literal x_literal = LiteralUtil::CreateR1<math::bn254::Fr>(x);
     Literal ret_literal = LiteralUtil::CreateR3<math::bn254::Fr>(
         {{{0, 0}, {0, 0}}, {{0, 0}, {0, 0}}});
     std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
@@ -320,8 +317,8 @@ ENTRY %f (x: bn254.sf[4,3]{1,0:D(D, C)NNZ(8)}, y: bn254.sf[3]) -> bn254.sf[4] {
                                       math::bn254::Fr::Random(),
                                       math::bn254::Fr::Random()};
 
-  Literal x_label = LiteralUtil::CreateR1<uint8_t>(absl::MakeSpan(x_buffer));
-  Literal y_label = LiteralUtil::CreateR1<math::bn254::Fr>(absl::MakeSpan(y));
+  Literal x_label = LiteralUtil::CreateR1<uint8_t>(x_buffer);
+  Literal y_label = LiteralUtil::CreateR1<math::bn254::Fr>(y);
   Literal ret_label = LiteralUtil::CreateR1<math::bn254::Fr>({0, 0, 0, 0});
   std::vector<Literal*> literals_ptrs = {&x_label, &y_label, &ret_label};
   RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
@@ -349,7 +346,7 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[3] {
 
   std::vector<math::bn254::Fr> x = {1, 2, 3, 4, 5, 6};
 
-  Literal x_literal = LiteralUtil::CreateR1<math::bn254::Fr>(absl::MakeSpan(x));
+  Literal x_literal = LiteralUtil::CreateR1<math::bn254::Fr>(x);
   Literal ret_literal = LiteralUtil::CreateR1<math::bn254::Fr>({0, 0, 0});
   std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
   RunHlo(kHloText, absl::MakeSpan(literals_ptrs));

@@ -30,6 +30,27 @@ namespace zkx::cpu {
 
 class CpuKernelEmitter final : public KernelEmitter {
  public:
+  struct PassFlag {
+    bool enable_sparsification_and_bufferization = false;
+    bool enable_one_shot_bufferize = false;
+    bool enable_buffer_results_to_out_params = true;
+    bool enable_poly_to_field = false;
+    bool enable_tensor_ext_to_tensor = false;
+    bool enable_elliptic_curve_to_field = false;
+    bool enable_field_to_arith = false;
+    bool enable_lower_affine = false;
+    bool enable_elementwise_to_linalg = false;
+    bool enable_linalg_to_parallel_loops = false;
+    bool enable_scf_to_cf = false;
+    bool enable_expand_strided_metadata = false;
+    bool enable_finalize_memref_to_llvm = false;
+#ifdef ZKX_HAS_OPENMP
+    bool enable_omp = true;
+#else
+    bool enable_omp = false;
+#endif
+  };
+
   CpuKernelEmitter(mlir::MLIRContext* context, const HloInstruction* instr,
                    const BufferAssignment* buffer_assignment);
 
@@ -37,6 +58,7 @@ class CpuKernelEmitter final : public KernelEmitter {
 
  private:
   absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncArguments() const;
+  absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncReturnTypes() const;
 
   absl::StatusOr<absl::flat_hash_map<const HloInstruction*, mlir::Value>>
   EmitOperands(EmitterLocOpBuilder& b, mlir::Block* entry_block) const;
@@ -51,7 +73,7 @@ class CpuKernelEmitter final : public KernelEmitter {
                              int64_t i, const Shape& shape) const;
 
   absl::Status EmitEpilog(EmitterLocOpBuilder& b, mlir::Block* entry_block,
-                          mlir::Value res) const;
+                          mlir::MemRefType ret_type, mlir::Value result) const;
 
   absl::StatusOr<mlir::Value> EmitOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b,
@@ -124,6 +146,8 @@ class CpuKernelEmitter final : public KernelEmitter {
   const HloInstruction* const instr_;
 
   const BufferAssignment* const buffer_assignment_;
+
+  mutable PassFlag pass_flag_;
 };
 
 }  // namespace zkx::cpu

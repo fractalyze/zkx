@@ -30,6 +30,13 @@ class SparseMatrix {
   SparseMatrix(uint32_t num_rows, uint32_t num_cols)
       : num_rows_(num_rows), num_cols_(num_cols) {}
 
+  SparseMatrix(uint32_t num_rows, uint32_t num_cols, uint32_t num_nonzeros)
+      : num_rows_(num_rows), num_cols_(num_cols) {
+    row_indices_.resize(num_nonzeros);
+    col_indices_.resize(num_nonzeros);
+    values_.resize(num_nonzeros);
+  }
+
   // Generates a random sparse matrix with the given dimensions and number of
   // non-zero elements.
   static SparseMatrix Random(uint32_t num_rows, uint32_t num_cols,
@@ -153,6 +160,16 @@ class SparseMatrix {
     col_indices_.push_back(col);
     values_.push_back(value);
     return false;
+  }
+
+  void InsertUnique(uint32_t row, uint32_t col, const T& value) {
+    CHECK_LT(row, num_rows_);
+    CHECK_LT(col, num_cols_);
+
+    // Insert new element
+    row_indices_.push_back(row);
+    col_indices_.push_back(col);
+    values_.push_back(value);
   }
 
   // Convert to CSR format

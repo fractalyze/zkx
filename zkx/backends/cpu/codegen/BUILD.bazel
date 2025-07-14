@@ -1,4 +1,4 @@
-load("//bazel:zkx.bzl", "if_aarch64", "if_x86_32", "if_x86_64")
+load("//bazel:zkx.bzl", "if_aarch64", "if_has_openmp", "if_x86_32", "if_x86_64")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
@@ -51,10 +51,12 @@ zkx_cc_library(
     hdrs = ["cpu_kernel_emitter.h"],
     deps = [
         ":kernel_api_ir_builder",
+        "//bazel:openmp_flags",
         "//xla/tsl/platform:statusor",
         "//zkx:permutation_util",
         "//zkx:primitive_util",
         "//zkx:shape_util",
+        "//zkx/base:bits",
         "//zkx/base:logging",
         "//zkx/codegen:emitter_loc_op_builder",
         "//zkx/codegen:kernel_emitter",
@@ -96,7 +98,10 @@ zkx_cc_library(
         "@zkir//zkir/Dialect/Poly/Conversions/PolyToField",
         "@zkir//zkir/Dialect/Poly/IR:Poly",
         "@zkir//zkir/Dialect/TensorExt/Conversions/TensorExtToTensor",
-    ],
+    ] + if_has_openmp([
+        "@llvm-project//mlir:OpenMPToLLVMIRTranslation",
+        "@llvm-project//mlir:SCFToOpenMP",
+    ]),
 )
 
 zkx_cc_library(
@@ -291,11 +296,35 @@ zkx_cc_unittest(
 )
 
 zkx_cc_unittest(
+    name = "cpu_kernel_emitter_bn254_g1_msm_unittest",
+    timeout = "moderate",
+    srcs = ["cpu_kernel_emitter_bn254_g1_msm_unittest.cc"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:cpu_info",
+        "//zkx:literal_util",
+        "//zkx/base/containers:container_util",
+    ],
+)
+
+zkx_cc_unittest(
     name = "cpu_kernel_emitter_bn254_g2_unittest",
     timeout = "moderate",
     srcs = ["cpu_kernel_emitter_bn254_g2_unittest.cc"],
     deps = [
         ":cpu_kernel_emitter_test",
         "//zkx:literal_util",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "cpu_kernel_emitter_bn254_g2_msm_unittest",
+    timeout = "long",
+    srcs = ["cpu_kernel_emitter_bn254_g2_msm_unittest.cc"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:cpu_info",
+        "//zkx:literal_util",
+        "//zkx/base/containers:container_util",
     ],
 )

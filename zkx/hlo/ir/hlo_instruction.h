@@ -330,12 +330,14 @@ class HloInstruction {
   static std::unique_ptr<HloInstruction> CreateFft(const Shape& shape,
                                                    HloInstruction* operand,
                                                    FftType fft_type,
-                                                   int64_t fft_length);
+                                                   int64_t fft_length,
+                                                   bool fft_no_bit_reverse);
 
   // Creates a MSM op
   static std::unique_ptr<HloInstruction> CreateMsm(const Shape& shape,
                                                    HloInstruction* scalars,
-                                                   HloInstruction* bases);
+                                                   HloInstruction* bases,
+                                                   uint32_t window_bits);
 
   // Creates an asynchronous start, update, and done op.
   static std::unique_ptr<HloInstruction> CreateAsyncStart(
@@ -1355,6 +1357,25 @@ class HloInstruction {
 
   const StatisticsViz& statistics_viz() const { return rare()->statistics_viz; }
 
+  template <typename T>
+  using EnableIfProto = typename std::enable_if_t<
+      std::is_base_of<google::protobuf::Message, T>::value>;
+
+  // Returns the backend-specific configuration for how a backend should compile
+  // this HLO. The meaning of the field is backend specific. Not for use before
+  // or during general HLO optimization, since HLO optimizations do not preserve
+  // this field and they cannot interpret it due to its meaning being backend
+  // specific. Except for CustomCall, where this field is preserved and no
+  // general HLO optimization needs to interpret it.
+  //
+  // ConfigProto should be a protobuf Message type.
+  template <typename ConfigProto, EnableIfProto<ConfigProto>* = nullptr>
+  absl::StatusOr<ConfigProto> backend_config() const {
+    ConfigProto proto;
+    TF_RETURN_IF_ERROR(backend_config_.GetProto(&proto));
+    return std::move(proto);
+  }
+
   absl::Status set_backend_config(const google::protobuf::Message& proto) {
     backend_config_ = BackendConfigWrapper(proto);
     return absl::OkStatus();
@@ -1407,6 +1428,12 @@ class HloInstruction {
 
   // Delegates to HloFftInstruction::fft_length.
   int64_t fft_length() const;
+
+  // Delegates to HloFftInstruction::fft_no_bit_reverse.
+  bool fft_no_bit_reverse() const;
+
+  // Delegates to HloMsmInstruction::window_bits.
+  int32_t window_bits() const;
 
   // Delegates to HloChannelInstruction::channel_id.
   std::optional<int64_t> channel_id() const;

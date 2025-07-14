@@ -1,6 +1,19 @@
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//bazel:zkx.bzl", "if_has_openmp_on_macos")
 load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "backend_config_proto",
+    srcs = ["backend_config.proto"],
+)
+
+cc_proto_library(
+    name = "backend_config_cc_proto",
+    deps = [":backend_config_proto"],
+)
 
 zkx_cc_binary(
     name = "libmlir_runner_utils_ext.so",
@@ -216,10 +229,22 @@ zkx_cc_library(
         ":runtime_custom_call_status",
         ":runtime_fork_join",
         ":runtime_print",
+        "//bazel:openmp_flags",
         "//zkx/service:custom_call_target_registry",
         "@llvm-project//llvm:Core",
         "@llvm-project//llvm:OrcJIT",
         "@llvm-project//mlir:_mlir_c_runner_utils",
+    ] + if_has_openmp_on_macos(["@local_config_omp//:omp"]),
+)
+
+zkx_cc_library(
+    name = "shape_partition",
+    srcs = ["shape_partition.cc"],
+    hdrs = ["shape_partition.h"],
+    deps = [
+        "//zkx:shape_util",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
@@ -272,11 +297,13 @@ zkx_cc_unittest(
     name = "cpu_unittests",
     srcs = [
         "cpu_runtime_unittest.cc",
+        "shape_partition_unittest.cc",
         "xfeed_manager_unittest.cc",
     ],
     deps = [
         ":cpu_runtime",
         ":runtime_custom_call_status",
+        ":shape_partition",
         ":xfeed_manager",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:status",

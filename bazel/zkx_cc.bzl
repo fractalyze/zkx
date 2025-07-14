@@ -39,7 +39,7 @@ def zkx_openmp_defines():
     return if_has_openmp(["ZKX_HAS_OPENMP"])
 
 def zkx_defines():
-    return zkx_openmp_defines()
+    return []
 
 def zkx_local_defines():
     return []
@@ -53,7 +53,7 @@ def zkx_openmp_linkopts():
     })
 
 def zkx_linkopts():
-    return zkx_openmp_linkopts()
+    return []
 
 def zkx_openmp_num_threads_env(n):
     return if_has_openmp({

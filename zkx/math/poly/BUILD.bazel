@@ -3,6 +3,17 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "bit_reverse",
+    srcs = ["bit_reverse.cc"],
+    hdrs = ["bit_reverse.h"],
+    deps = [
+        "//zkx/base:bits",
+        "//zkx/base:openmp_util",
+        "@com_google_absl//absl/base:core_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "root_of_unity",
     hdrs = ["root_of_unity.h"],
     deps = [
@@ -15,8 +26,12 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "poly_unittests",
-    srcs = ["root_of_unity_unittest.cc"],
+    srcs = [
+        "bit_reverse_unittest.cc",
+        "root_of_unity_unittest.cc",
+    ],
     deps = [
+        ":bit_reverse",
         ":root_of_unity",
         "//zkx/math/elliptic_curves/bn/bn254:fq",
         "//zkx/math/elliptic_curves/bn/bn254:fr",
