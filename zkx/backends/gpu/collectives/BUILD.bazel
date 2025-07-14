@@ -1,0 +1,22 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "gpu_collectives",
+    srcs = ["gpu_collectives.cc"],
+    hdrs = ["gpu_collectives.h"],
+    deps = [
+        "//xla/tsl/platform:casts",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/core/collectives",
+        "//zkx/core/collectives:collectives_registry",
+        "//zkx/core/collectives:communicator",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:stream",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+    ],
+)
