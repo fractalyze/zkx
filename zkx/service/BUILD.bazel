@@ -514,6 +514,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "lockable",
+    hdrs = ["lockable.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "logical_buffer",
     srcs = ["logical_buffer.cc"],
     hdrs = ["logical_buffer.h"],
@@ -769,6 +781,7 @@ zkx_cc_unittest(
         "dump_unittest.cc",
         "hlo_module_config_unittest.cc",
         "hlo_proto_util_unittest.cc",
+        "lockable_unittest.cc",
         "mapped_ptr_container_sorter_unittest.cc",
         "name_uniquer_unittest.cc",
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
@@ -788,6 +801,7 @@ zkx_cc_unittest(
         ":dump",
         ":hlo_module_config",
         ":hlo_proto_util",
+        ":lockable",
         ":mapped_ptr_container_sorter",
         ":name_uniquer",
         ":phi_graph",
