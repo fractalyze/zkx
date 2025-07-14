@@ -16,3 +16,16 @@ zkx_cc_library(
         "@com_google_absl//absl/types:span",
     ],
 )
+
+zkx_cc_library(
+    name = "gpu_executable_run_options",
+    srcs = ["gpu_executable_run_options.cc"],
+    hdrs = ["gpu_executable_run_options.h"],
+    deps = [
+        "//zkx:executable_run_options",
+        "//zkx/backends/gpu/collectives:gpu_collectives",
+        "//zkx/core/collectives:clique_id",
+        "//zkx/core/collectives:clique_key",
+        "//zkx/service:global_device_id",
+    ],
+)
