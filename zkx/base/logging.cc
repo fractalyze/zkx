@@ -17,6 +17,8 @@ limitations under the License.
 
 #include <stddef.h>
 
+#include <queue>
+
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/numbers.h"
 #include "absl/synchronization/mutex.h"

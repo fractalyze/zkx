@@ -135,7 +135,7 @@ class JitCompiler {
 
  private:
   // LLVM ORC task dispatcher that uses `TaskRunner` to run compilation tasks.
-  class TaskDispatcher : public llvm::orc::TaskDispatcher {
+  class TaskDispatcher final : public llvm::orc::TaskDispatcher {
    public:
     explicit TaskDispatcher(TaskRunner task_runner);
     ~TaskDispatcher() final;
