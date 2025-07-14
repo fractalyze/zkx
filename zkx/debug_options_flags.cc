@@ -51,6 +51,8 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_multiheap_size_constraint_per_heap(-1);
   opts.set_zkx_enable_dumping(true);
 
+  opts.set_zkx_gpu_require_exclusive_lock(false);
+
   opts.set_zkx_syntax_sugar_async_ops(false);
 
   opts.set_zkx_pjrt_allow_auto_layout_in_hlo(false);
@@ -343,6 +345,17 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "Enable dumping MLIR using pretty print form. If set to false, the "
       "dumped MLIR will be in the llvm-parsable format and can be processed by "
       "mlir-opt tools. Pretty print form is not legal MLIR."));
+
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_require_exclusive_lock",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_require_exclusive_lock),
+      debug_options->zkx_gpu_require_exclusive_lock(),
+      "if true, running gpu executable will require exclusive lock on gpu, so "
+      "there is no multi thread conflicts on gpu. this can enable some "
+      "optimizations that reduce the cost of resource management, e.g, "
+      "command buffer update to ensure correctness when running in multi "
+      "thread mode."));
+
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_dump_autotune_results_to",
       string_setter_for(&DebugOptions::set_zkx_gpu_dump_autotune_results_to),
