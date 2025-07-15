@@ -53,4 +53,23 @@ zkx_cc_library(
     deps = ["@com_google_absl//absl/container:flat_hash_map"],
 )
 
+zkx_cc_library(
+    name = "kernel_arguments",
+    srcs = ["kernel_arguments.cc"],
+    hdrs = ["kernel_arguments.h"],
+    deps = [
+        ":gpu_constants",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
