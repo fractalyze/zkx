@@ -30,6 +30,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_constants",
+    hdrs = ["gpu_constants.h"],
+)
+
+zkx_cc_library(
     name = "gpu_executable_run_options",
     srcs = ["gpu_executable_run_options.cc"],
     hdrs = ["gpu_executable_run_options.h"],
