@@ -72,4 +72,18 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "launch_dimensions",
+    srcs = ["launch_dimensions.cc"],
+    hdrs = ["launch_dimensions.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/service:platform_util",
+        "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:launch_dim",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
