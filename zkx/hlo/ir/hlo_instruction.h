@@ -328,10 +328,10 @@ class HloInstruction {
 
   // Creates an FFT op, of the type indicated by fft_type.
   static std::unique_ptr<HloInstruction> CreateFft(const Shape& shape,
-                                                   HloInstruction* operand,
+                                                   absl::Span<HloInstruction* const> operands,
                                                    FftType fft_type,
                                                    int64_t fft_length,
-                                                   bool fft_no_bit_reverse);
+                                                   bool fft_do_bit_reverse);
 
   // Creates a MSM op
   static std::unique_ptr<HloInstruction> CreateMsm(const Shape& shape,
@@ -1436,8 +1436,8 @@ class HloInstruction {
   // Delegates to HloFftInstruction::fft_length.
   int64_t fft_length() const;
 
-  // Delegates to HloFftInstruction::fft_no_bit_reverse.
-  bool fft_no_bit_reverse() const;
+  // Delegates to HloFftInstruction::fft_do_bit_reverse.
+  bool fft_do_bit_reverse() const;
 
   // Delegates to HloMsmInstruction::window_bits.
   int32_t window_bits() const;

@@ -205,6 +205,44 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
   }
 }
 
+TEST_F(CpuKernelEmitterTest, FFTWithTwiddles) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[4], twiddles: bn254.sf[4]) -> bn254.sf[4] {
+  %x = bn254.sf[4] parameter(0)
+  %twiddles = bn254.sf[4] parameter(1)
+
+  ROOT %ret = bn254.sf[4] fft(%x, %twiddles), fft_type=FFT, fft_length=4
+}
+)";
+
+  std::vector<math::bn254::Fr> coeffs = {
+      math::bn254::Fr::Random(),
+      math::bn254::Fr::Random(),
+      math::bn254::Fr::Random(),
+      math::bn254::Fr::Random(),
+  };
+
+  TF_ASSERT_OK_AND_ASSIGN(math::bn254::Fr w,
+                          math::GetRootOfUnity<math::bn254::Fr>(coeffs.size()));
+  std::vector<math::bn254::Fr> twiddles(coeffs.size());
+  for (int64_t i = 0; i < coeffs.size(); ++i) {
+    twiddles[i] = w.Pow(i);
+  }
+
+  Literal literal = LiteralUtil::CreateR1<math::bn254::Fr>(coeffs);
+  Literal twiddles_literal = LiteralUtil::CreateR1<math::bn254::Fr>(twiddles);
+  std::vector<Literal*> literals_ptrs = {&literal, &twiddles_literal};
+  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+
+  for (int64_t i = 0; i < coeffs.size(); ++i) {
+    auto expected = math::bn254::Fr::Zero();
+    for (int64_t j = 0; j < coeffs.size(); ++j) {
+      expected += coeffs[j] * twiddles[(i * j) % coeffs.size()];
+    }
+    EXPECT_EQ(literal.Get<math::bn254::Fr>({i}), expected);
+  }
+}
+
 TEST_F(CpuKernelEmitterTest, IFFT) {
   const std::string kHloText = R"(
 ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
@@ -231,6 +269,46 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
   for (int64_t i = 0; i < evals.size(); ++i) {
     twiddles[i] = *w.Pow(i).Inverse();
   }
+
+  for (int64_t i = 0; i < evals.size(); ++i) {
+    auto expected = math::bn254::Fr::Zero();
+    for (int64_t j = 0; j < evals.size(); ++j) {
+      expected += evals[j] * twiddles[(i * j) % evals.size()];
+    }
+    expected = expected * n_inv;
+    EXPECT_EQ(literal.Get<math::bn254::Fr>({i}), expected);
+  }
+}
+
+TEST_F(CpuKernelEmitterTest, IFFTWithTwiddles) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[4], twiddles: bn254.sf[4]) -> bn254.sf[4] {
+  %x = bn254.sf[4] parameter(0)
+  %twiddles = bn254.sf[4] parameter(1)
+
+  ROOT %ret = bn254.sf[4] fft(%x, %twiddles), fft_type=IFFT, fft_length=4
+}
+)";
+
+  std::vector<math::bn254::Fr> evals = {
+      math::bn254::Fr::Random(),
+      math::bn254::Fr::Random(),
+      math::bn254::Fr::Random(),
+      math::bn254::Fr::Random(),
+  };
+
+  TF_ASSERT_OK_AND_ASSIGN(math::bn254::Fr w,
+                          math::GetRootOfUnity<math::bn254::Fr>(evals.size()));
+  math::bn254::Fr n_inv = *math::bn254::Fr(evals.size()).Inverse();
+  std::vector<math::bn254::Fr> twiddles(evals.size());
+  for (int64_t i = 0; i < evals.size(); ++i) {
+    twiddles[i] = *w.Pow(i).Inverse();
+  }
+
+  Literal literal = LiteralUtil::CreateR1<math::bn254::Fr>(evals);
+  Literal twiddles_literal = LiteralUtil::CreateR1<math::bn254::Fr>(twiddles);
+  std::vector<Literal*> literals_ptrs = {&literal, &twiddles_literal};
+  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
 
   for (int64_t i = 0; i < evals.size(); ++i) {
     auto expected = math::bn254::Fr::Zero();
