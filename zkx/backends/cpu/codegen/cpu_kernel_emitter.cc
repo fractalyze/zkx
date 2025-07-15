@@ -225,7 +225,9 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
   if (flag.enable_field_to_arith) {
     VLOG(2) << "add pass: -field-to-mod-arith -mod-arith-to-arith";
     pm.addPass(mlir::zkir::field::createFieldToModArith());
+    pm.addPass(mlir::createCanonicalizerPass());
     pm.addPass(mlir::zkir::mod_arith::createModArithToArith());
+    pm.addPass(mlir::createCanonicalizerPass());
   }
 
   if (flag.enable_lower_affine) {
