@@ -3,6 +3,24 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "gpu_clique",
+    srcs = ["gpu_clique.cc"],
+    hdrs = ["gpu_clique.h"],
+    deps = [
+        ":gpu_clique_key",
+        "//zkx/core/collectives:clique",
+        "//zkx/core/collectives:clique_id",
+        "//zkx/core/collectives:communicator",
+        "//zkx/core/collectives:rank_id",
+        "//zkx/service:lockable",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "gpu_clique_key",
     srcs = ["gpu_clique_key.cc"],
     hdrs = ["gpu_clique_key.h"],
