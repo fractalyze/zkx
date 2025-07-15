@@ -21,6 +21,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_cliques",
+    hdrs = ["gpu_cliques.h"],
+    deps = [
+        ":gpu_clique",
+        ":gpu_clique_key",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "gpu_clique_key",
     srcs = ["gpu_clique_key.cc"],
     hdrs = ["gpu_clique_key.h"],
