@@ -1,6 +1,18 @@
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "backend_configs_proto",
+    srcs = ["backend_configs.proto"],
+)
+
+cc_proto_library(
+    name = "backend_configs_cc_proto",
+    deps = [":backend_configs_proto"],
+)
 
 zkx_cc_library(
     name = "buffer_allocations",
@@ -29,3 +41,11 @@ zkx_cc_library(
         "//zkx/service:global_device_id",
     ],
 )
+
+zkx_cc_library(
+    name = "ir_emission_utils",
+    hdrs = ["ir_emission_utils.h"],
+    deps = ["@com_google_absl//absl/container:flat_hash_map"],
+)
+
+# TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
