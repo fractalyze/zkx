@@ -97,7 +97,7 @@ Layout LayoutUtil::MakeLayout(
     absl::Span<const SplitConfig> split_configs,
     std::optional<Shape> physical_shape,
     int64_t dynamic_shape_metadata_prefix_bytes, int64_t num_nonzeros,
-    bool is_montgomery_form) {
+    std::optional<bool> is_montgomery_form) {
   Layout layout;
   for (int64_t dimension_number : minor_to_major) {
     layout.add_minor_to_major(dimension_number);
@@ -137,7 +137,9 @@ Layout LayoutUtil::MakeLayout(
   layout.set_dynamic_shape_metadata_prefix_bytes(
       dynamic_shape_metadata_prefix_bytes);
   layout.set_num_nonzeros(num_nonzeros);
-  layout.set_is_montgomery_form(is_montgomery_form);
+  if (is_montgomery_form.has_value()) {
+    layout.set_is_montgomery_form(*is_montgomery_form);
+  }
   return layout;
 }
 
@@ -209,6 +211,19 @@ void LayoutUtil::SetToDefaultLayout(Shape* shape) {
     auto* minor_to_major = shape->mutable_layout()->mutable_minor_to_major();
     minor_to_major->resize(shape->dimensions_size(), 0);
     SetDefaultLayoutToContainer(minor_to_major);
+    switch (shape->element_type()) {
+      case BN254_SCALAR:
+      case BN254_G1_AFFINE:
+      case BN254_G1_JACOBIAN:
+      case BN254_G1_XYZZ:
+      case BN254_G2_AFFINE:
+      case BN254_G2_JACOBIAN:
+      case BN254_G2_XYZZ:
+        shape->mutable_layout()->set_is_montgomery_form(true);
+        break;
+      default:
+        break;
+    }
   } else {
     // Opaque, token types etc. have no layout.
     shape->clear_layout();

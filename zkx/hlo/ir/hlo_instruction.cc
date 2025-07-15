@@ -1201,6 +1201,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBinary(
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
+    case HloOpcode::kMsm:
     case HloOpcode::kPower:
     case HloOpcode::kSubtract:
       break;
@@ -1851,6 +1852,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kSubtract:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
+    case HloOpcode::kMsm:
     case HloOpcode::kPower:
       CHECK_EQ(new_operands.size(), 2);
       clone = CreateBinary(shape, opcode_, new_operands[0], new_operands[1]);
@@ -1858,6 +1860,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kConvert:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateConvert(shape, new_operands[0]);
+      break;
+    case HloOpcode::kTuple:
+      clone = CreateTuple(new_operands);
+      *clone->mutable_shape() = shape;
       break;
     case HloOpcode::kAfterAll:
       if (new_operands.empty()) {
@@ -3208,6 +3214,33 @@ HloModule* HloInstruction::GetModule() const {
 
 void HloInstruction::UniquifyName(HloModule* module) {
   UniquifyName(&module->instruction_name_uniquer());
+}
+
+void HloInstruction::SortInstructionUsersAndControlLists(
+    const MappedPtrContainerSorter<HloInstruction>::MapPtrFn& map_fn,
+    const HloInstruction& sorted_instruction) {
+  using Sorter = MappedPtrContainerSorter<HloInstruction>;
+  users_.SortInstructionUsers(map_fn, sorted_instruction.users_);
+
+  absl::Status status;
+  if (has_rare()) {
+    status = Sorter::Sort(map_fn, Sorter::IndexAfterMappedElementsFn(),
+                          sorted_instruction.control_predecessors(),
+                          mutable_rare()->control_predecessors);
+  }
+  if (!status.ok()) {
+    LOG(ERROR) << "Failed to sort instruction control predecessors for "
+               << name() << "; " << status;
+  }
+  if (has_rare()) {
+    status = Sorter::Sort(map_fn, Sorter::IndexAfterMappedElementsFn(),
+                          sorted_instruction.control_successors(),
+                          mutable_rare()->control_successors);
+  }
+  if (!status.ok()) {
+    LOG(ERROR) << "Failed to sort instruction control successors for " << name()
+               << "; " << status;
+  }
 }
 
 FftType HloInstruction::fft_type() const {

@@ -15,6 +15,32 @@ def zkx_safe_code():
         # ./xla/tsl/concurrency/async_value.h:722:19: warning: offset of on non-standard-layout type 'ConcreteAsyncValue<C>' [-Winvalid-offsetof]
         # 722 |     static_assert(offsetof(ConcreteAsyncValue<T>, data_store_.data_) ==
         "-Wno-invalid-offsetof",
+        # /usr/lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13/functional:552:2: error: 'result_of<(lambda at external/zkx/zkx/service/cpu/runtime_fork_join.cc:97:9) &()>' is deprecated: use 'std::invoke_result' instead [-Werror,-Wdeprecated-declarations]
+        # 552 |         using _Res_type_impl
+            # |         ^
+        # /usr/lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13/functional:556:2: note: in instantiation of template type alias '_Res_type_impl' requested here
+        # 556 |         using _Res_type = _Res_type_impl<_Functor, _CallArgs, _Bound_args...>;
+            # |         ^
+        # /usr/lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13/functional:586:28: note: in instantiation of template type alias '_Res_type' requested here
+        # 586 |                typename _Result = _Res_type<tuple<_Args...>>>
+            # |                                   ^
+        # external/eigen_archive/unsupported/Eigen/CXX11/src/Tensor/TensorDeviceThreadPool.h:160:23: note: in instantiation of template class 'std::_Bind<(lambda at external/zkx/zkx/service/cpu/runtime_fork_join.cc:97:9) ()>' requested here
+        # 160 |       pool_->Schedule(std::bind(std::forward<Function>(f), args...));
+            # |                       ^
+        # external/zkx/zkx/service/cpu/runtime_fork_join.cc:96:42: note: in instantiation of function template specialization 'Eigen::ThreadPoolDevice::enqueueNoNotification<(lambda at external/zkx/zkx/service/cpu/runtime_fork_join.cc:97:9)>' requested here
+        # 96 |     run_options->intra_op_thread_pool()->enqueueNoNotification(
+            # |                                          ^
+        # /usr/lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13/type_traits:2590:9: note: 'result_of<(lambda at external/zkx/zkx/service/cpu/runtime_fork_join.cc:97:9) &()>' has been explicitly marked deprecated here
+        # 2590 |     { } _GLIBCXX17_DEPRECATED_SUGGEST("std::invoke_result");
+            # |         ^
+        # /usr/lib/gcc/x86_64-linux-gnu/13/../../../../include/x86_64-linux-gnu/c++/13/bits/c++config.h:122:45: note: expanded from macro '_GLIBCXX17_DEPRECATED_SUGGEST'
+        # 122 | # define _GLIBCXX17_DEPRECATED_SUGGEST(ALT) _GLIBCXX_DEPRECATED_SUGGEST(ALT)
+            # |                                             ^
+        # /usr/lib/gcc/x86_64-linux-gnu/13/../../../../include/x86_64-linux-gnu/c++/13/bits/c++config.h:98:19: note: expanded from macro '_GLIBCXX_DEPRECATED_SUGGEST'
+        # 98 |   __attribute__ ((__deprecated__ ("use '" ALT "' instead")))
+            # |                   ^
+        # 1 error generated.
+        "-Wno-deprecated-declarations",
     ]
 
 def zkx_warnings(safe_code):

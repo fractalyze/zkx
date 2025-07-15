@@ -142,8 +142,10 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
 
 mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,
                                        mlir::MLIRContext* context) {
+  const Layout& layout = shape.layout();
   mlir::Type result_type = PrimitiveTypeToMLIRType(
-      shape.element_type(), context, shape.layout().is_montgomery_form());
+      shape.element_type(), context,
+      layout.has_is_montgomery_form() && layout.is_montgomery_form());
   if (shape.IsTuple()) {
     // A tuple buffer is an array of pointers.
     // clang-format off
@@ -166,7 +168,8 @@ mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
                                              mlir::MLIRContext* context) {
   const Layout& layout = shape.layout();
   mlir::Type result_type = PrimitiveTypeToMLIRType(
-      shape.element_type(), context, layout.is_montgomery_form());
+      shape.element_type(), context,
+      layout.has_is_montgomery_form() && layout.is_montgomery_form());
   if (shape.IsTuple()) {
     // A tuple buffer is an array of pointers.
     // clang-format off

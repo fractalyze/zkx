@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "zkx/hlo/analysis/hlo_dataflow_analysis.h"
 
+#include <queue>
+
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 

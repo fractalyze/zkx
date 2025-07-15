@@ -40,6 +40,7 @@ limitations under the License.
 #include "zkx/service/cpu/cpu_runtime.h"
 #include "zkx/service/custom_call_status.h"
 #include "zkx/service/custom_call_status_internal.h"
+#include "zkx/service/dump.h"
 #include "zkx/service/hlo_module_util.h"
 #include "zkx/service/llvm_ir/llvm_command_line_options.h"
 #include "zkx/util.h"
@@ -579,10 +580,8 @@ static absl::StatusOr<std::unique_ptr<Executable>> JitCompile(
       std::unique_ptr<HloModule> hlo_module,
       HloModule::CreateFromProto(hlo_module_proto, *hlo_module_config));
   VLOG(3) << "Unoptimized HLO module: " << hlo_module->ToString();
-  // TODO(chokobole): Uncomment this. Dependency: DumpHloModuleIfEnabled
-  // static constexpr char kBeforeOptimizationsDumpName[] =
-  // "before_optimizations"; DumpHloModuleIfEnabled(*hlo_module,
-  // kBeforeOptimizationsDumpName);
+  static constexpr char kBeforeOptimizationsDumpName[] = "before_optimizations";
+  DumpHloModuleIfEnabled(*hlo_module, kBeforeOptimizationsDumpName);
 
   // RunHloPasses and RunBackend both look at the LLVM command line options.
   auto llvm_options = llvm_ir::ExtractZkxBackendExtraOptions(

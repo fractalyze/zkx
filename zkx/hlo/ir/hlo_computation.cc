@@ -15,6 +15,9 @@ limitations under the License.
 
 #include "zkx/hlo/ir/hlo_computation.h"
 
+#include <queue>
+#include <stack>
+
 #include "absl/memory/memory.h"
 
 #include "xla/tsl/platform/status.h"
@@ -26,6 +29,21 @@ namespace zkx {
 namespace {
 
 enum class VisitState { kNew = 0, kVisiting = 1, kVisited = 2 };
+
+static std::ostream& operator<<(std::ostream& os, const VisitState& state) {
+  switch (state) {
+    case VisitState::kNew:
+      os << "new";
+      break;
+    case VisitState::kVisiting:
+      os << "visiting";
+      break;
+    case VisitState::kVisited:
+      os << "visited";
+      break;
+  }
+  return os;
+}
 
 }  // namespace
 
@@ -1332,6 +1350,267 @@ absl::Status HloComputation::AcceptWithOperandOrder(
   // Visit the computation root instruction last.
   return root_instruction()->AcceptWithOperandOrder(visitor, operand_order,
                                                     /*call_finish_visit=*/true);
+}
+
+std::unique_ptr<HloComputation> HloComputation::Clone(
+    const std::string& suffix, HloCloneContext* context) {
+  return CloneWithReplacements(
+      /*replacements=*/nullptr,
+      /*extra_parameters=*/{}, context, suffix);
+}
+
+std::unique_ptr<HloComputation> HloComputation::CloneWithReplacementPairs(
+    std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r1,
+    HloCloneContext* context, const std::string& suffix) {
+  absl::flat_hash_map<const HloInstruction*, std::unique_ptr<HloInstruction>>
+      replacements;
+  replacements.emplace(std::move(r1));
+  return CloneWithReplacements(&replacements, /*extra_parameters=*/{}, context,
+                               suffix);
+}
+
+std::unique_ptr<HloComputation> HloComputation::CloneWithReplacementPairs(
+    std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r1,
+    std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r2,
+    HloCloneContext* context, const std::string& suffix) {
+  absl::flat_hash_map<const HloInstruction*, std::unique_ptr<HloInstruction>>
+      replacements;
+  replacements.emplace(std::move(r1));
+  replacements.emplace(std::move(r2));
+  return CloneWithReplacements(&replacements, /*extra_parameters=*/{}, context,
+                               suffix);
+}
+
+std::unique_ptr<HloComputation> HloComputation::CloneWithReplacementPairs(
+    std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r1,
+    std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r2,
+    std::pair<const HloInstruction*, std::unique_ptr<HloInstruction>> r3,
+    HloCloneContext* context, const std::string& suffix) {
+  absl::flat_hash_map<const HloInstruction*, std::unique_ptr<HloInstruction>>
+      replacements;
+  replacements.emplace(std::move(r1));
+  replacements.emplace(std::move(r2));
+  replacements.emplace(std::move(r3));
+  return CloneWithReplacements(&replacements, /*extra_parameters=*/{}, context,
+                               suffix);
+}
+
+namespace {
+
+// Sorts unordered_instructions according to the order of ordered_instructions,
+// using MappedPtrContainerSorter. context and replace are used to map
+// instructions in ordered_instructions to instructions in
+// unordered_instructions. Unmapped parameter instructions are placed just after
+// the last parameter instruction in the sorted mapped instruction order. All
+// other mapped instructions are placed at the end.
+void SortClonedInstructions(
+    const HloCloneContext& context,
+    absl::FunctionRef<const HloInstruction*(const HloInstruction*)> replace,
+    const HloComputation& computation,
+    const HloComputation::InstructionList& ordered_instructions,
+    std::vector<std::unique_ptr<HloInstruction>>& unordered_instructions) {
+  using InstructionSorter = MappedPtrContainerSorter<HloInstruction>;
+  auto instruction_mapper = [&context, replace](const HloInstruction* i) {
+    return context.FindInstruction(replace(i));
+  };
+  size_t num_mapped_instructions = 0;
+  size_t mapped_index_of_last_parameter_plus_one = 0;
+  for (const auto& instruction : ordered_instructions) {
+    if (!instruction_mapper(instruction.get())) {
+      continue;
+    }
+    ++num_mapped_instructions;
+    if (!dynamic_cast<const HloParameterInstruction*>(instruction.get())) {
+      continue;
+    }
+    mapped_index_of_last_parameter_plus_one = num_mapped_instructions;
+  }
+  auto unmapped_ptr_index =
+      [num_mapped_instructions,
+       mapped_index_of_last_parameter_plus_one](const HloInstruction* i) {
+        if (dynamic_cast<const HloParameterInstruction*>(i)) {
+          if (num_mapped_instructions > 0 &&
+              mapped_index_of_last_parameter_plus_one > 0) {
+            return mapped_index_of_last_parameter_plus_one - 1;
+          }
+          return InstructionSorter::IndexBeforeMappedElementsFn()(i);
+        }
+        return InstructionSorter::IndexAfterMappedElementsFn()(i);
+      };
+  auto status =
+      InstructionSorter::Sort(instruction_mapper, unmapped_ptr_index,
+                              ordered_instructions, unordered_instructions);
+  if (!status.ok()) {
+    LOG(ERROR) << "Failed to reorder instructions while cloning computation: "
+               << computation.name() << "; " << status;
+  }
+}
+
+// For cloned instructions, sorts their users, control predecessors, and control
+// successors, according to the orders of those lists in the original
+// instructions, before cloning. context and replace help us to map original
+// instructions to cloned instructions, in addition to creating a list of
+// cloned instructions.
+void SortClonedInstructionUsersAndControlLists(
+    const HloCloneContext& context,
+    absl::FunctionRef<const HloInstruction*(const HloInstruction*)> replace,
+    const HloComputation::InstructionList& sorted_instructions) {
+  auto instruction_mapper = [&context, replace](const HloInstruction* i) {
+    return context.FindInstruction(replace(i));
+  };
+  for (const HloInstructionInfo& instruction : sorted_instructions) {
+    HloInstruction* cloned_instruction =
+        context.FindInstruction(replace(instruction.get()));
+    if (!cloned_instruction) {
+      continue;
+    }
+    cloned_instruction->SortInstructionUsersAndControlLists(instruction_mapper,
+                                                            *instruction);
+  }
+}
+
+}  // namespace
+
+std::unique_ptr<HloComputation> HloComputation::CloneWithReplacements(
+    const absl::flat_hash_map<const HloInstruction*,
+                              std::unique_ptr<HloInstruction>>* replacements,
+    absl::Span<const HloInstruction* const> extra_parameters,
+    HloCloneContext* context, const std::string& suffix,
+    const HloInstruction* new_root) {
+  std::unique_ptr<HloCloneContext> context_ptr;
+  if (context == nullptr) {
+    context_ptr = std::make_unique<HloCloneContext>(parent(), suffix);
+    context = context_ptr.get();
+  }
+  return CloneInContext(*context, replacements, extra_parameters, suffix,
+                        new_root);
+}
+
+std::unique_ptr<HloComputation> HloComputation::CloneInContext(
+    HloCloneContext& context,
+    const absl::flat_hash_map<const HloInstruction*,
+                              std::unique_ptr<HloInstruction>>* replacements,
+    absl::Span<const HloInstruction* const> extra_parameters,
+    const std::string& suffix, const HloInstruction* new_root) const {
+  if (new_root == nullptr) {
+    new_root = root_instruction();
+  }
+
+  // Look up instr in the replacements map, and return either the replacement,
+  // or instr, if the replacement isn't present.
+  //
+  // Note: This can return null, indicating that instr should not be present in
+  // the new computation.
+  auto replace = [&](const HloInstruction* instr) {
+    if (!replacements) return instr;
+    auto it = replacements->find(instr);
+    return it != replacements->end() ? it->second.get() : instr;
+  };
+
+  VLOG(1) << "Cloning " << name() << " --> " << suffix << "\n";
+
+  // We want to do a postorder walk over [replace(i) for i in instructions_].
+  // We can't reuse MakeInstructionPostOrder() for this, because that will
+  // generate a postorder of plain instructions_, and our replacements may
+  // change the postorder!
+  //
+  // The postorder we want here is simpler than what MakeInstructionPostOrder()
+  // does -- we only care about operand dependencies -- so let's just do it
+  // ourselves.
+  std::vector<const HloInstruction*> postorder;
+  absl::flat_hash_map<const HloInstruction*, VisitState> visited;
+  std::vector<const HloInstruction*> dfs_stack;
+  for (const auto& instr : instructions()) {
+    const HloInstruction* new_instr = replace(instr);
+    if (!new_instr) {
+      continue;
+    }
+    dfs_stack.clear();
+    dfs_stack.push_back(new_instr);
+
+    while (!dfs_stack.empty()) {
+      auto* cur = dfs_stack.back();
+      auto it = visited.find(cur);
+      if (it != visited.end()) {
+        dfs_stack.pop_back();
+        if (it->second == VisitState::kVisited) {
+          continue;
+        }
+        CHECK_EQ(it->second, VisitState::kVisiting);
+        postorder.push_back(cur);
+        it->second = VisitState::kVisited;
+        continue;
+      }
+
+      visited.insert({cur, VisitState::kVisiting});
+      for (HloInstruction* operand : cur->operands()) {
+        const HloInstruction* new_operand = replace(operand);
+        if (new_operand) {
+          dfs_stack.push_back(new_operand);
+        }
+      }
+    }
+  }
+
+  std::vector<std::unique_ptr<HloInstruction>> instructions;
+  // First add the extra parameters to 'instructions'.
+  for (const auto& instr : extra_parameters) {
+    CHECK_EQ(instr->opcode(), HloOpcode::kParameter)
+        << "Only parameter instructions are allowed in 'extra_parameters'";
+    instructions.emplace_back(instr->Clone());
+  }
+  for (auto instr : postorder) {
+    std::vector<HloInstruction*> new_operands;
+    for (auto operand : instr->operands()) {
+      auto replaced_operand = replace(operand);
+      CHECK_NE(replaced_operand, nullptr)
+          << "replacements map tried to eliminate a used instruction "
+          << operand->ToString() << ", used by " << instr->ToString();
+      new_operands.push_back(context.GetInstruction(replaced_operand));
+    }
+    std::unique_ptr<HloInstruction> new_instr =
+        instr->CloneWithNewOperands(instr->shape(), new_operands, &context);
+    if (instr->opcode() == HloOpcode::kParameter &&
+        instr->parameter_replicated_at_leaf_buffers().has_value()) {
+      new_instr->set_parameter_replicated_at_leaf_buffers(
+          instr->parameter_replicated_at_leaf_buffers().value());
+    }
+    instructions.push_back(std::move(new_instr));
+  }
+
+  // To make clone behavior match uncloned behavior, we reorder instructions to
+  // match the order in instructions_.
+  SortClonedInstructions(context, replace, *this, instructions_, instructions);
+
+  Builder builder(suffix.empty() ? std::string(name())
+                                 : absl::StrCat(name(), ".", suffix));
+  for (auto& instr : instructions) {
+    builder.AddInstruction(std::move(instr));
+  }
+  auto result = builder.Build(
+      /*root_instruction=*/context.GetInstruction(replace(new_root)));
+
+  // Clone control dependencies.
+  for (auto instr : postorder) {
+    HloInstruction* new_instr = context.GetInstruction(instr);
+    for (auto successor : instr->control_successors()) {
+      auto replaced_successor = replace(successor);
+      // successor may not have been remapped, because it might have been
+      // removed by the replacements map.
+      if (replaced_successor != nullptr) {
+        TF_CHECK_OK(new_instr->AddControlDependencyTo(
+            context.GetInstruction(replaced_successor)));
+      }
+    }
+  }
+
+  // To make clone behavior match uncloned behavior, we reorder the user and
+  // control lists, kept by cloned instructions.
+  SortClonedInstructionUsersAndControlLists(context, replace, instructions_);
+
+  context.MapComputation(this, result.get());
+  result->SetExecutionThread(execution_thread());
+  return result;
 }
 
 void HloComputation::UniquifyName(HloModule* module) {

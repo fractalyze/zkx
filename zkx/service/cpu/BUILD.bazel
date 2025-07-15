@@ -15,6 +15,21 @@ cc_proto_library(
     deps = [":backend_config_proto"],
 )
 
+proto_library(
+    name = "executable_proto",
+    srcs = ["executable.proto"],
+    deps = [
+        "//zkx:zkx_proto",
+        "//zkx/backends/cpu/runtime:thunk_proto",
+        "//zkx/service:hlo_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "executable_cc_proto",
+    deps = [":executable_proto"],
+)
+
 zkx_cc_binary(
     name = "libmlir_runner_utils_ext.so",
     linkshared = True,
@@ -32,6 +47,7 @@ zkx_cc_library(
     deps = [
         ":cpu_executable",
         ":cpu_options",
+        ":executable_cc_proto",
         ":runtime_symbol_generator",
         ":thunk_emitter",
         "//xla/tsl/platform:cpu_info",
@@ -42,15 +58,19 @@ zkx_cc_library(
         "//zkx:util",
         "//zkx/backends/cpu/codegen:cpu_features",
         "//zkx/backends/cpu/codegen:jit_compiler",
+        "//zkx/backends/cpu/codegen:object_loader",
         "//zkx/backends/cpu/codegen:target_machine_features",
+        "//zkx/backends/cpu/runtime:thunk_proto_serdes",
         "//zkx/base:logging",
         "//zkx/hlo/ir:hlo",
         "//zkx/hlo/transforms/simplifiers:hlo_memory_scheduler",
         "//zkx/service:buffer_assignment",
         "//zkx/service:buffer_value",
+        "//zkx/service:dump",
         "//zkx/service:llvm_compiler",
         "//zkx/service/llvm_ir:llvm_command_line_options",
         "//zkx/stream_executor/host:host_platform_id",
+        "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
@@ -82,6 +102,7 @@ zkx_cc_library(
     srcs = ["cpu_executable.cc"],
     hdrs = ["cpu_executable.h"],
     deps = [
+        ":executable_cc_proto",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
         "//zkx:literal",

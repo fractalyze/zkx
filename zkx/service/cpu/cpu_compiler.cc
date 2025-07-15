@@ -18,6 +18,7 @@ limitations under the License.
 #include <functional>
 #include <vector>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "llvm/Bitcode/BitcodeReader.h"
@@ -34,12 +35,16 @@ limitations under the License.
 #include "xla/tsl/platform/thread_pool.h"
 #include "zkx/backends/cpu/codegen/cpu_features.h"
 #include "zkx/backends/cpu/codegen/jit_compiler.h"
+#include "zkx/backends/cpu/codegen/object_loader.h"
+#include "zkx/backends/cpu/runtime/thunk_proto_serdes.h"
 #include "zkx/base/logging.h"
 #include "zkx/hlo/transforms/simplifiers/hlo_memory_scheduler.h"
 #include "zkx/service/buffer_value.h"
 #include "zkx/service/cpu/cpu_options.h"
+#include "zkx/service/cpu/executable.pb.h"
 #include "zkx/service/cpu/runtime_symbol_generator.h"
 #include "zkx/service/cpu/thunk_emitter.h"
+#include "zkx/service/dump.h"
 #include "zkx/service/llvm_ir/llvm_command_line_options.h"
 #include "zkx/shape_util.h"
 #include "zkx/stream_executor/host/host_platform_id.h"
@@ -66,8 +71,10 @@ std::pair<LlvmCompiler::ModuleHook, LlvmCompiler::ModuleHook> GetIRModuleHooks(
   //  * Calls the user supplied module hook.
   //  * Writes out the IR to a file in the output directory designated by
   //    --zkx_dump_to
-  auto hook = [user_pre_optimization_hook, user_post_optimization_hook](
-                  bool optimized, const llvm::Module& llvm_module) {
+  const HloModule* hlo_module_ptr = &hlo_module;
+  auto hook = [user_pre_optimization_hook, user_post_optimization_hook,
+               hlo_module_ptr](bool optimized,
+                               const llvm::Module& llvm_module) {
     const auto& user_hook =
         !optimized ? user_pre_optimization_hook : user_post_optimization_hook;
     if (user_hook) {
@@ -76,11 +83,10 @@ std::pair<LlvmCompiler::ModuleHook, LlvmCompiler::ModuleHook> GetIRModuleHooks(
 
     // Include LLVM module identifier suffix in case `llvm_module` is just a
     // part of the original LLVM module constructed by the ZKX.
-    // TODO(chokobole): Uncomment this. Dependency: DumpIrIfEnabled
-    // std::string_view id = llvm_module.getModuleIdentifier();
-    // size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
-    // llvm_ir::DumpIrIfEnabled(*hlo_module_ptr, llvm_module, optimized,
-    //                          /*filename_suffix=*/id.substr(pos));
+    std::string_view id = llvm_module.getModuleIdentifier();
+    size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
+    DumpIrIfEnabled(*hlo_module_ptr, llvm_module, optimized,
+                    /*filename_suffix=*/id.substr(pos));
   };
   return {[hook](const llvm::Module& llvm_module) {
             return hook(/*optimized=*/false, llvm_module);
@@ -160,6 +166,23 @@ inline void VlogMaxIsa(std::string_view max_cpu_isa) {
   }
 }
 
+// We keep HloProto in the CpuExecutable, but we don't need to keep literals
+// payload in it as we use it only for debugging and memory analysis.
+void StripPayloadFromLiteralProto(HloProto& proto) {
+  auto* module = proto.mutable_hlo_module();
+  for (auto& computation : *module->mutable_computations()) {
+    for (auto& instruction : *computation.mutable_instructions()) {
+      // We only keep literal shape to correctly estimate memory usage of the
+      // HLO module, but we don't need the actual literal data.
+      if (instruction.has_literal()) {
+        LiteralProto literal;
+        *literal.mutable_shape() = instruction.literal().shape();
+        *instruction.mutable_literal() = std::move(literal);
+      }
+    }
+  }
+}
+
 // Post-compilation callback functor for use by SimpleOrcJIT.
 //
 // Dumps machine code if dumping is enabled for the module.
@@ -170,18 +193,15 @@ CreateOrcJITPostCompilationHook(const HloModule* hlo_module,
              const llvm::object::ObjectFile& obj_file) {
     if (obj_files) obj_files->push_back(obj_file.getData().str());
 
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: DumpingEnabledForHloModule. DumpToFileInDir
-    // clang-format on
-    // if (DumpingEnabledForHloModule(*hlo_module)) {
-    //   std::string_view id = llvm_module.getModuleIdentifier();
-    //   size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
-    //   DumpToFileInDir(
-    //       *hlo_module, /*file_prefix=*/"",
-    //       /*file_suffix=*/absl::StrCat("obj-file.", id.substr(pos), ".o"),
-    //       std::string_view(obj_file.getData().data(),
-    //                        obj_file.getData().size()));
-    // }
+    if (DumpingEnabledForHloModule(*hlo_module)) {
+      std::string_view id = llvm_module.getModuleIdentifier();
+      size_t pos = std::min(id.size(), 1 + kZkxModuleIdentifier.size());
+      DumpToFileInDir(
+          *hlo_module, /*file_prefix=*/"",
+          /*file_suffix=*/absl::StrCat("obj-file.", id.substr(pos), ".o"),
+          std::string_view(obj_file.getData().data(),
+                           obj_file.getData().size()));
+    }
   };
 }
 
@@ -480,9 +500,20 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
 
   TF_ASSIGN_OR_RETURN(std::unique_ptr<BufferAssignment> assignment,
                       CreateBufferAssignment(*module));
-  // TODO(chokobole): Uncomment this. Dependency: DumpHloModuleIfEnabled
-  // DumpHloModuleIfEnabled(*module, *assignment,
-  //                        absl::StrCat("cpu_", kAfterOptimizationsDumpName));
+  DumpHloModuleIfEnabled(*module, *assignment,
+                         absl::StrCat("cpu_", kAfterOptimizationsDumpName));
+
+  // Dump computation proto state and buffer assignment for
+  // GetCompiledMemoryStats results.
+  auto with_hlo_proto = [&](std::unique_ptr<CpuExecutable> cpu_executable) {
+    auto hlo_proto = std::make_unique<HloProto>();
+    *hlo_proto->mutable_hlo_module() = cpu_executable->module().ToProto();
+    *hlo_proto->mutable_buffer_assignment() =
+        cpu_executable->buffer_assignment().ToProto();
+    StripPayloadFromLiteralProto(*hlo_proto);
+    cpu_executable->set_hlo_proto(std::move(hlo_proto));
+    return cpu_executable;
+  };
 
   // Thunk emitter is responsible for building a Thunk sequence that will
   // resolved kernels in the compiled LLVM module and execute them together
@@ -552,14 +583,17 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
 
   // Collect compiled symbols from all LLVM module parts.
   std::vector<FunctionLibrary::Symbol> compiled_symbols;
+
+  absl::flat_hash_map<FunctionLibrary::TypeId, SymbolProto::FunctionTypeId>
+      symbol_type_id_to_function_type_id;
   for (auto& [name, module] : thunk_emitter.kernels()) {
     compiled_symbols.push_back(
         FunctionLibrary::Sym<FunctionLibrary::Kernel>(name));
     // clang-format off
     // TODO(chokobole): Uncomment this. Dependency: symbol_type_id_to_function_type_id
     // clang-format on
-    // symbol_type_id_to_function_type_id.emplace(compiled_symbols.back().type_id,
-    //                                            SymbolProto::KERNEL);
+    symbol_type_id_to_function_type_id.emplace(compiled_symbols.back().type_id,
+                                               SymbolProto::KERNEL);
     // TODO(chokobole): Uncomment this. Dependency: kernel_dylib_index
     // TF_CHECK_OK(jit_compiler.AddModule(std::move(module),
     // kernel_dylib_index));
@@ -594,10 +628,10 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
   // clang-format off
   // TODO(chokobole): Uncomment this. Dependency: symbol_type_id_to_function_type_id
   // clang-format on
-  // cpu_executable->set_symbol_type_id_to_function_type_id(
-  //     symbol_type_id_to_function_type_id);
+  cpu_executable->set_symbol_type_id_to_function_type_id(
+      symbol_type_id_to_function_type_id);
 
-  return std::move(cpu_executable);
+  return with_hlo_proto(std::move(cpu_executable));
   // TODO(chokobole): Implement other branch.
   // if (!module->config().debug_options().xla_cpu_use_thunk_runtime()) {
 }
@@ -639,6 +673,246 @@ absl::StatusOr<std::unique_ptr<Executable>> CpuCompiler::RunBackend(
 
 se::Platform::Id CpuCompiler::PlatformId() const {
   return se::host::kHostPlatformId;
+}
+
+namespace {
+
+// This is a result of exporting JIT compiled CpuExecutable to AOT compilation
+// result that can be saved on disk and shipped over the wire.
+class CpuExecutableAotCompilationResult : public AotCompilationResult {
+ public:
+  static absl::StatusOr<std::unique_ptr<CpuExecutableAotCompilationResult>>
+  Create(const HloModule* hlo_module, const BufferAssignment* buffer_assignment,
+         absl::string_view function_name, std::vector<std::string> obj_files,
+         std::vector<SymbolProto> symbols, const ThunkSequence* thunks,
+         CompilationResultProto::ObjFileKind obj_file_kind) {
+    std::optional<ThunkSequenceProto> thunk_proto;
+
+    if (thunks != nullptr) {
+      ThunkSequenceSerDesProtobuf thunk_sequence_serdes(
+          &buffer_assignment->Allocations());
+      TF_ASSIGN_OR_RETURN(thunk_proto, thunk_sequence_serdes.ToProto(*thunks));
+    }
+
+    return absl::WrapUnique(new CpuExecutableAotCompilationResult(
+        hlo_module, buffer_assignment, function_name, std::move(obj_files),
+        std::move(symbols), thunk_proto, obj_file_kind));
+  }
+
+  absl::StatusOr<std::string> SerializeAsString() const override {
+    return proto_.SerializeAsString();
+  }
+
+  static absl::StatusOr<std::unique_ptr<CpuExecutableAotCompilationResult>>
+  FromString(const std::string& serialized) {
+    CompilationResultProto proto;
+    if (!proto.ParseFromString(serialized)) {
+      return absl::InternalError(
+          "Failed to parse serialized CpuExecutableAotCompilationResult.");
+    }
+
+    TF_ASSIGN_OR_RETURN(
+        std::unique_ptr<HloModule> module,
+        HloModule::CreateFromProtoWithConfig(proto.hlo_module()));
+
+    return std::unique_ptr<CpuExecutableAotCompilationResult>(
+        new CpuExecutableAotCompilationResult(proto, std::move(module)));
+  }
+
+  absl::StatusOr<std::unique_ptr<Executable>> LoadExecutable(
+      Compiler* compiler, const se::StreamExecutor* stream_exec) const override;
+
+  const HloModule* optimized_module() const override { return module_.get(); }
+
+  std::unique_ptr<HloModule> consume_optimized_module() override {
+    return std::move(module_);
+  }
+
+ private:
+  CpuExecutableAotCompilationResult(
+      const HloModule* hlo_module, const BufferAssignment* buffer_assignment,
+      absl::string_view function_name, std::vector<std::string> obj_files,
+      std::vector<SymbolProto> symbols,
+      const std::optional<ThunkSequenceProto>& thunks,
+      CompilationResultProto::ObjFileKind obj_file_kind) {
+    *proto_.mutable_hlo_module()->mutable_hlo_module() = hlo_module->ToProto();
+    *proto_.mutable_hlo_module()->mutable_config() =
+        hlo_module->config().ToProto();
+    *proto_.mutable_buffer_assignment() = buffer_assignment->ToProto();
+    proto_.set_entry_function_name(std::string(function_name));
+    for (std::string& obj_file : obj_files) {
+      proto_.add_obj_files(std::move(obj_file));
+    }
+
+    for (const auto& symbol : symbols) {
+      auto* symbol_proto = proto_.add_compiled_symbols();
+      *symbol_proto = symbol;
+    }
+    proto_.set_obj_files_kind(obj_file_kind);
+    module_ = hlo_module->Clone();
+
+    if (thunks.has_value()) {
+      ThunkSequenceSerDesProtobuf thunk_sequence_serdes(
+          &buffer_assignment->Allocations());
+      *proto_.mutable_thunk_sequence() = *thunks;
+    }
+  }
+
+  explicit CpuExecutableAotCompilationResult(CompilationResultProto proto,
+                                             std::unique_ptr<HloModule> module)
+      : proto_(std::move(proto)), module_(std::move(module)) {}
+
+  CompilationResultProto proto_;
+  std::unique_ptr<HloModule> module_;
+};
+
+}  // namespace
+
+absl::StatusOr<std::unique_ptr<Executable>>
+CpuExecutableAotCompilationResult::LoadExecutable(
+    Compiler* compiler, const se::StreamExecutor* stream_exec) const {
+  // Recreate HloModule from proto.
+  TF_ASSIGN_OR_RETURN(
+      std::unique_ptr<HloModule> module,
+      HloModule::CreateFromProtoWithConfig(proto_.hlo_module()));
+
+  VLOG(2) << "Load ZKX:CPU executable for module: " << module->name();
+
+  // Recreate BufferAssignment from proto.
+  TF_ASSIGN_OR_RETURN(
+      std::unique_ptr<BufferAssignment> buffer_assignment,
+      BufferAssignment::FromProto(proto_.buffer_assignment(), module.get(),
+                                  compiler->BufferSizeBytesFunction(),
+                                  /*can_share_buffer=*/nullptr));
+
+  const DebugOptions& debug_options = module->config().debug_options();
+  VlogMaxIsa(debug_options.zkx_cpu_max_isa());
+  const HloModuleConfig& config = module->config();
+
+  // Infer target machine from the current host CPU.
+  IrCompiler::TargetMachineBuilder target_machine_builder =
+      JitCompiler::InferTargetMachineBuilder(
+          llvm::TargetOptions(), IrCompiler::GetCodeGenOptLevel(config),
+          CpuFeatureFromString(debug_options.zkx_cpu_max_isa()));
+  TF_ASSIGN_OR_RETURN(auto target_machine, target_machine_builder());
+
+  // Definition generator to link with ZKX:CPU host runtime symbols.
+  ExecutionEngine::DefinitionGenerator definition_generator =
+      [](const llvm::DataLayout& data_layout) {
+        return std::make_unique<RuntimeSymbolGenerator>(data_layout);
+      };
+
+  ObjectLoader object_loader(/*num_dylibs=*/1,
+                             target_machine->createDataLayout(),
+                             definition_generator);
+
+  for (size_t i = 0; i < object_loader.num_dylibs(); ++i) {
+    object_loader.dylib(i).value()->addGenerator(
+        std::make_unique<RuntimeSymbolGenerator>(
+            target_machine->createDataLayout()));
+  }
+
+  // We might have an ZKX:CPU executable that has only runtime thunks and
+  // doesn't have any corresponding object files, and it's absolutely fine.
+  VLOG(2) << "Load ZKX:CPU executable from " << proto_.obj_files_size()
+          << " object files; entry_function_name="
+          << proto_.entry_function_name();
+
+  size_t obj_file_index = 0;
+  for (auto& obj_file : proto_.obj_files()) {
+    llvm::StringRef data(obj_file.data(), obj_file.size());
+    TF_RETURN_IF_ERROR(
+        object_loader.AddObjFile(llvm::MemoryBuffer::getMemBuffer(
+            data, absl::StrCat(proto_.entry_function_name(), "_",
+                               obj_file_index++))));
+  }
+
+  std::unique_ptr<CpuExecutable> cpu_executable;
+
+  CHECK_EQ(proto_.obj_files_kind(), CompilationResultProto::KERNELS);
+  ThunkSequenceSerDesProtobuf thunk_sequence_serdes(
+      &buffer_assignment->Allocations());
+  TF_ASSIGN_OR_RETURN(std::unique_ptr<ThunkSequence> thunks,
+                      thunk_sequence_serdes.FromProto(proto_.thunk_sequence()));
+
+  VLOG(3) << "Loaded " << thunks->size() << " thunks.";
+
+  std::vector<FunctionLibrary::Symbol> compiled_symbols;
+
+  for (const auto& symbol_proto : proto_.compiled_symbols()) {
+    switch (symbol_proto.function_type_id()) {
+      case SymbolProto::KERNEL:
+        compiled_symbols.push_back(
+            FunctionLibrary::Sym<FunctionLibrary::Kernel>(symbol_proto.name()));
+        break;
+      case SymbolProto::COMPARATOR:
+        compiled_symbols.push_back(
+            FunctionLibrary::Sym<FunctionLibrary::Comparator>(
+                symbol_proto.name()));
+        break;
+      default:
+        return absl::InternalError(absl::StrFormat(
+            "Unknown function type id %s",
+            SymbolProto_FunctionTypeId_Name(symbol_proto.function_type_id())));
+    }
+  }
+
+  VLOG(3) << "Collected " << compiled_symbols.size() << " compiled symbols";
+  TF_ASSIGN_OR_RETURN(std::unique_ptr<FunctionLibrary> function_library,
+                      std::move(object_loader).Load(compiled_symbols));
+
+  // Create constant allocations from the buffer assignment.
+  TF_ASSIGN_OR_RETURN(std::vector<CpuExecutable::ConstantAllocation> constants,
+                      CreateConstantAllocations(*buffer_assignment));
+
+  TF_ASSIGN_OR_RETURN(
+      cpu_executable,
+      CpuExecutable::Create(std::move(function_library),
+                            std::move(buffer_assignment), std::move(module),
+                            std::move(*thunks), std::move(constants)));
+
+  // Dump computation proto state and buffer assignment for
+  // GetCompiledMemoryStats results.
+  auto hlo_proto = std::make_unique<HloProto>();
+  *hlo_proto->mutable_hlo_module() = cpu_executable->module().ToProto();
+  *hlo_proto->mutable_buffer_assignment() =
+      cpu_executable->buffer_assignment().ToProto();
+  cpu_executable->set_hlo_proto(std::move(hlo_proto));
+
+  return cpu_executable;
+}
+
+absl::StatusOr<std::unique_ptr<AotCompilationResult>> CpuCompiler::Export(
+    Executable* executable) const {
+  auto* cpu_executable = tensorflow::down_cast<CpuExecutable*>(executable);
+  if (!cpu_executable)
+    return absl::InternalError(
+        "Could not downcast Executable to CpuExecutable");
+
+  // Export object files for all dylibs.
+  std::vector<std::string> obj_files;
+  for (const auto& obj_file : cpu_executable->obj_files()) {
+    obj_files.push_back(std::string(obj_file));
+  }
+
+  CHECK(cpu_executable->has_thunks());
+  auto kind = CompilationResultProto::KERNELS;
+  const ThunkSequence* thunk_sequence =
+      &cpu_executable->thunks().thunk_sequence();
+
+  std::vector<SymbolProto> compiled_symbols =
+      cpu_executable->get_compiled_symbols_proto();
+
+  return CpuExecutableAotCompilationResult::Create(
+      &cpu_executable->module(), &cpu_executable->buffer_assignment(),
+      cpu_executable->module_name(), std::move(obj_files),
+      std::move(compiled_symbols), thunk_sequence, kind);
+}
+
+absl::StatusOr<std::unique_ptr<AotCompilationResult>>
+CpuCompiler::LoadAotCompilationResult(
+    const std::string& serialized_aot_result) {
+  return CpuExecutableAotCompilationResult::FromString(serialized_aot_result);
 }
 
 absl::StatusOr<HloSchedule> CpuCompiler::CreateHloSchedule(

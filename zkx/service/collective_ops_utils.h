@@ -40,6 +40,9 @@ enum class ReductionKind { kSum, kProduct, kMin, kMax };
 
 std::string_view ReductionKindToString(ReductionKind reduction_kind);
 
+absl::StatusOr<ReductionKind> StringToReductionKind(
+    std::string_view reduction_kind);
+
 // Attempts to match instruction to one of the possible cases for ReductionKind.
 std::optional<ReductionKind> MatchReductionInstruction(
     const HloInstruction* hlo);

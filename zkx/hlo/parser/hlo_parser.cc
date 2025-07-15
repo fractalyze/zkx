@@ -28,7 +28,6 @@ limitations under the License.
 #include "google/protobuf/message.h"
 
 #include "xla/tsl/lib/gtl/map_util.h"
-#include "xla/tsl/platform/env.h"
 #include "zkx/comparison_util.h"
 #include "zkx/hlo/ir/collective_device_list.h"
 #include "zkx/hlo/ir/hlo_domain_metadata.h"
@@ -1709,47 +1708,11 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
     case HloOpcode::kConstant: {
       Literal literal;
       if (!ParseToken(TokKind::kLparen,
-                      "expects '(' before constant literal")) {
+                      "expects '(' before constant literal") ||
+          !ParseLiteral(&literal, *shape) ||
+          !ParseToken(TokKind::kRparen, "expects ')' after constant literal") ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
         return nullptr;
-      }
-      TokKind kind = lexer_.GetKind();
-      if (kind == TokKind::kAttributeName) {
-        if (lexer_.GetStrVal() != "path") {
-          TokenError("expect path attribute");
-          return nullptr;
-        }
-        lexer_.Lex();
-
-        std::string path;
-        if (!ParseString(&path) ||
-            !ParseToken(TokKind::kRparen,
-                        "expects ')' after constant literal") ||
-            !ParseAttributes(attrs, allow_attributes, shape)) {
-          return nullptr;
-        }
-
-        LiteralProto parsed_proto;
-        absl::Status s =
-            tsl::ReadBinaryProto(tsl::Env::Default(), path, &parsed_proto);
-        if (!s.ok()) {
-          TokenError(s.message());
-          return nullptr;
-        }
-
-        absl::StatusOr<Literal> literal_tmp =
-            Literal::CreateFromProto(parsed_proto);
-        if (!literal_tmp.ok()) {
-          TokenError(literal_tmp.status().message());
-          return nullptr;
-        }
-        literal = std::move(*literal_tmp);
-      } else {
-        if (!ParseLiteral(&literal, *shape) ||
-            !ParseToken(TokKind::kRparen,
-                        "expects ')' after constant literal") ||
-            !ParseAttributes(attrs, allow_attributes, shape)) {
-          return nullptr;
-        }
       }
       return builder->AddInstruction(
           HloInstruction::CreateConstant(std::move(literal), *shape));
@@ -4969,7 +4932,7 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
   int64_t dynamic_shape_metadata_prefix_bytes = 0;
   int64_t tail_padding_alignment_in_elements = 1;
   int64_t num_nonzeros = 0;
-  bool is_montgomery_form = true;
+  std::optional<bool> is_montgomery_form;
 
   auto parse_and_add_item = [&]() {
     int64_t i;
@@ -5075,7 +5038,8 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
 
       if (lexer_.GetKind() == TokKind::kIdent && lexer_.GetStrVal() == "MONT") {
         lexer_.Lex();
-        ParseLayoutBoolAttribute(&is_montgomery_form, "montgomery form");
+        is_montgomery_form.emplace();
+        ParseLayoutBoolAttribute(&*is_montgomery_form, "montgomery form");
       }
     }
   }
@@ -5159,6 +5123,15 @@ bool HloParserImpl::ParseShape(Shape* result,
     Layout layout;
     if (!ParseLayout(&layout)) {
       return false;
+    }
+    if (primitive_type == BN254_SCALAR || primitive_type == BN254_G1_AFFINE ||
+        primitive_type == BN254_G1_JACOBIAN ||
+        primitive_type == BN254_G1_XYZZ || primitive_type == BN254_G2_AFFINE ||
+        primitive_type == BN254_G2_JACOBIAN ||
+        primitive_type == BN254_G2_XYZZ) {
+      if (!layout.has_is_montgomery_form()) {
+        layout.set_is_montgomery_form(true);
+      }
     }
     if (layout.dim_level_types_size() != 0 &&
         layout.dim_level_types_size() != result->rank()) {

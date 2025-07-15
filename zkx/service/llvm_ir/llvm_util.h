@@ -76,7 +76,7 @@ std::string IrName(const HloInstruction* a, std::string_view b = "");
 
 template <typename T>
 llvm::APInt ConvertBigIntToAPInt(const T& value) {
-  return {T::kBitWidth, T::kLimbNums, value.limbs()};
+  return {T::kBitWidth, static_cast<unsigned>(T::kLimbNums), value.limbs()};
 }
 
 template <typename T>

@@ -17,6 +17,7 @@ limitations under the License.
 #define ZKX_STREAM_EXECUTOR_HOST_HOST_STREAM_H_
 
 #include <memory>
+#include <queue>
 
 #include "absl/base/thread_annotations.h"
 #include "absl/functional/any_invocable.h"
