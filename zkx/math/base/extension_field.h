@@ -28,6 +28,7 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
  public:
   using Config = _Config;
   using BaseField = typename Config::BaseField;
+  using BasePrimeField = typename Config::BasePrimeField;
 
   constexpr static uint32_t N = Config::kDegreeOverBaseField;
   constexpr static size_t kBitWidth = N * BaseField::kBitWidth;
@@ -94,6 +95,17 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
       if (!values_[i].IsZero()) return false;
     }
     return values_[0].IsOne();
+  }
+
+  // See
+  // https://github.com/Consensys/gnark-crypto/blob/43897fd/field/generator/internal/templates/extensions/e2.go.tmpl#L29-L37
+  constexpr bool LexicographicallyLargest() const {
+    for (size_t i = N - 1; i != SIZE_MAX; --i) {
+      if (!values_[i].IsZero()) {
+        return values_[i].LexicographicallyLargest();
+      }
+    }
+    return false;
   }
 
   constexpr ExtensionField operator+(const ExtensionField& other) const {

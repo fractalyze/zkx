@@ -102,6 +102,15 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
 
   constexpr bool IsOne() const { return value_ == Config::kOne; }
 
+  // See
+  // https://github.com/Consensys/gnark-crypto/blob/43897fd/field/generator/internal/templates/element/base.go#L292-L308.
+  // Returns true if this element is lexicographically larger than (q-1)/2.
+  // This is equivalent to checking if value_ > ((Config::kModulus - 1) / 2).
+  constexpr bool LexicographicallyLargest() const {
+    constexpr BigInt<N> kHalfModulus = (Config::kModulus - 1) >> 1;
+    return MontReduce() > kHalfModulus;
+  }
+
   constexpr PrimeField operator+(const PrimeField& other) const {
     BigInt<N> ret_value;
     bool carry = false;
