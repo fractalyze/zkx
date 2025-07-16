@@ -413,7 +413,7 @@ class Serde<math::PrimeField<Config>> {
   static bool s_is_in_montgomery;
 
   static absl::Status WriteTo(const math::PrimeField<Config>& prime_field,
-                              Buffer* buffer) {
+                              Buffer* buffer, Endian) {
     if (s_is_in_montgomery) {
       return buffer->Write(prime_field.value());
     } else {
@@ -422,7 +422,7 @@ class Serde<math::PrimeField<Config>> {
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               math::PrimeField<Config>* prime_field) {
+                               math::PrimeField<Config>* prime_field, Endian) {
     math::BigInt<N> v;
     TF_RETURN_IF_ERROR(buffer.Read(&v));
     if (s_is_in_montgomery) {

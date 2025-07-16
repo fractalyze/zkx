@@ -20,14 +20,15 @@ struct IsSerde : std::false_type {};
 
 template <typename T>
 struct IsSerde<
-    T,
-    std::void_t<
-        decltype(Serde<T>::WriteTo(std::declval<const T&>(),
-                                   std::declval<Buffer*>())),
-        decltype(Serde<T>::ReadFrom(
-            std::declval<const ReadOnlyBuffer&>(),
-            std::declval<std::conditional_t<is_bounded_array_v<T>, T, T*>>())),
-        decltype(Serde<T>::EstimateSize(std::declval<const T&>()))>>
+    T, std::void_t<
+           decltype(Serde<T>::WriteTo(std::declval<const T&>(),
+                                      std::declval<Buffer*>(),
+                                      std::declval<Endian>())),
+           decltype(Serde<T>::ReadFrom(
+               std::declval<const ReadOnlyBuffer&>(),
+               std::declval<std::conditional_t<is_bounded_array_v<T>, T, T*>>(),
+               std::declval<Endian>())),
+           decltype(Serde<T>::EstimateSize(std::declval<const T&>()))>>
     : std::true_type {};
 
 template <typename... Args>

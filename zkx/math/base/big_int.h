@@ -567,12 +567,13 @@ namespace base {
 template <size_t N>
 class Serde<math::BigInt<N>> {
  public:
-  static absl::Status WriteTo(const math::BigInt<N>& bigint, Buffer* buffer) {
+  static absl::Status WriteTo(const math::BigInt<N>& bigint, Buffer* buffer,
+                              Endian) {
     return buffer->Write(bigint.limbs_);
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               math::BigInt<N>* bigint) {
+                               math::BigInt<N>* bigint, Endian) {
     return buffer.Read(bigint->limbs_);
   }
 

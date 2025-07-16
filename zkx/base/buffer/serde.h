@@ -27,11 +27,11 @@ class Serde<T, std::enable_if_t<internal::IsBuiltinSerde<T>::value>> {
 template <typename T>
 class Serde<T, std::enable_if_t<std::is_enum_v<T>>> {
  public:
-  static absl::Status WriteTo(const T& value, Buffer* buffer) {
+  static absl::Status WriteTo(const T& value, Buffer* buffer, Endian) {
     return buffer->Write(static_cast<std::underlying_type_t<T>>(value));
   }
 
-  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer, T* value) {
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer, T* value, Endian) {
     std::underlying_type_t<T> underlying_value;
     TF_RETURN_IF_ERROR(buffer.Read(&underlying_value));
     *value = static_cast<T>(underlying_value);
@@ -45,14 +45,14 @@ template <typename CharTy>
 class Serde<std::basic_string_view<CharTy>> {
  public:
   static absl::Status WriteTo(const std::basic_string_view<CharTy>& value,
-                              Buffer* buffer) {
+                              Buffer* buffer, Endian) {
     TF_RETURN_IF_ERROR(buffer->Write(value.size()));
     return buffer->Write(reinterpret_cast<const uint8_t*>(value.data()),
                          value.size());
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               std::basic_string_view<CharTy>* value) {
+                               std::basic_string_view<CharTy>* value, Endian) {
     ABSL_UNREACHABLE();
     return absl::InternalError(
         "std::basic_string_view<CharTy> is not deserializable");
@@ -69,7 +69,7 @@ class Serde<std::basic_string<CharTy>> {
   static bool s_ignore_size;
 
   static absl::Status WriteTo(const std::basic_string<CharTy>& value,
-                              Buffer* buffer) {
+                              Buffer* buffer, Endian) {
     if (!s_ignore_size) {
       TF_RETURN_IF_ERROR(buffer->Write(value.size()));
     }
@@ -78,7 +78,7 @@ class Serde<std::basic_string<CharTy>> {
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               std::basic_string<CharTy>* value) {
+                               std::basic_string<CharTy>* value, Endian) {
     if (s_ignore_size) {
       return buffer.Read(reinterpret_cast<uint8_t*>(value->data()),
                          value->size());
@@ -104,7 +104,7 @@ class Serde<const CharTy*, std::enable_if_t<std::is_same_v<CharTy, char> ||
                                             std::is_same_v<CharTy, char16_t> ||
                                             std::is_same_v<CharTy, char32_t>>> {
  public:
-  static absl::Status WriteTo(const CharTy* value, Buffer* buffer) {
+  static absl::Status WriteTo(const CharTy* value, Buffer* buffer, Endian) {
     size_t length = std::char_traits<CharTy>::length(value);
     TF_RETURN_IF_ERROR(buffer->Write(length));
     return buffer->Write(reinterpret_cast<const uint8_t*>(value),
@@ -112,7 +112,7 @@ class Serde<const CharTy*, std::enable_if_t<std::is_same_v<CharTy, char> ||
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               const CharTy** value) {
+                               const CharTy** value, Endian) {
     ABSL_UNREACHABLE();
     return absl::InternalError("const CharTy* is not deserializable");
   }
@@ -126,14 +126,15 @@ class Serde<const CharTy*, std::enable_if_t<std::is_same_v<CharTy, char> ||
 template <typename T, size_t N>
 class Serde<T[N]> {
  public:
-  static absl::Status WriteTo(const T* values, Buffer* buffer) {
+  static absl::Status WriteTo(const T* values, Buffer* buffer, Endian) {
     for (size_t i = 0; i < N; ++i) {
       TF_RETURN_IF_ERROR(buffer->Write(values[i]));
     }
     return absl::OkStatus();
   }
 
-  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer, T* values) {
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer, T* values,
+                               Endian) {
     for (size_t i = 0; i < N; ++i) {
       TF_RETURN_IF_ERROR(buffer.Read(&values[i]));
     }
@@ -153,7 +154,8 @@ class Serde<std::vector<T>> {
  public:
   static bool s_ignore_size;
 
-  static absl::Status WriteTo(const std::vector<T>& values, Buffer* buffer) {
+  static absl::Status WriteTo(const std::vector<T>& values, Buffer* buffer,
+                              Endian) {
     if (!s_ignore_size) {
       TF_RETURN_IF_ERROR(buffer->Write(values.size()));
     }
@@ -164,7 +166,7 @@ class Serde<std::vector<T>> {
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               std::vector<T>* values) {
+                               std::vector<T>* values, Endian) {
     if (!s_ignore_size) {
       size_t size;
       TF_RETURN_IF_ERROR(buffer.Read(&size));
@@ -192,7 +194,8 @@ bool Serde<std::vector<T>>::s_ignore_size = false;
 template <typename T, size_t N>
 class Serde<std::array<T, N>> {
  public:
-  static absl::Status WriteTo(const std::array<T, N>& values, Buffer* buffer) {
+  static absl::Status WriteTo(const std::array<T, N>& values, Buffer* buffer,
+                              Endian) {
     for (const T& value : values) {
       TF_RETURN_IF_ERROR(buffer->Write(value));
     }
@@ -200,7 +203,7 @@ class Serde<std::array<T, N>> {
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               std::array<T, N>* values) {
+                               std::array<T, N>* values, Endian) {
     for (T& value : (*values)) {
       TF_RETURN_IF_ERROR(buffer.Read(&value));
     }
@@ -220,7 +223,7 @@ class Serde<absl::Span<T>> {
  public:
   static bool s_ignore_size;
 
-  static absl::Status WriteTo(absl::Span<T> values, Buffer* buffer) {
+  static absl::Status WriteTo(absl::Span<T> values, Buffer* buffer, Endian) {
     if (!s_ignore_size) {
       TF_RETURN_IF_ERROR(buffer->Write(values.size()));
     }
@@ -231,7 +234,7 @@ class Serde<absl::Span<T>> {
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               absl::Span<T>* values) {
+                               absl::Span<T>* values, Endian) {
     ABSL_UNREACHABLE();
     return absl::InternalError("absl::Span<T> is not deserializable");
   }
@@ -252,7 +255,8 @@ bool Serde<absl::Span<T>>::s_ignore_size = false;
 template <typename... Ts>
 class Serde<std::tuple<Ts...>> {
  public:
-  static absl::Status WriteTo(const std::tuple<Ts...>& values, Buffer* buffer) {
+  static absl::Status WriteTo(const std::tuple<Ts...>& values, Buffer* buffer,
+                              Endian) {
     return std::apply(
         [buffer](const auto&... values) {
           absl::Status status = absl::OkStatus();
@@ -263,7 +267,7 @@ class Serde<std::tuple<Ts...>> {
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               std::tuple<Ts...>* values) {
+                               std::tuple<Ts...>* values, Endian) {
     return std::apply(
         [&buffer](auto&... values) {
           absl::Status status = absl::OkStatus();

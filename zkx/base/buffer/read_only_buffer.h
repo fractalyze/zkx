@@ -118,7 +118,7 @@ class ReadOnlyBuffer {
             std::enable_if_t<internal::IsNonBuiltinSerde<T>::value>* = nullptr>
   absl::Status ReadAt(size_t buffer_offset, T* value) const {
     buffer_offset_ = buffer_offset;
-    return Serde<T>::ReadFrom(*this, value);
+    return Serde<T>::ReadFrom(*this, value, endian_);
   }
 
   template <typename T, size_t N>

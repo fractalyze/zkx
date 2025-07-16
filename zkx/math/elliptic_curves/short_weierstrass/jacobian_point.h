@@ -267,12 +267,12 @@ class Serde<math::JacobianPoint<
     std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
  public:
   static absl::Status WriteTo(const math::JacobianPoint<Curve>& point,
-                              Buffer* buffer) {
+                              Buffer* buffer, Endian) {
     return buffer->WriteMany(point.x(), point.y(), point.z());
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               math::JacobianPoint<Curve>* point) {
+                               math::JacobianPoint<Curve>* point, Endian) {
     using BaseField = typename math::JacobianPoint<Curve>::BaseField;
     BaseField x, y, z;
     TF_RETURN_IF_ERROR(buffer.ReadMany(&x, &y, &z));
