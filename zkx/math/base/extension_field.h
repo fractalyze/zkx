@@ -12,8 +12,8 @@
 #include "absl/strings/substitute.h"
 
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/base/logging.h"
 #include "zkx/base/strings/string_util.h"
+#include "zkx/base/types/always_false.h"
 #include "zkx/math/base/finite_field.h"
 #include "zkx/math/base/pow.h"
 
@@ -141,8 +141,9 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
       ExtensionField ret;
       DoMul2(*this, other, ret);
       return ret;
+    } else {
+      static_assert(base::AlwaysFalse<ExtensionField>, "Mul not implemented");
     }
-    LOG(ERROR) << "Mul not implemented";
     return ExtensionField::Zero();
   }
 
@@ -158,8 +159,9 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
     if constexpr (N == 2) {
       DoMul2(*this, other, *this);
       return *this;
+    } else {
+      static_assert(base::AlwaysFalse<ExtensionField>, "Mul not implemented");
     }
-    LOG(ERROR) << "Mul not implemented";
     return *this = operator*(other);
   }
 
