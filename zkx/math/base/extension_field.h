@@ -51,6 +51,14 @@ class ExtensionField {
     return ExtensionField({BaseField::One()});
   }
 
+  constexpr static ExtensionField Random() {
+    ExtensionField ret;
+    for (size_t i = 0; i < std::size(ret.values_); ++i) {
+      ret[i] = BaseField::Random();
+    }
+    return ret;
+  }
+
   constexpr bool IsZero() const {
     for (size_t i = 0; i < std::size(values_); ++i) {
       if (!values_[i].IsZero()) return false;
