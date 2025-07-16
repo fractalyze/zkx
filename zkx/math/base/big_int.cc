@@ -54,7 +54,7 @@ absl::Status DoStringToLimbs(std::string_view str, uint64_t* limbs,
 
     // Multiply limbs by Base
     uint64_t carry = digit;
-    FOR_FROM_SMALLEST(i, 0, limb_nums) {
+    for (size_t i = 0; i < limb_nums; ++i) {
       absl::uint128 product = absl::uint128{limbs[i]} * Base + carry;
       limbs[i] = absl::Uint128Low64(product);
       carry = absl::Uint128High64(product);
@@ -80,7 +80,7 @@ std::string DoLimbsToString(const uint64_t* limbs, size_t limb_nums,
     std::ostringstream oss;
     bool leading = true;
 
-    FOR_FROM_BIGGEST(i, 0, limb_nums) {
+    for (size_t i = limb_nums - 1; i != SIZE_MAX; --i) {
       uint64_t limb = limbs[i];
       if (leading) {
         if (limb == 0) continue;
@@ -102,7 +102,7 @@ std::string DoLimbsToString(const uint64_t* limbs, size_t limb_nums,
 
     while (!is_zero(temp)) {
       uint64_t rem = 0;
-      FOR_FROM_BIGGEST(i, 0, limb_nums) {
+      for (size_t i = limb_nums - 1; i != SIZE_MAX; --i) {
         absl::uint128 cur = (absl::uint128{rem} << 64) + temp[i];
         temp[i] = absl::Uint128Low64(cur / 10);
         rem = absl::Uint128Low64(cur % 10);

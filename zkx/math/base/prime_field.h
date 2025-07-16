@@ -233,11 +233,11 @@ class PrimeField {
 
   BigInt<N> MontReduce() const {
     BigInt<N> ret = value_;
-    FOR_FROM_SMALLEST(i, 0, N) {
+    for (size_t i = 0; i < N; ++i) {
       uint64_t k = ret[i] * Config::kNPrime;
       internal::MulResult<uint64_t> result =
           internal::MulAddWithCarry(ret[i], k, Config::kModulus[0], 0);
-      FOR_FROM_SECOND_SMALLEST(j, 0, N) {
+      for (size_t j = 1; j < N; ++j) {
         result = internal::MulAddWithCarry(ret[(j + i) % N], k,
                                            Config::kModulus[j], result.hi);
         ret[(j + i) % N] = result.lo;
@@ -258,7 +258,7 @@ class PrimeField {
   // This condition applies if
   // (a) `modulus[biggest_limb_idx] >> 63 == 0`
   constexpr static bool HasSpareBit() {
-    uint64_t biggest_limb = Config::kModulus[BigInt<N>::kBiggestLimbIdx];
+    uint64_t biggest_limb = Config::kModulus[N - 1];
     return biggest_limb >> 63 == 0;
   }
 
@@ -269,7 +269,7 @@ class PrimeField {
   // (a) `modulus[biggest_limb_idx] < max(uint64_t) >> 1`, and
   // (b) the bits of the modulus are not all 1.
   constexpr static bool CanUseNoCarryMulOptimization() {
-    uint64_t biggest_limb = Config::kModulus[BigInt<N>::kBiggestLimbIdx];
+    uint64_t biggest_limb = Config::kModulus[N - 1];
     bool top_bit_is_zero = biggest_limb >> 63 == 0;
     bool all_remaining_bits_are_one =
         biggest_limb == std::numeric_limits<uint64_t>::max() >> 1;
@@ -278,8 +278,7 @@ class PrimeField {
           Config::kModulus[i] == std::numeric_limits<uint64_t>::max();
     }
     all_remaining_bits_are_one &=
-        Config::kModulus[BigInt<N>::kSmallestLimbIdx] ==
-        std::numeric_limits<uint64_t>::max();
+        Config::kModulus[0] == std::numeric_limits<uint64_t>::max();
     return top_bit_is_zero && !all_remaining_bits_are_one;
   }
 
@@ -362,12 +361,12 @@ class PrimeField {
 
   constexpr static void MontMulReduce(BigInt<2 * N>& a, BigInt<N>& b) {
     internal::AddResult<uint64_t> add_result;
-    FOR_FROM_SMALLEST(i, 0, N) {
+    for (size_t i = 0; i < N; ++i) {
       uint64_t tmp = a[i] * Config::kNPrime;
       internal::MulResult<uint64_t> mul_result;
       mul_result = internal::MulAddWithCarry(a[i], tmp, Config::kModulus[0],
                                              mul_result.hi);
-      FOR_FROM_SECOND_SMALLEST(j, 0, N) {
+      for (size_t j = 1; j < N; ++j) {
         mul_result = internal::MulAddWithCarry(
             a[i + j], tmp, Config::kModulus[j], mul_result.hi);
         a[i + j] = mul_result.lo;
@@ -413,7 +412,7 @@ class Serde<math::PrimeField<Config>> {
   static bool s_is_in_montgomery;
 
   static absl::Status WriteTo(const math::PrimeField<Config>& prime_field,
-                              Buffer* buffer) {
+                              Buffer* buffer, Endian) {
     if (s_is_in_montgomery) {
       return buffer->Write(prime_field.value());
     } else {
@@ -422,7 +421,7 @@ class Serde<math::PrimeField<Config>> {
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               math::PrimeField<Config>* prime_field) {
+                               math::PrimeField<Config>* prime_field, Endian) {
     math::BigInt<N> v;
     TF_RETURN_IF_ERROR(buffer.Read(&v));
     if (s_is_in_montgomery) {

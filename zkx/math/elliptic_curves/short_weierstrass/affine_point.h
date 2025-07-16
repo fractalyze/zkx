@@ -136,12 +136,12 @@ class Serde<math::AffinePoint<
     std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
  public:
   static absl::Status WriteTo(const math::AffinePoint<Curve>& point,
-                              Buffer* buffer) {
+                              Buffer* buffer, Endian) {
     return buffer->WriteMany(point.x(), point.y());
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               math::AffinePoint<Curve>* point) {
+                               math::AffinePoint<Curve>* point, Endian) {
     using BaseField = typename math::AffinePoint<Curve>::BaseField;
     BaseField x, y;
     TF_RETURN_IF_ERROR(buffer.ReadMany(&x, &y));

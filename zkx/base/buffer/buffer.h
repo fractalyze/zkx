@@ -116,7 +116,7 @@ class Buffer : public ReadOnlyBuffer {
             std::enable_if_t<internal::IsNonBuiltinSerde<T>::value>* = nullptr>
   absl::Status WriteAt(size_t buffer_offset, const T& value) {
     buffer_offset_ = buffer_offset;
-    return Serde<T>::WriteTo(value, this);
+    return Serde<T>::WriteTo(value, this, endian_);
   }
 
   template <typename T>

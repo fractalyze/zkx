@@ -278,12 +278,12 @@ class Serde<math::PointXyzz<
     std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
  public:
   static absl::Status WriteTo(const math::PointXyzz<Curve>& point,
-                              Buffer* buffer) {
+                              Buffer* buffer, Endian) {
     return buffer->WriteMany(point.x(), point.y(), point.zz(), point.zzz());
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               math::PointXyzz<Curve>* point) {
+                               math::PointXyzz<Curve>* point, Endian) {
     using BaseField = typename math::PointXyzz<Curve>::BaseField;
     BaseField x, y, zz, zzz;
     TF_RETURN_IF_ERROR(buffer.ReadMany(&x, &y, &zz, &zzz));
