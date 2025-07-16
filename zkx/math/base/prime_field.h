@@ -258,7 +258,7 @@ class PrimeField {
   // This condition applies if
   // (a) `modulus[biggest_limb_idx] >> 63 == 0`
   constexpr static bool HasSpareBit() {
-    uint64_t biggest_limb = Config::kModulus[BigInt<N>::kBiggestLimbIdx];
+    uint64_t biggest_limb = Config::kModulus[N - 1];
     return biggest_limb >> 63 == 0;
   }
 
@@ -269,7 +269,7 @@ class PrimeField {
   // (a) `modulus[biggest_limb_idx] < max(uint64_t) >> 1`, and
   // (b) the bits of the modulus are not all 1.
   constexpr static bool CanUseNoCarryMulOptimization() {
-    uint64_t biggest_limb = Config::kModulus[BigInt<N>::kBiggestLimbIdx];
+    uint64_t biggest_limb = Config::kModulus[N - 1];
     bool top_bit_is_zero = biggest_limb >> 63 == 0;
     bool all_remaining_bits_are_one =
         biggest_limb == std::numeric_limits<uint64_t>::max() >> 1;
@@ -278,8 +278,7 @@ class PrimeField {
           Config::kModulus[i] == std::numeric_limits<uint64_t>::max();
     }
     all_remaining_bits_are_one &=
-        Config::kModulus[BigInt<N>::kSmallestLimbIdx] ==
-        std::numeric_limits<uint64_t>::max();
+        Config::kModulus[0] == std::numeric_limits<uint64_t>::max();
     return top_bit_is_zero && !all_remaining_bits_are_one;
   }
 

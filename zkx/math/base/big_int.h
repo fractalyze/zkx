@@ -11,7 +11,6 @@
 #include <string>
 #include <type_traits>
 
-#include "absl/base/internal/endian.h"
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/numeric/bits.h"
@@ -44,13 +43,6 @@ std::string LimbsToHexString(const uint64_t* limbs, size_t limb_nums,
 template <size_t N>
 class BigInt {
  public:
-#if ABSL_IS_LITTLE_ENDIAN
-  constexpr static size_t kSmallestLimbIdx = 0;
-  constexpr static size_t kBiggestLimbIdx = N - 1;
-#else
-  constexpr static size_t kSmallestLimbIdx = N - 1;
-  constexpr static size_t kBiggestLimbIdx = 0;
-#endif
   constexpr static size_t kLimbByteWidth = sizeof(uint64_t);
   constexpr static size_t kLimbBitWidth = kLimbByteWidth * 8;
 
@@ -62,11 +54,11 @@ class BigInt {
   template <typename T, std::enable_if_t<std::is_signed_v<T>>* = nullptr>
   constexpr BigInt(T value) : limbs_{0} {
     DCHECK_GE(value, 0);
-    limbs_[kSmallestLimbIdx] = value;
+    limbs_[0] = value;
   }
   template <typename T, std::enable_if_t<std::is_unsigned_v<T>>* = nullptr>
   constexpr BigInt(T value) : limbs_{0} {
-    limbs_[kSmallestLimbIdx] = value;
+    limbs_[0] = value;
   }
   template <typename T, std::enable_if_t<std::is_signed_v<T>>* = nullptr>
   constexpr BigInt(std::initializer_list<T> values) : limbs_{0} {
@@ -112,11 +104,7 @@ class BigInt {
     for (size_t i = 0; i < BitNums; ++i) {
       limb_bits.set(bit_idx++, bits[i]);
       bool set = bit_idx == kLimbBitWidth;
-#if ABSL_IS_LITTLE_ENDIAN
       set |= (i == BitNums - 1);
-#else
-      set |= (i == 0);
-#endif
       if (set) {
         uint64_t limb = absl::bit_cast<uint64_t>(limb_bits.to_ullong());
         ret.limbs_[limb_idx++] = limb;
@@ -138,11 +126,7 @@ class BigInt {
     for (size_t i = BitNums - 1; i != SIZE_MAX; --i) {
       limb_bits.set(bit_idx++, bits[i]);
       bool set = bit_idx == kLimbBitWidth;
-#if ABSL_IS_LITTLE_ENDIAN
       set |= (i == 0);
-#else
-      set |= (i == BitNums - 1);
-#endif
       if (set) {
         uint64_t limb = absl::bit_cast<uint64_t>(limb_bits.to_ullong());
         ret.limbs_[limb_idx++] = limb;
@@ -167,11 +151,7 @@ class BigInt {
     for (size_t i = 0; i < std::size(bytes); ++i) {
       reinterpret_cast<uint8_t*>(&limb)[byte_idx++] = bytes[i];
       bool set = byte_idx == kLimbByteWidth;
-#if ABSL_IS_LITTLE_ENDIAN
       set |= (i == std::size(bytes) - 1);
-#else
-      set |= (i == 0);
-#endif
       if (set) {
         ret.limbs_[limb_idx++] = limb;
         limb = 0;
@@ -195,11 +175,7 @@ class BigInt {
     for (size_t i = std::size(bytes) - 1; i != SIZE_MAX; --i) {
       reinterpret_cast<uint8_t*>(&limb)[byte_idx++] = bytes[i];
       bool set = byte_idx == kLimbByteWidth;
-#if ABSL_IS_LITTLE_ENDIAN
       set |= (i == 0);
-#else
-      set |= (i == std::size(bytes) - 1);
-#endif
       if (set) {
         ret.limbs_[limb_idx++] = limb;
         limb = 0;
@@ -251,11 +227,7 @@ class BigInt {
         return false;
       }
     }
-#if ABSL_IS_LITTLE_ENDIAN
     return limbs_[0] == 1 && limbs_[N - 1] == 0;
-#else
-    return limbs_[0] == 0 && limbs_[N - 1] == 1;
-#endif
   }
 
   constexpr BigInt operator+(const BigInt& other) const {
@@ -505,7 +477,7 @@ class BigInt {
     // https://en.wikipedia.org/wiki/Division_algorithm
     internal::DivResult<BigInt> ret;
     size_t bits = BitTraits<BigInt>::GetNumBits(a);
-    uint64_t& smallest_bit = ret.remainder[kSmallestLimbIdx];
+    uint64_t& smallest_bit = ret.remainder[0];
     for (size_t i = bits - 1; i != SIZE_MAX; --i) {
       uint64_t carry = ShiftLeft(ret.remainder, ret.remainder, 1);
       smallest_bit |= BitTraits<BigInt>::TestBit(a, i);
@@ -588,11 +560,7 @@ class JsonSerde<math::BigInt<N>> {
   static rapidjson::Value From(const math::BigInt<N>& value,
                                Allocator& allocator) {
     if (value < math::BigInt<N>(std::numeric_limits<uint64_t>::max())) {
-#if ABSL_IS_LITTLE_ENDIAN
       return rapidjson::Value(value.limbs()[0]);
-#else
-      return rapidjson::Value(value.limbs()[N - 1]);
-#endif
     } else {
       return rapidjson::Value(value.ToString(), allocator);
     }

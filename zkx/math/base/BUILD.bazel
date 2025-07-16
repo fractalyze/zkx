@@ -34,7 +34,6 @@ zkx_cc_library(
         "//zkx/base/buffer:serde",
         "//zkx/base/json:json_serde",
         "//zkx/base/strings:string_util",
-        "@com_google_absl//absl/base",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/numeric:bits",
         "@com_google_absl//absl/numeric:int128",
