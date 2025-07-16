@@ -27,6 +27,7 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
 
   constexpr static uint32_t N = Config::kDegreeOverBaseField;
   constexpr static size_t kBitWidth = N * BaseField::kBitWidth;
+  constexpr static size_t kByteWidth = N * BaseField::kByteWidth;
 
   constexpr ExtensionField() {
     for (size_t i = 0; i < N; ++i) {

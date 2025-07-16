@@ -33,7 +33,8 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   constexpr static size_t kModulusBits = _Config::kModulusBits;
   constexpr static size_t kLimbNums = (kModulusBits + 63) / 64;
   constexpr static size_t N = kLimbNums;
-  constexpr static size_t kBitWidth = N * 64;
+  constexpr static size_t kBitWidth = BigInt<N>::kBitWidth;
+  constexpr static size_t kByteWidth = BigInt<N>::kByteWidth;
 
   using Config = _Config;
 
