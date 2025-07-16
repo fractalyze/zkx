@@ -20,6 +20,8 @@ struct PrimeFieldConfig {
 
   constexpr static uint32_t kTwoAdicity = 1;
 
+  constexpr static BigInt<1> kTrace = 3;
+
   constexpr static bool kHasTwoAdicRootOfUnity = true;
   constexpr static BigInt<1> kTwoAdicRootOfUnity = 3;
 
