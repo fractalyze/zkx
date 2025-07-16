@@ -17,8 +17,8 @@ class SwCurve {
   using BaseField = typename Config::BaseField;
   using ScalarField = typename Config::ScalarField;
   using AffinePoint = zkx::math::AffinePoint<SwCurve<Config>>;
-  using ProjectivePoint = zkx::math::AffinePoint<SwCurve<Config>>;
-  using PointXyzz = zkx::math::AffinePoint<SwCurve<Config>>;
+  using JacobianPoint = zkx::math::JacobianPoint<SwCurve<Config>>;
+  using PointXyzz = zkx::math::PointXyzz<SwCurve<Config>>;
 
   constexpr static CurveType kType = CurveType::kShortWeierstrass;
 };
