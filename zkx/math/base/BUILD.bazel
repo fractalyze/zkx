@@ -28,7 +28,6 @@ zkx_cc_library(
     deps = [
         ":arithmetics",
         ":bit_traits_forward",
-        ":endian_utils",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
         "//zkx/base:random",
@@ -66,12 +65,6 @@ zkx_cc_library(
         "@com_google_absl//absl/numeric:bits",
         "@com_google_absl//absl/numeric:int128",
     ],
-)
-
-zkx_cc_library(
-    name = "endian_utils",
-    hdrs = ["endian_utils.h"],
-    deps = ["@com_google_absl//absl/base"],
 )
 
 zkx_cc_library(
