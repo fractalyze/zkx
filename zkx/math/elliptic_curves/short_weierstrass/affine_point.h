@@ -55,6 +55,10 @@ class AffinePoint<
     return {Curve::Config::kX, Curve::Config::kY};
   }
 
+  constexpr static absl::StatusOr<AffinePoint> CreateFromX(const BaseField& x) {
+    return Curve::GetPointFromX(x);
+  }
+
   constexpr static AffinePoint Random() {
     return *JacobianPoint::Random().ToAffine();
   }

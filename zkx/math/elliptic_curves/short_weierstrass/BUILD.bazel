@@ -64,8 +64,10 @@ zkx_cc_library(
     name = "sw_curve",
     hdrs = ["sw_curve.h"],
     deps = [
+        "//xla/tsl/platform:statusor",
         "//zkx/math/geometry:curve_type",
         "//zkx/math/geometry:point_declarations",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
