@@ -1,6 +1,7 @@
 #ifndef ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_TEST_SW_CURVE_CONFIG_H_
 #define ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_TEST_SW_CURVE_CONFIG_H_
 
+#include "zkx/math/base/extension_field.h"
 #include "zkx/math/base/prime_field.h"
 #include "zkx/math/elliptic_curves/short_weierstrass/affine_point.h"
 #include "zkx/math/elliptic_curves/short_weierstrass/jacobian_point.h"
@@ -28,6 +29,19 @@ struct PrimeFieldConfig {
   constexpr static bool kHasLargeSubgroupRootOfUnity = false;
 };
 
+using Fq = PrimeField<PrimeFieldConfig>;
+using Fr = PrimeField<PrimeFieldConfig>;
+
+struct Fq2Config {
+  using BaseField = Fq;
+  using BasePrimeField = Fq;
+
+  constexpr static uint32_t kDegreeOverBaseField = 2;
+  constexpr static BaseField kNonResidue = -1;
+};
+
+using Fq2 = ExtensionField<Fq2Config>;
+
 template <typename _BaseField, typename _ScalarField>
 class SwCurveConfig {
  public:
@@ -40,8 +54,6 @@ class SwCurveConfig {
   constexpr static BaseField kY = 5;
 };
 
-using Fq = PrimeField<PrimeFieldConfig>;
-using Fr = PrimeField<PrimeFieldConfig>;
 using G1Curve = SwCurve<SwCurveConfig<Fq, Fr>>;
 using AffinePoint = zkx::math::AffinePoint<G1Curve>;
 using JacobianPoint = zkx::math::JacobianPoint<G1Curve>;
