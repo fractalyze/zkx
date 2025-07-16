@@ -36,6 +36,9 @@ TEST(PrimeFieldTest, Operations) {
   EXPECT_EQ(a.Pow(30), *Fr::FromHexString("0xa5c969115bc5da7d6bfe244ec24b7e244d454561569de7acf0980633533fcca"));
   TF_ASSERT_OK_AND_ASSIGN(Fr a_inverse, a.Inverse());
   EXPECT_TRUE((a * a_inverse).IsOne());
+  Fr x = a.Square();
+  TF_ASSERT_OK_AND_ASSIGN(Fr sqrt, x.SquareRoot());
+  EXPECT_EQ(sqrt.Square(), x);
   // clang-format on
 }
 

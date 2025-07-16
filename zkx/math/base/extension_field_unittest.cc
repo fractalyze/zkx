@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 
+#include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/vector_buffer.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fq2.h"
 
 namespace zkx::math::bn254 {
@@ -56,6 +58,9 @@ TEST(ExtensionFieldTest, Operations) {
   EXPECT_EQ(a.Square(), a * a);
   TF_ASSERT_OK_AND_ASSIGN(Fq2 a_inverse, a.Inverse());
   EXPECT_TRUE((a * a_inverse).IsOne());
+  Fq2 x = a.Square();
+  TF_ASSERT_OK_AND_ASSIGN(Fq2 sqrt, x.SquareRoot());
+  EXPECT_EQ(sqrt.Square(), x);
   // clang-format on
 }
 

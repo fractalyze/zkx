@@ -18,6 +18,7 @@
 #include "zkx/base/json/json_serde.h"
 #include "zkx/math/base/big_int.h"
 #include "zkx/math/base/byinverter.h"
+#include "zkx/math/base/finite_field.h"
 #include "zkx/math/base/pow.h"
 
 namespace zkx {
@@ -25,7 +26,7 @@ namespace math {
 
 // This implements PrimeField on Montgomery domain.
 template <typename _Config>
-class PrimeField {
+class PrimeField : public FiniteField<PrimeField<_Config>> {
  public:
   constexpr static bool kUseMontgomery = true;
   constexpr static bool kUseBigModulus = true;

@@ -70,12 +70,23 @@ zkx_cc_library(
     name = "extension_field",
     hdrs = ["extension_field.h"],
     deps = [
+        ":finite_field",
         ":pow",
         "//xla/tsl/platform:statusor",
         "//zkx/base:logging",
         "//zkx/base/strings:string_util",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "finite_field",
+    hdrs = ["finite_field.h"],
+    deps = [
+        ":finite_field_traits",
+        "//zkx/base/types:always_false",
+        "//zkx/math/base/square_root_algorithms",
     ],
 )
 
@@ -99,6 +110,7 @@ zkx_cc_library(
     deps = [
         ":big_int",
         ":byinverter",
+        ":finite_field",
         ":pow",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",

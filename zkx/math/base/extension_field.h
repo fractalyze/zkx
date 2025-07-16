@@ -14,12 +14,13 @@
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/logging.h"
 #include "zkx/base/strings/string_util.h"
+#include "zkx/math/base/finite_field.h"
 #include "zkx/math/base/pow.h"
 
 namespace zkx::math {
 
 template <typename _Config>
-class ExtensionField {
+class ExtensionField : public FiniteField<ExtensionField<_Config>> {
  public:
   using Config = _Config;
   using BaseField = typename Config::BaseField;
