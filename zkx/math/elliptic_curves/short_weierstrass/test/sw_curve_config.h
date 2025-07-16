@@ -17,6 +17,13 @@ struct PrimeFieldConfig {
 
   constexpr static BigInt<1> kRSquared = UINT64_C(4);
   constexpr static uint64_t kNPrime = UINT64_C(10540996613548315209);
+
+  constexpr static uint32_t kTwoAdicity = 1;
+
+  constexpr static bool kHasTwoAdicRootOfUnity = true;
+  constexpr static BigInt<1> kTwoAdicRootOfUnity = 3;
+
+  constexpr static bool kHasLargeSubgroupRootOfUnity = false;
 };
 
 template <typename _BaseField, typename _ScalarField>
