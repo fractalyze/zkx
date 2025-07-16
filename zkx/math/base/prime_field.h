@@ -145,6 +145,7 @@ class PrimeField {
   }
 
   constexpr PrimeField operator-() const {
+    if (IsZero()) return Zero();
     BigInt<N> ret_value = Config::kModulus;
     ret_value -= value_;
     return PrimeField::FromUnchecked(ret_value);
