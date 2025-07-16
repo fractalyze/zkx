@@ -6,6 +6,7 @@
 
 #include <ostream>
 #include <string>
+#include <type_traits>
 
 #include "absl/log/check.h"
 #include "absl/strings/substitute.h"
@@ -31,6 +32,19 @@ class ExtensionField {
       values_[i] = BaseField::Zero();
     }
   }
+
+  template <typename T, std::enable_if_t<std::is_signed_v<T>>* = nullptr>
+  constexpr ExtensionField(T value) {
+    if (value >= 0) {
+      *this = ExtensionField({value});
+    } else {
+      *this = -ExtensionField({-value});
+    }
+  }
+
+  template <typename T, std::enable_if_t<std::is_unsigned_v<T>>* = nullptr>
+  constexpr ExtensionField(T value) : ExtensionField({BigInt<N>(value)}) {}
+
   constexpr ExtensionField(std::initializer_list<BaseField> values) {
     DCHECK_LE(values.size(), N);
     auto it = values.begin();
