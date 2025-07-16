@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <ostream>
 #include <string>
 #include <type_traits>
@@ -12,12 +13,15 @@
 #include "absl/strings/substitute.h"
 
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/serde.h"
+#include "zkx/base/json/json_serde.h"
 #include "zkx/base/strings/string_util.h"
 #include "zkx/base/types/always_false.h"
 #include "zkx/math/base/finite_field.h"
 #include "zkx/math/base/pow.h"
 
-namespace zkx::math {
+namespace zkx {
+namespace math {
 
 template <typename _Config>
 class ExtensionField : public FiniteField<ExtensionField<_Config>> {
@@ -57,6 +61,8 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
       values_[i] = BaseField::Zero();
     }
   }
+  constexpr ExtensionField(const std::array<BaseField, N>& values)
+      : values_(values) {}
 
   constexpr static uint32_t ExtensionDegree() {
     return N * BaseField::ExtensionDegree();
@@ -224,6 +230,9 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
   }
 
  private:
+  friend class base::Serde<ExtensionField>;
+  friend class base::JsonSerde<ExtensionField>;
+
   constexpr static void DoMul2(const ExtensionField& a, const ExtensionField& b,
                                ExtensionField& c) {
     // clang-format off
@@ -308,7 +317,7 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
     return ExtensionField{a[0] * v0_inv, -a[1] * v0_inv};
   }
 
-  BaseField values_[N];
+  std::array<BaseField, N> values_;
 };
 
 template <typename Config>
@@ -316,6 +325,58 @@ std::ostream& operator<<(std::ostream& os, const ExtensionField<Config>& ef) {
   return os << ef.ToHexString(true);
 }
 
-}  // namespace zkx::math
+}  // namespace math
+
+namespace base {
+
+template <typename Config>
+class Serde<math::ExtensionField<Config>> {
+ public:
+  constexpr static size_t N = math::ExtensionField<Config>::N;
+
+  static absl::Status WriteTo(const math::ExtensionField<Config>& ext_field,
+                              Buffer* buffer, Endian) {
+    return buffer->Write(ext_field.values_);
+  }
+
+  static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
+                               math::ExtensionField<Config>* ext_field,
+                               Endian) {
+    for (size_t i = 0; i < N; ++i) {
+      TF_RETURN_IF_ERROR(buffer.Read(&ext_field->values_[i]));
+    }
+    return absl::OkStatus();
+  }
+
+  static size_t EstimateSize(const math::ExtensionField<Config>& ext_field) {
+    return base::EstimateSize(ext_field.values_);
+  }
+};
+
+template <typename Config>
+class JsonSerde<math::ExtensionField<Config>> {
+ public:
+  using BaseField = typename math::ExtensionField<Config>::BaseField;
+  constexpr static size_t N = math::ExtensionField<Config>::N;
+
+  template <typename Allocator>
+  static rapidjson::Value From(const math::ExtensionField<Config>& value,
+                               Allocator& allocator) {
+    return JsonSerde<std::array<BaseField, N>>::From(value.values_, allocator);
+  }
+
+  static absl::StatusOr<math::ExtensionField<Config>> To(
+      const rapidjson::Value& json_value, std::string_view key) {
+    absl::StatusOr<std::array<BaseField, N>> values =
+        JsonSerde<std::array<BaseField, N>>::To(json_value, key);
+    if (values.ok()) {
+      return math::ExtensionField<Config>(values.value());
+    }
+    return values.status();
+  }
+};
+
+}  // namespace base
+}  // namespace zkx
 
 #endif  // ZKX_MATH_BASE_EXTENSION_FIELD_H_

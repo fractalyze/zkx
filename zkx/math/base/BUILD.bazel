@@ -73,6 +73,8 @@ zkx_cc_library(
         ":finite_field",
         ":pow",
         "//xla/tsl/platform:statusor",
+        "//zkx/base/buffer:serde",
+        "//zkx/base/json:json_serde",
         "//zkx/base/strings:string_util",
         "//zkx/base/types:always_false",
         "@com_google_absl//absl/log:check",

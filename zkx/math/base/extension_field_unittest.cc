@@ -64,4 +64,29 @@ TEST(ExtensionFieldTest, Operations) {
   // clang-format on
 }
 
+TEST(ExtensionFieldTest, Serde) {
+  Fq2 expected = Fq2::Random();
+
+  base::Uint8VectorBuffer write_buf;
+  TF_ASSERT_OK(write_buf.Grow(base::EstimateSize(expected)));
+  TF_ASSERT_OK(write_buf.Write(expected));
+  ASSERT_TRUE(write_buf.Done());
+
+  write_buf.set_buffer_offset(0);
+
+  Fq2 value;
+  TF_ASSERT_OK(write_buf.Read(&value));
+  EXPECT_EQ(expected, value);
+}
+
+TEST(ExtensionFieldTest, JsonSerde) {
+  rapidjson::Document doc;
+
+  Fq2 expected = Fq2::Random();
+  rapidjson::Value json_value =
+      base::JsonSerde<Fq2>::From(expected, doc.GetAllocator());
+  TF_ASSERT_OK_AND_ASSIGN(Fq2 value, base::JsonSerde<Fq2>::To(json_value, ""));
+  EXPECT_EQ(expected, value);
+}
+
 }  // namespace zkx::math::bn254
