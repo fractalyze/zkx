@@ -80,6 +80,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "finite_field_traits",
+    hdrs = ["finite_field_traits.h"],
+)
+
+zkx_cc_library(
     name = "pow",
     hdrs = ["pow.h"],
     deps = [
