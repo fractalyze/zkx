@@ -70,6 +70,7 @@ zkx_cc_library(
     name = "extension_field",
     hdrs = ["extension_field.h"],
     deps = [
+        ":pow",
         "//xla/tsl/platform:statusor",
         "//zkx/base:logging",
         "//zkx/base/strings:string_util",

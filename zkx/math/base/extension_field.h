@@ -13,6 +13,7 @@
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/logging.h"
 #include "zkx/base/strings/string_util.h"
+#include "zkx/math/base/pow.h"
 
 namespace zkx::math {
 
@@ -158,6 +159,11 @@ class ExtensionField {
       return DoSquare2(*this);
     }
     return operator*(*this);
+  }
+
+  template <size_t N>
+  constexpr ExtensionField Pow(const BigInt<N>& exponent) const {
+    return math::Pow(*this, exponent);
   }
 
   constexpr absl::StatusOr<ExtensionField> Inverse() const {
