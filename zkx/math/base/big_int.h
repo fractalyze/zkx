@@ -539,13 +539,41 @@ template <size_t N>
 class Serde<math::BigInt<N>> {
  public:
   static absl::Status WriteTo(const math::BigInt<N>& bigint, Buffer* buffer,
-                              Endian) {
-    return buffer->Write(bigint.limbs_);
+                              Endian endian) {
+    switch (endian) {
+      case Endian::kNative:
+        return buffer->Write(bigint.limbs_);
+      case Endian::kBig: {
+        return buffer->Write(bigint.ToBytesBE());
+      }
+      case Endian::kLittle: {
+        return buffer->Write(bigint.ToBytesLE());
+      }
+    }
+    ABSL_UNREACHABLE();
+    return absl::InternalError("Corrupted endian");
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               math::BigInt<N>* bigint, Endian) {
-    return buffer.Read(bigint->limbs_);
+                               math::BigInt<N>* bigint, Endian endian) {
+    switch (endian) {
+      case Endian::kNative:
+        return buffer.Read(bigint->limbs_);
+      case Endian::kBig: {
+        uint8_t bytes[N * sizeof(uint64_t)];
+        TF_RETURN_IF_ERROR(buffer.Read(bytes));
+        *bigint = math::BigInt<N>::FromBytesBE(bytes);
+        return absl::OkStatus();
+      }
+      case Endian::kLittle: {
+        uint8_t bytes[N * sizeof(uint64_t)];
+        TF_RETURN_IF_ERROR(buffer.Read(bytes));
+        *bigint = math::BigInt<N>::FromBytesLE(bytes);
+        return absl::OkStatus();
+      }
+    }
+    ABSL_UNREACHABLE();
+    return absl::InternalError("Corrupted endian");
   }
 
   static size_t EstimateSize(const math::BigInt<N>& bigint) {
