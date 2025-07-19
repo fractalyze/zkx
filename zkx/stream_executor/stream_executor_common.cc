@@ -15,7 +15,8 @@ limitations under the License.
 
 #include "zkx/stream_executor/stream_executor_common.h"
 
-#include "xla/tsl/platform/status.h"
+#include "absl/log/check.h"
+
 #include "xla/tsl/util/env_var.h"
 
 namespace stream_executor {
@@ -25,7 +26,7 @@ namespace {
 // TF_PER_DEVICE_MEMORY_LIMIT_MB environment variable is not set.
 int64_t GetMemoryLimitBytesFromEnvironmentVariable() {
   int64_t value;
-  TF_CHECK_OK(
+  CHECK_OK(
       tsl::ReadInt64FromEnvVar("TF_PER_DEVICE_MEMORY_LIMIT_MB", 0, &value));
   return value * (1ll << 20);
 }

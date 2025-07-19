@@ -20,10 +20,10 @@ limitations under the License.
 #include <memory>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/check.h"
 #include "absl/status/statusor.h"
 
 #include "xla/tsl/platform/casts.h"
-#include "xla/tsl/platform/status.h"
 #include "zkx/zkx.pb.h"
 
 namespace zkx {
@@ -134,7 +134,7 @@ T& CompilationEnvironments::GetMutableEnv() {
   auto descriptor = T::descriptor();
   auto it = environments_.find(descriptor);
   if (it == environments_.end()) {
-    TF_CHECK_OK(AddEnvImpl(*descriptor, nullptr));
+    CHECK_OK(AddEnvImpl(*descriptor, nullptr));
     DefaultEnvCreatedByCompilationEnvironments(descriptor->full_name());
     it = environments_.find(descriptor);
   }

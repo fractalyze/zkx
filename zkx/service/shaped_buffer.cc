@@ -19,7 +19,6 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 
-#include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
 
 namespace zkx {
@@ -170,7 +169,7 @@ void ScopedShapedBuffer::Deallocate() {
     se::DeviceMemoryBase& memory_base = pair.second;
     if (!memory_base.is_null() &&
         deallocated_ptrs.insert(memory_base.opaque()).second) {
-      TF_CHECK_OK(allocator_->Deallocate(device_ordinal(), memory_base));
+      CHECK_OK(allocator_->Deallocate(device_ordinal(), memory_base));
     }
   }
 }

@@ -26,7 +26,6 @@ limitations under the License.
 
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/errors.h"
-#include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
 #include "xla/tsl/util/fixed_option_set_flag.h"
 #include "zkx/base/logging.h"
@@ -360,7 +359,7 @@ FunctionalHloRunner::CreateExecutableBuildOptionsFromExecutionOptions(
   if (execution_options.has_device_assignment()) {
     absl::StatusOr<std::unique_ptr<DeviceAssignment>> device_assignment =
         DeviceAssignment::Deserialize(execution_options.device_assignment());
-    TF_CHECK_OK(device_assignment.status());
+    CHECK_OK(device_assignment.status());
     build_options.set_device_assignment(**device_assignment);
   }
   build_options.set_alias_passthrough_params(

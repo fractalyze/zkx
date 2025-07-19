@@ -25,8 +25,8 @@ limitations under the License.
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/log/check.h"
 
-#include "xla/tsl/platform/status.h"
 #include "zkx/comparison_util.h"
 #include "zkx/hlo/ir/collective_device_list.h"
 #include "zkx/hlo/ir/hlo_clone_context.h"
@@ -144,8 +144,7 @@ class HloFftInstruction : public HloInstruction {
 class HloMsmInstruction : public HloInstruction {
  public:
   explicit HloMsmInstruction(const Shape& shape, HloInstruction* scalars,
-                             HloInstruction* bases,
-                             int32_t window_bits);
+                             HloInstruction* bases, int32_t window_bits);
   int32_t window_bits() const { return window_bits_; }
 
   // Returns a serialized representation of this instruction.
@@ -1171,7 +1170,7 @@ class HloInfeedInstruction : public HloInstruction {
   // as the shape of the infeed instruction which produces a tuple containing
   // the infeed data shape and a TOKEN.
   const Shape& infeed_shape() const {
-    TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape()));
+    DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape()));
     return ShapeUtil::GetSubshape(shape(), {0});
   }
   // Returns a serialized representation of this instruction.

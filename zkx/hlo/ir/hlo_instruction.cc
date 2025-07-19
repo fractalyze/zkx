@@ -2859,7 +2859,7 @@ HloInstruction::HloInstruction(HloOpcode opcode, const Shape& shape)
       is_root_(false),
       shape_(shape),
       name_(HloOpcodeString(opcode)) {
-  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape_));
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape_));
 }
 
 template <typename HloInstructionPtr>

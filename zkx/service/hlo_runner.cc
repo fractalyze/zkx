@@ -21,11 +21,11 @@ limitations under the License.
 #include <variant>
 
 #include "absl/synchronization/mutex.h"
+#include "absl/log/check.h"
 #include "unsupported/Eigen/CXX11/Tensor"
 
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/errors.h"
-#include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
 #include "xla/tsl/platform/thread_pool.h"
 #include "zkx/executable_run_options.h"
@@ -524,7 +524,7 @@ absl::StatusOr<std::vector<Literal>> HloRunner::ExecuteReplicatedImpl(
         VLOG(1) << "Starting infeed on device " << device;
         for (int64_t step = 1;
              options.infeed_steps < 0 || step <= options.infeed_steps; ++step) {
-          TF_CHECK_OK(backend().transfer_manager()->TransferLiteralToInfeed(
+          CHECK_OK(backend().transfer_manager()->TransferLiteralToInfeed(
               executor, *options.infeed_values[i]));
           if (step % 100 == 0) {
             VLOG(1) << "Infeed step " << step;
@@ -547,7 +547,7 @@ absl::StatusOr<std::vector<Literal>> HloRunner::ExecuteReplicatedImpl(
         for (int64_t step = 1;
              options.infeed_steps < 0 || step <= options.infeed_steps; ++step) {
           Literal literal(options.outfeed_shape);
-          TF_CHECK_OK(backend().transfer_manager()->TransferLiteralFromOutfeed(
+          CHECK_OK(backend().transfer_manager()->TransferLiteralFromOutfeed(
               executor, &literal));
           if (options.outfeed_values) {
             options.outfeed_values->at(i) = std::move(literal);

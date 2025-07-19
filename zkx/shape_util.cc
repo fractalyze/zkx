@@ -25,7 +25,6 @@ limitations under the License.
 
 #include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/errors.h"
-#include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
 #include "xla/tsl/platform/thread_pool.h"
 #include "zkx/base/logging.h"
@@ -213,7 +212,7 @@ Shape MakeTupleShapeImpl(absl::Span<ShapePtrOrRef> shapes) {
   for (const auto& shape : shapes) {
     ShapeUtil::AppendShapeToTuple(Deref(shape), &result);
   }
-  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(result));
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(result));
   return result;
 }
 
@@ -396,7 +395,7 @@ Shape ShapeUtil::MakeShapeWithDenseLayout(
       /*pointer_primitive_type=*/PRIMITIVE_TYPE_INVALID, element_size_in_bits,
       memory_space, split_configs,
       /*physical_shape=*/std::nullopt);
-  TF_CHECK_OK(ret.status());
+  CHECK_OK(ret.status());
   return *ret;
 }
 
@@ -414,7 +413,7 @@ Shape ShapeUtil::MakeShapeWithSparseLayout(
       dim_ordered, /*tiles=*/{}, tail_padding_alignment_in_elements,
       index_primitive_type, pointer_primitive_type, element_size_in_bits,
       memory_space, /*split_configs=*/{}, std::move(physical_shape));
-  TF_CHECK_OK(ret.status());
+  CHECK_OK(ret.status());
   return *ret;
 }
 
@@ -490,7 +489,7 @@ Shape ShapeUtil::MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes) {
 Shape ShapeUtil::MakeOpaqueShape() {
   Shape result;
   result.set_element_type(OPAQUE_TYPE);
-  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(result));
+  DCHECK_OK(ValidateShapeWithOptionalLayout(result));
   return result;
 }
 
@@ -498,13 +497,13 @@ Shape ShapeUtil::MakeOpaqueShape() {
 Shape ShapeUtil::MakeTokenShape() {
   Shape result;
   result.set_element_type(TOKEN);
-  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(result));
+  DCHECK_OK(ValidateShapeWithOptionalLayout(result));
   return result;
 }
 
 // static
 void ShapeUtil::AppendShapeToTuple(const Shape& shape, Shape* tuple_shape) {
-  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
+  DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
   *tuple_shape->add_tuple_shapes() = shape;
 }
 
@@ -562,7 +561,7 @@ int64_t ShapeUtil::TupleElementCount(const Shape& shape) {
 const Shape& ShapeUtil::GetTupleElementShape(const Shape& shape,
                                              int64_t index) {
   CHECK_GT(TupleElementCount(shape), index);
-  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(shape.tuple_shapes(index)));
+  DCHECK_OK(ValidateShapeWithOptionalLayout(shape.tuple_shapes(index)));
   return shape.tuple_shapes(index);
 }
 
@@ -745,7 +744,7 @@ int64_t ShapeUtil::ByteSizeOfPrimitiveType(PrimitiveType primitive_type) {
 
 // static
 int64_t ShapeUtil::ByteSizeOf(const Shape& shape, int64_t pointer_size) {
-  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
+  DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
   if (shape.element_type() == TUPLE) {
     return ByteSizeOfTupleIndexTable(shape, pointer_size);
   } else if (shape.IsArray()) {
@@ -763,14 +762,14 @@ int64_t ShapeUtil::ByteSizeOf(const Shape& shape, int64_t pointer_size) {
 // static
 int64_t ShapeUtil::ByteSizeOfTupleIndexTable(const Shape& shape,
                                              int64_t pointer_size) {
-  TF_DCHECK_OK(ValidateShape(shape));
+  DCHECK_OK(ValidateShape(shape));
   CHECK_EQ(TUPLE, shape.element_type());
   CHECK_GT(pointer_size, 0);
   return pointer_size * shape.tuple_shapes_size();
 }
 
 int64_t ShapeUtil::ByteSizeOfElements(const Shape& shape) {
-  TF_DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
+  DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
   int64_t allocated_element_count;
 
   if (LayoutUtil::IsSparseArray(shape)) {
@@ -1386,8 +1385,8 @@ void ShapeUtil::ForEachIndexParallel(
     absl::Span<const int64_t> count, absl::Span<const int64_t> incr,
     const ForEachParallelVisitorFunction& visitor_function) {
   // The parallel version of ForEachIndexInternal can never fail.
-  TF_CHECK_OK(ForEachIndexParallelWithStatus(shape, base, count, incr,
-                                             visitor_function));
+  CHECK_OK(ForEachIndexParallelWithStatus(shape, base, count, incr,
+                                          visitor_function));
 }
 
 // static
@@ -1404,7 +1403,7 @@ absl::Status ShapeUtil::ForEachIndexParallelWithStatus(
 void ShapeUtil::ForEachIndexParallel(
     const Shape& shape,
     const ForEachParallelVisitorFunction& visitor_function) {
-  TF_CHECK_OK(ForEachIndexParallelWithStatus(shape, visitor_function));
+  CHECK_OK(ForEachIndexParallelWithStatus(shape, visitor_function));
 }
 
 // static

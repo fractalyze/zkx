@@ -18,6 +18,7 @@ limitations under the License.
 #include <functional>
 #include <vector>
 
+#include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -562,8 +563,7 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
 
           // Clone LLVM module part into its own thread safe context.
           auto tsm = CloneAsThreadSafeModule(n, std::move(llvm_module_part));
-          TF_CHECK_OK(
-              jit_compiler.AddModule(std::move(tsm), /*dylib_index=*/n++));
+          CHECK_OK(jit_compiler.AddModule(std::move(tsm), /*dylib_index=*/n++));
         },
         /*PreserveLocals=*/true, /*RoundRobin=*/true);
 
@@ -577,7 +577,7 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
     // TODO(chokobole): Uncomment this. Dependency: CollectCompiledSymbolsPart
     // compiled_parts.push_back(
     //     CollectCompiledSymbolsPart(ir_emitter2, *llvm_module));
-    TF_CHECK_OK(jit_compiler.AddModule(llvm::orc::ThreadSafeModule(
+    CHECK_OK(jit_compiler.AddModule(llvm::orc::ThreadSafeModule(
         std::move(llvm_module), std::move(llvm_context))));
   }
 
@@ -595,9 +595,9 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
     symbol_type_id_to_function_type_id.emplace(compiled_symbols.back().type_id,
                                                SymbolProto::KERNEL);
     // TODO(chokobole): Uncomment this. Dependency: kernel_dylib_index
-    // TF_CHECK_OK(jit_compiler.AddModule(std::move(module),
+    // CHECK_OK(jit_compiler.AddModule(std::move(module),
     // kernel_dylib_index));
-    TF_CHECK_OK(jit_compiler.AddModule(std::move(module)));
+    CHECK_OK(jit_compiler.AddModule(std::move(module)));
     // Simply roundrobin the kernel dylibs
     // kernel_dylib_index = (kernel_dylib_index + 1) % num_parts;
   }

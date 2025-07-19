@@ -20,7 +20,6 @@ limitations under the License.
 
 #include "absl/memory/memory.h"
 
-#include "xla/tsl/platform/status.h"
 #include "zkx/hlo/ir/hlo_casting_utils.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/hlo/ir/hlo_module.h"
@@ -300,10 +299,9 @@ HloInstruction* HloComputation::ReplaceParameter(
   HloInstruction* new_instruction =
       AddInstructionInternal(std::move(instruction));
   HloInstruction* old_instruction = param_instructions_[param_no];
-  TF_CHECK_OK(
-      old_instruction->ReplaceAllUsesWithDifferentShape(new_instruction));
+  CHECK_OK(old_instruction->ReplaceAllUsesWithDifferentShape(new_instruction));
   param_instructions_[param_no] = new_instruction;
-  TF_CHECK_OK(ForceRemoveInstruction(old_instruction));
+  CHECK_OK(ForceRemoveInstruction(old_instruction));
   return new_instruction;
 }
 
@@ -1598,7 +1596,7 @@ std::unique_ptr<HloComputation> HloComputation::CloneInContext(
       // successor may not have been remapped, because it might have been
       // removed by the replacements map.
       if (replaced_successor != nullptr) {
-        TF_CHECK_OK(new_instr->AddControlDependencyTo(
+        CHECK_OK(new_instr->AddControlDependencyTo(
             context.GetInstruction(replaced_successor)));
       }
     }

@@ -72,7 +72,6 @@ zkx_cc_library(
         ":device_memory",
         ":platform",
         "//xla/tsl/platform:errors",
-        "//xla/tsl/platform:status",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -351,9 +350,9 @@ zkx_cc_library(
     deps = [
         ":platform",
         ":stream_executor",
-        "//xla/tsl/platform:status",
         "//xla/tsl/util:env_var",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/synchronization",
     ],
 )

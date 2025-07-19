@@ -1565,7 +1565,7 @@ absl::StatusOr<std::unique_ptr<HloDataflowAnalysis>> HloDataflowAnalysis::Run(
   }
   absl::c_sort(dataflow_analysis->values_vector_, HloValue::IdLessThan);
 
-  TF_DCHECK_OK(dataflow_analysis->Verify());
+  DCHECK_OK(dataflow_analysis->Verify());
 
   ZKX_VLOG_LINES(1, dataflow_analysis->ToString());
 

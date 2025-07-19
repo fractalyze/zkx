@@ -199,7 +199,7 @@ void HloModule::Print(Printer* printer, const HloPrintOptions& options) const {
     printer->Append(name());
   }
   if (has_schedule()) {
-    TF_CHECK_OK(schedule().Verify());
+    CHECK_OK(schedule().Verify());
     printer->Append(", is_scheduled=true");
   }
   std::string serialized_aliasing = input_output_alias_config().ToShortString();
@@ -856,7 +856,7 @@ std::unique_ptr<HloModule> HloModule::Clone(
         }
       }
     }
-    TF_CHECK_OK(module->set_schedule(std::move(clone_schedule)));
+    CHECK_OK(module->set_schedule(std::move(clone_schedule)));
   }
   for (const auto& [parameter, indices, offset] : CrossProgramPrefetches()) {
     module->AddCrossProgramPrefetch(parameter, indices, offset);

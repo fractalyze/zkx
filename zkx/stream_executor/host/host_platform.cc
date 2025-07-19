@@ -18,9 +18,9 @@ limitations under the License.
 #include <thread>
 #include <utility>
 
+#include "absl/log/check.h"
 #include "absl/strings/str_format.h"
 
-#include "xla/tsl/platform/status.h"
 #include "zkx/stream_executor/host/host_executor.h"
 #include "zkx/stream_executor/host/host_platform_id.h"
 #include "zkx/stream_executor/platform/initialize.h"
@@ -65,7 +65,7 @@ HostPlatform::GetUncachedExecutor(int ordinal) {
 
 static void InitializeHostPlatform() {
   std::unique_ptr<Platform> platform(new host::HostPlatform);
-  TF_CHECK_OK(PlatformManager::RegisterPlatform(std::move(platform)));
+  CHECK_OK(PlatformManager::RegisterPlatform(std::move(platform)));
 }
 
 }  // namespace stream_executor::host

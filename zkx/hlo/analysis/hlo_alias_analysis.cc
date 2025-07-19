@@ -384,7 +384,7 @@ absl::StatusOr<std::unique_ptr<HloAliasAnalysis>> HloAliasAnalysis::Run(
   }
 
   CHECK_EQ(alias_analysis->value_to_buffer_.size(), num_values);
-  TF_DCHECK_OK(alias_analysis->Verify());
+  DCHECK_OK(alias_analysis->Verify());
 
   HloInstruction* root = module->entry_computation()->root_instruction();
   ShapeUtil::ForEachSubshape(root->shape(), [&](const Shape& /*subshape*/,
