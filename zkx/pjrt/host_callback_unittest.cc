@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "gtest/gtest.h"
 
+#include "xla/tsl/platform/status.h"
 #include "zkx/literal_util.h"
 #include "zkx/tests/literal_test_util.h"
 

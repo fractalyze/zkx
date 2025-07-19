@@ -321,6 +321,7 @@ zkx_cc_unittest(
         ":pjrt_executable",
         ":pjrt_future",
         ":semaphore",
+        "//xla/tsl/platform:status",
         "//xla/tsl/platform:status_matchers",
         "//zkx:literal_util",
         "//zkx/pjrt/cpu:pjrt_test_client",

@@ -800,6 +800,7 @@ zkx_cc_unittest(
         "//xla/tsl/platform",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:path",
+        "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
         "//xla/tsl/platform:test_util",
         "//zkx:literal_util",

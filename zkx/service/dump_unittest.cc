@@ -25,6 +25,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/path.h"
 #include "xla/tsl/platform/platform.h"
+#include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/test_util.h"
 #include "zkx/hlo/parser/hlo_parser.h"
 #include "zkx/service/hlo_module_config.h"
