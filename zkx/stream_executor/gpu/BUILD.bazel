@@ -3,6 +3,19 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "context_map",
+    hdrs = ["context_map.h"],
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "tma_metadata",
     srcs = ["tma_metadata.cc"],
     hdrs = ["tma_metadata.h"],
@@ -23,8 +36,12 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "gpu_unittests",
-    srcs = ["tma_metadata_unittest.cc"],
+    srcs = [
+        "context_map_unittest.cc",
+        "tma_metadata_unittest.cc",
+    ],
     deps = [
+        ":context_map",
         ":tma_metadata",
         "//xla/tsl/platform:status_matchers",
         "@com_google_absl//absl/status",
