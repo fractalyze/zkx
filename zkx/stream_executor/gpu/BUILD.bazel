@@ -1,6 +1,26 @@
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+load("//zkx/stream_executor:build_defs.bzl", "gpu_only_cc_library")
 
 package(default_visibility = ["//visibility:public"])
+
+gpu_only_cc_library(
+    name = "asm_compiler",
+    srcs = ["asm_compiler.cc"],
+    hdrs = ["asm_compiler.h"],
+    deps = [
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:subprocess",
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
 
 zkx_cc_library(
     name = "tma_metadata",
