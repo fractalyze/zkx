@@ -16,6 +16,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_asm_opts",
+    hdrs = ["gpu_asm_opts.h"],
+    deps = ["//zkx/stream_executor:namespace_alias"],
+)
+
+zkx_cc_library(
     name = "tma_metadata",
     srcs = ["tma_metadata.cc"],
     hdrs = ["tma_metadata.h"],
