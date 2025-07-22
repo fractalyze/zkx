@@ -31,6 +31,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_executor",
+    hdrs = ["gpu_executor.h"],
+    deps = [
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:namespace_alias",
+        "//zkx/stream_executor:stream_executor_common",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "mock_context",
     hdrs = ["mock_context.h"],
     deps = [
@@ -74,6 +88,8 @@ zkx_cc_unittest(
     name = "gpu_unittests",
     srcs = [
         "context_map_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
+        # "gpu_executor_unittest.cc",
         "tma_metadata_unittest.cc",
     ],
     deps = [
