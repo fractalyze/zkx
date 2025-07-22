@@ -23,6 +23,15 @@ gpu_only_cc_library(
 )
 
 zkx_cc_library(
+    name = "context",
+    hdrs = ["context.h"],
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "context_map",
     hdrs = ["context_map.h"],
     deps = [
