@@ -1,0 +1,9 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "cubin_or_ptx_image",
+    hdrs = ["cubin_or_ptx_image.h"],
+    deps = ["//zkx/stream_executor:namespace_alias"],
+)
