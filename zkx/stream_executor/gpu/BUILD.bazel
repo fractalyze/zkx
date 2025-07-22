@@ -22,6 +22,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "scoped_gpu_graph_exec",
+    hdrs = ["scoped_gpu_graph_exec.h"],
+    deps = [":scoped_update_mode"],
+)
+
+zkx_cc_library(
     name = "scoped_update_mode",
     hdrs = ["scoped_update_mode.h"],
     deps = ["//zkx/stream_executor:namespace_alias"],
