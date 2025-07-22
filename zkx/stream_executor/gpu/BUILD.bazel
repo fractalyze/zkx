@@ -44,6 +44,19 @@ zkx_cc_library(
     ],
 )
 
+gpu_only_cc_library(
+    name = "gpu_semaphore",
+    srcs = ["gpu_semaphore.cc"],
+    hdrs = ["gpu_semaphore.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:memory_allocation",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 zkx_cc_library(
     name = "mock_context",
     hdrs = ["mock_context.h"],
