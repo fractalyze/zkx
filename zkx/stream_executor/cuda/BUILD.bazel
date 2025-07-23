@@ -58,6 +58,20 @@ stage_in_bin_subdirectory(
 )
 
 zkx_cc_library(
+    name = "caching_compilation_provider",
+    srcs = ["caching_compilation_provider.cc"],
+    hdrs = ["caching_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "compilation_options",
     hdrs = ["compilation_options.h"],
     deps = [
@@ -222,6 +236,7 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "cuda_unittests",
     srcs = [
+        "caching_compilation_provider_unittest.cc",
         "compilation_options_unittest.cc",
         "cuda_compute_capability_unittest.cc",
         "ptx_compiler_unittest.cc",
@@ -233,16 +248,20 @@ zkx_cc_unittest(
         ":ptxas",
     ],
     deps = [
+        ":caching_compilation_provider",
         ":compilation_options",
         ":cuda_compute_capability",
+        ":mock_compilation_provider",
         ":ptx_compiler",
         ":ptx_compiler_support",
         ":subprocess_compilation",
+        "//xla/tsl/platform:env",
         "//xla/tsl/platform:path",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/hash:hash_testing",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
     ],
 )
