@@ -29,6 +29,15 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "compilation_options",
+    hdrs = ["compilation_options.h"],
+    deps = [
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "cubin_or_ptx_image",
     hdrs = ["cubin_or_ptx_image.h"],
     deps = ["//zkx/stream_executor:namespace_alias"],
@@ -64,10 +73,16 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "cuda_unittests",
-    srcs = ["cuda_compute_capability_unittest.cc"],
+    srcs = [
+        "compilation_options_unittest.cc",
+        "cuda_compute_capability_unittest.cc",
+    ],
     deps = [
+        ":compilation_options",
         ":cuda_compute_capability",
         "//xla/tsl/platform:status_matchers",
+        "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/hash:hash_testing",
+        "@com_google_absl//absl/strings",
     ],
 )
