@@ -72,15 +72,13 @@ class StreamCommon : public Stream {
     return stream_priority_;
   }
 
-  // TODO(chokobole): Uncomment this. Dependency: CudaComputeCapability
-  // CudaComputeCapability GetCudaComputeCapability() const override {
-  //   return parent()->GetDeviceDescription().cuda_compute_capability();
-  // }
+  CudaComputeCapability GetCudaComputeCapability() const override {
+    return parent()->GetDeviceDescription().cuda_compute_capability();
+  }
 
-  // TODO(chokobole): Uncomment this. Dependency: RocmComputeCapability
-  // RocmComputeCapability GetRocmComputeCapability() const override {
-  //   return parent()->GetDeviceDescription().rocm_compute_capability();
-  // }
+  RocmComputeCapability GetRocmComputeCapability() const override {
+    return parent()->GetDeviceDescription().rocm_compute_capability();
+  }
 
   // Doesn't do anything interesting by default; GpuStream connects this to NVTX
   const std::string& GetName() const override { return name_; }
