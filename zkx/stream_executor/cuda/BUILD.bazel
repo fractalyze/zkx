@@ -1,8 +1,12 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
-load(":build_defs.bzl", "if_libnvptxcompiler_support_enabled")
+load(
+    ":build_defs.bzl",
+    "if_libnvptxcompiler_support_enabled",
+    "stage_in_bin_subdirectory",
+)
 
 package(default_visibility = ["//visibility:public"])
 
@@ -26,6 +30,31 @@ proto_library(
 cc_proto_library(
     name = "cuda_compute_capability_cc_proto",
     deps = [":cuda_compute_capability_proto"],
+)
+
+cc_binary(
+    name = "dummy_cuda_binary",
+    testonly = True,
+    srcs = ["dummy_cuda_binary.cc"],
+    deps = ["@com_google_absl//absl/strings"],
+)
+
+stage_in_bin_subdirectory(
+    name = "ptxas",
+    testonly = True,
+    data = [":dummy_cuda_binary"],
+)
+
+stage_in_bin_subdirectory(
+    name = "nvlink",
+    testonly = True,
+    data = [":dummy_cuda_binary"],
+)
+
+stage_in_bin_subdirectory(
+    name = "fatbinary",
+    testonly = True,
+    data = [":dummy_cuda_binary"],
 )
 
 zkx_cc_library(
@@ -135,19 +164,61 @@ zkx_cc_library(
     deps = ["//zkx/stream_executor:namespace_alias"],
 )
 
+zkx_cc_library(
+    name = "subprocess_compilation",
+    srcs = ["subprocess_compilation.cc"],
+    hdrs = ["subprocess_compilation.h"],
+    deps = [
+        ":cubin_or_ptx_image",
+        ":cuda_compute_capability",
+        ":ptx_compiler_helpers",
+        "//xla/tsl/platform:cuda_root_path",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:statusor",
+        "//xla/tsl/platform:subprocess",
+        "//zkx:status_macros",
+        "//zkx/stream_executor:semantic_version",
+        "//zkx/stream_executor/gpu:gpu_asm_opts",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@com_googlesource_code_re2//:re2",
+    ],
+)
+
 zkx_cc_unittest(
     name = "cuda_unittests",
     srcs = [
         "compilation_options_unittest.cc",
         "cuda_compute_capability_unittest.cc",
         "ptx_compiler_unittest.cc",
+        "subprocess_compilation_unittest.cc",
+    ],
+    data = [
+        ":fatbinary",
+        ":nvlink",
+        ":ptxas",
     ],
     deps = [
         ":compilation_options",
         ":cuda_compute_capability",
         ":ptx_compiler",
         ":ptx_compiler_support",
+        ":subprocess_compilation",
+        "//xla/tsl/platform:path",
         "//xla/tsl/platform:status_matchers",
+        "//xla/tsl/platform:statusor",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/hash:hash_testing",
         "@com_google_absl//absl/strings",
