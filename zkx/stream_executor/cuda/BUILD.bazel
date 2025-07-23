@@ -1,8 +1,22 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_cc//cc:defs.bzl", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+load(":build_defs.bzl", "if_libnvptxcompiler_support_enabled")
 
 package(default_visibility = ["//visibility:public"])
+
+bool_flag(
+    name = "enable_libnvptxcompiler_support",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "libnvptxcompiler_support_enabled",
+    flag_values = {
+        ":enable_libnvptxcompiler_support": "True",
+    },
+)
 
 proto_library(
     name = "cuda_compute_capability_proto",
@@ -31,6 +45,21 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
+)
+
+zkx_cc_library(
+    name = "ptx_compiler_support",
+    srcs = ["ptx_compiler_support.cc"],
+    hdrs = ["ptx_compiler_support.h"],
+    local_defines = if_libnvptxcompiler_support_enabled(
+        [
+            "LIBNVPTXCOMPILER_SUPPORT=true",
+        ],
+        [
+            "LIBNVPTXCOMPILER_SUPPORT=false",
+        ],
+    ),
+    deps = ["//zkx/stream_executor:namespace_alias"],
 )
 
 zkx_cc_unittest(
