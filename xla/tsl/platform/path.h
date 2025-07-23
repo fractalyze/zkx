@@ -103,6 +103,10 @@ void ParseURI(std::string_view uri, std::string_view* scheme,
 std::string CreateURI(std::string_view scheme, std::string_view host,
                       std::string_view path);
 
+// The test workspace directory is known to be TEST_SRCDIR/TEST_WORKSPACE if
+// both the TEST_SRCDIR and TEST_WORKSPACE environment variables are set.
+bool GetTestWorkspaceDir(std::string* dir);
+
 // Returns whether the TEST_UNDECLARED_OUTPUTS_DIR environment variable is set.
 // If it's set and dir != nullptr then sets *dir to that.
 bool GetTestUndeclaredOutputsDir(std::string* dir);

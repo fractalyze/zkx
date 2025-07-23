@@ -327,5 +327,6 @@ zkx_cc_unittest(
         ":str_util",
         ":subprocess",
         ":test_util",
+        "//zkx/base/test:scoped_environment",
     ],
 )
