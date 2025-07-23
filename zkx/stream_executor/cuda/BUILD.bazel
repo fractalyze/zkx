@@ -38,6 +38,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "compilation_provider",
+    hdrs = ["compilation_provider.h"],
+    deps = [
+        ":compilation_options",
+        ":cuda_compute_capability",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "cubin_or_ptx_image",
     hdrs = ["cubin_or_ptx_image.h"],
     deps = ["//zkx/stream_executor:namespace_alias"],
