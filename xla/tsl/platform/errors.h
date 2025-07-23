@@ -76,4 +76,13 @@ void AppendToMessage(absl::Status* status, Args... args) {
     }                                        \
   } while (0)
 
+#define TF_RETURN_WITH_CONTEXT_IF_ERROR(expr, ...)           \
+  do {                                                       \
+    absl::Status _status = (expr);                           \
+    if (ABSL_PREDICT_FALSE(!_status.ok())) {                 \
+      ::tsl::errors::AppendToMessage(&_status, __VA_ARGS__); \
+      return _status;                                        \
+    }                                                        \
+  } while (0)
+
 #endif  // XLA_TSL_PLATFORM_ERRORS_H_
