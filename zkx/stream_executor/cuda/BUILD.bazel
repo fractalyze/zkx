@@ -68,6 +68,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "nvptxcompiler_compilation_provider",
+    srcs = ["nvptxcompiler_compilation_provider.cc"],
+    hdrs = ["nvptxcompiler_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        ":ptx_compiler",
+        "//xla/tsl/platform:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "ptx_compiler",
     srcs = if_libnvptxcompiler_support_enabled(
         ["ptx_compiler_impl.cc"],
