@@ -68,6 +68,48 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ptx_compiler",
+    srcs = if_libnvptxcompiler_support_enabled(
+        ["ptx_compiler_impl.cc"],
+        ["ptx_compiler_stub.cc"],
+    ),
+    hdrs = ["ptx_compiler.h"],
+    deps = [
+        ":cuda_compute_capability",
+        "//zkx/stream_executor:semantic_version",
+        "//zkx/stream_executor/gpu:gpu_asm_opts",
+    ] + if_libnvptxcompiler_support_enabled([
+        ":ptx_compiler_helpers",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@local_config_cuda//cuda:cuda_headers",
+        "@local_config_cuda//cuda:nvptxcompiler",
+    ]),
+)
+
+zkx_cc_library(
+    name = "ptx_compiler_helpers",
+    srcs = ["ptx_compiler_helpers.cc"],
+    hdrs = ["ptx_compiler_helpers.h"],
+    deps = [
+        ":cuda_compute_capability",
+        "//zkx/stream_executor:semantic_version",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "ptx_compiler_support",
     srcs = ["ptx_compiler_support.cc"],
     hdrs = ["ptx_compiler_support.h"],
@@ -87,10 +129,13 @@ zkx_cc_unittest(
     srcs = [
         "compilation_options_unittest.cc",
         "cuda_compute_capability_unittest.cc",
+        "ptx_compiler_unittest.cc",
     ],
     deps = [
         ":compilation_options",
         ":cuda_compute_capability",
+        ":ptx_compiler",
+        ":ptx_compiler_support",
         "//xla/tsl/platform:status_matchers",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/hash:hash_testing",
