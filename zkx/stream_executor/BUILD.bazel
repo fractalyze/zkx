@@ -46,12 +46,14 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "device_description",
+    srcs = ["device_description.cc"],
     hdrs = ["device_description.h"],
     deps = [
         ":launch_dim",
         ":semantic_version",
         "//xla/tsl/lib/math:math_util",
         "//zkx/base:logging",
+        "@com_google_absl//absl/log:check",
     ],
 )
 
