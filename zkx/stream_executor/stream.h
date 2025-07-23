@@ -231,12 +231,10 @@ class Stream {
   virtual StreamExecutor* parent() const = 0;
 
   // Returns the CudaComputeCapability for this stream.
-  // TODO(chokobole): Uncomment this. Dependency: CudaComputeCapability
-  // virtual CudaComputeCapability GetCudaComputeCapability() const = 0;
+  virtual CudaComputeCapability GetCudaComputeCapability() const = 0;
 
   // Returns the RocmComputeCapability for this stream.
-  // TODO(chokobole): Uncomment this. Dependency: RocmComputeCapability
-  // virtual RocmComputeCapability GetRocmComputeCapability() const = 0;
+  virtual RocmComputeCapability GetRocmComputeCapability() const = 0;
 
   // Gets priority for a stream.
   virtual std::variant<StreamPriority, int> priority() const = 0;

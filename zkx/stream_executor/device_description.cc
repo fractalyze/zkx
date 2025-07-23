@@ -21,31 +21,27 @@ limitations under the License.
 #include "zkx/base/logging.h"
 
 namespace stream_executor {
-// TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-// const GpuComputeCapability &DeviceDescription::gpu_compute_capability()
-// const
-// {
-//   return gpu_compute_capability_;
-// }
 
-// TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-// CudaComputeCapability DeviceDescription::cuda_compute_capability() const {
-//   if (auto *ptr =
-//           std::get_if<CudaComputeCapability>(&gpu_compute_capability_)) {
-//     return *ptr;
-//   }
-//   // Fallback for backwards compatibility.
-//   return CudaComputeCapability{-1, -1};
-// }
+const GpuComputeCapability &DeviceDescription::gpu_compute_capability() const {
+  return gpu_compute_capability_;
+}
 
-// TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-// RocmComputeCapability DeviceDescription::rocm_compute_capability() const {
-//   if (auto *ptr =
-//           std::get_if<RocmComputeCapability>(&gpu_compute_capability_)) {
-//     return *ptr;
-//   }
-//   return RocmComputeCapability{};
-// }
+CudaComputeCapability DeviceDescription::cuda_compute_capability() const {
+  if (auto *ptr =
+          std::get_if<CudaComputeCapability>(&gpu_compute_capability_)) {
+    return *ptr;
+  }
+  // Fallback for backwards compatibility.
+  return CudaComputeCapability{-1, -1};
+}
+
+RocmComputeCapability DeviceDescription::rocm_compute_capability() const {
+  if (auto *ptr =
+          std::get_if<RocmComputeCapability>(&gpu_compute_capability_)) {
+    return *ptr;
+  }
+  return RocmComputeCapability{};
+}
 
 bool ThreadDimOk(const DeviceDescription &device_description,
                  const ThreadDim &thread_dim) {
