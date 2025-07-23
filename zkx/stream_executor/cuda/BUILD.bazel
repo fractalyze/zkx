@@ -197,6 +197,18 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "subprocess_compilation_provider",
+    srcs = ["subprocess_compilation_provider.cc"],
+    hdrs = ["subprocess_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        ":subprocess_compilation",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
 zkx_cc_unittest(
     name = "cuda_unittests",
     srcs = [
