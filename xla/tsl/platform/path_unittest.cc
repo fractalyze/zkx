@@ -20,6 +20,7 @@ limitations under the License.
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/env.h"
+#include "zkx/base/test/scoped_environment.h"
 
 namespace tsl::io {
 
@@ -152,8 +153,41 @@ TEST(PathTest, CreateParseURI) {
 // TODO(chokobole): Uncomment this. Dependency: CommonPathPrefix
 // TEST(PathTest, CommonPathPrefix) {
 
-// TODO(chokobole): Uncomment this. Dependency: GetTestWorkspaceDir
-// TEST(PathTest, GetTestWorkspaceDir) {
+TEST(PathTest, GetTestWorkspaceDir) {
+  zkx::base::ScopedEnvironment scoped_env("TEST_SRCDIR");
+  zkx::base::ScopedEnvironment scoped_env2("TEST_WORKSPACE");
+
+  constexpr std::string_view kOriginalValue = "original value";
+  std::string dir;
+
+  dir = kOriginalValue;
+  tsl::setenv("TEST_SRCDIR", "/repo/src", /*overwrite=*/true);
+  tsl::setenv("TEST_WORKSPACE", "my/workspace", /*overwrite=*/true);
+  EXPECT_TRUE(GetTestWorkspaceDir(&dir));
+  EXPECT_EQ(dir, "/repo/src/my/workspace");
+  EXPECT_TRUE(GetTestWorkspaceDir(nullptr));
+
+  dir = kOriginalValue;
+  tsl::unsetenv("TEST_SRCDIR");
+  tsl::setenv("TEST_WORKSPACE", "my/workspace", /*overwrite=*/true);
+  EXPECT_FALSE(GetTestWorkspaceDir(&dir));
+  EXPECT_EQ(dir, kOriginalValue);
+  EXPECT_FALSE(GetTestWorkspaceDir(nullptr));
+
+  dir = kOriginalValue;
+  tsl::setenv("TEST_SRCDIR", "/repo/src", /*overwrite=*/true);
+  tsl::unsetenv("TEST_WORKSPACE");
+  EXPECT_FALSE(GetTestWorkspaceDir(&dir));
+  EXPECT_EQ(dir, kOriginalValue);
+  EXPECT_FALSE(GetTestWorkspaceDir(nullptr));
+
+  dir = kOriginalValue;
+  tsl::unsetenv("TEST_SRCDIR");
+  tsl::unsetenv("TEST_WORKSPACE");
+  EXPECT_FALSE(GetTestWorkspaceDir(&dir));
+  EXPECT_EQ(dir, kOriginalValue);
+  EXPECT_FALSE(GetTestWorkspaceDir(nullptr));
+}
 
 TEST(PathTest, GetTestUndeclaredOutputsDir) {
   constexpr std::string_view kOriginalValue = "original value";
