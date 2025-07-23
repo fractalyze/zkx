@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "zkx/stream_executor/device_description.h"
 
+#include "absl/log/check.h"
+
 #include "xla/tsl/lib/math/math_util.h"
 #include "zkx/base/logging.h"
 
