@@ -97,6 +97,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "mock_compilation_provider",
+    testonly = True,
+    hdrs = ["mock_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
     name = "nvptxcompiler_compilation_provider",
     srcs = ["nvptxcompiler_compilation_provider.cc"],
     hdrs = ["nvptxcompiler_compilation_provider.h"],
