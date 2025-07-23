@@ -72,6 +72,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "composite_compilation_provider",
+    srcs = ["composite_compilation_provider.cc"],
+    hdrs = ["composite_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "compilation_options",
     hdrs = ["compilation_options.h"],
     deps = [
@@ -238,6 +249,7 @@ zkx_cc_unittest(
     srcs = [
         "caching_compilation_provider_unittest.cc",
         "compilation_options_unittest.cc",
+        "composite_compilation_provider_unittest.cc",
         "cuda_compute_capability_unittest.cc",
         "ptx_compiler_unittest.cc",
         "subprocess_compilation_unittest.cc",
@@ -250,6 +262,7 @@ zkx_cc_unittest(
     deps = [
         ":caching_compilation_provider",
         ":compilation_options",
+        ":composite_compilation_provider",
         ":cuda_compute_capability",
         ":mock_compilation_provider",
         ":ptx_compiler",
