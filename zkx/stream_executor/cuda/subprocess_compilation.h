@@ -38,13 +38,13 @@ namespace stream_executor {
 // customized in a passed flag, and for controlling ptxas optimizations.
 absl::StatusOr<std::vector<uint8_t>> CompileGpuAsmUsingPtxAs(
     const CudaComputeCapability& cc, std::string_view ptx_contents,
-    GpuAsmOpts options, bool cancel_if_reg_spill = false);
+    const GpuAsmOpts& options, bool cancel_if_reg_spill = false);
 
 // Like the above, but uses the ptxas_binary from `ptxas_path` instead of
 // using `FindCudaExecutable` to find it.
 absl::StatusOr<std::vector<uint8_t>> CompileGpuAsmUsingPtxAs(
     std::string_view ptxas_path, const CudaComputeCapability& cc,
-    std::string_view ptx_contents, GpuAsmOpts options,
+    std::string_view ptx_contents, const GpuAsmOpts& options,
     bool cancel_if_reg_spill = false);
 
 // Finds the CUDA executable with the given binary_name
@@ -87,7 +87,7 @@ absl::StatusOr<SemanticVersion> GetNvLinkVersion(
 // Bundles the GPU machine code (cubins) and PTX if requested and returns the
 // resulting binary (i.e. a fatbin) as a byte array.
 absl::StatusOr<std::vector<uint8_t>> BundleGpuAsmUsingFatbin(
-    std::vector<CubinOrPTXImage> images, GpuAsmOpts options);
+    std::vector<CubinOrPTXImage> images, const GpuAsmOpts& options);
 
 // Links the given CUBIN `images` using nvlink.
 absl::StatusOr<std::vector<uint8_t>> LinkUsingNvlink(

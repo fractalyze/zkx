@@ -25,6 +25,7 @@ limitations under the License.
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -233,7 +234,7 @@ static void LogPtxasTooOld(const std::string& ptxas_path, int cc_major,
   }
 }
 
-static void AppendArgsFromOptions(GpuAsmOpts options,
+static void AppendArgsFromOptions(const GpuAsmOpts& options,
                                   std::vector<std::string>& args) {
   if (options.disable_gpuasm_optimizations) {
     args.push_back("-O0");
@@ -243,8 +244,8 @@ static void AppendArgsFromOptions(GpuAsmOpts options,
 }
 
 absl::StatusOr<std::vector<uint8_t>> CompileGpuAsmUsingPtxAs(
-    const CudaComputeCapability& cc, std::string_view ptx, GpuAsmOpts options,
-    bool cancel_if_reg_spill) {
+    const CudaComputeCapability& cc, std::string_view ptx,
+    const GpuAsmOpts& options, bool cancel_if_reg_spill) {
   TF_ASSIGN_OR_RETURN(std::string ptxas_path,
                       FindPtxAsExecutable(options.preferred_cuda_dir));
   return CompileGpuAsmUsingPtxAs(ptxas_path, cc, ptx, options,
@@ -253,7 +254,7 @@ absl::StatusOr<std::vector<uint8_t>> CompileGpuAsmUsingPtxAs(
 
 absl::StatusOr<std::vector<uint8_t>> CompileGpuAsmUsingPtxAs(
     std::string_view ptxas_path, const CudaComputeCapability& cc,
-    std::string_view ptx, GpuAsmOpts options, bool cancel_if_reg_spill) {
+    std::string_view ptx, const GpuAsmOpts& options, bool cancel_if_reg_spill) {
   TF_ASSIGN_OR_RETURN(auto version, GetToolVersion(ptxas_path));
   WarnIfBadPtxasVersion("ptxas", cc, version);
 
@@ -269,7 +270,7 @@ absl::StatusOr<std::vector<uint8_t>> CompileGpuAsmUsingPtxAs(
   VLOG(2) << "ptx written to: " << ptx_path;
 
   absl::Cleanup ptx_cleaner = [&ptx_path] {
-    ABSL_CHECK_OK(tsl::Env::Default()->DeleteFile(ptx_path));
+    CHECK_OK(tsl::Env::Default()->DeleteFile(ptx_path));
   };
 
   // Invoke ptxas and collect its output.
@@ -362,7 +363,7 @@ absl::StatusOr<SemanticVersion> GetAsmCompilerVersion(
 }
 
 absl::StatusOr<std::vector<uint8_t>> BundleGpuAsmUsingFatbin(
-    std::vector<CubinOrPTXImage> images, GpuAsmOpts options) {
+    std::vector<CubinOrPTXImage> images, const GpuAsmOpts& options) {
   TF_ASSIGN_OR_RETURN(
       std::string fatbinary_path,
       FindCudaExecutable("fatbinary", options.preferred_cuda_dir));
@@ -383,7 +384,7 @@ absl::StatusOr<std::vector<uint8_t>> BundleGpuAsmUsingFatbin(
   }
   absl::Cleanup image_files_cleaner = [&image_paths] {
     for (const auto& path : image_paths) {
-      ABSL_CHECK_OK(tsl::Env::Default()->DeleteFile(path));
+      CHECK_OK(tsl::Env::Default()->DeleteFile(path));
     }
   };
 
@@ -486,7 +487,7 @@ absl::StatusOr<std::vector<uint8_t>> LinkUsingNvlink(
   std::vector<std::string> temp_files;
   absl::Cleanup cleaners = [&] {
     for (auto& f : temp_files) {
-      ABSL_CHECK_OK(tsl::Env::Default()->DeleteFile(f));
+      CHECK_OK(tsl::Env::Default()->DeleteFile(f));
     }
   };
   for (int i = 0; i < images.size(); i++) {

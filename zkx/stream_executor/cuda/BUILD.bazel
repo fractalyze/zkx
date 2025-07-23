@@ -187,6 +187,7 @@ zkx_cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -194,6 +195,18 @@ zkx_cc_library(
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
         "@com_googlesource_code_re2//:re2",
+    ],
+)
+
+zkx_cc_library(
+    name = "subprocess_compilation_provider",
+    srcs = ["subprocess_compilation_provider.cc"],
+    hdrs = ["subprocess_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        ":subprocess_compilation",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )
 
