@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/synchronization/mutex.h"
@@ -125,11 +126,11 @@ class TestCoordinationServiceTaskState {
                  << " is in error status: " << status;
     };
 
-    TF_CHECK_OK(coord_agent_->Initialize(Env::Default(), job_name, task_id,
-                                         coordination_config,
-                                         std::move(coord_client_), error_fn));
-    TF_CHECK_OK(coord_agent_->Connect());
-    TF_CHECK_OK(status_);
+    CHECK_OK(coord_agent_->Initialize(Env::Default(), job_name, task_id,
+                                      coordination_config,
+                                      std::move(coord_client_), error_fn));
+    CHECK_OK(coord_agent_->Connect());
+    CHECK_OK(status_);
   }
 
   CoordinationClient* GetCoordinationClient() { return coord_client_.get(); }

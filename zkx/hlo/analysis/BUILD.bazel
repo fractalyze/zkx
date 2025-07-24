@@ -62,7 +62,6 @@ zkx_cc_library(
     deps = [
         ":hlo_dataflow_analysis",
         ":hlo_reachability",
-        "//xla/tsl/platform:status",
         "//zkx:map_util",
         "//zkx/base:logging",
         "//zkx/hlo/ir:hlo",

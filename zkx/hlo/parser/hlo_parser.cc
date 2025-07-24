@@ -21,6 +21,7 @@ limitations under the License.
 
 #include "absl/container/inlined_vector.h"
 #include "absl/functional/function_ref.h"
+#include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -1291,7 +1292,7 @@ bool HloParserImpl::ParseHloModule(HloModule* module,
   module->set_name(name);
 
   if (is_scheduled.value_or(false)) {
-    TF_CHECK_OK(module->set_schedule(ScheduleFromInstructionOrder(module)));
+    CHECK_OK(module->set_schedule(ScheduleFromInstructionOrder(module)));
   }
   HloModuleConfig config = module->config();
   bool default_config = true;
@@ -1318,14 +1319,14 @@ bool HloParserImpl::ParseHloModule(HloModule* module,
     for (int64_t p = 0; p < entry_computation->num_parameters(); p++) {
       const Shape& param_shape =
           entry_computation->parameter_instruction(p)->shape();
-      TF_CHECK_OK(module->mutable_entry_computation_layout()
-                      ->mutable_parameter_layout(p)
-                      ->CopyLayoutFromShape(param_shape));
+      CHECK_OK(module->mutable_entry_computation_layout()
+                   ->mutable_parameter_layout(p)
+                   ->CopyLayoutFromShape(param_shape));
     }
     const Shape& result_shape = entry_computation->root_instruction()->shape();
-    TF_CHECK_OK(module->mutable_entry_computation_layout()
-                    ->mutable_result_layout()
-                    ->CopyLayoutFromShape(result_shape));
+    CHECK_OK(module->mutable_entry_computation_layout()
+                 ->mutable_result_layout()
+                 ->CopyLayoutFromShape(result_shape));
   }
   if (frontend_attributes) {
     module->set_frontend_attributes(frontend_attributes.value());
@@ -5781,7 +5782,7 @@ bool HloParserImpl::ParseSingleInstruction(HloModule* module) {
   for (auto& comp : computations_) {
     module->AddEmbeddedComputation(std::move(comp));
   }
-  TF_CHECK_OK(module->set_schedule(ScheduleFromInstructionOrder(module)));
+  CHECK_OK(module->set_schedule(ScheduleFromInstructionOrder(module)));
   return true;
 }
 

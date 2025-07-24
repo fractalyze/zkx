@@ -70,6 +70,7 @@ zkx_cc_library(
         "//zkx/service:llvm_compiler",
         "//zkx/service/llvm_ir:llvm_command_line_options",
         "//zkx/stream_executor/host:host_platform_id",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -148,7 +149,6 @@ zkx_cc_library(
     deps = [
         ":cpu_executable_run_options",
         ":xfeed_manager",
-        "//xla/tsl/platform:status",
         "//zkx:executable_run_options",
         "//zkx:primitive_util",
         "//zkx:shape_util",

@@ -19,6 +19,7 @@ limitations under the License.
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/casts.h"
+#include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/protobuf_util.h"

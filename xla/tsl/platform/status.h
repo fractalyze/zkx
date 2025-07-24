@@ -28,8 +28,6 @@ limitations under the License.
 #include "absl/status/status.h"
 #include "absl/strings/cord.h"
 
-#include "zkx/base/logging.h"
-
 namespace tsl {
 
 // Helper class to manage multiple child status values.
@@ -90,29 +88,6 @@ class StatusGroup {
 };
 
 typedef std::function<void(const absl::Status&)> StatusCallback;
-
-std::string* TfCheckOpHelperOutOfLine(const absl::Status& v, const char* msg);
-
-inline std::string* TfCheckOpHelper(absl::Status v, const char* msg) {
-  if (v.ok()) return nullptr;
-  return TfCheckOpHelperOutOfLine(v, msg);
-}
-
-#define TF_DO_CHECK_OK(val, level)                          \
-  while (auto* _result = ::tsl::TfCheckOpHelper(val, #val)) \
-  LOG(level) << *(_result)
-
-#define TF_CHECK_OK(val) TF_DO_CHECK_OK(val, FATAL)
-#define TF_QCHECK_OK(val) TF_DO_CHECK_OK(val, QFATAL)
-
-// DEBUG only version of TF_CHECK_OK.  Compiler still parses 'val' even in opt
-// mode.
-#ifndef NDEBUG
-#define TF_DCHECK_OK(val) TF_CHECK_OK(val)
-#else
-#define TF_DCHECK_OK(val) \
-  while (false && (absl::OkStatus() == (val))) LOG(FATAL)
-#endif
 
 #define TF_ASSERT_OK(expr) ASSERT_TRUE(expr.ok())
 #define TF_EXPECT_OK(expr) EXPECT_TRUE(expr.ok())

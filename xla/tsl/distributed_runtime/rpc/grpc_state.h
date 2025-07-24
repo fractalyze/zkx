@@ -21,6 +21,7 @@ limitations under the License.
 #include <string>
 #include <utility>
 
+#include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
@@ -74,8 +75,8 @@ class RPCState : public GrpcClientCQTag {
             // in cluster initialization and collective param resolution.
             [fail_fast, &done]() -> bool {
               std::string fail_fast_env;
-              TF_CHECK_OK(ReadStringFromEnvVar("GRPC_FAIL_FAST", "use_caller",
-                                               &fail_fast_env));
+              CHECK_OK(ReadStringFromEnvVar("GRPC_FAIL_FAST", "use_caller",
+                                            &fail_fast_env));
               std::string fail_fast_env_lower =
                   absl::AsciiStrToLower(fail_fast_env);
               if (fail_fast_env_lower == "true") {

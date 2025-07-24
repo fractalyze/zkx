@@ -21,7 +21,6 @@ limitations under the License.
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
-#include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"

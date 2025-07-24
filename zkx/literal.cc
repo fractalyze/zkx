@@ -19,7 +19,6 @@ limitations under the License.
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/mem.h"
-#include "xla/tsl/platform/status.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx {
@@ -151,13 +150,13 @@ LiteralBase::~LiteralBase() = default;
 
 Literal LiteralBase::Clone() const {
   Literal result(shape());
-  TF_CHECK_OK(result.CopyFrom(*this));
+  CHECK_OK(result.CopyFrom(*this));
   return result;
 }
 
 std::unique_ptr<Literal> LiteralBase::CloneToUnique() const {
   auto result = std::make_unique<Literal>(shape());
-  TF_CHECK_OK(result->CopyFrom(*this));
+  CHECK_OK(result->CopyFrom(*this));
   return result;
 }
 
@@ -1721,7 +1720,7 @@ Literal LiteralBase::Relayout(const Layout& new_layout,
   // Create new shape with 'new_layout' set at the given shape index.
   Shape new_shape = shape();
   Shape* subshape = ShapeUtil::GetMutableSubshape(&new_shape, shape_index);
-  TF_CHECK_OK(LayoutUtil::ValidateLayoutForShape(new_layout, *subshape));
+  CHECK_OK(LayoutUtil::ValidateLayoutForShape(new_layout, *subshape));
   *subshape->mutable_layout() = new_layout;
   // LINT.IfChange
   // s4 literals are stored in uint8_t/int8_t, therefore element_size_in_bits
@@ -1731,7 +1730,7 @@ Literal LiteralBase::Relayout(const Layout& new_layout,
   }
   // LINT.ThenChange(//tensorflow/compiler/xla/types.h)
   Literal result(new_shape);
-  TF_CHECK_OK(result.CopyFrom(*this));
+  CHECK_OK(result.CopyFrom(*this));
   return result;
 }
 
@@ -1745,9 +1744,9 @@ Literal LiteralBase::Relayout(const Shape& shape_with_layout) const {
       result.shape(),
       [this, &result](const Shape& subshape, const ShapeIndex& index) {
         if (subshape.IsArray()) {
-          TF_CHECK_OK(result.CopyFrom(*this,
-                                      /*dest_shape_index=*/index,
-                                      /*src_shape_index=*/index));
+          CHECK_OK(result.CopyFrom(*this,
+                                   /*dest_shape_index=*/index,
+                                   /*src_shape_index=*/index));
         }
       });
   return result;

@@ -1241,8 +1241,8 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateVariadic(
 std::unique_ptr<HloInstruction> HloInstruction::CreateFft(
     const Shape& shape, absl::Span<HloInstruction* const> operands,
     FftType fft_type, int64_t fft_length, bool fft_do_bit_reverse) {
-  return std::make_unique<HloFftInstruction>(
-      shape, operands, fft_type, fft_length, fft_do_bit_reverse);
+  return std::make_unique<HloFftInstruction>(shape, operands, fft_type,
+                                             fft_length, fft_do_bit_reverse);
 }
 
 // static
@@ -2859,7 +2859,7 @@ HloInstruction::HloInstruction(HloOpcode opcode, const Shape& shape)
       is_root_(false),
       shape_(shape),
       name_(HloOpcodeString(opcode)) {
-  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape_));
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape_));
 }
 
 template <typename HloInstructionPtr>

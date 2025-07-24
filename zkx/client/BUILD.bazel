@@ -33,6 +33,7 @@ zkx_cc_unittest(
     deps = [
         ":executable_build_options",
         "//xla/tsl/platform:casts",
+        "//xla/tsl/platform:status",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx:protobuf_util",

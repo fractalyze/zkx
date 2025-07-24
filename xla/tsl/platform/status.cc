@@ -26,6 +26,8 @@ limitations under the License.
 #include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
 
+#include "zkx/base/logging.h"
+
 namespace tsl {
 namespace {
 
@@ -104,14 +106,6 @@ class StatusLogSink : public zkx::base::LogSink {
 };
 
 }  // namespace
-
-std::string* TfCheckOpHelperOutOfLine(const absl::Status& v, const char* msg) {
-  std::stringstream ss;
-  ss << "Non-OK-status: " << msg << "\nStatus: " << v;
-
-  // Leaks string but this is only to be used in a fatal error message
-  return new std::string(ss.str());
-}
 
 StatusGroup::StatusGroup(std::initializer_list<absl::Status> statuses) {
   for (const absl::Status& s : statuses) {

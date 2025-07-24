@@ -17,11 +17,11 @@ limitations under the License.
 
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/log/check.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/errors.h"
-#include "xla/tsl/platform/status.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
 
 namespace zkx {
@@ -124,7 +124,7 @@ absl::StatusOr<Shape> ShapeInference::InferUnaryOpShape(HloOpcode opcode,
 
   TF_RETURN_IF_ERROR(ExpectArray(shape, "operand of unary operation"));
 
-  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape));
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape));
   switch (opcode) {
       // TODO(chokobole): Uncomment this. Dependency: case HloOpcode::kAbs
       // case HloOpcode::kAbs:
@@ -379,7 +379,7 @@ absl::StatusOr<Shape> ShapeInference::InferDotOpShape(
       ShapeUtil::HigherPrecisionElementType(lhs, rhs));
   Shape result = ShapeUtil::MakeShape(type, dimensions, is_dynamic);
 
-  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(result));
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(result));
   VLOG(2) << "inferred dot shape: " << ShapeUtil::HumanString(result);
   return result;
 }
@@ -645,8 +645,8 @@ absl::StatusOr<Shape> ShapeInference::InferBinaryOpShape(
       ShapeUtil::HumanStringWithLayout(rhs),
       absl::StrJoin(broadcast_dimensions, ", "));
 
-  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(lhs));
-  TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(rhs));
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(lhs));
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(rhs));
 
   TF_RETURN_IF_ERROR(ExpectArray(
       lhs, absl::StrCat("lhs of binary operation ", HloOpcodeString(opcode))));
@@ -702,9 +702,9 @@ return InferTernaryOpShape(opcode, lhs->shape(), rhs->shape(), ehs->shape());
 // static
  absl::StatusOr<Shape> ShapeInference::InferTernaryOpShape(
   HloOpcode opcode, const Shape& lhs, const Shape& rhs, const Shape& ehs) {
-TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(lhs));
-TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(rhs));
-TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(ehs));
+DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(lhs));
+DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(rhs));
+DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(ehs));
 switch (opcode) {
   case HloOpcode::kSelect:
     return InferSelectShape(lhs, rhs, ehs);
@@ -728,7 +728,7 @@ switch (opcode) {
    absl::StatusOr<Shape> ShapeInference::InferVariadicOpShape(
       HloOpcode opcode, absl::Span<const Shape* const> operand_shapes) {
     for (const Shape* shape : operand_shapes) {
-      TF_DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(*shape));
+      DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(*shape));
     }
     switch (opcode) {
       case HloOpcode::kTuple: {

@@ -15,10 +15,10 @@ limitations under the License.
 
 #include "zkx/literal_util.h"
 
+#include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 
-#include "xla/tsl/platform/status.h"
 #include "zkx/base/containers/container_util.h"
 #include "zkx/math/base/big_int.h"
 
@@ -68,7 +68,7 @@ Literal LiteralUtil::MakeTuple(absl::Span<const Literal* const> elements) {
   }
   Literal literal(ShapeUtil::MakeTupleShapeWithPtrs(element_shapes));
   for (int i = 0, end = elements.size(); i < end; ++i) {
-    TF_CHECK_OK(literal.CopyFrom(*elements[i], /*dest_shape_index=*/{i}));
+    CHECK_OK(literal.CopyFrom(*elements[i], /*dest_shape_index=*/{i}));
   }
   return literal;
 }
@@ -83,7 +83,7 @@ Literal LiteralUtil::MakeTupleFromSlices(
   }
   Literal literal(ShapeUtil::MakeTupleShapeWithPtrs(element_shapes));
   for (int i = 0, end = elements.size(); i < end; ++i) {
-    TF_CHECK_OK(literal.CopyFrom(elements[i], /*dest_shape_index=*/{i}));
+    CHECK_OK(literal.CopyFrom(elements[i], /*dest_shape_index=*/{i}));
   }
   return literal;
 }
@@ -97,7 +97,7 @@ Literal LiteralUtil::MakeTupleOwned(std::vector<Literal> elements) {
   }
   Literal literal(ShapeUtil::MakeTupleShapeWithPtrs(element_shapes));
   for (int64_t i = 0, end = elements.size(); i < end; ++i) {
-    TF_CHECK_OK(
+    CHECK_OK(
         literal.MoveFrom(std::move(elements[i]), /*dest_shape_index=*/{i}));
   }
   return literal;
@@ -262,7 +262,7 @@ absl::StatusOr<Literal> MakeFakeLiteral(
           using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
           if constexpr (primitive_type_constant == PRED) {
             std::uniform_int_distribution<int> generator(0, 1);
-            TF_CHECK_OK(literal.Populate<bool>(
+            CHECK_OK(literal.Populate<bool>(
                 [&](absl::Span<const int64_t> /*indices*/) {
                   return generator(*engine);
                 }));

@@ -19,7 +19,6 @@ limitations under the License.
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 
-#include "xla/tsl/platform/status.h"
 #include "zkx/base/logging.h"
 #include "zkx/map_util.h"
 
@@ -541,7 +540,7 @@ SequentialHloOrdering::SequentialHloOrdering(HloSchedule&& schedule)
 
 void SequentialHloOrdering::Initialize() {
   // Create a map from instruction to its order position.
-  TF_DCHECK_OK(schedule_.Verify());
+  DCHECK_OK(schedule_.Verify());
   for (const auto& computation_sequence : schedule_.sequences()) {
     const auto& order = computation_sequence.second.instructions();
     for (int i = 0; i < order.size(); ++i) {

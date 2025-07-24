@@ -17,7 +17,6 @@ limitations under the License.
 
 #include "absl/log/check.h"
 
-#include "xla/tsl/platform/status.h"
 #include "zkx/layout_util.h"
 
 namespace zkx {
@@ -99,14 +98,14 @@ void ShapeLayout::ResetLayout(const Layout& layout) {
   DCHECK(!shape_.IsTuple());
   DCHECK(!shape_.IsOpaque());
   *shape_.mutable_layout() = layout;
-  TF_DCHECK_OK(ShapeUtil::ValidateShape(shape_));
+  DCHECK_OK(ShapeUtil::ValidateShape(shape_));
 }
 
 void ShapeLayout::ResetLayout(const Layout& layout,
                               ShapeIndexView shape_index) {
   *ShapeUtil::GetMutableSubshape(&shape_, shape_index)->mutable_layout() =
       layout;
-  TF_DCHECK_OK(ShapeUtil::ValidateShape(shape_));
+  DCHECK_OK(ShapeUtil::ValidateShape(shape_));
 }
 
 bool ShapeLayout::operator==(const ShapeLayout& other) const {

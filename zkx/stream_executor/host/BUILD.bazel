@@ -42,6 +42,7 @@ zkx_cc_library(
         "//zkx/stream_executor:platform",
         "//zkx/stream_executor:platform_manager",
         "//zkx/stream_executor/platform:initialize",
+        "@com_google_absl//absl/log:check",
     ],
 )
 
