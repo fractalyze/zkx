@@ -3,12 +3,6 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
-    name = "endian",
-    srcs = ["endian.cc"],
-    hdrs = ["endian.h"],
-)
-
-zkx_cc_library(
     name = "buffer",
     srcs = ["buffer.cc"],
     hdrs = ["buffer.h"],
@@ -20,6 +14,18 @@ zkx_cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
+)
+
+zkx_cc_library(
+    name = "endian",
+    srcs = ["endian.cc"],
+    hdrs = ["endian.h"],
+)
+
+zkx_cc_library(
+    name = "endian_auto_reset",
+    hdrs = ["endian_auto_reset.h"],
+    deps = [":read_only_buffer"],
 )
 
 zkx_cc_library(

@@ -18,6 +18,7 @@
 #include "zkx/base/json/json_serde.h"
 #include "zkx/math/base/big_int.h"
 #include "zkx/math/base/byinverter.h"
+#include "zkx/math/base/finite_field.h"
 #include "zkx/math/base/pow.h"
 
 namespace zkx {
@@ -25,14 +26,15 @@ namespace math {
 
 // This implements PrimeField on Montgomery domain.
 template <typename _Config>
-class PrimeField {
+class PrimeField : public FiniteField<PrimeField<_Config>> {
  public:
   constexpr static bool kUseMontgomery = true;
   constexpr static bool kUseBigModulus = true;
   constexpr static size_t kModulusBits = _Config::kModulusBits;
   constexpr static size_t kLimbNums = (kModulusBits + 63) / 64;
   constexpr static size_t N = kLimbNums;
-  constexpr static size_t kBitWidth = N * 64;
+  constexpr static size_t kBitWidth = BigInt<N>::kBitWidth;
+  constexpr static size_t kByteWidth = BigInt<N>::kByteWidth;
 
   using Config = _Config;
 
@@ -100,6 +102,15 @@ class PrimeField {
 
   constexpr bool IsOne() const { return value_ == Config::kOne; }
 
+  // See
+  // https://github.com/Consensys/gnark-crypto/blob/43897fd/field/generator/internal/templates/element/base.go#L292-L308.
+  // Returns true if this element is lexicographically larger than (q-1)/2.
+  // This is equivalent to checking if value_ > ((Config::kModulus - 1) / 2).
+  constexpr bool LexicographicallyLargest() const {
+    constexpr BigInt<N> kHalfModulus = (Config::kModulus - 1) >> 1;
+    return MontReduce() > kHalfModulus;
+  }
+
   constexpr PrimeField operator+(const PrimeField& other) const {
     BigInt<N> ret_value;
     bool carry = false;
@@ -145,6 +156,7 @@ class PrimeField {
   }
 
   constexpr PrimeField operator-() const {
+    if (IsZero()) return Zero();
     BigInt<N> ret_value = Config::kModulus;
     ret_value -= value_;
     return PrimeField::FromUnchecked(ret_value);

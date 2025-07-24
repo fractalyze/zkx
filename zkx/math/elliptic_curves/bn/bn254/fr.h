@@ -32,6 +32,13 @@ struct FrConfig {
   constexpr static uint32_t kSmallSubgroupBase = 3;
   constexpr static uint32_t kSmallSubgroupAdicity = 2;
 
+  constexpr static BigInt<4> kTrace = {
+      UINT64_C(11211439779908376895),
+      UINT64_C(1735440370612733063),
+      UINT64_C(1376415503089949544),
+      UINT64_C(12990080814),
+  };
+
   constexpr static bool kHasTwoAdicRootOfUnity = true;
   constexpr static BigInt<4> kTwoAdicRootOfUnity = {
       UINT64_C(7164790868263648668),

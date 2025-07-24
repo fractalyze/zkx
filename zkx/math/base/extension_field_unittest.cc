@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 
+#include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/vector_buffer.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fq2.h"
 
 namespace zkx::math::bn254 {
@@ -56,7 +58,35 @@ TEST(ExtensionFieldTest, Operations) {
   EXPECT_EQ(a.Square(), a * a);
   TF_ASSERT_OK_AND_ASSIGN(Fq2 a_inverse, a.Inverse());
   EXPECT_TRUE((a * a_inverse).IsOne());
+  Fq2 x = a.Square();
+  TF_ASSERT_OK_AND_ASSIGN(Fq2 sqrt, x.SquareRoot());
+  EXPECT_EQ(sqrt.Square(), x);
   // clang-format on
+}
+
+TEST(ExtensionFieldTest, Serde) {
+  Fq2 expected = Fq2::Random();
+
+  base::Uint8VectorBuffer write_buf;
+  TF_ASSERT_OK(write_buf.Grow(base::EstimateSize(expected)));
+  TF_ASSERT_OK(write_buf.Write(expected));
+  ASSERT_TRUE(write_buf.Done());
+
+  write_buf.set_buffer_offset(0);
+
+  Fq2 value;
+  TF_ASSERT_OK(write_buf.Read(&value));
+  EXPECT_EQ(expected, value);
+}
+
+TEST(ExtensionFieldTest, JsonSerde) {
+  rapidjson::Document doc;
+
+  Fq2 expected = Fq2::Random();
+  rapidjson::Value json_value =
+      base::JsonSerde<Fq2>::From(expected, doc.GetAllocator());
+  TF_ASSERT_OK_AND_ASSIGN(Fq2 value, base::JsonSerde<Fq2>::To(json_value, ""));
+  EXPECT_EQ(expected, value);
 }
 
 }  // namespace zkx::math::bn254

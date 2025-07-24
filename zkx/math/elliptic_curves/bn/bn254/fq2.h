@@ -11,6 +11,7 @@ namespace zkx::math::bn254 {
 class Fq2Config {
  public:
   using BaseField = Fq;
+  using BasePrimeField = Fq;
 
   constexpr static uint32_t kDegreeOverBaseField = 2;
   constexpr static BaseField kNonResidue = -1;

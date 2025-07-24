@@ -30,6 +30,13 @@ struct FqConfig {
 
   constexpr static uint32_t kTwoAdicity = 1;
 
+  constexpr static BigInt<4> kTrace = {
+      UINT64_C(11389680472494603939),
+      UINT64_C(14681934109093717318),
+      UINT64_C(15863968012492123182),
+      UINT64_C(1743499133401485332),
+  };
+
   constexpr static bool kHasTwoAdicRootOfUnity = true;
   constexpr static BigInt<4> kTwoAdicRootOfUnity = {
       UINT64_C(7548957153968385962),

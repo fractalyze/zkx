@@ -230,6 +230,9 @@ class BigInt {
     return limbs_[0] == 1 && limbs_[N - 1] == 0;
   }
 
+  constexpr bool IsEven() const { return limbs_[0] % 2 == 0; }
+  constexpr bool IsOdd() const { return limbs_[0] % 2 == 1; }
+
   constexpr BigInt operator+(const BigInt& other) const {
     BigInt ret;
     Add(*this, other, ret);

@@ -2,10 +2,12 @@
 
 #include <vector>
 
+#include "absl/strings/substitute.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/status.h"
+#include "zkx/base/auto_reset.h"
 #include "zkx/base/buffer/vector_buffer.h"
 #include "zkx/math/elliptic_curves/short_weierstrass/test/sw_curve_config.h"
 
@@ -102,6 +104,31 @@ TEST(AffinePointTest, Serde) {
   AffinePoint value;
   TF_ASSERT_OK(write_buf.Read(&value));
   EXPECT_EQ(expected, value);
+}
+
+TEST(AffinePointTest, SerdeWithGnark) {
+  for (size_t i = 0; i < 2; ++i) {
+    AffinePointSerdeMode mode = static_cast<AffinePointSerdeMode>(i);
+    SCOPED_TRACE(absl::Substitute("mode: $0", i));
+    base::AutoReset<AffinePointSerdeMode> auto_reset(
+        &base::Serde<AffinePoint>::s_mode, mode);
+    base::AutoReset<bool> auto_reset2(&base::Serde<Fq>::s_is_in_montgomery,
+                                      false);
+
+    AffinePoint expected = AffinePoint::Random();
+
+    base::Uint8VectorBuffer write_buf;
+    write_buf.set_endian(base::Endian::kBig);
+    TF_ASSERT_OK(write_buf.Grow(base::EstimateSize(expected)));
+    TF_ASSERT_OK(write_buf.Write(expected));
+    ASSERT_TRUE(write_buf.Done());
+
+    write_buf.set_buffer_offset(0);
+
+    AffinePoint value;
+    TF_ASSERT_OK(write_buf.Read(&value));
+    EXPECT_EQ(expected, value);
+  }
 }
 
 TEST(AffinePointTest, JsonSerde) {
