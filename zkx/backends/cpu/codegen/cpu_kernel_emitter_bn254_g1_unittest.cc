@@ -24,6 +24,26 @@ ENTRY %f (x: bn254.g1_affine[]) -> bn254.g1_xyzz[]
   EXPECT_EQ(ret_literal.data<math::bn254::G1PointXyzz>()[0], x.ToXyzz());
 }
 
+TEST_F(CpuKernelEmitterTest, G1ScalarNegate) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.g1_affine[]) -> bn254.g1_affine[] {
+  %x = bn254.g1_affine[] parameter(0)
+
+  ROOT %ret = bn254.g1_affine[] negate(%x)
+}
+)";
+
+  Compile(kHloText);
+
+  auto x = math::bn254::G1AffinePoint::Random();
+
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
+
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(-x));
+}
+
 TEST_F(CpuKernelEmitterTest, G1ScalarAdd) {
   const std::string kHloText = R"(
 ENTRY %f (x: bn254.g1_affine[], y: bn254.g1_affine[]) -> bn254.g1_jacobian[]

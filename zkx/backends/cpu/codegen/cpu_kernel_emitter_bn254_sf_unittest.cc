@@ -26,6 +26,26 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[]{:MONT(false)} {
                              math::bn254::Fr::FromUnchecked(x.MontReduce())));
 }
 
+TEST_F(CpuKernelEmitterTest, FieldScalarNegate) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[]) -> bn254.sf[] {
+  %x = bn254.sf[] parameter(0)
+
+  ROOT %ret = bn254.sf[] negate(%x)
+}
+)";
+
+  Compile(kHloText);
+
+  auto x = math::bn254::Fr::Random();
+
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
+
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(-x));
+}
+
 TEST_F(CpuKernelEmitterTest, FieldScalarAdd) {
   const std::string kHloText = R"(
 ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {

@@ -720,6 +720,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
         return value;
       }
     }
+    case HloOpcode::kNegate:
+      return b.create<mlir::zkir::field::NegateOp>(value);
 
     default:
       return absl::UnimplementedError(absl::StrFormat(
@@ -742,6 +744,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointUnaryOp(
               instr->operand(0)->shape().layout().is_montgomery_form()),
           value);
     }
+    case HloOpcode::kNegate:
+      return b.create<mlir::zkir::elliptic_curve::NegateOp>(value);
 
     default:
       return absl::UnimplementedError(absl::StrFormat(
@@ -1246,7 +1250,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
   }
 
   switch (instr->opcode()) {
-    case HloOpcode::kConvert: {
+    case HloOpcode::kConvert:
+    case HloOpcode::kNegate: {
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
     case HloOpcode::kAdd:
