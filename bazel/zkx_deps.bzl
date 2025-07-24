@@ -70,10 +70,10 @@ def zkx_deps():
         urls = tf_mirror_urls("https://github.com/Tencent/rapidjson/archive/v1.1.0.zip"),
     )
 
-    ZKIR_COMMIT = "6523947b582ebc4163a78ea783ba66306684fb26"
+    ZKIR_COMMIT = "1bcc080af7fbc5c101b3cfa1ad0d2190ab0c1591"
     tf_http_archive(
         name = "zkir",
-        sha256 = "a6766ee2149cfff22fd3b5f8355825ff75502bc6fa866271e2e182df3e0cad9e",
+        sha256 = "6839272108d88486461241dbb9e7c6b055196e43c051270a38abd4f7cf6e1272",
         strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
         urls = tf_mirror_urls("https://github.com/zk-rabbit/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
     )
