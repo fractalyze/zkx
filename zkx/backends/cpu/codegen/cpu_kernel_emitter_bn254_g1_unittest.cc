@@ -13,12 +13,13 @@ ENTRY %f (x: bn254.g1_affine[]) -> bn254.g1_xyzz[]
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::G1AffinePoint::Random();
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::G1PointXyzz>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal.data<math::bn254::G1PointXyzz>()[0], x.ToXyzz());
 }
@@ -34,14 +35,15 @@ ENTRY %f (x: bn254.g1_affine[], y: bn254.g1_affine[]) -> bn254.g1_jacobian[]
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::G1AffinePoint::Random();
   auto y = math::bn254::G1AffinePoint::Random();
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x);
-  Literal y_literal = LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(y);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::G1JacobianPoint>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x));
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal.data<math::bn254::G1JacobianPoint>()[0], x + y);
 }
@@ -55,12 +57,13 @@ ENTRY %f (x: bn254.g1_affine[]) -> bn254.g1_jacobian[] {
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::G1AffinePoint::Random();
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::G1JacobianPoint>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal.data<math::bn254::G1JacobianPoint>()[0], x + x);
 }
@@ -76,14 +79,15 @@ ENTRY %f (x: bn254.g1_affine[], y: bn254.g1_affine[]) -> bn254.g1_jacobian[]
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::G1AffinePoint::Random();
   auto y = math::bn254::G1AffinePoint::Random();
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x);
-  Literal y_literal = LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(y);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::G1JacobianPoint>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(x));
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal.data<math::bn254::G1JacobianPoint>()[0], x - y);
 }
@@ -98,14 +102,15 @@ ENTRY %f (x: bn254.sf[], y: bn254.g1_affine[]) -> bn254.g1_jacobian[] {
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::G1AffinePoint::Random();
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
-  Literal y_literal = LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(y);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::G1JacobianPoint>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::G1AffinePoint>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal.data<math::bn254::G1JacobianPoint>()[0], x * y);
 }

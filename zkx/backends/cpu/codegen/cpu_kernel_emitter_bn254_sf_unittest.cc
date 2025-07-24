@@ -1,4 +1,3 @@
-#include "xla/tsl/platform/status.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/literal_util.h"
 #include "zkx/math/base/sparse_matrix.h"
@@ -15,12 +14,13 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[]{:MONT(false)} {
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::Fr::Random();
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::Fr>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(
                              math::bn254::Fr::FromUnchecked(x.MontReduce())));
@@ -36,14 +36,14 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::Fr::Random();
-
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
-  Literal y_literal = LiteralUtil::CreateR0<math::bn254::Fr>(y);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::Fr>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(x + y));
 }
@@ -58,14 +58,15 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::Fr::Random();
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
-  Literal y_literal = LiteralUtil::CreateR0<math::bn254::Fr>(y);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::Fr>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(x - y));
 }
@@ -80,14 +81,15 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::Fr::Random();
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
-  Literal y_literal = LiteralUtil::CreateR0<math::bn254::Fr>(y);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::Fr>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(x * y));
 }
@@ -102,17 +104,18 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::Fr::Random();
   while (y.IsZero()) {
     y = math::bn254::Fr::Random();
   }
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
-  Literal y_literal = LiteralUtil::CreateR0<math::bn254::Fr>(y);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::Fr>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(*(x / y)));
 }
@@ -126,6 +129,8 @@ ENTRY %f (x: bn254.sf[2,3], y: bn254.sf[2,3]) -> bn254.sf[2,3] {
   ROOT %ret = bn254.sf[2,3] add(%x, %y)
 }
 )";
+
+  Compile(kHloText);
 
   std::vector<std::vector<math::bn254::Fr>> x = {{
                                                      math::bn254::Fr::Random(),
@@ -148,20 +153,16 @@ ENTRY %f (x: bn254.sf[2,3], y: bn254.sf[2,3]) -> bn254.sf[2,3] {
                                                      math::bn254::Fr::Random(),
                                                  }};
 
-  Literal x_literal = LiteralUtil::CreateR2<math::bn254::Fr>({
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR2<math::bn254::Fr>({
       {x[0][0], x[0][1], x[0][2]},
       {x[1][0], x[1][1], x[1][2]},
-  });
-  Literal y_literal = LiteralUtil::CreateR2<math::bn254::Fr>({
+  }));
+  literals.push_back(LiteralUtil::CreateR2<math::bn254::Fr>({
       {y[0][0], y[0][1], y[0][2]},
       {y[1][0], y[1][1], y[1][2]},
-  });
-  Literal ret_literal = LiteralUtil::CreateR2<math::bn254::Fr>({
-      {0, 0, 0},
-      {0, 0, 0},
-  });
-  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  }));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   for (int64_t i = 0; i < x.size(); ++i) {
     for (int64_t j = 0; j < x[i].size(); ++j) {
@@ -179,6 +180,8 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
 }
 )";
 
+  Compile(kHloText);
+
   std::vector<math::bn254::Fr> coeffs = {
       math::bn254::Fr::Random(),
       math::bn254::Fr::Random(),
@@ -186,9 +189,9 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
       math::bn254::Fr::Random(),
   };
 
-  Literal literal = LiteralUtil::CreateR1<math::bn254::Fr>(coeffs);
-  std::vector<Literal*> literals_ptrs = {&literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(coeffs));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   TF_ASSERT_OK_AND_ASSIGN(math::bn254::Fr w,
                           math::GetRootOfUnity<math::bn254::Fr>(coeffs.size()));
@@ -201,7 +204,7 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
     for (int64_t j = 0; j < coeffs.size(); ++j) {
       expected += coeffs[j] * twiddles[(i * j) % coeffs.size()];
     }
-    EXPECT_EQ(literal.Get<math::bn254::Fr>({i}), expected);
+    EXPECT_EQ(ret_literal.Get<math::bn254::Fr>({i}), expected);
   }
 }
 
@@ -215,6 +218,8 @@ ENTRY %f (x: bn254.sf[4], twiddles: bn254.sf[4]) -> bn254.sf[4] {
 }
 )";
 
+  Compile(kHloText);
+
   std::vector<math::bn254::Fr> coeffs = {
       math::bn254::Fr::Random(),
       math::bn254::Fr::Random(),
@@ -229,17 +234,17 @@ ENTRY %f (x: bn254.sf[4], twiddles: bn254.sf[4]) -> bn254.sf[4] {
     twiddles[i] = w.Pow(i);
   }
 
-  Literal literal = LiteralUtil::CreateR1<math::bn254::Fr>(coeffs);
-  Literal twiddles_literal = LiteralUtil::CreateR1<math::bn254::Fr>(twiddles);
-  std::vector<Literal*> literals_ptrs = {&literal, &twiddles_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(coeffs));
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(twiddles));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   for (int64_t i = 0; i < coeffs.size(); ++i) {
     auto expected = math::bn254::Fr::Zero();
     for (int64_t j = 0; j < coeffs.size(); ++j) {
       expected += coeffs[j] * twiddles[(i * j) % coeffs.size()];
     }
-    EXPECT_EQ(literal.Get<math::bn254::Fr>({i}), expected);
+    EXPECT_EQ(ret_literal.Get<math::bn254::Fr>({i}), expected);
   }
 }
 
@@ -251,6 +256,8 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
 }
 )";
 
+  Compile(kHloText);
+
   std::vector<math::bn254::Fr> evals = {
       math::bn254::Fr::Random(),
       math::bn254::Fr::Random(),
@@ -258,9 +265,9 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
       math::bn254::Fr::Random(),
   };
 
-  Literal literal = LiteralUtil::CreateR1<math::bn254::Fr>(evals);
-  std::vector<Literal*> literals_ptrs = {&literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(evals));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   TF_ASSERT_OK_AND_ASSIGN(math::bn254::Fr w,
                           math::GetRootOfUnity<math::bn254::Fr>(evals.size()));
@@ -276,7 +283,7 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
       expected += evals[j] * twiddles[(i * j) % evals.size()];
     }
     expected = expected * n_inv;
-    EXPECT_EQ(literal.Get<math::bn254::Fr>({i}), expected);
+    EXPECT_EQ(ret_literal.Get<math::bn254::Fr>({i}), expected);
   }
 }
 
@@ -290,6 +297,8 @@ ENTRY %f (x: bn254.sf[4], twiddles: bn254.sf[4]) -> bn254.sf[4] {
 }
 )";
 
+  Compile(kHloText);
+
   std::vector<math::bn254::Fr> evals = {
       math::bn254::Fr::Random(),
       math::bn254::Fr::Random(),
@@ -305,10 +314,10 @@ ENTRY %f (x: bn254.sf[4], twiddles: bn254.sf[4]) -> bn254.sf[4] {
     twiddles[i] = *w.Pow(i).Inverse();
   }
 
-  Literal literal = LiteralUtil::CreateR1<math::bn254::Fr>(evals);
-  Literal twiddles_literal = LiteralUtil::CreateR1<math::bn254::Fr>(twiddles);
-  std::vector<Literal*> literals_ptrs = {&literal, &twiddles_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(evals));
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(twiddles));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   for (int64_t i = 0; i < evals.size(); ++i) {
     auto expected = math::bn254::Fr::Zero();
@@ -316,7 +325,7 @@ ENTRY %f (x: bn254.sf[4], twiddles: bn254.sf[4]) -> bn254.sf[4] {
       expected += evals[j] * twiddles[(i * j) % evals.size()];
     }
     expected = expected * n_inv;
-    EXPECT_EQ(literal.Get<math::bn254::Fr>({i}), expected);
+    EXPECT_EQ(ret_literal.Get<math::bn254::Fr>({i}), expected);
   }
 }
 
@@ -329,12 +338,13 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[4] {
 }
 )";
 
+  Compile(kHloText);
+
   auto x = math::bn254::Fr::Random();
 
-  Literal x_literal = LiteralUtil::CreateR0<math::bn254::Fr>(x);
-  Literal ret_literal = LiteralUtil::CreateR1<math::bn254::Fr>({0, 0, 0, 0});
-  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR1<math::bn254::Fr>({x, x, x, x}));
 }
@@ -363,13 +373,13 @@ TEST_F(CpuKernelEmitterTest, BroadcastTensor) {
   )",
                                                   i);
 
-    Literal x_literal = LiteralUtil::CreateR1<math::bn254::Fr>(x);
-    Literal ret_literal = LiteralUtil::CreateR3<math::bn254::Fr>(
-        {{{0, 0}, {0, 0}}, {{0, 0}, {0, 0}}});
-    std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
-    RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+    Compile(kHloText);
 
-    EXPECT_EQ(kAnswers[i], ret_literal);
+    std::vector<Literal> literals;
+    literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(x));
+    TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
+
+    EXPECT_EQ(ret_literal, kAnswers[i]);
   }
 }
 
@@ -383,6 +393,8 @@ ENTRY %f (x: bn254.sf[4,3]{1,0:D(D, C)NNZ(8)}, y: bn254.sf[3]) -> bn254.sf[4] {
 }
 )";
 
+  Compile(kHloText);
+
   math::SparseMatrix<math::bn254::Fr> x =
       math::SparseMatrix<math::bn254::Fr>::Random(4, 3, 8);
 
@@ -395,11 +407,10 @@ ENTRY %f (x: bn254.sf[4,3]{1,0:D(D, C)NNZ(8)}, y: bn254.sf[3]) -> bn254.sf[4] {
                                       math::bn254::Fr::Random(),
                                       math::bn254::Fr::Random()};
 
-  Literal x_label = LiteralUtil::CreateR1<uint8_t>(x_buffer);
-  Literal y_label = LiteralUtil::CreateR1<math::bn254::Fr>(y);
-  Literal ret_label = LiteralUtil::CreateR1<math::bn254::Fr>({0, 0, 0, 0});
-  std::vector<Literal*> literals_ptrs = {&x_label, &y_label, &ret_label};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR1<uint8_t>(x_buffer));
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   std::vector<math::bn254::Fr> expected(x_row_ptrs.size() - 1);
   for (int64_t i = 0; i < expected.size(); ++i) {
@@ -409,7 +420,7 @@ ENTRY %f (x: bn254.sf[4,3]{1,0:D(D, C)NNZ(8)}, y: bn254.sf[3]) -> bn254.sf[4] {
   }
 
   for (int64_t i = 0; i < expected.size(); ++i) {
-    EXPECT_EQ(ret_label.Get<math::bn254::Fr>({i}), expected[i]);
+    EXPECT_EQ(ret_literal.Get<math::bn254::Fr>({i}), expected[i]);
   }
 }
 
@@ -422,12 +433,13 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[3] {
 }
 )";
 
+  Compile(kHloText);
+
   std::vector<math::bn254::Fr> x = {1, 2, 3, 4, 5, 6};
 
-  Literal x_literal = LiteralUtil::CreateR1<math::bn254::Fr>(x);
-  Literal ret_literal = LiteralUtil::CreateR1<math::bn254::Fr>({0, 0, 0});
-  std::vector<Literal*> literals_ptrs = {&x_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   absl::Span expected = absl::MakeSpan(x).subspan(2, 3);
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR1<math::bn254::Fr>(expected));
