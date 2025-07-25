@@ -158,6 +158,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_asm_compiler",
+    srcs = ["cuda_asm_compiler.cc"],
+    hdrs = ["cuda_asm_compiler.h"],
+    deps = [
+        ":cubin_or_ptx_image",
+        ":cuda_compute_capability",
+        ":ptx_compiler",
+        ":ptx_compiler_support",
+        ":subprocess_compilation",
+        "//zkx/stream_executor/gpu:gpu_asm_opts",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "cuda_compute_capability",
     srcs = ["cuda_compute_capability.cc"],
     hdrs = ["cuda_compute_capability.h"],
