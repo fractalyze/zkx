@@ -185,7 +185,7 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
   flag_list->push_back(tsl::Flag(
       "zkx_flags_reset", bool_setter_for(&DebugOptions::set_zkx_flags_reset),
       debug_options->zkx_flags_reset(),
-      "Whether to reset XLA_FLAGS next time to parse."));
+      "Whether to reset ZKX_FLAGS next time to parse."));
   flag_list->push_back(tsl::Flag(
       "zkx_annotate_with_emitter_loc",
       bool_setter_for(&DebugOptions::set_zkx_annotate_with_emitter_loc),
