@@ -344,6 +344,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ptx_compilation_method",
+    hdrs = ["ptx_compilation_method.h"],
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "ptx_compiler_support",
     srcs = ["ptx_compiler_support.cc"],
     hdrs = ["ptx_compiler_support.h"],
