@@ -23,6 +23,8 @@ limitations under the License.
 
 #include "zkx/debug_options_parsers.h"
 #include "zkx/parse_flags_from_env.h"
+#include "zkx/stream_executor/cuda/nvjitlink_support.h"
+#include "zkx/stream_executor/cuda/ptx_compiler_support.h"
 
 namespace zkx {
 
@@ -31,6 +33,7 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_llvm_enable_invariant_load_metadata(true);
   opts.set_zkx_llvm_disable_expensive_passes(false);
   opts.set_zkx_backend_optimization_level(3);
+  opts.set_zkx_gpu_cuda_data_dir("./cuda_sdk_lib");
 
   opts.set_zkx_dump_hlo_as_html(false);
   opts.set_zkx_dump_fusion_visualization(false);
@@ -48,10 +51,15 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
 
   opts.set_zkx_force_host_platform_device_count(1);
 
+  opts.set_zkx_gpu_unsafe_fallback_to_driver_on_ptxas_not_found(false);
   opts.set_zkx_multiheap_size_constraint_per_heap(-1);
   opts.set_zkx_enable_dumping(true);
 
   opts.set_zkx_gpu_require_exclusive_lock(false);
+
+  opts.set_zkx_gpu_enable_llvm_module_compilation_parallelism(false);
+  opts.set_zkx_gpu_enable_libnvptxcompiler(se::IsLibNvPtxCompilerSupported());
+  opts.set_zkx_gpu_libnvjitlink_mode(DebugOptions::LIB_NV_JIT_LINK_MODE_AUTO);
 
   opts.set_zkx_syntax_sugar_async_ops(false);
 
@@ -133,6 +141,10 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       int32_setter_for(&DebugOptions::set_zkx_backend_optimization_level),
       debug_options->zkx_backend_optimization_level(),
       "Numerical optimization level for the ZKX compiler backend."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_cuda_data_dir", debug_options->mutable_zkx_gpu_cuda_data_dir(),
+      "If non-empty, specifies a local directory containing ptxas and nvvm "
+      "libdevice files; otherwise we use those from runfile directories."));
   flag_list->push_back(tsl::Flag(
       "zkx_backend_extra_options", setter_for_zkx_backend_extra_options, "",
       "Extra options to pass to a backend; comma-separated list of 'key=val' "
@@ -300,6 +312,16 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
                 debug_options->zkx_dump_compress_protos(),
                 "Gzip-compress protos dumped by --zkx_dump_hlo_as_proto."));
   flag_list->push_back(tsl::Flag(
+      "zkx_gpu_unsafe_fallback_to_driver_on_ptxas_not_found",
+      bool_setter_for(
+          &DebugOptions::
+              set_zkx_gpu_unsafe_fallback_to_driver_on_ptxas_not_found),
+      debug_options->zkx_gpu_unsafe_fallback_to_driver_on_ptxas_not_found(),
+      "If true, ZKX GPU falls back to the driver if ptxas is not found. Note "
+      "that falling back to the driver can have drawbacks like using more "
+      "memory and/or other bugs during compilation, so we recommend setting "
+      "this flag to false."));
+  flag_list->push_back(tsl::Flag(
       "zkx_multiheap_size_constraint_per_heap",
       int32_setter_for(
           &DebugOptions::set_zkx_multiheap_size_constraint_per_heap),
@@ -309,6 +331,43 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "fragmentation. The constraint is soft, so it works with tensors "
       "larger than the given constraint size. -1 corresponds to no "
       "constraints."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_enable_llvm_module_compilation_parallelism",
+      bool_setter_for(
+          &DebugOptions::
+              set_zkx_gpu_enable_llvm_module_compilation_parallelism),
+      debug_options->zkx_gpu_enable_llvm_module_compilation_parallelism(),
+      "Decides whether we can do LLVM module compilation in a parallelised "
+      "way. If set to false, then it will be single threaded, otherwise the "
+      "number of threads depends on the "
+      "--zkx_gpu_force_compilation_parallelism flag and the thread pool "
+      "supplied to GpuCompiler."));
+
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_enable_libnvptxcompiler",
+      [debug_options](bool enabled) {
+        if (enabled && !se::IsLibNvPtxCompilerSupported()) {
+          // This feature can't be enabled when ZKX was built without
+          // libnvptxcompiler support.
+          return false;
+        }
+        debug_options->set_zkx_gpu_enable_libnvptxcompiler(enabled);
+        return true;
+      },
+      debug_options->zkx_gpu_enable_libnvptxcompiler(),
+      "Use libnvptxcompiler for PTX-to-GPU-assembly compilation instead of "
+      "calling ptxas."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_enable_libnvjitlink",
+      [debug_options](bool enabled) {
+        debug_options->set_zkx_gpu_libnvjitlink_mode(
+            enabled ? DebugOptions::LIB_NV_JIT_LINK_MODE_ENABLED
+                    : DebugOptions::LIB_NV_JIT_LINK_MODE_DISABLED);
+        return true;
+      },
+      se::IsLibNvJitLinkSupported(),
+      "Use libnvjitlink for PTX-to-GPU-assembly compilation instead of "
+      "calling ptxas."));
   flag_list->push_back(tsl::Flag(
       "zkx_pjrt_allow_auto_layout_in_hlo",
       bool_setter_for(&DebugOptions::set_zkx_pjrt_allow_auto_layout_in_hlo),

@@ -38,6 +38,17 @@ message CompilationEnvironmentsProto {
 //    corresponding backend section, and sorted alphabetically by the flag name.
 //
 message DebugOptions {
+  enum LibNvJitLinkMode {
+    // LibNvJitLink is used if it is available and no buggy version has been
+    // detected.
+    LIB_NV_JIT_LINK_MODE_AUTO = 0;
+    // LibNvJitLink is never used.
+    LIB_NV_JIT_LINK_MODE_DISABLED = 1;
+    // LibNvJitLink is used always. If it is not available, compilation will
+    // fail.
+    LIB_NV_JIT_LINK_MODE_ENABLED = 2;
+  }
+
   // When true, ZKX:CPU uses HLO module scheduler that is optimized for
   // extracting concurrency at the cost of extra memory: we extend the live
   // ranges of temporaries to allow ZKX runtime to schedule independent
@@ -57,6 +68,9 @@ message DebugOptions {
   // A `prefer-vector-width` value that is passed to the LLVM backend. Default
   // value is `256` (AVX2 on x86 platforms).
   int32 zkx_cpu_prefer_vector_width = 308;
+
+  // Path to directory with cuda/ptx tools and libraries.
+  string zkx_gpu_cuda_data_dir = 61;
 
   // File to write autotune logs to. It will stored in txt format.
   string zkx_gpu_dump_autotune_logs_to = 292;
@@ -79,12 +93,26 @@ message DebugOptions {
   // Dump FDO profiles in a binary format to a separate file.
   bool zkx_gpu_experimental_dump_fdo_profiles = 338;
 
+  // If enabled, uses the libnvptxcompiler library to compile PTX to cuBIN.
+  bool zkx_gpu_enable_libnvptxcompiler = 269;
+
+  // Overrides normal multi-threaded compilation setting to use this many
+  // threads. Setting to 0 (the default value) means no enforcement.
+  bool zkx_gpu_enable_llvm_module_compilation_parallelism = 268;
+
+  // If enabled, uses the libnvjitlink library for PTX compilation and linking
+  LibNvJitLinkMode zkx_gpu_libnvjitlink_mode = 343;
+
   // If true, ZKX runtime will retain exclusive ownership of the GPU when
   // running a module, so there are no multi-thread conflicts on the GPU. This
   // can enable some optimizations that reduce the cost of resource management,
   // e.g., command buffer updates to ensure correctness when running in
   // multi-thread mode.
   bool zkx_gpu_require_exclusive_lock = 347;
+
+  // It is usually preferable to not fallback to the driver; it can consume more
+  // memory, or have bugs.
+  bool zkx_gpu_unsafe_fallback_to_driver_on_ptxas_not_found = 138;
 
   // If true, ZKX will annotate instructions in the dumps with emitter code
   // location (source:line) annotations. This helps to identify the source of
@@ -222,6 +250,8 @@ message DebugOptions {
   //                     backend_config={...}
   //  all-to-all-done = f32[1,4,8]{1,0,2} all-to-all-done(all-to-all-start)
   bool zkx_syntax_sugar_async_ops = 315;
+
+  reserved 319;  // was zkx_gpu_enable_libnvjitlink with boolean type.
 
   bool zkx_pjrt_allow_auto_layout_in_hlo = 344;
 
