@@ -1,3 +1,4 @@
+#include "xla/tsl/platform/status.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/literal_util.h"
 #include "zkx/math/base/sparse_matrix.h"
@@ -24,6 +25,76 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[]{:MONT(false)} {
 
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(
                              math::bn254::Fr::FromUnchecked(x.MontReduce())));
+}
+
+TEST_F(CpuKernelEmitterTest, FieldScalarNegate) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[]) -> bn254.sf[] {
+  %x = bn254.sf[] parameter(0)
+
+  ROOT %ret = bn254.sf[] negate(%x)
+}
+)";
+
+  Compile(kHloText);
+
+  auto x = math::bn254::Fr::Random();
+
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
+
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(-x));
+}
+
+TEST_F(CpuKernelEmitterTest, FieldScalarInverse) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[]) -> bn254.sf[] {
+  %x = bn254.sf[] parameter(0)
+
+  ROOT %ret = bn254.sf[] inverse(%x)
+}
+)";
+
+  Compile(kHloText);
+
+  auto x = math::bn254::Fr::Random();
+  while (x.IsZero()) {
+    x = math::bn254::Fr::Random();
+  }
+
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
+
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(*x.Inverse()));
+}
+
+TEST_F(CpuKernelEmitterTest, FieldScalarBatchInverse) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
+  %x = bn254.sf[4] parameter(0)
+
+  ROOT %ret = bn254.sf[4] inverse(%x)
+}
+)";
+
+  Compile(kHloText);
+
+  std::vector<math::bn254::Fr> x(4, math::bn254::Fr::Zero());
+  for (size_t i = 0; i < x.size(); ++i) {
+    while (x[i].IsZero()) {
+      x[i] = math::bn254::Fr::Random();
+    }
+  }
+
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(x));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
+
+  std::vector<math::bn254::Fr> expected;
+  TF_ASSERT_OK(math::BatchInverse(x, &expected));
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR1<math::bn254::Fr>(expected));
 }
 
 TEST_F(CpuKernelEmitterTest, FieldScalarAdd) {
@@ -118,6 +189,29 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
   TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(*(x / y)));
+}
+
+TEST_F(CpuKernelEmitterTest, FieldScalarPow) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[], y: u32[]) -> bn254.sf[] {
+  %x = bn254.sf[] parameter(0)
+  %y = u32[] parameter(1)
+
+  ROOT %ret = bn254.sf[] power(%x, %y)
+}
+)";
+
+  Compile(kHloText);
+
+  auto x = math::bn254::Fr::Random();
+  auto y = base::Uniform<uint32_t>();
+
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
+  literals.push_back(LiteralUtil::CreateR0<uint32_t>(y));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
+
+  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(x.Pow(y)));
 }
 
 TEST_F(CpuKernelEmitterTest, FieldTensorAdd) {

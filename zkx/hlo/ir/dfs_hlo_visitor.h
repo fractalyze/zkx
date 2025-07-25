@@ -135,6 +135,9 @@ class DfsHloVisitorBase {
   virtual absl::Status HandleSubtract(HloInstructionPtr hlo) {
     return HandleElementwiseBinary(hlo);
   }
+  virtual absl::Status HandleInverse(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
+  }
   virtual absl::Status HandleNegate(HloInstructionPtr hlo) {
     return HandleElementwiseUnary(hlo);
   }

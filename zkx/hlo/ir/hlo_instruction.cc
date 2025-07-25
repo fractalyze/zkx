@@ -1181,8 +1181,9 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateUnary(
     case HloOpcode::kCollectivePermuteDone:
     case HloOpcode::kCopy:
     case HloOpcode::kCopyDone:
-    case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kInverse:
     case HloOpcode::kNegate:
+    case HloOpcode::kOptimizationBarrier:
       return CreateNary(shape, opcode, {operand});
     default:
       LOG(FATAL) << "Invalid unary instruction opcode " << opcode;
@@ -1839,9 +1840,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kBitcast:
     case HloOpcode::kCollectivePermuteDone:
     case HloOpcode::kCopy:
-    case HloOpcode::kOptimizationBarrier:
     case HloOpcode::kCopyDone:
+    case HloOpcode::kInverse:
     case HloOpcode::kNegate:
+    case HloOpcode::kOptimizationBarrier:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateUnary(shape, opcode_, new_operands[0]);
       break;
@@ -2110,6 +2112,7 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kCopyDone:
     case HloOpcode::kDivide:
     case HloOpcode::kDynamicUpdateSlice:
+    case HloOpcode::kInverse:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
@@ -2741,9 +2744,10 @@ std::string HloInstruction::ToString() const {
 bool HloInstruction::IsOpElementwise(HloOpcode opcode) {
   switch (opcode) {
     // Unary elementwise operations.
-    case HloOpcode::kConvert:
     case HloOpcode::kBitcastConvert:
+    case HloOpcode::kConvert:
     case HloOpcode::kCopy:
+    case HloOpcode::kInverse:
     case HloOpcode::kNegate:
       return true;
 
@@ -2942,6 +2946,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleMap(this);
     case HloOpcode::kReduce:
       return visitor->HandleReduce(this);
+    case HloOpcode::kInverse:
+      return visitor->HandleInverse(this);
     case HloOpcode::kNegate:
       return visitor->HandleNegate(this);
     case HloOpcode::kBitcast:
