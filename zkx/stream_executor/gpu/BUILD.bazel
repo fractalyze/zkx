@@ -67,6 +67,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "scoped_activate_context",
+    srcs = ["scoped_activate_context.cc"],
+    hdrs = ["scoped_activate_context.h"],
+    deps = [
+        ":context",
+        "//zkx/stream_executor:activate_context",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
     name = "scoped_gpu_graph_exec",
     hdrs = ["scoped_gpu_graph_exec.h"],
     deps = [":scoped_update_mode"],
@@ -103,11 +115,15 @@ zkx_cc_unittest(
         "context_map_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
         # "gpu_executor_unittest.cc",
+        "scoped_activate_context_unittest.cc",
         "tma_metadata_unittest.cc",
     ],
     deps = [
         ":context_map",
+        ":mock_context",
+        ":scoped_activate_context",
         ":tma_metadata",
+        "//xla/tsl/platform:env",
         "//xla/tsl/platform:status_matchers",
         "@com_google_absl//absl/status",
         "@llvm-project//llvm:Support",
