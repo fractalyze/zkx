@@ -3,16 +3,25 @@
 
 #include <string_view>
 
+#include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "gtest/gtest.h"
 
 #include "zkx/literal.h"
+#include "zkx/service/hlo_runner.h"
 
 namespace zkx::cpu {
 
 class CpuKernelEmitterTest : public testing::Test {
  public:
-  void RunHlo(std::string_view hlo_string, absl::Span<Literal*> literals);
+  CpuKernelEmitterTest();
+
+  void Compile(std::string_view hlo_string);
+  absl::StatusOr<Literal> Run(absl::Span<Literal> literals);
+
+ protected:
+  HloRunner runner_;
+  std::unique_ptr<OpaqueExecutable> opaque_executable_;
 };
 
 }  // namespace zkx::cpu

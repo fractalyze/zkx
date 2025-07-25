@@ -17,16 +17,17 @@ ENTRY %f (x: bn254.sf[$0], y: bn254.g2_affine[$0]) -> bn254.g2_jacobian[] {
 )",
                                                 num_scalar_muls);
 
+  Compile(kHloText);
+
   std::vector<math::bn254::Fr> scalars = base::CreateVector(
       num_scalar_muls, []() { return math::bn254::Fr::Random(); });
   std::vector<math::bn254::G2AffinePoint> bases = base::CreateVector(
       num_scalar_muls, []() { return math::bn254::G2AffinePoint::Random(); });
 
-  Literal x_literal = LiteralUtil::CreateR1<math::bn254::Fr>(scalars);
-  Literal y_literal = LiteralUtil::CreateR1<math::bn254::G2AffinePoint>(bases);
-  Literal ret_literal = LiteralUtil::CreateR0<math::bn254::G2JacobianPoint>(0);
-  std::vector<Literal*> literals_ptrs = {&x_literal, &y_literal, &ret_literal};
-  RunHlo(kHloText, absl::MakeSpan(literals_ptrs));
+  std::vector<Literal> literals;
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(scalars));
+  literals.push_back(LiteralUtil::CreateR1<math::bn254::G2AffinePoint>(bases));
+  TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   math::bn254::G2JacobianPoint sum;
   for (size_t i = 0; i < scalars.size(); ++i) {

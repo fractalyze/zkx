@@ -1642,7 +1642,7 @@ bool HloDataflowAnalysis::DoesNotUseOperandBuffer(
 // static
 bool HloDataflowAnalysis::IsInPlaceOperation(HloOpcode opcode) {
   return opcode == HloOpcode::kDynamicUpdateSlice ||
-         opcode == HloOpcode::kScatter || opcode == HloOpcode::kFft;
+         opcode == HloOpcode::kScatter;
 }
 
 // static
@@ -1912,10 +1912,6 @@ bool HloDataflowAnalysis::CanShareOperandBufferWithUser(
   // ops inside these computations.
   if (user->opcode() == HloOpcode::kWhile ||
       user->opcode() == HloOpcode::kConditional) {
-    return true;
-  }
-
-  if (user->opcode() == HloOpcode::kFft) {
     return true;
   }
 
