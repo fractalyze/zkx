@@ -98,6 +98,8 @@ zkx_cc_library(
         ":parse_flags_from_env",
         ":zkx_cc_proto",
         "//xla/tsl/util:command_line_flags",
+        "//zkx/stream_executor/cuda:nvjitlink_support",
+        "//zkx/stream_executor/cuda:ptx_compiler_support",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
