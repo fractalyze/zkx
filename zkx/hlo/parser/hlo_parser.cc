@@ -1726,9 +1726,9 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
     case HloOpcode::kCollectivePermuteDone:
     case HloOpcode::kCopy:
     case HloOpcode::kCopyDone:
-    case HloOpcode::kOptimizationBarrier:
     case HloOpcode::kInverse:
-    case HloOpcode::kNegate: {
+    case HloOpcode::kNegate:
+    case HloOpcode::kOptimizationBarrier: {
       return create_unary_instruction();
     }
     // Binary ops.
