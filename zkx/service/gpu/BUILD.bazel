@@ -51,7 +51,10 @@ zkx_cc_library(
 zkx_cc_library(
     name = "ir_emission_utils",
     hdrs = ["ir_emission_utils.h"],
-    deps = ["@com_google_absl//absl/container:flat_hash_map"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/types:span",
+    ],
 )
 
 zkx_cc_library(
