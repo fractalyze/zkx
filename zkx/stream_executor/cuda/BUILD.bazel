@@ -215,6 +215,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "nvjitlink_compilation_provider",
+    srcs = ["nvjitlink_compilation_provider.cc"],
+    hdrs = ["nvjitlink_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        ":nvjitlink",
+        "//xla/tsl/platform:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "nvptxcompiler_compilation_provider",
     srcs = ["nvptxcompiler_compilation_provider.cc"],
     hdrs = ["nvptxcompiler_compilation_provider.h"],
