@@ -212,6 +212,27 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_diagnostics",
+    srcs = ["cuda_diagnostics.cc"],
+    hdrs = ["cuda_diagnostics.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:host_info",
+        "//zkx/stream_executor/gpu:gpu_diagnostics",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "cuda_platform_id",
     srcs = ["cuda_platform_id.cc"],
     hdrs = ["cuda_platform_id.h"],
