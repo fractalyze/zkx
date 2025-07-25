@@ -368,6 +368,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ptx_linking_method",
+    hdrs = ["ptx_linking_method.h"],
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "subprocess_compilation",
     srcs = ["subprocess_compilation.cc"],
     hdrs = ["subprocess_compilation.h"],
