@@ -50,20 +50,34 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_cpu_prefer_vector_width(256);
   opts.set_zkx_cpu_max_isa("");
 
+  opts.set_zkx_gpu_collectives_use_persistent_cliques(false);
+
   opts.set_zkx_force_host_platform_device_count(1);
 
   opts.set_zkx_gpu_unsafe_fallback_to_driver_on_ptxas_not_found(false);
   opts.set_zkx_multiheap_size_constraint_per_heap(-1);
   opts.set_zkx_enable_dumping(true);
 
+  opts.set_zkx_gpu_nccl_termination_timeout_seconds(-1);
+  opts.set_zkx_gpu_nccl_init_max_rank_per_root_ratio(0);
+
   opts.set_zkx_gpu_require_exclusive_lock(false);
+
+  opts.set_zkx_gpu_enable_highest_priority_async_stream(true);
 
   opts.set_zkx_gpu_enable_llvm_module_compilation_parallelism(false);
   opts.set_zkx_gpu_enable_libnvptxcompiler(se::IsLibNvPtxCompilerSupported());
   opts.set_zkx_gpu_libnvjitlink_mode(DebugOptions::LIB_NV_JIT_LINK_MODE_AUTO);
 
+  opts.set_zkx_gpu_nccl_collective_max_nchannels(0);
+  opts.set_zkx_gpu_nccl_p2p_max_nchannels(0);
+
+  opts.set_zkx_gpu_nccl_terminate_on_error(false);
+
   opts.set_zkx_syntax_sugar_async_ops(false);
 
+  opts.set_zkx_gpu_executable_warn_stuck_timeout_seconds(10);
+  opts.set_zkx_gpu_executable_terminate_timeout_seconds(30);
   opts.set_zkx_pjrt_allow_auto_layout_in_hlo(false);
   return opts;
 }
@@ -89,6 +103,14 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
   auto int32_setter_for =
       [debug_options](void (DebugOptions::*member_setter)(int32_t)) {
         return [debug_options, member_setter](int32_t value) {
+          (debug_options->*member_setter)(value);
+          return true;
+        };
+      };
+
+  auto int64_setter_for =
+      [debug_options](void (DebugOptions::*member_setter)(int64_t)) {
+        return [debug_options, member_setter](int64_t value) {
           (debug_options->*member_setter)(value);
           return true;
         };
@@ -411,6 +433,32 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "Use libnvjitlink for PTX-to-GPU-assembly compilation instead of "
       "calling ptxas."));
   flag_list->push_back(tsl::Flag(
+      "zkx_gpu_nccl_collective_max_nchannels",
+      int64_setter_for(
+          &DebugOptions::set_zkx_gpu_nccl_collective_max_nchannels),
+      debug_options->zkx_gpu_nccl_collective_max_nchannels(),
+      "Specify the maximum number of channels(SMs) NCCL will use "
+      "for collective operations. Default is 0 which is to let NCCL decide."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_nccl_p2p_max_nchannels",
+      int64_setter_for(&DebugOptions::set_zkx_gpu_nccl_p2p_max_nchannels),
+      debug_options->zkx_gpu_nccl_p2p_max_nchannels(),
+      "Specify the maximum number of channels(SMs) NCCL will use "
+      "for p2p operations. Default is 0 which is to let NCCL decide."));
+
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_executable_warn_stuck_timeout",
+      int32_setter_for(
+          &DebugOptions::set_zkx_gpu_executable_warn_stuck_timeout_seconds),
+      debug_options->zkx_gpu_executable_warn_stuck_timeout_seconds(),
+      "Set timeout for Rendezvous stuck warning"));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_executable_terminate_timeout",
+      int32_setter_for(
+          &DebugOptions::set_zkx_gpu_executable_terminate_timeout_seconds),
+      debug_options->zkx_gpu_executable_terminate_timeout_seconds(),
+      "Set timeout for Rendezvous termination"));
+  flag_list->push_back(tsl::Flag(
       "zkx_pjrt_allow_auto_layout_in_hlo",
       bool_setter_for(&DebugOptions::set_zkx_pjrt_allow_auto_layout_in_hlo),
       debug_options->zkx_pjrt_allow_auto_layout_in_hlo(),
@@ -428,6 +476,12 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       debug_options->zkx_gpu_dump_hlo_unoptimized_snapshots(),
       "Every time an HLO module is run, dumps an HloUnoptimizedSnapshot to the "
       "directory specified by --zkx_dump_to."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_collectives_use_persistent_cliques",
+      bool_setter_for(
+          &DebugOptions::set_zkx_gpu_collectives_use_persistent_cliques),
+      debug_options->zkx_gpu_collectives_use_persistent_cliques(),
+      "Use persistent per-process ZKX:GPU collectives cliques"));
   flag_list->push_back(
       tsl::Flag("zkx_dump_disable_metadata",
                 bool_setter_for(&DebugOptions::set_zkx_dump_disable_metadata),
@@ -446,6 +500,12 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "Enable dumping MLIR using pretty print form. If set to false, the "
       "dumped MLIR will be in the llvm-parsable format and can be processed by "
       "mlir-opt tools. Pretty print form is not legal MLIR."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_nccl_termination_timeout_seconds",
+      int64_setter_for(
+          &DebugOptions::set_zkx_gpu_nccl_termination_timeout_seconds),
+      debug_options->zkx_gpu_nccl_termination_timeout_seconds(),
+      "Timeout in seconds before terminating jobs stuck in NCCL Rendezvous."));
 
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_require_exclusive_lock",
@@ -457,6 +517,20 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "command buffer update to ensure correctness when running in multi "
       "thread mode."));
 
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_nccl_init_max_rank_per_root_ratio",
+      int64_setter_for(
+          &DebugOptions::set_zkx_gpu_nccl_init_max_rank_per_root_ratio),
+      debug_options->zkx_gpu_nccl_init_max_rank_per_root_ratio(),
+      "Maximum number of ranks associated with a root rank to initialize a "
+      "NCCL communicator via ncclCommInitRankScalable. "
+      "A value of zero will lead to a single root."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_enable_highest_priority_async_stream",
+      bool_setter_for(
+          &DebugOptions::set_zkx_gpu_enable_highest_priority_async_stream),
+      debug_options->zkx_gpu_enable_highest_priority_async_stream(),
+      "Enable async stream to have the highest priority."));
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_dump_autotune_results_to",
       string_setter_for(&DebugOptions::set_zkx_gpu_dump_autotune_results_to),
@@ -479,6 +553,11 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       debug_options->zkx_gpu_dump_autotune_logs_to(),
       "File to write autotune logs to. It will be a binary file unless the "
       "name ends with .txt or .textproto."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_nccl_terminate_on_error",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_nccl_terminate_on_error),
+      debug_options->zkx_gpu_nccl_terminate_on_error(),
+      "If set, then NCCL errors will terminate the process."));
   flag_list->push_back(
       tsl::Flag("zkx_syntax_sugar_async_ops",
                 bool_setter_for(&DebugOptions::set_zkx_syntax_sugar_async_ops),
