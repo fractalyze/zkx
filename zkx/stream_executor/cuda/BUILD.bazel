@@ -191,6 +191,13 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_platform_id",
+    srcs = ["cuda_platform_id.cc"],
+    hdrs = ["cuda_platform_id.h"],
+    deps = ["//zkx/stream_executor:platform"],
+)
+
+zkx_cc_library(
     name = "cuda_version_parser",
     srcs = ["cuda_version_parser.cc"],
     hdrs = ["cuda_version_parser.h"],
