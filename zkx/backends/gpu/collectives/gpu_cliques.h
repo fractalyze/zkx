@@ -27,6 +27,9 @@ limitations under the License.
 
 #include "zkx/backends/gpu/collectives/gpu_clique.h"
 #include "zkx/backends/gpu/collectives/gpu_clique_key.h"
+#include "zkx/backends/gpu/collectives/gpu_collectives.h"
+#include "zkx/core/collectives/rank_id.h"
+#include "zkx/executable_run_options.h"
 
 namespace zkx::gpu {
 
@@ -38,6 +41,31 @@ class AcquiredCliquesMap
     : public absl::btree_map<GpuCliqueKey,
                              std::shared_ptr<LockableGpuClique::Lock>,
                              std::greater<GpuCliqueKey>> {};
+
+// Acquires a "shared exclusive" access to a GPU clique (exclusive in a sense
+// that the clique is locked for exclusive use by `num_local_participants`
+// threads holding the shared lock object). ZKX uses this lock to serialize
+// execution of all collective operations sharing a `clique_id`.
+//
+// We rely on exclusive access to a GPU clique (using Lockable<T> mechanism) to
+// guarantee that only a set of threads executing a particular collective
+// operation can schedule new work using communicators belonging to a clique.
+//
+// If clique for a given key does not exist it will be initialized from newly
+// created communicators or maybe created by splitting of the already acquired
+// cliques.
+//
+// WARNING: This is a collective operation that must be executed by all local
+// participants of the clique key concurrently (it must be called from an
+// appropriately sized thread pool to avoid deadlocks). Implementation relies on
+// the rendezvous mechanism to ensure that all participants join clique
+// acquisition, with a rendezvous key derived from the clique key.
+absl::StatusOr<std::shared_ptr<LockableGpuClique::Lock>> AcquireGpuClique(
+    GpuCollectives* collectives, se::StreamExecutor* device, RunId run_id,
+    const GpuCliqueKey& clique_key,
+    const GpuCollectives::CliqueIdCallback& clique_id_callback, RankId rank,
+    size_t num_local_participants, const AcquiredCliquesMap& acquired_cliques,
+    int64_t max_nchannels = 0);
 
 }  // namespace zkx::gpu
 
