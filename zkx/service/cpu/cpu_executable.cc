@@ -9,6 +9,7 @@
 #include "zkx/base/logging.h"
 #include "zkx/service/cpu/cpu_runtime.h"
 #include "zkx/service/custom_call_status_internal.h"
+#include "zkx/service/zkx_debug_info_manager.h"
 #include "zkx/stream_executor/host/host_stream.h"
 
 #define EIGEN_USE_THREADS
@@ -66,18 +67,16 @@ absl::StatusOr<std::unique_ptr<CpuExecutable>> CpuExecutable::Create(
 CpuExecutable::CpuExecutable(std::unique_ptr<HloModule> hlo_module,
                              std::unique_ptr<const BufferAssignment> assignment)
     : Executable(std::move(hlo_module)), assignment_(std::move(assignment)) {
-  // TODO(chokobole): Uncomment this. Dependency: ZkxDebugInfoManager
-  // if (assignment_ && has_module()) {
-  //   ZkxDebugInfoManager::Get()->RegisterModule(shared_module(),
-  //                                              assignment_->ToProto());
-  // }
+  if (assignment_ && has_module()) {
+    ZkxDebugInfoManager::Get()->RegisterModule(shared_module(),
+                                               assignment_->ToProto());
+  }
 }
 
 CpuExecutable::~CpuExecutable() {
-  // TODO(chokobole): Uncomment this. Dependency: ZkxDebugInfoManager
-  // if (has_module()) {
-  //   ZkxDebugInfoManager::Get()->UnregisterModule(module().unique_id());
-  // }
+  if (has_module()) {
+    ZkxDebugInfoManager::Get()->UnregisterModule(module().unique_id());
+  }
 }
 
 namespace {
