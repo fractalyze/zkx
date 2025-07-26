@@ -15,10 +15,35 @@ limitations under the License.
 
 #include "zkx/service/gpu/stream_executor_util.h"
 
+#include <map>
+#include <utility>
+
+#include "absl/base/const_init.h"
+#include "absl/debugging/leak_check.h"
+
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/stream_executor/kernel_spec.h"
 
 namespace zkx::gpu {
+
+// Returns a mutex that can be used to lock the given stream executor.
+absl::Mutex& GetGpuMutex(const se::StreamExecutor* stream_exec) {
+  static absl::Mutex mu(absl::kConstInit);
+  // se::Platform*s are global singletons guaranteed to live forever.
+  static auto* mutexes = absl::IgnoreLeak(
+      new std::map<std::pair<const se::Platform*, /*device_ordinal*/ int64_t>,
+                   absl::Mutex>());
+
+  absl::MutexLock global_lock(&mu);
+  auto it = mutexes
+                ->emplace(std::piecewise_construct,
+                          std::make_tuple(stream_exec->GetPlatform(),
+                                          stream_exec->device_ordinal()),
+                          std::make_tuple())
+                .first;
+
+  return it->second;
+}
 
 absl::StatusOr<std::unique_ptr<se::Kernel>> CreateKernel(
     std::string_view kernel_name, uint64_t num_args, std::string_view ptx,

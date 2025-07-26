@@ -194,6 +194,9 @@ zkx_cc_library(
         "//zkx/stream_executor:kernel",
         "//zkx/stream_executor:kernel_spec",
         "//zkx/stream_executor:launch_dim",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
     ],
 )

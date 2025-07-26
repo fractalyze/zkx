@@ -20,6 +20,7 @@ limitations under the License.
 
 #include <memory>
 
+#include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
 
 #include "zkx/service/gpu/launch_dimensions.h"
@@ -31,6 +32,14 @@ limitations under the License.
 // Helper functions for interacting with StreamExecutor.
 
 namespace zkx::gpu {
+
+// Generates and returns a unique lock per the provided executor.
+// Guarantees that blocks of code running for the same provided executor will
+// not be running concurrently if they lock the returned mutex.
+//
+// This is used to prevent other ZKX instances from trying to autotune on a
+// device while another thread is using it.
+absl::Mutex& GetGpuMutex(const se::StreamExecutor* stream_exec);
 
 // Creates a kernel with a provided name, based from provided PTX in ptx.
 // The kernel should be executed using the provided executor.
