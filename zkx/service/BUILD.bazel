@@ -850,6 +850,22 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "zkx_debug_info_manager",
+    srcs = ["zkx_debug_info_manager.cc"],
+    hdrs = ["zkx_debug_info_manager.h"],
+    deps = [
+        ":hlo_cc_proto",
+        ":hlo_proto_util",
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:no_destructor",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
 zkx_cc_unittest(
     name = "service_unittests",
     srcs = [
@@ -876,6 +892,8 @@ zkx_cc_unittest(
         # TODO(chokobole): Add unittest. Dependency: PlatformUtil::GetStreamExecutors
         # "shaped_buffer_unittest.cc",
         "stream_pool_unittest.cc",
+        # TODO(chokobole): Add unittest. Dependency: HloTestBase
+        # "zkx_debug_info_manager_unittest.cc",
     ],
     deps = [
         ":compilation_environments",
