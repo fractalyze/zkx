@@ -157,6 +157,32 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "resource_requests",
+    srcs = ["resource_requests.cc"],
+    hdrs = ["resource_requests.h"],
+    deps = [
+        ":gpu_executable_run_options",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:statusor",
+        "//zkx/backends/gpu/collectives:gpu_clique",
+        "//zkx/backends/gpu/collectives:gpu_clique_key",
+        "//zkx/backends/gpu/collectives:gpu_cliques",
+        "//zkx/backends/gpu/runtime:thunk",
+        "//zkx/core/collectives:rank_id",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:no_destructor",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "stream_executor_util",
     srcs = ["stream_executor_util.cc"],
     hdrs = ["stream_executor_util.h"],
