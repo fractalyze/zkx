@@ -115,6 +115,9 @@ message DebugOptions {
   // threads. Setting to 0 (the default value) means no enforcement.
   bool zkx_gpu_enable_llvm_module_compilation_parallelism = 268;
 
+  // Enable NCCL communicator splitting.
+  bool zkx_gpu_enable_nccl_comm_splitting = 272;
+
   // If enabled, uses the libnvjitlink library for PTX compilation and linking
   LibNvJitLinkMode zkx_gpu_libnvjitlink_mode = 343;
 

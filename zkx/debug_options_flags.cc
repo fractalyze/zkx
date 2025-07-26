@@ -59,6 +59,7 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_enable_dumping(true);
 
   opts.set_zkx_gpu_nccl_termination_timeout_seconds(-1);
+  opts.set_zkx_gpu_enable_nccl_comm_splitting(true);
   opts.set_zkx_gpu_nccl_init_max_rank_per_root_ratio(0);
 
   opts.set_zkx_gpu_require_exclusive_lock(false);
@@ -517,6 +518,12 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "command buffer update to ensure correctness when running in multi "
       "thread mode."));
 
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_enable_nccl_comm_splitting",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_enable_nccl_comm_splitting),
+      debug_options->zkx_gpu_enable_nccl_comm_splitting(),
+      "Enables NCCL communicator splitting which allows sharing NCCL resources "
+      "between different NCCL cliques."));
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_nccl_init_max_rank_per_root_ratio",
       int64_setter_for(
