@@ -30,6 +30,21 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "execution_stream_assignment",
+    srcs = ["execution_stream_assignment.cc"],
+    hdrs = ["execution_stream_assignment.h"],
+    deps = [
+        "//zkx:side_effect_util",
+        "//zkx/backends/gpu/runtime:thunk",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:call_graph",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "gpu_constants",
     hdrs = ["gpu_constants.h"],
 )
@@ -255,6 +270,7 @@ zkx_cc_library(
 )
 
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
+# TODO(chokobole): Add execution_stream_assignment_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add hlo_fusion_analysis_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add ir_emission_utils_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add stream_executor_util_unittest.cc. Dependency: PickBestResult
