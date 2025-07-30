@@ -14,6 +14,20 @@ cc_proto_library(
     deps = [":backend_configs_proto"],
 )
 
+proto_library(
+    name = "executable_proto",
+    srcs = ["executable.proto"],
+    deps = [
+        "//zkx:zkx_proto",
+        "//zkx/service:hlo_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "executable_cc_proto",
+    deps = [":executable_proto"],
+)
+
 zkx_cc_library(
     name = "buffer_allocations",
     srcs = ["buffer_allocations.cc"],
@@ -199,6 +213,31 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "kernel_reuse_cache",
+    srcs = ["kernel_reuse_cache.cc"],
+    hdrs = ["kernel_reuse_cache.h"],
+    deps = [
+        ":executable_cc_proto",
+        ":kernel_arguments",
+        ":launch_dimensions",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:status_macros",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/stream_executor:launch_dim",
+        "//zkx/stream_executor/gpu:tma_metadata",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "launch_dimensions",
     srcs = ["launch_dimensions.cc"],
     hdrs = ["launch_dimensions.h"],
@@ -277,11 +316,20 @@ zkx_cc_library(
 # TODO(chokobole): Add reduction_utils_unittest.cc. Dependency: HloTestBase.
 zkx_cc_unittest(
     name = "gpu_unittests",
-    srcs = ["matmul_indexing_utils_unittest.cc"],
+    srcs = [
+        "kernel_reuse_cache_unittest.cc",
+        "matmul_indexing_utils_unittest.cc",
+    ],
     deps = [
+        ":executable_cc_proto",
+        ":kernel_reuse_cache",
         ":matmul_indexing_utils",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx/hlo/parser:hlo_parser",
+        "@com_google_absl//absl/log:check",
+        "@com_google_googletest//:gtest",
     ],
 )
