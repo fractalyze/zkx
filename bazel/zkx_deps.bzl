@@ -48,7 +48,10 @@ def zkx_deps():
         name = "com_github_grpc_grpc",
         sha256 = "493d9905aa09124c2f44268b66205dd013f3925a7e82995f36745974e97af609",
         strip_prefix = "grpc-1.63.0",
-        patch_file = ["@zkx//third_party/grpc:grpc.patch"],
+        patch_file = [
+            "@zkx//third_party/grpc:grpc.patch",
+            "@zkx//third_party/grpc:use_public_header.patch",
+        ],
         urls = tf_mirror_urls("https://github.com/grpc/grpc/archive/v1.63.0.tar.gz"),
     )
 

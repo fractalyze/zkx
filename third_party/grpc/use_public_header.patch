@@ -1,0 +1,12 @@
+diff --git a/src/core/lib/compression/message_compress.cc b/src/core/lib/compression/message_compress.cc
+index bd0571748b..7cf1036a1a 100644
+--- a/src/core/lib/compression/message_compress.cc
++++ b/src/core/lib/compression/message_compress.cc
+@@ -22,7 +22,6 @@
+ 
+ #include <string.h>
+ 
+-#include <zconf.h>
+ #include <zlib.h>
+ 
+ #include <grpc/slice_buffer.h>
