@@ -64,6 +64,13 @@ TEST(ExtensionFieldTest, Operations) {
   // clang-format on
 }
 
+TEST(ExtensionFieldTest, MontReduce) {
+  Fq2 a = {Fq(1), Fq(2)};
+  Fq2 reduced = a.MontReduce();
+
+  EXPECT_EQ(reduced[0], Fq(1).MontReduce());
+  EXPECT_EQ(reduced[1], Fq(2).MontReduce());
+}
 TEST(ExtensionFieldTest, Serde) {
   Fq2 expected = Fq2::Random();
 

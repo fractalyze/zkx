@@ -91,6 +91,14 @@ TEST(AffinePointTest, ToPointXyzz) {
   EXPECT_EQ(p.ToXyzz(), PointXyzz(3, 2, 1, 1));
 }
 
+TEST(AffinePointTest, MontReduce) {
+  AffinePoint p(3, 2);
+  AffinePoint reduced = p.MontReduce();
+
+  EXPECT_EQ(reduced.x(), Fq(3).MontReduce());
+  EXPECT_EQ(reduced.y(), Fq(2).MontReduce());
+}
+
 TEST(AffinePointTest, Serde) {
   AffinePoint expected = AffinePoint::Random();
 

@@ -142,6 +142,15 @@ TEST(JacobianPointTest, BatchToAffine) {
   EXPECT_EQ(affine_points, expected_affine_points);
 }
 
+TEST(JacobianPointTest, MontReduce) {
+  JacobianPoint p(3, 2, 1);
+  JacobianPoint reduced = p.MontReduce();
+
+  EXPECT_EQ(reduced.x(), Fq(3).MontReduce());
+  EXPECT_EQ(reduced.y(), Fq(2).MontReduce());
+  EXPECT_EQ(reduced.z(), Fq(1).MontReduce());
+}
+
 TEST(JacobianPointTest, Serde) {
   JacobianPoint expected = JacobianPoint::Random();
 

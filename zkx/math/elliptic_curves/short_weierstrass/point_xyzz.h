@@ -215,6 +215,11 @@ class PointXyzz<_Curve,
     }
   }
 
+  constexpr PointXyzz MontReduce() const {
+    return {x_.MontReduce(), y_.MontReduce(), zz_.MontReduce(),
+            zzz_.MontReduce()};
+  }
+
   template <typename XyzzContainer, typename AffineContainer>
   static absl::Status BatchToAffine(const XyzzContainer& point_xyzzs,
                                     AffineContainer* affine_points) {

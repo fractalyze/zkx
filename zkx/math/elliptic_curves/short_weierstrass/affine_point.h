@@ -118,6 +118,10 @@ class AffinePoint<
     return {x_, y_, BaseField::One(), BaseField::One()};
   }
 
+  constexpr AffinePoint MontReduce() const {
+    return {x_.MontReduce(), y_.MontReduce()};
+  }
+
   std::string ToString() const {
     return absl::Substitute("($0, $1)", x_.ToString(), y_.ToString());
   }

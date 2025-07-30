@@ -207,6 +207,10 @@ class JacobianPoint<
     return {x_, y_, zz, zz * z_};
   }
 
+  constexpr JacobianPoint MontReduce() const {
+    return {x_.MontReduce(), y_.MontReduce(), z_.MontReduce()};
+  }
+
   template <typename JacobianContainer, typename AffineContainer>
   static absl::Status BatchToAffine(const JacobianContainer& jacobian_points,
                                     AffineContainer* affine_points) {
