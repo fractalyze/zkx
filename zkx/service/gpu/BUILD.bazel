@@ -145,6 +145,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_memory_space_assignment",
+    hdrs = ["gpu_memory_space_assignment.h"],
+    deps = [
+        "//zkx/hlo/analysis:hlo_alias_analysis",
+        "//zkx/hlo/analysis:hlo_ordering",
+        "//zkx/hlo/ir:hlo_opcode",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:hlo_value",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "ir_emission_utils",
     hdrs = ["ir_emission_utils.h"],
     deps = [
