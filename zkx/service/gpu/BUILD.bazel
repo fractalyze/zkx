@@ -1,6 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -12,6 +12,20 @@ proto_library(
 cc_proto_library(
     name = "backend_configs_cc_proto",
     deps = [":backend_configs_proto"],
+)
+
+proto_library(
+    name = "executable_proto",
+    srcs = ["executable.proto"],
+    deps = [
+        "//zkx:zkx_proto",
+        "//zkx/service:hlo_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "executable_cc_proto",
+    deps = [":executable_proto"],
 )
 
 zkx_cc_library(
@@ -159,6 +173,31 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "kernel_reuse_cache",
+    srcs = ["kernel_reuse_cache.cc"],
+    hdrs = ["kernel_reuse_cache.h"],
+    deps = [
+        ":executable_cc_proto",
+        ":kernel_arguments",
+        ":launch_dimensions",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:status_macros",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/stream_executor:launch_dim",
+        "//zkx/stream_executor/gpu:tma_metadata",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "launch_dimensions",
     srcs = ["launch_dimensions.cc"],
     hdrs = ["launch_dimensions.h"],
@@ -218,3 +257,15 @@ zkx_cc_library(
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add execution_stream_assignment_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add stream_executor_util_unittest.cc. Dependency: PickBestResult
+zkx_cc_unittest(
+    name = "gpu_unittests",
+    srcs = ["kernel_reuse_cache_unittest.cc"],
+    deps = [
+        ":executable_cc_proto",
+        ":kernel_reuse_cache",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "@com_google_absl//absl/log:check",
+        "@com_google_googletest//:gtest",
+    ],
+)
