@@ -17,6 +17,7 @@ limitations under the License.
 
 #include "absl/base/call_once.h"
 #include "absl/base/internal/sysinfo.h"
+#include "absl/log/check.h"
 
 #include "zkx/base/logging.h"
 
