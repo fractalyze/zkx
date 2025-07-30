@@ -176,7 +176,7 @@ class PointXyzz<_Curve,
 
   constexpr PointXyzz operator*(const ScalarField& v) const {
     if constexpr (ScalarField::kUseMontgomery) {
-      return ScalarMul(*this, v.MontReduce());
+      return ScalarMul(*this, v.MontReduce().value());
     } else {
       return ScalarMul(*this, v.value());
     }

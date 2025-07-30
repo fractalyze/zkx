@@ -102,7 +102,7 @@ class AffinePoint<
 
   constexpr JacobianPoint operator*(const ScalarField& v) const {
     if constexpr (ScalarField::kUseMontgomery) {
-      return ScalarMul(ToJacobian(), v.MontReduce());
+      return ScalarMul(ToJacobian(), v.MontReduce().value());
     } else {
       return ScalarMul(ToJacobian(), v.value());
     }

@@ -121,7 +121,7 @@ mlir::zkir::field::PrimeFieldAttr GetMLIRPrimeFieldAttr(
     } else {
       return mlir::zkir::field::PrimeFieldAttr::get(
           GetMLIRPrimeFieldType<T>(context, false),
-          ConvertBigIntToAPInt(value.MontReduce()));
+          ConvertBigIntToAPInt(value.MontReduce().value()));
     }
   } else {
     DCHECK(!use_montgomery);
@@ -242,7 +242,7 @@ mlir::Value CreateMLIRPrimeFieldConstant(mlir::ImplicitLocOpBuilder& b,
     } else {
       return b.create<mlir::zkir::field::ConstantOp>(
           GetMLIRPrimeFieldType<T>(b.getContext(), false),
-          ConvertBigIntToAPInt(value.MontReduce()));
+          ConvertBigIntToAPInt(value.MontReduce().value()));
     }
   } else {
     DCHECK(!use_montgomery);
