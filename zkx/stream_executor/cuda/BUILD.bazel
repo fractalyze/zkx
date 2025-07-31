@@ -337,6 +337,34 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_timer",
+    srcs = ["cuda_timer.cc"],
+    hdrs = ["cuda_timer.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_event",
+        ":cuda_status",
+        ":delay_kernel",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:activate_context",
+        "//zkx/stream_executor:event_based_timer",
+        "//zkx/stream_executor:stream",
+        "//zkx/stream_executor/gpu:gpu_semaphore",
+        "//zkx/stream_executor/gpu:gpu_stream",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/time",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "cuda_version_parser",
     srcs = ["cuda_version_parser.cc"],
     hdrs = ["cuda_version_parser.h"],
@@ -598,6 +626,8 @@ zkx_cc_unittest(
         # "cuda_kernel_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
         # "cuda_stream_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: CudaExecutor
+        # "cuda_timer_unittest.cc",
         "cuda_version_parser_unittest.cc",
         "defer_relocatable_compilation_compilation_provider_unittest.cc",
         "nvjitlink_known_issues_unittest.cc",
