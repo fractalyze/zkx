@@ -191,6 +191,27 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_context",
+    srcs = ["cuda_context.cc"],
+    hdrs = ["cuda_context.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_status",
+        "//xla/tsl/platform:errors",
+        "//zkx/stream_executor/gpu:context",
+        "//zkx/stream_executor/gpu:context_map",
+        "//zkx/stream_executor/gpu:scoped_activate_context",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "cuda_platform_id",
     srcs = ["cuda_platform_id.cc"],
     hdrs = ["cuda_platform_id.h"],
