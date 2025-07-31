@@ -254,6 +254,32 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_kernel",
+    srcs = ["cuda_kernel.cc"],
+    hdrs = ["cuda_kernel.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_status",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:activate_context",
+        "//zkx/stream_executor:kernel",
+        "//zkx/stream_executor:stream",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "cuda_platform_id",
     srcs = ["cuda_platform_id.cc"],
     hdrs = ["cuda_platform_id.h"],
@@ -517,6 +543,8 @@ zkx_cc_unittest(
         "cuda_compute_capability_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
         # "cuda_event_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
+        # "cuda_kernel_unittest.cc",
         "cuda_version_parser_unittest.cc",
         "defer_relocatable_compilation_compilation_provider_unittest.cc",
         "nvjitlink_known_issues_unittest.cc",
