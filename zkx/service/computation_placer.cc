@@ -20,7 +20,9 @@ limitations under the License.
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/logging.h"
 #include "zkx/status_macros.h"
+#include "zkx/stream_executor/cuda/cuda_platform_id.h"
 #include "zkx/stream_executor/host/host_platform_id.h"
+#include "zkx/stream_executor/rocm/rocm_platform_id.h"
 
 namespace zkx {
 
@@ -33,12 +35,10 @@ std::unique_ptr<ComputationPlacer> CreateComputationPlacer() {
 bool InitModule() {
   ComputationPlacer::RegisterComputationPlacer(se::host::kHostPlatformId,
                                                &CreateComputationPlacer);
-  // TODO(chokobole): Uncomment this. Dependency: kCudaPlatformId
-  // ComputationPlacer::RegisterComputationPlacer(se::cuda::kCudaPlatformId,
-  //                                              &CreateComputationPlacer);
-  // TODO(chokobole): Uncomment this. Dependency: kROCmPlatformId
-  // ComputationPlacer::RegisterComputationPlacer(se::rocm::kROCmPlatformId,
-  //                                              &CreateComputationPlacer);
+  ComputationPlacer::RegisterComputationPlacer(se::cuda::kCudaPlatformId,
+                                               &CreateComputationPlacer);
+  ComputationPlacer::RegisterComputationPlacer(se::rocm::kROCmPlatformId,
+                                               &CreateComputationPlacer);
   // TODO(chokobole): Uncomment this. Dependency: kSyclPlatformId
   // ComputationPlacer::RegisterComputationPlacer(se::sycl::kSyclPlatformId,
   //                                              &CreateComputationPlacer);

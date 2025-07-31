@@ -27,15 +27,20 @@ limitations under the License.
 #include "zkx/base/logging.h"
 #include "zkx/debug_options_flags.h"
 #include "zkx/service/compiler.h"
+#include "zkx/stream_executor/cuda/cuda_platform_id.h"
 #include "zkx/stream_executor/host/host_platform_id.h"
 #include "zkx/stream_executor/platform_manager.h"
+#include "zkx/stream_executor/rocm/rocm_platform_id.h"
 
 namespace zkx {
+namespace {
+
+// Minimum supported CUDA compute capability is 3.5.
+constexpr int kMinCudaComputeCapabilityMajor = 3;
+constexpr int kMinCudaComputeCapabilityMinor = 5;
 
 // The name of the interpreter platform.
 constexpr char kInterpreter[] = "interpreter";
-
-namespace {
 
 std::string CanonicalPlatformName(std::string_view platform_name) {
   std::string lowercase_platform_name = absl::AsciiStrToLower(platform_name);
@@ -129,37 +134,30 @@ absl::StatusOr<se::Platform*> PlatformUtil::GetPlatform(
 // Returns whether the device underlying the given StreamExecutor is supported
 // by XLA.
 static bool IsDeviceSupported(se::StreamExecutor* executor) {
-  // const auto& description = executor->GetDeviceDescription();
-  // TODO(chokobole): Uncomment this. Dependency: cuda::kCudaPlatformId
-  // if (executor->GetPlatform()->id() == se::cuda::kCudaPlatformId) {
-  //   // CUDA devices must have a minimum compute capability.
-  //   se::CudaComputeCapability cc = description.cuda_compute_capability();
-  //   if (!cc.IsAtLeast(kMinCudaComputeCapabilityMajor,
-  //                     kMinCudaComputeCapabilityMinor)) {
-  //     LOG(INFO) << "StreamExecutor cuda device (" <<
-  //     executor->device_ordinal()
-  //               << ") is of insufficient compute capability: "
-  //               << kMinCudaComputeCapabilityMajor << "."
-  //               << kMinCudaComputeCapabilityMinor << " required, "
-  //               << "device is " << cc.ToString();
-  //     return false;
-  //   }
-  // }
-  // TODO(chokobole): Uncomment this. Dependency: rocm::kROCmPlatformId
-  // else if (executor->GetPlatform()->id() == se::rocm::kROCmPlatformId) {
-  //   auto rocm_compute_capability = description.rocm_compute_capability();
-  //   if (!rocm_compute_capability.is_supported_gfx_version()) {
-  //     LOG(INFO) << "StreamExecutor ROCM device (" <<
-  //     executor->device_ordinal()
-  //               << ") is of unsupported "
-  //               << "AMDGPU version : " <<
-  //               rocm_compute_capability.gfx_version()
-  //               << ". The supported AMDGPU versions are "
-  //               << rocm_compute_capability.supported_gfx_versions_str() <<
-  //               ".";
-  //     return false;
-  //   }
-  // }
+  const auto& description = executor->GetDeviceDescription();
+  if (executor->GetPlatform()->id() == se::cuda::kCudaPlatformId) {
+    // CUDA devices must have a minimum compute capability.
+    se::CudaComputeCapability cc = description.cuda_compute_capability();
+    if (!cc.IsAtLeast(kMinCudaComputeCapabilityMajor,
+                      kMinCudaComputeCapabilityMinor)) {
+      LOG(INFO) << "StreamExecutor cuda device (" << executor->device_ordinal()
+                << ") is of insufficient compute capability: "
+                << kMinCudaComputeCapabilityMajor << "."
+                << kMinCudaComputeCapabilityMinor << " required, "
+                << "device is " << cc.ToString();
+      return false;
+    }
+  } else if (executor->GetPlatform()->id() == se::rocm::kROCmPlatformId) {
+    auto rocm_compute_capability = description.rocm_compute_capability();
+    if (!rocm_compute_capability.is_supported_gfx_version()) {
+      LOG(INFO) << "StreamExecutor ROCM device (" << executor->device_ordinal()
+                << ") is of unsupported "
+                << "AMDGPU version : " << rocm_compute_capability.gfx_version()
+                << ". The supported AMDGPU versions are "
+                << rocm_compute_capability.supported_gfx_versions_str() << ".";
+      return false;
+    }
+  }
   return true;
 }
 
