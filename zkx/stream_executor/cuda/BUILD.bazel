@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda_newer_than")
+load("@local_config_cuda//cuda:build_defs.bzl", "cuda_library", "if_cuda_newer_than")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
@@ -354,6 +354,22 @@ zkx_cc_library(
         ":compilation_provider",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+cuda_library(
+    name = "delay_kernel",
+    srcs = ["delay_kernel_cuda.cu.cc"],
+    hdrs = ["delay_kernel.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        "//zkx/stream_executor:stream",
+        "//zkx/stream_executor:typed_kernel_factory",
+        "//zkx/stream_executor/gpu:gpu_semaphore",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
