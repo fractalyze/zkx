@@ -195,6 +195,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "numa",
+    srcs = if_posix(["numa_posix.cc"]),
+    hdrs = ["numa.h"],
+    deps = [
+        ":mem",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/log",
+    ],
+)
+
+zkx_cc_library(
     name = "path",
     srcs = ["path.cc"],
     hdrs = ["path.h"],
@@ -316,6 +327,7 @@ zkx_cc_unittest(
         "fingerprint_unittest.cc",
         "hash_unittest.cc",
         "net_unittest.cc",
+        "numa_unittest.cc",
         "numbers_unittest.cc",
         "path_unittest.cc",
         "random_unittest.cc",
@@ -337,6 +349,7 @@ zkx_cc_unittest(
         ":fingerprint",
         ":hash",
         ":net",
+        ":numa",
         ":numbers",
         ":path",
         ":random",
