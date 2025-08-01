@@ -204,6 +204,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "read_numa_node",
+    srcs = ["read_numa_node.cc"],
+    hdrs = ["read_numa_node.h"],
+    deps = [
+        "//xla/tsl/platform:numa",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "scoped_activate_context",
     srcs = ["scoped_activate_context.cc"],
     hdrs = ["scoped_activate_context.h"],
