@@ -16,8 +16,12 @@ limitations under the License.
 #include "xla/tsl/platform/path.h"
 
 #include <stdlib.h>
+#include <sys/stat.h>
 
+#include "absl/base/const_init.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
+#include "absl/synchronization/mutex.h"
 
 #include "xla/tsl/platform/platform.h"
 #include "xla/tsl/platform/scanner.h"
@@ -237,6 +241,76 @@ std::string CreateURI(std::string_view scheme, std::string_view host,
     return std::string(path);
   }
   return absl::StrCat(scheme, "://", host, path);
+}
+
+namespace {
+
+// Returns a unique number every time it is called.
+int64_t UniqueId() {
+  static absl::Mutex mu(absl::kConstInit);
+  static int64_t id = 0;
+  absl::MutexLock l(&mu);
+  return ++id;
+}
+
+}  // namespace
+
+std::string GetTempFilename(const std::string& extension) {
+#if defined(__ANDROID__)
+  LOG(FATAL) << "GetTempFilename is not implemented in this platform.";
+#elif defined(PLATFORM_WINDOWS)
+  char temp_dir[_MAX_PATH];
+  DWORD retval;
+  retval = GetTempPath(_MAX_PATH, temp_dir);
+  if (retval > _MAX_PATH || retval == 0) {
+    LOG(FATAL) << "Cannot get the directory for temporary files.";
+  }
+
+  char temp_file_name[_MAX_PATH];
+  retval = GetTempFileName(temp_dir, "", UniqueId(), temp_file_name);
+  if (retval > _MAX_PATH || retval == 0) {
+    LOG(FATAL) << "Cannot get a temporary file in: " << temp_dir;
+  }
+
+  string full_tmp_file_name(temp_file_name);
+  full_tmp_file_name.append(extension);
+  return full_tmp_file_name;
+#else
+  for (const char* dir : std::vector<const char*>(
+           {getenv("TEST_TMPDIR"), getenv("TMPDIR"), getenv("TMP"), "/tmp"})) {
+    if (!dir || !dir[0]) {
+      continue;
+    }
+    struct stat statbuf;
+    if (!stat(dir, &statbuf) && S_ISDIR(statbuf.st_mode)) {
+      // UniqueId is added here because mkstemps is not as thread safe as it
+      // looks. https://github.com/tensorflow/tensorflow/issues/5804 shows
+      // the problem.
+      std::string tmp_filepath;
+      int fd;
+      if (extension.length()) {
+        tmp_filepath = io::JoinPath(
+            dir,
+            absl::StrCat("tmp_file_zkx_", UniqueId(), "_XXXXXX.", extension));
+        fd = mkstemps(&tmp_filepath[0], extension.length() + 1);
+      } else {
+        tmp_filepath = io::JoinPath(
+            dir, absl::StrCat("tmp_file_zkx_", UniqueId(), "_XXXXXX"));
+        fd = mkstemp(&tmp_filepath[0]);
+      }
+      if (fd < 0) {
+        LOG(FATAL) << "Failed to create temp file.";
+      } else {
+        if (close(fd) < 0) {
+          LOG(ERROR) << "close() failed: " << strerror(errno);
+        }
+        return tmp_filepath;
+      }
+    }
+  }
+  LOG(FATAL) << "No temp directory found.";
+  std::abort();
+#endif
 }
 
 bool GetTestWorkspaceDir(std::string* dir) {

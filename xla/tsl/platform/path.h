@@ -103,6 +103,9 @@ void ParseURI(std::string_view uri, std::string_view* scheme,
 std::string CreateURI(std::string_view scheme, std::string_view host,
                       std::string_view path);
 
+// Creates a temporary file name with an extension.
+std::string GetTempFilename(const std::string& extension);
+
 // The test workspace directory is known to be TEST_SRCDIR/TEST_WORKSPACE if
 // both the TEST_SRCDIR and TEST_WORKSPACE environment variables are set.
 bool GetTestWorkspaceDir(std::string* dir);
