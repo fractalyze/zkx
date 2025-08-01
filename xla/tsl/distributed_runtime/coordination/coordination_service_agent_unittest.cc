@@ -193,7 +193,7 @@ class CoordinationServiceAgentTest : public ::testing::Test {
 
   TestCoordinationClient* GetClient() {
     // InitializeAgent() transfers ownership of the coordination client.
-    CHECK_NE(client_, nullptr)
+    CHECK(client_ != nullptr)
         << "GetClient() was called after InitializeAgent()";
     return client_.get();
   }

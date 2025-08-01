@@ -16,6 +16,7 @@ limitations under the License.
 #include "xla/tsl/framework/cancellation.h"
 
 #include <algorithm>
+#include <forward_list>
 
 #include "absl/log/check.h"
 

@@ -37,7 +37,7 @@ CompilerRegistry() {
 
 void PjRtRegisterCompiler(std::string_view platform_name,
                           std::unique_ptr<PjRtCompiler> compiler) {
-  CHECK_NE(compiler, nullptr);
+  CHECK(compiler != nullptr);
   absl::MutexLock l(&g_registry_mutex);
   auto* compiler_registry = CompilerRegistry();
   CHECK(!compiler_registry->contains(platform_name));

@@ -189,11 +189,11 @@ void PopulateWithRandomEcPointData(Literal* literal, std::minstd_rand0* engine,
   std::uniform_int_distribution<uint64_t> generator;
   std::vector<ScalarField> scalars;
   scalars.reserve(literal->data<T>().size());
-  for (T& _ : literal->data<T>()) {
+  for (size_t i = 0; i < literal->data<T>().size(); ++i) {
     BigInt v;
     do {
-      for (size_t i = 0; i < BigInt::kLimbNums; ++i) {
-        v[i] = static_cast<uint64_t>(generator(*engine));
+      for (size_t j = 0; j < BigInt::kLimbNums; ++j) {
+        v[j] = static_cast<uint64_t>(generator(*engine));
       }
     } while (v >= max_value);
     scalars.push_back(ScalarField::FromUnchecked(v));

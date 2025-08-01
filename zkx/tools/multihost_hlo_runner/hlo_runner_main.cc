@@ -263,7 +263,7 @@ absl::Status RunMultihostHloRunner(int argc, char** argv,
         absl::StrCat("Unrecognized device type ", opts.device_type_str,
                      ". Expected \"gpu\" or \"host\""));
   }
-  CHECK_NE(env.client, nullptr);
+  CHECK(env.client != nullptr);
 
   std::vector<ExecutionProfile> execution_profiles;
   if (opts.profile_execution) {
