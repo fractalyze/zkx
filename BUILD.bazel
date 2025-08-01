@@ -10,7 +10,7 @@ bool_flag(
 )
 
 bool_flag(
-    name = "has_rtti",
+    name = "has_intel_openmp",
     build_setting_default = False,
 )
 
@@ -20,8 +20,17 @@ bool_flag(
 )
 
 bool_flag(
-    name = "has_intel_openmp",
+    name = "has_rtti",
     build_setting_default = False,
+)
+
+# Platform specific configurations
+config_setting(
+    name = "macos_aarch64",
+    constraint_values = [
+        "@platforms//os:macos",
+        "@platforms//cpu:aarch64",
+    ],
 )
 
 config_setting(
@@ -32,27 +41,10 @@ config_setting(
     ],
 )
 
-config_setting(
-    name = "macos_aarch64",
-    constraint_values = [
-        "@platforms//os:macos",
-        "@platforms//cpu:aarch64",
-    ],
-)
-
+# Feature specific configurations
 config_setting(
     name = "zkx_has_exception",
     flag_values = {":has_exception": "true"},
-)
-
-config_setting(
-    name = "zkx_has_rtti",
-    flag_values = {":has_rtti": "true"},
-)
-
-config_setting(
-    name = "zkx_has_openmp",
-    flag_values = {":has_openmp": "true"},
 )
 
 config_setting(
@@ -64,6 +56,11 @@ config_setting(
 )
 
 config_setting(
+    name = "zkx_has_openmp",
+    flag_values = {":has_openmp": "true"},
+)
+
+config_setting(
     name = "zkx_has_openmp_on_macos",
     constraint_values = [
         "@platforms//os:macos",
@@ -71,6 +68,11 @@ config_setting(
     flag_values = {
         ":has_openmp": "true",
     },
+)
+
+config_setting(
+    name = "zkx_has_rtti",
+    flag_values = {":has_rtti": "true"},
 )
 
 lastchange(
