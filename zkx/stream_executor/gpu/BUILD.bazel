@@ -83,6 +83,18 @@ gpu_only_cc_library(
 )
 
 gpu_only_cc_library(
+    name = "gpu_stream",
+    srcs = ["gpu_stream.cc"],
+    hdrs = ["gpu_stream.h"],
+    deps = [
+        ":gpu_types",
+        "//zkx/stream_executor:stream",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+gpu_only_cc_library(
     name = "gpu_types",
     hdrs = ["gpu_types.h"],
     # TODO(chokobole): Uncomment this. Dependency: if_rocm_is_configured
