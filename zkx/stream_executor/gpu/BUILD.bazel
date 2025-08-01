@@ -45,6 +45,24 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "gpu_init",
+    srcs = ["gpu_init.cc"],
+    hdrs = ["gpu_init.h"],
+    # TODO(chokobole): Uncomment this. Dependency: if_rocm_is_configured
+    # local_defines = if_rocm_is_configured([
+    #     "TENSORFLOW_USE_ROCM=1",
+    # ]) +
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 gpu_only_cc_library(
     name = "gpu_semaphore",
     srcs = ["gpu_semaphore.cc"],
