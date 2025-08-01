@@ -45,6 +45,12 @@ zkx_cc_library(
     ],
 )
 
+gpu_only_cc_library(
+    name = "gpu_helpers",
+    hdrs = ["gpu_helpers.h"],
+    deps = ["//zkx/stream_executor:device_memory"],
+)
+
 zkx_cc_library(
     name = "gpu_init",
     srcs = ["gpu_init.cc"],
