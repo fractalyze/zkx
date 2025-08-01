@@ -15,6 +15,31 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "runner",
+    srcs = ["runner.cc"],
+    hdrs = ["runner.h"],
+    deps = [
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx/base/console:table_writer",
+        "//zkx/base/csv:csv_writer",
+        "//zkx/base/flag:flag_parser",
+        "//zkx/base/flag:numeric_flags",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/service:hlo_runner",
+        "//zkx/service:platform_util",
+        "//zkx/service/cpu:cpu_compiler_registerer",
+        "//zkx/service/cpu:cpu_transfer_manager",
+        "//zkx/stream_executor/host:host_platform",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/time",
+    ],
+)
+
 zkx_cc_binary(
     name = "scalar_generator",
     srcs = ["scalar_generator.cc"],
