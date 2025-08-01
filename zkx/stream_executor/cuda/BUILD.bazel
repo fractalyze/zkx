@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@local_config_cuda//cuda:build_defs.bzl", "cuda_library", "if_cuda_newer_than")
+load("@local_config_cuda//cuda:build_defs.bzl", "cuda_library", "if_cuda_is_configured", "if_cuda_newer_than")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
@@ -668,6 +668,22 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "tma_util",
+    srcs = ["tma_util.cc"],
+    hdrs = ["tma_util.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        "//zkx/stream_executor/gpu:tma_metadata",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
 zkx_cc_unittest(
     name = "cuda_unittests",
     srcs = [
@@ -691,7 +707,9 @@ zkx_cc_unittest(
         "nvjitlink_unittest.cc",
         "ptx_compiler_unittest.cc",
         "subprocess_compilation_unittest.cc",
-    ],
+    ] + if_cuda_is_configured([
+        "tma_util_unittest.cc",
+    ]),
     data = [
         ":fatbinary",
         ":nvlink",
@@ -721,5 +739,7 @@ zkx_cc_unittest(
         "@com_google_absl//absl/hash:hash_testing",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
-    ],
+    ] + if_cuda_is_configured([
+        ":tma_util",
+    ]),
 )
