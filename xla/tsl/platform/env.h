@@ -32,6 +32,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/env_time.h"
 #include "xla/tsl/platform/file_system.h"
+#include "xla/tsl/platform/numa.h"
 #include "zkx/base/logging.h"
 
 namespace tsl {
@@ -500,8 +501,7 @@ struct ThreadOptions {
   size_t stack_size = 0;  // 0: use system default value
   /// Guard area size to use near thread stacks to use (in bytes)
   size_t guard_size = 0;  // 0: use system default value
-  // TODO(chokobole): Uncomment this. Dependency: numa
-  // int numa_node = port::kNUMANoAffinity;
+  int numa_node = port::kNUMANoAffinity;
 };
 
 /// A utility routine: copy contents of `src` in file system `src_fs`
