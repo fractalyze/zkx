@@ -1,3 +1,4 @@
+load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda_is_configured")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
@@ -55,6 +56,30 @@ gpu_only_cc_library(
         "//zkx/stream_executor:memory_allocation",
         "@com_google_absl//absl/status:statusor",
     ],
+)
+
+gpu_only_cc_library(
+    name = "gpu_types",
+    hdrs = ["gpu_types.h"],
+    # TODO(chokobole): Uncomment this. Dependency: if_rocm_is_configured
+    # defines = if_rocm_is_configured([
+    #     "TENSORFLOW_USE_ROCM=1",
+    # ]) +
+    # TODO(chokobole): Uncomment this. Dependency: if_sycl_is_configured
+    # defines = if_sycl_is_configured([
+    #     "TENSORFLOW_USE_SYCL=1",
+    # ]),
+    deps = if_cuda_is_configured([
+        "@local_config_cuda//cuda:cuda_headers",
+    ]),
+    # TODO(chokobole): Uncomment this. Dependency: if_rocm_is_configured
+    # + if_rocm_is_configured([
+    #     "@local_config_rocm//rocm:rocm_headers",
+    # ]) +
+    # TODO(chokobole): Uncomment this. Dependency: if_sycl_is_configured
+    # if_sycl_is_configured([
+    #     "@local_config_sycl//sycl:sycl_headers",
+    # ]),
 )
 
 zkx_cc_library(
