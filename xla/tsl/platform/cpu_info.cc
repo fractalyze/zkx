@@ -19,6 +19,7 @@ limitations under the License.
 #include "absl/base/internal/sysinfo.h"
 #include "absl/log/check.h"
 
+#include "xla/tsl/platform/numa.h"
 #include "zkx/base/logging.h"
 
 #if defined(PLATFORM_IS_X86)
@@ -529,6 +530,16 @@ int NumSchedulableCPUs() {
 }
 
 int MaxParallelism() { return NumSchedulableCPUs(); }
+
+int MaxParallelism(int numa_node) {
+  if (numa_node != kNUMANoAffinity) {
+    // Assume that CPUs are equally distributed over available NUMA nodes.
+    // This may not be true, but there isn't currently a better way of
+    // determining the number of CPUs specific to the requested node.
+    return NumSchedulableCPUs() / NUMANumNodes();
+  }
+  return NumSchedulableCPUs();
+}
 
 int NumTotalCPUs() {
   int count = absl::base_internal::NumCPUs();
