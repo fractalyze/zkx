@@ -100,8 +100,14 @@ class EnvPosix : public Env {
 
   ~EnvPosix() override { LOG(FATAL) << "Env::Default() must not be destroyed"; }
 
-  bool MatchPath(const std::string& path, const std::string& pattern) override {
-    return fnmatch(pattern.c_str(), path.c_str(), FNM_PATHNAME) == 0;
+  bool MatchPath(std::string_view path, std::string_view pattern) override {
+    // NOTE(chokobole): Using string_view::data() with fnmatch is unsafe, as
+    // fnmatch expects null-terminated strings and string_view does not provide
+    // this guarantee. This can lead to out-of-bounds memory access. To fix
+    // this, you should convert the string_views to std::strings before calling
+    // c_str().
+    return fnmatch(std::string(pattern).c_str(), std::string(path).c_str(),
+                   FNM_PATHNAME) == 0;
   }
 
   Thread* StartThread(const ThreadOptions& thread_options,

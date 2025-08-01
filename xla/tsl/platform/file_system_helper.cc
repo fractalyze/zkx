@@ -54,15 +54,15 @@ void ForEach(int first, int last, const std::function<void(int)>& f) {
 // A globbing pattern can only start with these characters:
 const char kGlobbingChars[] = "*?[\\";
 
-inline bool IsGlobbingPattern(const std::string& pattern) {
-  return (pattern.find_first_of(kGlobbingChars) != std::string::npos);
+inline bool IsGlobbingPattern(std::string_view pattern) {
+  return (pattern.find_first_of(kGlobbingChars) != std::string_view::npos);
 }
 
 // Make sure that the first entry in `dirs` during glob expansion does not
 // contain a glob pattern. This is to prevent a corner-case bug where
 // `<pattern>` would be treated differently than `./<pattern>`.
-std::string PatchPattern(const std::string& pattern) {
-  const std::string fixed_prefix =
+std::string PatchPattern(std::string_view pattern) {
+  std::string_view fixed_prefix =
       pattern.substr(0, pattern.find_first_of(kGlobbingChars));
 
   // Patching is needed when there is no directory part in `prefix`
@@ -71,10 +71,10 @@ std::string PatchPattern(const std::string& pattern) {
   }
 
   // No patching needed
-  return pattern;
+  return std::string(pattern);
 }
 
-std::vector<std::string> AllDirectoryPrefixes(const std::string& d) {
+std::vector<std::string> AllDirectoryPrefixes(std::string_view d) {
   std::vector<std::string> dirs;
   const std::string patched = PatchPattern(d);
   std::string_view dir(patched);
@@ -120,7 +120,7 @@ inline int GetFirstGlobbingEntry(const std::vector<std::string>& dirs) {
 }  // namespace
 
 absl::Status GetMatchingPaths(FileSystem* fs, Env* env,
-                              const std::string& pattern,
+                              std::string_view pattern,
                               std::vector<std::string>* results) {
   // Check that `fs`, `env` and `results` are non-null.
   if (fs == nullptr || env == nullptr || results == nullptr) {
@@ -266,7 +266,7 @@ absl::Status GetMatchingPaths(FileSystem* fs, Env* env,
   return absl::OkStatus();
 }
 
-absl::StatusOr<bool> FileExists(Env* env, const std::string& fname) {
+absl::StatusOr<bool> FileExists(Env* env, std::string_view fname) {
   absl::Status status = env->FileExists(fname);
   if (absl::IsNotFound(status)) {
     return false;

@@ -47,7 +47,7 @@ class RandomAccessFilePosix : public RandomAccessFile {
   int fd_;
 
  public:
-  RandomAccessFilePosix(const std::string& fname, int fd)
+  RandomAccessFilePosix(std::string_view fname, int fd)
       : filename_(fname), fd_(fd) {}
   ~RandomAccessFilePosix() override {
     if (close(fd_) < 0) {
@@ -128,7 +128,7 @@ class WritableFilePosix : public WritableFile {
   FILE* file_;
 
  public:
-  WritableFilePosix(const std::string& fname, FILE* f)
+  WritableFilePosix(std::string_view fname, FILE* f)
       : filename_(fname), file_(f) {}
 
   ~WritableFilePosix() override {
@@ -219,7 +219,7 @@ class ReadOnlyMemoryRegionPosix : public ReadOnlyMemoryRegion {
 };
 
 absl::Status FileSystemPosix::NewRandomAccessFile(
-    const std::string& fname, TransactionToken* token,
+    std::string_view fname, TransactionToken* token,
     std::unique_ptr<RandomAccessFile>* result) {
   std::string translated_fname = TranslateName(fname);
   absl::Status s;
@@ -233,7 +233,7 @@ absl::Status FileSystemPosix::NewRandomAccessFile(
 }
 
 absl::Status FileSystemPosix::NewWritableFile(
-    const std::string& fname, TransactionToken* token,
+    std::string_view fname, TransactionToken* token,
     std::unique_ptr<WritableFile>* result) {
   std::string translated_fname = TranslateName(fname);
   absl::Status s;
@@ -247,7 +247,7 @@ absl::Status FileSystemPosix::NewWritableFile(
 }
 
 absl::Status FileSystemPosix::NewAppendableFile(
-    const std::string& fname, TransactionToken* token,
+    std::string_view fname, TransactionToken* token,
     std::unique_ptr<WritableFile>* result) {
   std::string translated_fname = TranslateName(fname);
   absl::Status s;
@@ -261,7 +261,7 @@ absl::Status FileSystemPosix::NewAppendableFile(
 }
 
 absl::Status FileSystemPosix::NewReadOnlyMemoryRegionFromFile(
-    const std::string& fname, TransactionToken* token,
+    std::string_view fname, TransactionToken* token,
     std::unique_ptr<ReadOnlyMemoryRegion>* result) {
   std::string translated_fname = TranslateName(fname);
   absl::Status s = absl::OkStatus();
@@ -285,7 +285,7 @@ absl::Status FileSystemPosix::NewReadOnlyMemoryRegionFromFile(
   return s;
 }
 
-absl::Status FileSystemPosix::FileExists(const std::string& fname,
+absl::Status FileSystemPosix::FileExists(std::string_view fname,
                                          TransactionToken* token) {
   if (access(TranslateName(fname).c_str(), F_OK) == 0) {
     return absl::OkStatus();
@@ -293,7 +293,7 @@ absl::Status FileSystemPosix::FileExists(const std::string& fname,
   return absl::NotFoundError(absl::StrCat(fname, " not found"));
 }
 
-absl::Status FileSystemPosix::GetChildren(const std::string& dir,
+absl::Status FileSystemPosix::GetChildren(std::string_view dir,
                                           TransactionToken* token,
                                           std::vector<std::string>* result) {
   std::string translated_dir = TranslateName(dir);
@@ -316,12 +316,12 @@ absl::Status FileSystemPosix::GetChildren(const std::string& dir,
 }
 
 absl::Status FileSystemPosix::GetMatchingPaths(
-    const std::string& pattern, TransactionToken* token,
+    std::string_view pattern, TransactionToken* token,
     std::vector<std::string>* results) {
   return internal::GetMatchingPaths(this, Env::Default(), pattern, results);
 }
 
-absl::Status FileSystemPosix::DeleteFile(const std::string& fname,
+absl::Status FileSystemPosix::DeleteFile(std::string_view fname,
                                          TransactionToken* token) {
   absl::Status result;
   if (unlink(TranslateName(fname).c_str()) != 0) {
@@ -330,7 +330,7 @@ absl::Status FileSystemPosix::DeleteFile(const std::string& fname,
   return result;
 }
 
-absl::Status FileSystemPosix::CreateDir(const std::string& name,
+absl::Status FileSystemPosix::CreateDir(std::string_view name,
                                         TransactionToken* token) {
   std::string translated = TranslateName(name);
   if (translated.empty()) {
@@ -342,7 +342,7 @@ absl::Status FileSystemPosix::CreateDir(const std::string& name,
   return absl::OkStatus();
 }
 
-absl::Status FileSystemPosix::DeleteDir(const std::string& name,
+absl::Status FileSystemPosix::DeleteDir(std::string_view name,
                                         TransactionToken* token) {
   absl::Status result;
   if (rmdir(TranslateName(name).c_str()) != 0) {
@@ -351,7 +351,7 @@ absl::Status FileSystemPosix::DeleteDir(const std::string& name,
   return result;
 }
 
-absl::Status FileSystemPosix::GetFileSize(const std::string& fname,
+absl::Status FileSystemPosix::GetFileSize(std::string_view fname,
                                           TransactionToken* token,
                                           uint64_t* size) {
   absl::Status s;
@@ -365,7 +365,7 @@ absl::Status FileSystemPosix::GetFileSize(const std::string& fname,
   return s;
 }
 
-absl::Status FileSystemPosix::Stat(const std::string& fname,
+absl::Status FileSystemPosix::Stat(std::string_view fname,
                                    TransactionToken* token,
                                    FileStatistics* stats) {
   absl::Status s;
@@ -380,8 +380,8 @@ absl::Status FileSystemPosix::Stat(const std::string& fname,
   return s;
 }
 
-absl::Status FileSystemPosix::RenameFile(const std::string& src,
-                                         const std::string& target,
+absl::Status FileSystemPosix::RenameFile(std::string_view src,
+                                         std::string_view target,
                                          TransactionToken* token) {
   absl::Status result;
   if (rename(TranslateName(src).c_str(), TranslateName(target).c_str()) != 0) {
@@ -390,8 +390,8 @@ absl::Status FileSystemPosix::RenameFile(const std::string& src,
   return result;
 }
 
-absl::Status FileSystemPosix::CopyFile(const std::string& src,
-                                       const std::string& target,
+absl::Status FileSystemPosix::CopyFile(std::string_view src,
+                                       std::string_view target,
                                        TransactionToken* token) {
   std::string translated_src = TranslateName(src);
   struct stat sbuf;
@@ -459,7 +459,7 @@ absl::Status FileSystemPosix::CopyFile(const std::string& src,
   return result;
 }
 
-std::string LocalFileSystemPosix::TranslateName(const std::string& name) const {
+std::string LocalFileSystemPosix::TranslateName(std::string_view name) const {
   std::string_view scheme, host, path;
   io::ParseURI(name, &scheme, &host, &path);
   return std::string(path);

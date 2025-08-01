@@ -38,15 +38,20 @@ limitations under the License.
 
 namespace tsl {
 
-bool FileSystem::Match(const std::string& filename,
-                       const std::string& pattern) {
+bool FileSystem::Match(std::string_view filename, std::string_view pattern) {
 #if defined(PLATFORM_POSIX) || defined(IS_MOBILE_PLATFORM) || \
     defined(PLATFORM_GOOGLE)
   // We avoid relying on RE2 on mobile platforms, because it incurs a
   // significant binary size increase.
   // For POSIX platforms, there is no need to depend on RE2 if `fnmatch` can be
   // used safely.
-  return fnmatch(pattern.c_str(), filename.c_str(), FNM_PATHNAME) == 0;
+  // NOTE(chokobole): Using string_view::data() with fnmatch is unsafe, as
+  // fnmatch expects null-terminated strings and string_view does not provide
+  // this guarantee. This can lead to out-of-bounds memory access. To fix this,
+  // you should convert the string_views to std::strings before calling
+  // c_str().
+  return fnmatch(std::string(pattern).c_str(), std::string(filename).c_str(),
+                 FNM_PATHNAME) == 0;
 #else
   regexp = str_util::StringReplace(regexp, "*", "[^/]*", true);
   regexp = str_util::StringReplace(regexp, "?", ".", true);
@@ -57,10 +62,10 @@ bool FileSystem::Match(const std::string& filename,
         // defined(PLATFORM_GOOGLE)
 }
 
-std::string FileSystem::TranslateName(const std::string& name) const {
+std::string FileSystem::TranslateName(std::string_view name) const {
   // If the name is empty, CleanPath returns "." which is incorrect and
   // we should return the empty path instead.
-  if (name.empty()) return name;
+  if (name.empty()) return std::string(name);
 
   // Otherwise, properly separate the URI components and clean the path one
   std::string_view scheme, host, path;
@@ -72,7 +77,7 @@ std::string FileSystem::TranslateName(const std::string& name) const {
   return CleanPath(path);
 }
 
-absl::Status FileSystem::IsDirectory(const std::string& name,
+absl::Status FileSystem::IsDirectory(std::string_view name,
                                      TransactionToken* token) {
   // Check if path exists.
   // TODO(sami):Forward token to other methods once migration is complete.
@@ -85,13 +90,13 @@ absl::Status FileSystem::IsDirectory(const std::string& name,
   return absl::Status(absl::StatusCode::kFailedPrecondition, "Not a directory");
 }
 
-absl::Status FileSystem::HasAtomicMove(const std::string& path,
+absl::Status FileSystem::HasAtomicMove(std::string_view path,
                                        bool* has_atomic_move) {
   *has_atomic_move = true;
   return absl::OkStatus();
 }
 
-absl::Status FileSystem::CanCreateTempFile(const std::string& fname,
+absl::Status FileSystem::CanCreateTempFile(std::string_view fname,
                                            bool* can_create_temp_file) {
   *can_create_temp_file = true;
   return absl::OkStatus();
@@ -116,7 +121,7 @@ bool FileSystem::FilesExist(const std::vector<std::string>& files,
   return result;
 }
 
-absl::Status FileSystem::DeleteRecursively(const std::string& dirname,
+absl::Status FileSystem::DeleteRecursively(std::string_view dirname,
                                            TransactionToken* token,
                                            int64_t* undeleted_files,
                                            int64_t* undeleted_dirs) {
@@ -141,15 +146,15 @@ absl::Status FileSystem::DeleteRecursively(const std::string& dirname,
 
   std::deque<std::string> dir_q;      // Queue for the BFS
   std::vector<std::string> dir_list;  // List of all dirs discovered
-  dir_q.push_back(dirname);
+  dir_q.push_back(std::string(dirname));
   absl::Status ret;  // Status to be returned.
   // Do a BFS on the directory to discover all the sub-directories. Remove all
   // children that are files along the way. Then cleanup and remove the
   // directories in reverse order.;
   while (!dir_q.empty()) {
-    std::string dir = dir_q.front();
+    std::string dir = std::move(dir_q.front());
     dir_q.pop_front();
-    dir_list.push_back(dir);
+    dir_list.push_back(std::move(dir));
     std::vector<std::string> children;
     // GetChildren might fail if we don't have appropriate permissions.
     absl::Status s = GetChildren(dir, &children);
@@ -177,7 +182,7 @@ absl::Status FileSystem::DeleteRecursively(const std::string& dirname,
   // Now reverse the list of directories and delete them. The BFS ensures that
   // we can delete the directories in this order.
   std::reverse(dir_list.begin(), dir_list.end());
-  for (const std::string& dir : dir_list) {
+  for (std::string_view dir : dir_list) {
     // Delete dir might fail because of permissions issues or might be
     // unimplemented.
     absl::Status s = DeleteDir(dir);
@@ -189,7 +194,7 @@ absl::Status FileSystem::DeleteRecursively(const std::string& dirname,
   return ret;
 }
 
-absl::Status FileSystem::RecursivelyCreateDir(const std::string& dirname,
+absl::Status FileSystem::RecursivelyCreateDir(std::string_view dirname,
                                               TransactionToken* token) {
   std::string_view scheme, host, remaining_dir;
   ParseURI(dirname, &scheme, &host, &remaining_dir);
@@ -236,8 +241,7 @@ absl::Status FileSystem::RecursivelyCreateDir(const std::string& dirname,
   return absl::OkStatus();
 }
 
-absl::Status FileSystem::CopyFile(const std::string& src,
-                                  const std::string& target,
+absl::Status FileSystem::CopyFile(std::string_view src, std::string_view target,
                                   TransactionToken* token) {
   return FileSystemCopyFile(this, src, this, target);
 }
