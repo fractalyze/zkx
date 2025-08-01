@@ -3,6 +3,19 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library")
 package(default_visibility = ["//benchmark:__subpackages__"])
 
 zkx_cc_library(
+    name = "curve_flag",
+    srcs = ["curve_flag.cc"],
+    hdrs = ["curve_flag.h"],
+    deps = [
+        "//zkx/base/flag",
+        "//zkx/base/flag:flag_parser",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "field_flag",
     srcs = ["field_flag.cc"],
     hdrs = ["field_flag.h"],
