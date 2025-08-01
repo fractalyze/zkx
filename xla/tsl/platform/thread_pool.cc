@@ -55,11 +55,10 @@ struct EigenEnvironment {
       : env(env), thread_options(thread_options), name(std::string(name)) {}
 
   EnvThread* CreateThread(std::function<void()> f) {
-    return env->StartThread(thread_options, name, [f = std::move(f)]() {
-      // TODO(chokobole): Uncomment this. Dependency: numa
-      // if (thread_options.numa_node != port::kNUMANoAffinity) {
-      //   port::NUMASetThreadNodeAffinity(thread_options.numa_node);
-      // }
+    return env->StartThread(thread_options, name, [this, f = std::move(f)]() {
+      if (thread_options.numa_node != port::kNUMANoAffinity) {
+        port::NUMASetThreadNodeAffinity(thread_options.numa_node);
+      }
       f();
     });
   }

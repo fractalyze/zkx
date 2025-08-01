@@ -19,6 +19,7 @@ zkx_cc_library(
     srcs = ["cpu_info.cc"],
     hdrs = ["cpu_info.h"],
     deps = [
+        ":numa",
         ":platform",
         "//zkx/base:logging",
         "@com_google_absl//absl/base",
