@@ -393,6 +393,35 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_platform",
+    srcs = ["cuda_platform.cc"],
+    hdrs = ["cuda_platform.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_diagnostics",
+        ":cuda_executor",
+        ":cuda_platform_id",
+        ":cuda_status",
+        "//xla/tsl/platform:errors",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:executor_cache",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor/gpu:gpu_diagnostics",
+        "//zkx/stream_executor/platform:initialize",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "cuda_platform_id",
     srcs = ["cuda_platform_id.cc"],
     hdrs = ["cuda_platform_id.h"],
