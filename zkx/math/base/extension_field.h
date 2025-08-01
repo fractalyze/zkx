@@ -229,6 +229,14 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
     return !operator==(other);
   }
 
+  ExtensionField MontReduce() const {
+    ExtensionField ret;
+    for (size_t i = 0; i < std::size(values_); ++i) {
+      ret[i] = values_[i].MontReduce();
+    }
+    return ret;
+  }
+
   std::string ToString() const {
     return base::StrJoin(values_, [](std::ostream& os, const BaseField& value) {
       os << value.ToString();

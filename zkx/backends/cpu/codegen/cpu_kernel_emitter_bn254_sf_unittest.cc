@@ -23,8 +23,8 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[]{:MONT(false)} {
   literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
   TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
-  EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(
-                             math::bn254::Fr::FromUnchecked(x.MontReduce())));
+  EXPECT_EQ(ret_literal,
+            LiteralUtil::CreateR0<math::bn254::Fr>(x.MontReduce()));
 }
 
 TEST_F(CpuKernelEmitterTest, FieldScalarNegate) {

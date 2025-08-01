@@ -108,7 +108,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   // This is equivalent to checking if value_ > ((Config::kModulus - 1) / 2).
   constexpr bool LexicographicallyLargest() const {
     constexpr BigInt<N> kHalfModulus = (Config::kModulus - 1) >> 1;
-    return MontReduce() > kHalfModulus;
+    return MontReduce().value() > kHalfModulus;
   }
 
   constexpr PrimeField operator+(const PrimeField& other) const {
@@ -190,7 +190,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   template <typename T>
   constexpr PrimeField Pow(const T& exponent) const {
     if constexpr (std::is_same_v<T, PrimeField>) {
-      return math::Pow(*this, exponent.MontReduce());
+      return math::Pow(*this, exponent.MontReduce().value());
     } else {
       return math::Pow(*this, BigInt<N>(exponent));
     }
@@ -228,22 +228,22 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   }
 
   constexpr bool operator<(const PrimeField& other) const {
-    return MontReduce() < other.MontReduce();
+    return MontReduce().value() < other.MontReduce().value();
   }
 
   constexpr bool operator>(const PrimeField& other) const {
-    return MontReduce() > other.MontReduce();
+    return MontReduce().value() > other.MontReduce().value();
   }
 
   constexpr bool operator<=(const PrimeField& other) const {
-    return MontReduce() <= other.MontReduce();
+    return MontReduce().value() <= other.MontReduce().value();
   }
 
   constexpr bool operator>=(const PrimeField& other) const {
-    return MontReduce() >= other.MontReduce();
+    return MontReduce().value() >= other.MontReduce().value();
   }
 
-  BigInt<N> MontReduce() const {
+  PrimeField MontReduce() const {
     BigInt<N> ret = value_;
     for (size_t i = 0; i < N; ++i) {
       uint64_t k = ret[i] * Config::kNPrime;
@@ -256,12 +256,12 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
       }
       ret[i] = result.hi;
     }
-    return ret;
+    return PrimeField::FromUnchecked(ret);
   }
 
-  std::string ToString() const { return MontReduce().ToString(); }
+  std::string ToString() const { return MontReduce().value().ToString(); }
   std::string ToHexString(bool pad_zero = false) const {
-    return MontReduce().ToHexString(pad_zero);
+    return MontReduce().value().ToHexString(pad_zero);
   }
 
  private:
@@ -428,7 +428,7 @@ class Serde<math::PrimeField<Config>> {
     if (s_is_in_montgomery) {
       return buffer->Write(prime_field.value());
     } else {
-      return buffer->Write(prime_field.MontReduce());
+      return buffer->Write(prime_field.MontReduce().value());
     }
   }
 
@@ -466,7 +466,8 @@ class JsonSerde<math::PrimeField<Config>> {
     if (s_is_in_montgomery) {
       return JsonSerde<math::BigInt<N>>::From(value.value(), allocator);
     } else {
-      return JsonSerde<math::BigInt<N>>::From(value.MontReduce(), allocator);
+      return JsonSerde<math::BigInt<N>>::From(value.MontReduce().value(),
+                                              allocator);
     }
   }
 

@@ -174,7 +174,7 @@ class JacobianPoint<
 
   constexpr JacobianPoint operator*(const ScalarField& v) const {
     if constexpr (ScalarField::kUseMontgomery) {
-      return ScalarMul(*this, v.MontReduce());
+      return ScalarMul(*this, v.MontReduce().value());
     } else {
       return ScalarMul(*this, v.value());
     }
@@ -205,6 +205,10 @@ class JacobianPoint<
   constexpr PointXyzz ToXyzz() const {
     BaseField zz = z_.Square();
     return {x_, y_, zz, zz * z_};
+  }
+
+  constexpr JacobianPoint MontReduce() const {
+    return {x_.MontReduce(), y_.MontReduce(), z_.MontReduce()};
   }
 
   template <typename JacobianContainer, typename AffineContainer>

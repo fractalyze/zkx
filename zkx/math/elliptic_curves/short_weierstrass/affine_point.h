@@ -102,7 +102,7 @@ class AffinePoint<
 
   constexpr JacobianPoint operator*(const ScalarField& v) const {
     if constexpr (ScalarField::kUseMontgomery) {
-      return ScalarMul(ToJacobian(), v.MontReduce());
+      return ScalarMul(ToJacobian(), v.MontReduce().value());
     } else {
       return ScalarMul(ToJacobian(), v.value());
     }
@@ -116,6 +116,10 @@ class AffinePoint<
   constexpr PointXyzz ToXyzz() const {
     if (IsZero()) return PointXyzz::Zero();
     return {x_, y_, BaseField::One(), BaseField::One()};
+  }
+
+  constexpr AffinePoint MontReduce() const {
+    return {x_.MontReduce(), y_.MontReduce()};
   }
 
   std::string ToString() const {

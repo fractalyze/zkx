@@ -136,6 +136,16 @@ TEST(PointXyzzTest, BatchToAffine) {
   EXPECT_EQ(affine_points, expected_affine_points);
 }
 
+TEST(PointXyzzTest, MontReduce) {
+  PointXyzz p(3, 2, 1, 1);
+  PointXyzz reduced = p.MontReduce();
+
+  EXPECT_EQ(reduced.x(), Fq(3).MontReduce());
+  EXPECT_EQ(reduced.y(), Fq(2).MontReduce());
+  EXPECT_EQ(reduced.zz(), Fq(1).MontReduce());
+  EXPECT_EQ(reduced.zzz(), Fq(1).MontReduce());
+}
+
 TEST(PointXyzzTest, Serde) {
   PointXyzz expected = PointXyzz::Random();
 
