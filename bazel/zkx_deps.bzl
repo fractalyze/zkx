@@ -2,6 +2,7 @@ load("@zkx//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
 load("@zkx//third_party/farmhash:workspace.bzl", farmhash = "repo")
 load("@zkx//third_party/gloo:workspace.bzl", gloo = "repo")
+load("@zkx//third_party/implib_so:workspace.bzl", implib_so = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
@@ -12,6 +13,7 @@ def zkx_deps():
     eigen3()
     farmhash()
     gloo()
+    implib_so()
     uv()
 
     # Load the raw llvm-project.  llvm does not have build rules set up by default,
