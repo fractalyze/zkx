@@ -27,6 +27,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "dso_loader",
+    srcs = ["dso_loader.cc"],
+    hdrs = ["dso_loader.h"],
+    deps = [
+        ":load_library",
+        ":path",
+        ":platform",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "env",
     srcs = [
         "env.cc",
