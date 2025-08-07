@@ -151,6 +151,13 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "load_library",
+    srcs = if_posix(["load_library_posix.cc"]),
+    hdrs = ["load_library.h"],
+    deps = ["@com_google_absl//absl/status"],
+)
+
+zkx_cc_library(
     name = "mem",
     srcs = if_posix(["mem_posix.cc"]),
     hdrs = ["mem.h"],
