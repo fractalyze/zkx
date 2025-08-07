@@ -804,6 +804,7 @@ zkx_cc_unittest(
         "ptx_compiler_unittest.cc",
         "subprocess_compilation_unittest.cc",
     ] + if_cuda_is_configured([
+        "cuda_diagnostics_unittest.cc",
         "tma_util_unittest.cc",
     ]),
     data = [
@@ -836,6 +837,11 @@ zkx_cc_unittest(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
     ] + if_cuda_is_configured([
+        ":cuda_diagnostics",
+        ":cuda_platform",
         ":tma_util",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "@com_google_absl//absl/debugging:leak_check",
     ]),
 )
