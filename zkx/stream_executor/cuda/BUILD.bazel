@@ -779,8 +779,6 @@ zkx_cc_unittest(
         "composite_compilation_provider_unittest.cc",
         "cuda_compute_capability_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
-        # "cuda_kernel_unittest.cc",
-        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
         # "cuda_stream_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: CudaExecutor
         # "cuda_timer_unittest.cc",
@@ -795,6 +793,7 @@ zkx_cc_unittest(
         "cuda_driver_unittest.cc",
         "cuda_event_unittest.cc",
         "cuda_executor_unittest.cc",
+        "cuda_kernel_unittest.cc",
         "tma_util_unittest.cc",
     ]),
     data = [
@@ -830,10 +829,12 @@ zkx_cc_unittest(
         ":cuda_diagnostics",
         ":cuda_event",
         ":cuda_executor",
+        ":cuda_kernel",
         ":cuda_platform",
         ":cuda_platform_id",
         ":cuda_status",
         ":tma_util",
+        "//zkx/stream_executor",
         "//zkx/stream_executor:platform",
         "//zkx/stream_executor:platform_manager",
         "//zkx/stream_executor/gpu:gpu_test_kernels",
