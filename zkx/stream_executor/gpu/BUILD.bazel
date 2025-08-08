@@ -262,11 +262,10 @@ zkx_cc_unittest(
     name = "gpu_unittests",
     srcs = [
         "context_map_unittest.cc",
-        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
-        # "gpu_executor_unittest.cc",
         "scoped_activate_context_unittest.cc",
         "tma_metadata_unittest.cc",
     ] + if_cuda_is_configured([
+        "gpu_executor_unittest.cc",
         "gpu_test_kernels_fatbin_unittest.cc",
     ]),
     deps = [
@@ -279,7 +278,15 @@ zkx_cc_unittest(
         "@com_google_absl//absl/status",
         "@llvm-project//llvm:Support",
     ] + if_cuda_is_configured([
+        ":gpu_executor",
         ":gpu_test_kernels_fatbin",
+        "//xla/tsl/platform:numa",
         "//xla/tsl/platform:statusor",
+        "//zkx/service:platform_util",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor/cuda:cuda_platform",
+        "@com_google_absl//absl/strings",
     ]),
 )
