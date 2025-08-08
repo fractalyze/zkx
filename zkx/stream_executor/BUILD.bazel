@@ -7,7 +7,10 @@ package(default_visibility = ["//visibility:public"])
 proto_library(
     name = "device_description_proto",
     srcs = ["device_description.proto"],
-    deps = ["//zkx/stream_executor/cuda:cuda_compute_capability_proto"],
+    deps = [
+        "//zkx:autotune_results_proto",
+        "//zkx/stream_executor/cuda:cuda_compute_capability_proto",
+    ],
 )
 
 cc_proto_library(
