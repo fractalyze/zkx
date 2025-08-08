@@ -805,6 +805,7 @@ zkx_cc_unittest(
         "subprocess_compilation_unittest.cc",
     ] + if_cuda_is_configured([
         "cuda_diagnostics_unittest.cc",
+        "cuda_driver_unittest.cc",
         "tma_util_unittest.cc",
     ]),
     data = [
@@ -839,9 +840,12 @@ zkx_cc_unittest(
     ] + if_cuda_is_configured([
         ":cuda_diagnostics",
         ":cuda_platform",
+        ":cuda_status",
         ":tma_util",
         "//zkx/stream_executor:platform",
         "//zkx/stream_executor:platform_manager",
         "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
     ]),
 )
