@@ -55,6 +55,12 @@ std::string ZkxSrcRoot() {
   return io::JoinPath(srcdir, workspace, "zkx");
 }
 
+std::string XlaSrcRoot() {
+  std::string workspace = GetEnvVarOrDie("TEST_WORKSPACE");
+  std::string srcdir = GetEnvVarOrDie("TEST_SRCDIR");
+  return io::JoinPath(srcdir, workspace, "xla");
+}
+
 std::string TslSrcRoot() {
   std::string workspace = GetEnvVarOrDie("TEST_WORKSPACE");
   std::string srcdir = GetEnvVarOrDie("TEST_SRCDIR");
