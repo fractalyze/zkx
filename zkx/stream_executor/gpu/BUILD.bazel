@@ -267,6 +267,7 @@ zkx_cc_unittest(
     ] + if_cuda_is_configured([
         "gpu_executor_unittest.cc",
         "gpu_device_info_unittest.cc",
+        "gpu_kernel_unittest.cc",
         "gpu_test_kernels_fatbin_unittest.cc",
     ]),
     data = if_cuda_is_configured([
@@ -291,6 +292,7 @@ zkx_cc_unittest(
         "@llvm-project//llvm:Support",
     ] + if_cuda_is_configured([
         ":gpu_executor",
+        ":gpu_test_kernels",
         ":gpu_test_kernels_fatbin",
         "//xla/tsl/platform:numa",
         "//xla/tsl/platform:path",
@@ -300,9 +302,15 @@ zkx_cc_unittest(
         "//zkx/service:platform_util",
         "//zkx/stream_executor",
         "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:kernel_spec",
+        "//zkx/stream_executor:launch_dim",
         "//zkx/stream_executor:platform",
         "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor:stream",
+        "//zkx/stream_executor:typed_kernel_factory",
         "//zkx/stream_executor/cuda:cuda_platform",
+        "//zkx/stream_executor/rocm:rocm_platform_id",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
