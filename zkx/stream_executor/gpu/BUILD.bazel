@@ -114,6 +114,27 @@ gpu_kernel_library(
     # ]),
 )
 
+zkx_cc_library(
+    name = "gpu_test_kernels_fatbin",
+    testonly = True,
+    srcs = ["gpu_test_kernels_fatbin.cc"],
+    hdrs = ["gpu_test_kernels_fatbin.h"],
+    data = [":gpu_test_kernels"],
+    tags = ["gpu"],
+    deps = [
+        ":gpu_init",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:test_util",
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Object",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
 gpu_only_cc_library(
     name = "gpu_types",
     hdrs = ["gpu_types.h"],
@@ -198,7 +219,9 @@ zkx_cc_unittest(
         # "gpu_executor_unittest.cc",
         "scoped_activate_context_unittest.cc",
         "tma_metadata_unittest.cc",
-    ],
+    ] + if_cuda_is_configured([
+        "gpu_test_kernels_fatbin_unittest.cc",
+    ]),
     deps = [
         ":context_map",
         ":mock_context",
@@ -208,5 +231,8 @@ zkx_cc_unittest(
         "//xla/tsl/platform:status_matchers",
         "@com_google_absl//absl/status",
         "@llvm-project//llvm:Support",
-    ],
+    ] + if_cuda_is_configured([
+        ":gpu_test_kernels_fatbin",
+        "//xla/tsl/platform:statusor",
+    ]),
 )
