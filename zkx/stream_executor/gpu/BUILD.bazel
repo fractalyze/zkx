@@ -1,5 +1,7 @@
 load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda_is_configured")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+load("//zkx/service/gpu:build_defs.bzl", "gpu_kernel_library")
+load("//zkx/stream_executor:build_defs.bzl", "gpu_only_cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -92,6 +94,24 @@ gpu_only_cc_library(
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/log:check",
     ],
+)
+
+gpu_kernel_library(
+    name = "gpu_test_kernels",
+    testonly = True,
+    srcs = ["gpu_test_kernels.cu.cc"],
+    hdrs = ["gpu_test_kernels.h"],
+    linkstatic = True,
+    tags = ["gpu"],
+    deps = [
+        "//zkx/stream_executor:kernel_spec",
+    ] + if_cuda_is_configured([
+        "@local_config_cuda//cuda:cuda_headers",
+    ]),
+    # TODO(chokobole): Uncomment this. Dependency: if_rocm_is_configured
+    #  + if_rocm_is_configured([
+    #     "@local_config_rocm//rocm:rocm_headers",
+    # ]),
 )
 
 gpu_only_cc_library(
