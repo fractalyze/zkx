@@ -794,6 +794,7 @@ zkx_cc_unittest(
         "cuda_diagnostics_unittest.cc",
         "cuda_driver_unittest.cc",
         "cuda_event_unittest.cc",
+        "cuda_executor_unittest.cc",
         "tma_util_unittest.cc",
     ]),
     data = [
@@ -835,6 +836,7 @@ zkx_cc_unittest(
         ":tma_util",
         "//zkx/stream_executor:platform",
         "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor/gpu:gpu_test_kernels",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
     ]),
