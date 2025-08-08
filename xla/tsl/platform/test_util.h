@@ -28,6 +28,9 @@ std::string TmpDir();
 // Returns the path to ZKX in the directory containing data dependencies.
 std::string ZkxSrcRoot();
 
+// Returns the path to XLA in the directory containing data dependencies.
+std::string XlaSrcRoot();
+
 // Returns the path to TSL in the directory containing data dependencies.
 std::string TslSrcRoot();
 
