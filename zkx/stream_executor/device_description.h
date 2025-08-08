@@ -363,7 +363,12 @@ class DeviceDescription {
         gpu_compute_capability_);
   }
 
+  GpuDeviceInfoProto ToGpuProto() const;
+
+  std::string ToString() const;
+
   DeviceDescription() = default;
+  explicit DeviceDescription(const GpuDeviceInfoProto& proto);
 
   // For string values that are not available via the underlying platform, this
   // value will be provided.
