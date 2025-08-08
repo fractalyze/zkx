@@ -399,6 +399,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "trace_command_buffer_factory",
+    srcs = ["trace_command_buffer_factory.cc"],
+    hdrs = ["trace_command_buffer_factory.h"],
+    deps = [
+        ":command_buffer",
+        ":stream",
+        ":stream_executor",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "typed_kernel_factory",
     hdrs = ["typed_kernel_factory.h"],
     deps = [
