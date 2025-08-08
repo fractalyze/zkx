@@ -208,6 +208,28 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ir_emitter_context",
+    srcs = ["ir_emitter_context.cc"],
+    hdrs = ["ir_emitter_context.h"],
+    deps = [
+        ":execution_stream_assignment",
+        ":gpu_constants",
+        ":gpu_executable",
+        ":ir_emission_utils",
+        ":kernel_reuse_cache",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:name_uniquer",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/algorithm:container",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TargetParser",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+zkx_cc_library(
     name = "kernel_arguments",
     srcs = ["kernel_arguments.cc"],
     hdrs = ["kernel_arguments.h"],
