@@ -780,6 +780,21 @@ zkx_cc_library(
     ],
 )
 
+# NOTE(chokobole): This test must be separated from `cuda_unittests` because
+# it causes `CudaPlatform` to cache the executor for the device, which makes
+# `FindExisting(0)` to return true, causing this test to fail.
+zkx_cc_unittest(
+    name = "cuda_platform_unittest",
+    srcs = if_cuda_is_configured(["cuda_platform_unittest.cc"]),
+    deps = if_cuda_is_configured([
+        ":cuda_platform",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ]),
+)
+
 zkx_cc_unittest(
     name = "cuda_unittests",
     srcs = [
