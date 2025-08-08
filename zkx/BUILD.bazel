@@ -7,6 +7,31 @@ package(default_visibility = ["//visibility:public"])
 exports_files(["lit.cfg.py"])
 
 proto_library(
+    name = "autotune_results_proto",
+    srcs = ["autotune_results.proto"],
+    deps = [":autotuning_proto"],
+)
+
+cc_proto_library(
+    name = "autotune_results_cc_proto",
+    deps = [":autotune_results_proto"],
+)
+
+proto_library(
+    name = "autotuning_proto",
+    srcs = ["autotuning.proto"],
+    deps = [
+        "@com_google_protobuf//:any_proto",
+        "@com_google_protobuf//:duration_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "autotuning_cc_proto",
+    deps = [":autotuning_proto"],
+)
+
+proto_library(
     name = "zkx_proto",
     srcs = ["zkx.proto"],
     deps = [
@@ -59,6 +84,19 @@ zkx_cc_library(
     name = "array3d",
     hdrs = ["array3d.h"],
     deps = [":array"],
+)
+
+zkx_cc_library(
+    name = "autotune_result_wrapper",
+    srcs = ["autotune_result_wrapper.cc"],
+    hdrs = ["autotune_result_wrapper.h"],
+    deps = [
+        ":autotune_results_cc_proto",
+        "//xla/tsl/lib/strings:proto_serialization",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
 )
 
 zkx_cc_library(
@@ -442,6 +480,7 @@ zkx_cc_unittest(
         "array2d_unittest.cc",
         "array3d_unittest.cc",
         "array_unittest.cc",
+        "autotune_result_wrapper_unittest.cc",
         "comparison_util_unittest.cc",
         "debug_options_parsers_unittest.cc",
         "index_util_unittest.cc",
@@ -457,6 +496,7 @@ zkx_cc_unittest(
         ":array",
         ":array2d",
         ":array3d",
+        ":autotune_result_wrapper",
         ":comparison_util",
         ":debug_options_flags",
         ":debug_options_parsers",
