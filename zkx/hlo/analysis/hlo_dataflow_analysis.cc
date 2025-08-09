@@ -1971,4 +1971,18 @@ bool HloDataflowAnalysis::CanShareOperandBufferWithUser(
   return user->IsElementwiseOnOperand(user->operand_index(operand));
 }
 
+std::pair<const HloInstruction*, ShapeIndex> FollowTupleIndirection(
+    const HloInstruction* instruction, ShapeIndex operand_index) {
+  while (instruction->opcode() == HloOpcode::kTuple && !operand_index.empty()) {
+    instruction = instruction->operand(operand_index.front());
+    operand_index.pop_front();
+  }
+  while (instruction->opcode() == HloOpcode::kGetTupleElement) {
+    operand_index.push_front(instruction->tuple_index());
+    instruction = instruction->operand(0);
+  }
+
+  return {instruction, operand_index};
+}
+
 }  // namespace zkx
