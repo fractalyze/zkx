@@ -114,6 +114,14 @@ bool GetTestWorkspaceDir(std::string* dir);
 // If it's set and dir != nullptr then sets *dir to that.
 bool GetTestUndeclaredOutputsDir(std::string* dir);
 
+// Resolves paths to help tests find files in their workspace or output
+// directory. Returns whether the path can be resolved. If it can be then sets
+// resolved_path to that.
+//
+// Currently the TEST_WORKSPACE and the TEST_UNDECLARED_OUTPUTS_DIR prefixes can
+// be resolved.
+bool ResolveTestPrefixes(std::string_view path, std::string& resolved_path);
+
 // Appends `.exe` if `PLATFORM_WINDOWS` is defined.
 [[maybe_unused]] std::string& AppendDotExeIfWindows(std::string& path);
 
