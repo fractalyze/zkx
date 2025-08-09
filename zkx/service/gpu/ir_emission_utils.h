@@ -24,11 +24,14 @@ limitations under the License.
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
+#include "absl/status/statusor.h"
 #include "absl/types/span.h"
 
 #include "zkx/hlo/ir/hlo_instruction.h"
 #include "zkx/hlo/utils/hlo_traversal.h"
+#include "zkx/service/buffer_assignment.h"
 #include "zkx/shape.h"
+#include "zkx/shape_util.h"
 #include "zkx/stream_executor/device_description.h"
 
 namespace zkx::gpu {
@@ -68,6 +71,10 @@ inline constexpr std::string_view kUncompilableFusion = "__uncompilable_fusion";
 
 // Returns true if `instr` is a non-strided slice.
 bool IsSliceWithUnitStrides(const HloInstruction* instr);
+
+absl::StatusOr<BufferAllocation::Slice> GetAllocationSlice(
+    const BufferAssignment& buffer_assignment, const HloInstruction* instr,
+    const ShapeIndex& index);
 
 // Returns the first hero instruction reachable from `instr` as root. Hero
 // instruction can be in a different computation if the parent HloFusionAdaptor

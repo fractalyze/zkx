@@ -31,6 +31,12 @@ bool IsSliceWithUnitStrides(const HloInstruction* instr) {
                                  [](int64_t stride) { return stride == 1; });
 }
 
+absl::StatusOr<BufferAllocation::Slice> GetAllocationSlice(
+    const BufferAssignment& buffer_assignment, const HloInstruction* instr,
+    const ShapeIndex& index) {
+  return buffer_assignment.GetUniqueSlice(instr, index);
+}
+
 std::optional<TransposeDescription> GetDescriptionForTiledTransposeEmitter(
     const HloInstruction& hero) {
   if (hero.opcode() != HloOpcode::kTranspose) {
