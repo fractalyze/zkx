@@ -177,8 +177,10 @@ zkx_cc_library(
     srcs = ["ir_emission_utils.cc"],
     hdrs = ["ir_emission_utils.h"],
     deps = [
+        "//zkx:literal",
         "//zkx:primitive_util",
         "//zkx:shape_util",
+        "//zkx:util",
         "//zkx/hlo/ir:hlo",
         "//zkx/hlo/utils:hlo_traversal",
         "//zkx/service:buffer_assignment",
