@@ -331,6 +331,7 @@ zkx_cc_library(
     hdrs = ["stream_executor_util.h"],
     deps = [
         "//xla/tsl/platform:statusor",
+        "//zkx/service:hlo_module_config",
         "//zkx/service/gpu:launch_dimensions",
         "//zkx/stream_executor",
         "//zkx/stream_executor:device_memory",
