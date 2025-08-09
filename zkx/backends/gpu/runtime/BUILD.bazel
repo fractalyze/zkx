@@ -3,6 +3,28 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "copy_thunk",
+    srcs = ["copy_thunk.cc"],
+    hdrs = ["copy_thunk.h"],
+    deps = [
+        ":thunk",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:event",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "sequential_thunk",
     srcs = ["sequential_thunk.cc"],
     hdrs = ["sequential_thunk.h"],
