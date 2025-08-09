@@ -22,6 +22,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/stream_executor/kernel_spec.h"
+#include "zkx/zkx.pb.h"
 
 namespace zkx::gpu {
 
@@ -87,6 +88,11 @@ absl::Status ExecuteKernelOnStream(se::Kernel& kernel,
 
   return kernel.Launch(dims.thread_counts_per_block(), dims.block_counts(),
                        cluster_dim, stream, *kernel_args);
+}
+
+bool RequireDeterminism(const HloModuleConfig& config) {
+  return config.debug_options().zkx_gpu_deterministic_ops() ||
+         config.debug_options().zkx_gpu_exclude_nondeterministic_ops();
 }
 
 }  // namespace zkx::gpu

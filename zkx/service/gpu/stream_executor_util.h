@@ -24,6 +24,7 @@ limitations under the License.
 #include "absl/types/span.h"
 
 #include "zkx/service/gpu/launch_dimensions.h"
+#include "zkx/service/hlo_module_config.h"
 #include "zkx/stream_executor/device_memory.h"
 #include "zkx/stream_executor/kernel.h"
 #include "zkx/stream_executor/launch_dim.h"
@@ -64,6 +65,9 @@ absl::Status ExecuteKernelOnStream(se::Kernel& kernel,
                                    const LaunchDimensions& dims,
                                    const se::ClusterDim& cluster_dim,
                                    se::Stream* stream);
+
+// Returns whether determinism is required.
+bool RequireDeterminism(const HloModuleConfig& config);
 
 }  // namespace zkx::gpu
 
