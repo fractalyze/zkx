@@ -79,6 +79,11 @@ message DebugOptions {
   // Path to directory with cuda/ptx tools and libraries.
   string zkx_gpu_cuda_data_dir = 61;
 
+  // Guarantees run-to-run determinism.
+  // This flag implies --zkx_gpu_exclude_nondeterministic_ops and in addition
+  // disables autotuning.
+  bool zkx_gpu_deterministic_ops = 148;
+
   // File to write autotune logs to. It will stored in txt format.
   string zkx_gpu_dump_autotune_logs_to = 292;
 
@@ -117,6 +122,13 @@ message DebugOptions {
 
   // Enable NCCL communicator splitting.
   bool zkx_gpu_enable_nccl_comm_splitting = 272;
+
+  // Excludes non-deterministic ops from compiled executables.
+  // Unlike --zkx_gpu_deterministic_ops does not disable autotuning - the
+  // compilation itself can be non-deterministic.
+  // Scatter ops can non-deterministic by default; these get converted to
+  // a deterministic implementation.
+  bool zkx_gpu_exclude_nondeterministic_ops = 297;
 
   // If enabled, uses the libnvjitlink library for PTX compilation and linking
   LibNvJitLinkMode zkx_gpu_libnvjitlink_mode = 343;

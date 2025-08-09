@@ -405,6 +405,17 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "--zkx_gpu_force_compilation_parallelism flag and the thread pool "
       "supplied to GpuCompiler."));
 
+  flag_list->push_back(
+      tsl::Flag("zkx_gpu_deterministic_ops",
+                bool_setter_for(&DebugOptions::set_zkx_gpu_deterministic_ops),
+                debug_options->zkx_gpu_deterministic_ops(),
+                "Guarantees run-to-run determinism on GPU."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_exclude_nondeterministic_ops",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_exclude_nondeterministic_ops),
+      debug_options->zkx_gpu_exclude_nondeterministic_ops(),
+      "Excludes non-deterministic ops from compiled executables."));
+
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_enable_libnvptxcompiler",
       [debug_options](bool enabled) {
