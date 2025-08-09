@@ -21,12 +21,21 @@ limitations under the License.
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/statusor.h"
 #include "absl/types/span.h"
+
+#include "zkx/hlo/ir/hlo_instruction.h"
+#include "zkx/service/buffer_assignment.h"
+#include "zkx/shape_util.h"
 
 namespace zkx::gpu {
 
 // <HLO computation fingerprint, serialized compiled object>.
 using BinaryMap = absl::flat_hash_map<std::string, std::string>;
+
+absl::StatusOr<BufferAllocation::Slice> GetAllocationSlice(
+    const BufferAssignment& buffer_assignment, const HloInstruction* instr,
+    const ShapeIndex& index);
 
 // This class stores either a non-owning reference or owns data that represents
 // a dense array in ZKX format. It is used for intermediate storage during IR
