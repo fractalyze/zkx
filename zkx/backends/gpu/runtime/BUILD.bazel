@@ -68,3 +68,14 @@ zkx_cc_library(
         "@com_google_absl//absl/types:span",
     ],
 )
+
+zkx_cc_library(
+    name = "wait_for_streams_thunk",
+    srcs = ["wait_for_streams_thunk.cc"],
+    hdrs = ["wait_for_streams_thunk.h"],
+    deps = [
+        ":thunk",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/log",
+    ],
+)
