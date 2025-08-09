@@ -25,6 +25,7 @@ limitations under the License.
 #include "absl/types/span.h"
 
 #include "zkx/hlo/ir/hlo_instruction.h"
+#include "zkx/literal.h"
 #include "zkx/service/buffer_assignment.h"
 #include "zkx/shape_util.h"
 
@@ -65,6 +66,9 @@ class DenseDataIntermediate {
  private:
   std::variant<std::vector<uint8_t>, absl::Span<const uint8_t>> data_;
 };
+
+absl::StatusOr<DenseDataIntermediate> LiteralToZkxFormat(
+    const Literal& literal);
 
 }  // namespace zkx::gpu
 
