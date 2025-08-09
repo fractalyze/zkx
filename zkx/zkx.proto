@@ -116,12 +116,21 @@ message DebugOptions {
   // Enable NCCL communicator splitting.
   bool zkx_gpu_enable_nccl_comm_splitting = 272;
 
+  // Enable NCCL user buffers.
+  bool zkx_gpu_enable_nccl_user_buffers = 267;
+
+  // Enables shared constants for ZKX/GPU. This allows large constants to be
+  // shared among multiple GPU executables.
+  bool zkx_gpu_enable_shared_constants = 165;
+
   // Excludes non-deterministic ops from compiled executables.
   // Unlike --zkx_gpu_deterministic_ops does not disable autotuning - the
   // compilation itself can be non-deterministic.
   // Scatter ops can non-deterministic by default; these get converted to
   // a deterministic implementation.
   bool zkx_gpu_exclude_nondeterministic_ops = 297;
+
+  string zkx_gpu_kernel_cache_file = 306;
 
   // If enabled, uses the libnvjitlink library for PTX compilation and linking
   LibNvJitLinkMode zkx_gpu_libnvjitlink_mode = 343;
@@ -150,6 +159,13 @@ message DebugOptions {
   // e.g., command buffer updates to ensure correctness when running in
   // multi-thread mode.
   bool zkx_gpu_require_exclusive_lock = 347;
+
+  // Enable this flag will use a separate memory space color for
+  // temp buffer, and then will use separate memory allocator to allocate it,
+  // as there is no other memory allocation interference,
+  // it will allocate temp buffer to some fix address on every iteration,
+  // which is good for cuda-graph perf.
+  bool zkx_gpu_temp_buffer_use_separate_color = 312;
 
   // It is usually preferable to not fallback to the driver; it can consume more
   // memory, or have bugs.
