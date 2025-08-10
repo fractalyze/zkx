@@ -65,7 +65,7 @@ bool FileSystem::Match(std::string_view filename, std::string_view pattern) {
 std::string FileSystem::TranslateName(std::string_view name) const {
   // If the name is empty, CleanPath returns "." which is incorrect and
   // we should return the empty path instead.
-  if (name.empty()) return std::string(name);
+  if (name.empty()) return "";
 
   // Otherwise, properly separate the URI components and clean the path one
   std::string_view scheme, host, path;
