@@ -10,6 +10,7 @@ proto_library(
     deps = [
         "//zkx:zkx_data_proto",
         "//zkx:zkx_proto",
+        "//zkx/stream_executor:device_description_proto",
     ],
 )
 
