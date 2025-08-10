@@ -153,8 +153,7 @@ class Compiler {
 
     // AOT device description. If provided, used instead of querying the device
     // on which compilation is performed.
-    // TODO(chokobole): Uncomment this. Dependency: TargetConfig
-    // std::optional<TargetConfig> target_config;
+    std::optional<TargetConfig> target_config;
 
     MultiProcessKeyValueStore key_value_store;
   };
@@ -432,13 +431,12 @@ class AotCompilationOptions {
     sanitize_abilists_dataflow_ = abilists;
   }
 
-  // TODO(chokobole): Uncomment this. Dependency: TargetConfig
-  // const std::optional<Compiler::TargetConfig>& target_config() const {
-  //   return target_config_;
-  // }
-  // void set_target_config(const Compiler::TargetConfig& target_config) {
-  //   target_config_ = target_config;
-  // }
+  const std::optional<Compiler::TargetConfig>& target_config() const {
+    return target_config_;
+  }
+  void set_target_config(const Compiler::TargetConfig& target_config) {
+    target_config_ = target_config;
+  }
 
  protected:
   AotCompilationOptions();
@@ -458,8 +456,7 @@ class AotCompilationOptions {
   bool sanitize_dataflow_ = false;
   std::vector<std::string> sanitize_abilists_dataflow_;
   // Contains target-specific information required by AOT compilation.
-  // TODO(chokobole): Uncomment this. Dependency: TargetConfig
-  // std::optional<Compiler::TargetConfig> target_config_;
+  std::optional<Compiler::TargetConfig> target_config_;
 };
 
 }  // namespace zkx

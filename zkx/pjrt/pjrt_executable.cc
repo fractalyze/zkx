@@ -68,10 +68,9 @@ absl::StatusOr<CompileOptionsProto> CompileOptions::ToProto() const {
     std::visit([&](const auto& arg) { SetOptionOverride(tmp, arg); },
                env_option_override.second);
   }
-  // TODO(chokobole): Uncomment this. Dependency: TargetConfig
-  // if (target_config.has_value()) {
-  //   *output.mutable_target_config() = target_config->ToProto();
-  // }
+  if (target_config.has_value()) {
+    *output.mutable_target_config() = target_config->ToProto();
+  }
   return output;
 }
 
@@ -101,10 +100,9 @@ absl::StatusOr<CompileOptions> CompileOptions::FromProto(
   TF_ASSIGN_OR_RETURN(output.env_option_overrides,
                       LoadEnvOptionOverrides(proto.env_option_overrides()));
 
-  // TODO(chokobole): Uncomment this. Dependency: TargetConfig
-  // if (proto.has_target_config()) {
-  //   output.target_config = Compiler::TargetConfig(proto.target_config());
-  // }
+  if (proto.has_target_config()) {
+    output.target_config = Compiler::TargetConfig(proto.target_config());
+  }
   return output;
 }
 
