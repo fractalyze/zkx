@@ -212,6 +212,7 @@ zkx_cc_library(
         "//zkx/hlo/ir:hlo_module_group",
         "//zkx/pjrt/distributed:key_value_store_interface",
         "//zkx/stream_executor",
+        "//zkx/stream_executor:device_description",
         "//zkx/stream_executor:device_memory_allocator",
         "//zkx/stream_executor:platform",
         "@com_google_absl//absl/base:core_headers",
