@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package zkx;
 
+import "zkx/stream_executor/device_description.proto";
 import "zkx/zkx.proto";
 import "zkx/zkx_data.proto";
 
@@ -148,8 +149,7 @@ message CompileOptionsProto {
   bytes serialized_multi_slice_config = 6;
   map<string, OptionOverrideProto> env_option_overrides = 7;
 
-  // TODO(chokobole): Uncomment this. Dependency: GpuTargetConfigProto
-  // stream_executor.GpuTargetConfigProto target_config = 8;
+  stream_executor.GpuTargetConfigProto target_config = 8;
 }
 
 // Helper for serializing opaque executables alongside CompileOptions.
