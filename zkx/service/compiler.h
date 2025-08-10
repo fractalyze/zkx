@@ -42,6 +42,7 @@ limitations under the License.
 #include "zkx/service/computation_placer.h"
 #include "zkx/service/executable.h"
 #include "zkx/service/hlo_cost_analysis.h"
+#include "zkx/stream_executor/device_description.h"
 #include "zkx/stream_executor/device_memory_allocator.h"
 #include "zkx/stream_executor/platform.h"
 #include "zkx/stream_executor/stream_executor.h"
@@ -112,6 +113,27 @@ class AotCompilationMetadata {
 // platform.
 class Compiler {
  public:
+  // Description of a target device for compilation.
+  struct TargetConfig {
+    explicit TargetConfig(const se::GpuTargetConfigProto& proto);
+    explicit TargetConfig(se::StreamExecutor* s);
+
+    se::GpuTargetConfigProto ToProto() const;
+
+    bool operator==(const TargetConfig& other) const {
+      // TODO(cheshire): More efficient comparator, this is currently just for
+      // tests.
+      return ToProto().SerializeAsString() ==
+             other.ToProto().SerializeAsString();
+    }
+
+    std::string ToString() { return ToProto().DebugString(); }
+
+    se::DeviceDescription device_description;
+    std::string platform_name;
+    std::string device_description_str;
+  };
+
   struct CompileOptions {
     // If device_allocator is not null, the compiler may use it to allocate temp
     // space on the device for use during compilation.  For example, the
