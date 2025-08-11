@@ -51,6 +51,7 @@ zkx_cc_library(
         "//zkx:shape_util",
         "//zkx/hlo/ir:hlo",
         "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:inlined_vector",
     ],

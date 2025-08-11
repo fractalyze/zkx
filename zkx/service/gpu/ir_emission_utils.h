@@ -52,6 +52,9 @@ inline constexpr int64_t WarpSize(
   return gpu_device_info.threads_per_warp();
 }
 
+// Returns true if `instr` is a non-strided slice.
+bool IsSliceWithUnitStrides(const HloInstruction* instr);
+
 // Description of how to emit a given transposition.
 struct TransposeDescription {
   // Transpose instruction.

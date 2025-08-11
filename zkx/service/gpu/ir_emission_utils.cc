@@ -15,9 +15,19 @@ limitations under the License.
 
 #include "zkx/service/gpu/ir_emission_utils.h"
 
+#include "absl/algorithm/container.h"
+
+#include "zkx/hlo/ir/hlo_casting_utils.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx::gpu {
+
+bool IsSliceWithUnitStrides(const HloInstruction* instr) {
+  auto slice = DynCast<HloSliceInstruction>(instr);
+  return slice && absl::c_all_of(slice->slice_strides(),
+                                 [](int64_t stride) { return stride == 1; });
+}
 
 std::optional<TransposeDescription> GetDescriptionForTiledTransposeEmitter(
     const HloInstruction& hero) {
