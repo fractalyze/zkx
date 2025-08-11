@@ -44,8 +44,16 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "ir_emission_utils",
+    srcs = ["ir_emission_utils.cc"],
     hdrs = ["ir_emission_utils.h"],
-    deps = ["@com_google_absl//absl/container:flat_hash_map"],
+    deps = [
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+    ],
 )
 
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
+# TODO(chokobole): Add ir_emission_utils_unittest.cc. Dependency: HloTestBase.
