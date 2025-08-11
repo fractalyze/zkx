@@ -53,6 +53,20 @@ inline constexpr int64_t WarpSize(
   return gpu_device_info.threads_per_warp();
 }
 
+// Fusions that implemented with pre-compiled device kernels have
+// FusionBackendConfig.kind equal to this string.
+inline constexpr std::string_view kCustomFusionKind = "__custom_fusion";
+
+// Generic fusions that use Triton have FusionBackendConfig.kind equal to this
+// string. This fusion kind will eventually subsume all usages of
+// kTritonGemmFusionKind and kTritonSoftmaxFusionKind.
+inline constexpr std::string_view kTritonFusionKind = "__triton";
+
+// Fusions that use Triton have FusionBackendConfig.kind equal to this string.
+inline constexpr std::string_view kTritonGemmFusionKind = "__triton_gemm";
+
+inline constexpr std::string_view kUncompilableFusion = "__uncompilable_fusion";
+
 // Returns true if `instr` is a non-strided slice.
 bool IsSliceWithUnitStrides(const HloInstruction* instr);
 

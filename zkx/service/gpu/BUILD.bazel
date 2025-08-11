@@ -43,6 +43,29 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_fusion_analysis",
+    srcs = ["hlo_fusion_analysis.cc"],
+    hdrs = ["hlo_fusion_analysis.h"],
+    deps = [
+        ":backend_configs_cc_proto",
+        ":ir_emission_utils",
+        ":reduction_utils",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/utils:hlo_traversal",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "ir_emission_utils",
     srcs = ["ir_emission_utils.cc"],
     hdrs = ["ir_emission_utils.h"],
@@ -78,5 +101,6 @@ zkx_cc_library(
 )
 
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
+# TODO(chokobole): Add hlo_fusion_analysis_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add ir_emission_utils_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add reduction_utils_unittest.cc. Dependency: HloTestBase.
