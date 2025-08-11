@@ -85,3 +85,12 @@ def zkx_deps():
     #     name = "zkir",
     #     path = "../zkir",
     # )
+
+    VERSION_COMMIT = "628481ed998e2231479ba43f7ed7d67ed3fdb534"
+
+    tf_http_archive(
+        name = "version",
+        sha256 = "65d8fdbe3894491a68363d24fbd99ef4e342133049feccd1ef47f96253b5f6a6",
+        strip_prefix = "version-{commit}".format(commit = VERSION_COMMIT),
+        urls = tf_mirror_urls("https://github.com/zk-rabbit/version/archive/{commit}.tar.gz".format(commit = VERSION_COMMIT)),
+    )
