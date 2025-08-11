@@ -25,6 +25,7 @@ limitations under the License.
 #include "absl/container/inlined_vector.h"
 
 #include "zkx/hlo/ir/hlo_instruction.h"
+#include "zkx/hlo/utils/hlo_traversal.h"
 #include "zkx/shape.h"
 #include "zkx/stream_executor/device_description.h"
 
@@ -54,6 +55,14 @@ inline constexpr int64_t WarpSize(
 
 // Returns true if `instr` is a non-strided slice.
 bool IsSliceWithUnitStrides(const HloInstruction* instr);
+
+// Returns the first hero instruction reachable from `instr` as root. Hero
+// instruction can be in a different computation if the parent HloFusionAdaptor
+// is a producer-consumer fusion.
+HloInstructionAdaptor FindNonTrivialHero(const HloInstructionAdaptor& instr);
+
+// Same as above, but fusion is the parent computation of the hlo instruction.
+const HloInstruction& FindNonTrivialHero(const HloInstruction& instr);
 
 // Description of how to emit a given transposition.
 struct TransposeDescription {
@@ -87,6 +96,9 @@ struct TransposeDescription {
 
 std::optional<TransposeDescription> GetDescriptionForTiledTransposeEmitter(
     const HloInstruction& hero);
+
+// Checks if the instruction is elementwise.
+bool IsIntermediate(const HloInstruction* instr, int allowed_operand_count = 1);
 
 }  // namespace zkx::gpu
 
