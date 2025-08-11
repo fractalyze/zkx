@@ -26,6 +26,7 @@ limitations under the License.
 
 #include "zkx/hlo/ir/hlo_instruction.h"
 #include "zkx/shape.h"
+#include "zkx/stream_executor/device_description.h"
 
 namespace zkx::gpu {
 
@@ -45,6 +46,11 @@ inline constexpr int64_t kMinTotalDimensionsToTransposeTiled = 64 * 128;
 // detect 102 transposes that would require too much bytes for the most minor
 // dimension.
 inline constexpr int64_t kMaxBytesInMostMinorDimension = 8;
+
+inline constexpr int64_t WarpSize(
+    const se::DeviceDescription& gpu_device_info) {
+  return gpu_device_info.threads_per_warp();
+}
 
 // Description of how to emit a given transposition.
 struct TransposeDescription {
