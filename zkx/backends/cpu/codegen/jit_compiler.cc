@@ -21,6 +21,7 @@ limitations under the License.
 #include "absl/base/call_once.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/ExecutionEngine/Orc/SelfExecutorProcessControl.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/TargetParser/Host.h"
@@ -103,10 +104,19 @@ absl::StatusOr<JitCompiler> JitCompiler::Create(
       std::make_unique<TaskDispatcher>(std::move(task_runner));
   TaskDispatcher* task_dispatcher_ptr = task_dispatcher.get();
 
-  // LLVM execution session that holds jit-compiled functions.
-  auto execution_session = std::make_unique<llvm::orc::ExecutionSession>(
-      std::make_unique<llvm::orc::UnsupportedExecutorProcessControl>(
-          /*SSP=*/nullptr, std::move(task_dispatcher)));
+  // Create a concrete epc for this process (cannot construct epc directly).
+  auto epc = llvm::orc::SelfExecutorProcessControl::Create(
+      /*SSP=*/nullptr, std::move(task_dispatcher));
+  if (!epc) {
+    // Convert LLVM Error -> absl::Status
+    auto msg = llvm::toString(epc.takeError());
+    return absl::InternalError(
+        absl::StrCat("Failed to create SelfExecutorProcessControl: ", msg));
+  }
+
+  // LLVM execution session that holds JIT-compiled functions.
+  auto execution_session =
+      std::make_unique<llvm::orc::ExecutionSession>(std::move(*epc));
 
   execution_session->setErrorReporter([](llvm::Error err) {
     LOG(ERROR) << "LLVM compilation error: " << llvm::toString(std::move(err));

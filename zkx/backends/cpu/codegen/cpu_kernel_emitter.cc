@@ -617,7 +617,7 @@ absl::Status CpuKernelEmitter::EmitEpilog(EmitterLocOpBuilder& b,
   } else {
     pass_flag_.enable_one_shot_bufferize = true;
 
-    ret_value = b.create<mlir::bufferization::ToMemrefOp>(ret_type, result);
+    ret_value = b.create<mlir::bufferization::ToBufferOp>(ret_type, result);
   }
 
   b.create<mlir::func::ReturnOp>(mlir::ValueRange{ret_value});
