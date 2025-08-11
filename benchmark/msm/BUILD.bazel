@@ -1,0 +1,15 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_binary")
+
+zkx_cc_binary(
+    name = "benchmark",
+    srcs = ["benchmark.cc"],
+    deps = [
+        "//benchmark:curve_flag",
+        "//benchmark:runner",
+        "//zkx:literal_util",
+        "//zkx/math/elliptic_curves/bn/bn254:g1",
+        "//zkx/math/elliptic_curves/bn/bn254:g2",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)

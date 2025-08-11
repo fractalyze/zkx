@@ -1,0 +1,21 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "table_writer",
+    srcs = ["table_writer.cc"],
+    hdrs = ["table_writer.h"],
+    deps = [
+        "//xla/tsl/platform",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "table_writer_unittest",
+    srcs = ["table_writer_unittest.cc"],
+    deps = [":table_writer"],
+)

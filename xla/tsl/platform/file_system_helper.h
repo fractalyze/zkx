@@ -44,7 +44,7 @@ namespace internal {
 //
 // Returns an error status if any call to `fs` failed.
 absl::Status GetMatchingPaths(FileSystem* fs, Env* env,
-                              const std::string& pattern,
+                              std::string_view pattern,
                               std::vector<std::string>* results);
 
 // Given a file path, determines whether the file exists. This helper simplifies
@@ -56,7 +56,7 @@ absl::Status GetMatchingPaths(FileSystem* fs, Env* env,
 //
 // Returns true if the file exists, false if it does not exist, or an error
 // Status.
-absl::StatusOr<bool> FileExists(Env* env, const std::string& fname);
+absl::StatusOr<bool> FileExists(Env* env, std::string_view fname);
 
 }  // namespace internal
 }  // namespace tsl

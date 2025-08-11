@@ -62,15 +62,15 @@ class Env {
   /// for the file system related (non-virtual) functions that follow.
   /// Returned FileSystem object is still owned by the Env object and will
   // (might) be destroyed when the environment is destroyed.
-  virtual absl::Status GetFileSystemForFile(const std::string& fname,
+  virtual absl::Status GetFileSystemForFile(std::string_view fname,
                                             FileSystem** result);
 
   /// \brief Returns the file system schemes registered for this Env.
   virtual absl::Status GetRegisteredFileSystemSchemes(
-      std::vector<std::string>* schemes);
+      std::vector<std::string_view>* schemes);
 
   /// \brief Register a file system for a scheme.
-  virtual absl::Status RegisterFileSystem(const std::string& scheme,
+  virtual absl::Status RegisterFileSystem(std::string_view scheme,
                                           FileSystemRegistry::Factory factory);
 
   /// \brief Register a modular file system for a scheme.
@@ -80,18 +80,18 @@ class Env {
   /// TODO(b/139060984): After all filesystems are converted, make this be the
   /// canonical registration function.
   virtual absl::Status RegisterFileSystem(
-      const std::string& scheme, std::unique_ptr<FileSystem> filesystem);
+      std::string_view scheme, std::unique_ptr<FileSystem> filesystem);
 
-  absl::Status SetOption(const std::string& scheme, const std::string& key,
-                         const std::string& value);
+  absl::Status SetOption(std::string_view scheme, std::string_view key,
+                         std::string_view value);
 
-  absl::Status SetOption(const std::string& scheme, const std::string& key,
+  absl::Status SetOption(std::string_view scheme, std::string_view key,
                          const std::vector<std::string>& values);
 
-  absl::Status SetOption(const std::string& scheme, const std::string& key,
+  absl::Status SetOption(std::string_view scheme, std::string_view key,
                          const std::vector<int64_t>& values);
 
-  absl::Status SetOption(const std::string& scheme, const std::string& key,
+  absl::Status SetOption(std::string_view scheme, std::string_view key,
                          const std::vector<double>& values);
 
   /// \brief Flush filesystem caches for all registered filesystems.
@@ -110,10 +110,10 @@ class Env {
   /// The ownership of the returned RandomAccessFile is passed to the caller
   /// and the object should be deleted when is not used. The file object
   /// shouldn't live longer than the Env object.
-  absl::Status NewRandomAccessFile(const std::string& fname,
+  absl::Status NewRandomAccessFile(std::string_view fname,
                                    std::unique_ptr<RandomAccessFile>* result);
 
-  absl::Status NewRandomAccessFile(const std::string& fname,
+  absl::Status NewRandomAccessFile(std::string_view fname,
                                    TransactionToken* token,
                                    std::unique_ptr<RandomAccessFile>* result) {
     // We duplicate these methods due to Google internal coding style prevents
@@ -134,11 +134,10 @@ class Env {
   /// The ownership of the returned WritableFile is passed to the caller
   /// and the object should be deleted when is not used. The file object
   /// shouldn't live longer than the Env object.
-  absl::Status NewWritableFile(const std::string& fname,
+  absl::Status NewWritableFile(std::string_view fname,
                                std::unique_ptr<WritableFile>* result);
 
-  absl::Status NewWritableFile(const std::string& fname,
-                               TransactionToken* token,
+  absl::Status NewWritableFile(std::string_view fname, TransactionToken* token,
                                std::unique_ptr<WritableFile>* result) {
     return absl::OkStatus();
   }
@@ -155,10 +154,10 @@ class Env {
   /// The ownership of the returned WritableFile is passed to the caller
   /// and the object should be deleted when is not used. The file object
   /// shouldn't live longer than the Env object.
-  absl::Status NewAppendableFile(const std::string& fname,
+  absl::Status NewAppendableFile(std::string_view fname,
                                  std::unique_ptr<WritableFile>* result);
 
-  absl::Status NewAppendableFile(const std::string& fname,
+  absl::Status NewAppendableFile(std::string_view fname,
                                  TransactionToken* token,
                                  std::unique_ptr<WritableFile>* result) {
     return absl::OkStatus();
@@ -175,18 +174,18 @@ class Env {
   /// and the object should be deleted when is not used. The memory region
   /// object shouldn't live longer than the Env object.
   absl::Status NewReadOnlyMemoryRegionFromFile(
-      const std::string& fname, std::unique_ptr<ReadOnlyMemoryRegion>* result);
+      std::string_view fname, std::unique_ptr<ReadOnlyMemoryRegion>* result);
 
   absl::Status NewReadOnlyMemoryRegionFromFile(
-      const std::string& fname, TransactionToken* token,
+      std::string_view fname, TransactionToken* token,
       std::unique_ptr<ReadOnlyMemoryRegion>* result) {
     return absl::OkStatus();
   }
 
   /// Returns OK if the named path exists and NOT_FOUND otherwise.
-  absl::Status FileExists(const std::string& fname);
+  absl::Status FileExists(std::string_view fname);
 
-  absl::Status FileExists(const std::string& fname, TransactionToken* token) {
+  absl::Status FileExists(std::string_view fname, TransactionToken* token) {
     return absl::OkStatus();
   }
 
@@ -205,36 +204,35 @@ class Env {
   /// directory. The names are relative to "dir".
   ///
   /// Original contents of *results are dropped.
-  absl::Status GetChildren(const std::string& dir,
+  absl::Status GetChildren(std::string_view dir,
                            std::vector<std::string>* result);
 
-  absl::Status GetChildren(const std::string& dir, TransactionToken* token,
+  absl::Status GetChildren(std::string_view dir, TransactionToken* token,
                            std::vector<std::string>* result) {
     return absl::OkStatus();
   }
 
   /// \brief Returns true if the path matches the given pattern. The wildcards
   /// allowed in pattern are described in FileSystem::GetMatchingPaths.
-  virtual bool MatchPath(const std::string& path,
-                         const std::string& pattern) = 0;
+  virtual bool MatchPath(std::string_view path, std::string_view pattern) = 0;
 
   /// \brief Given a pattern, stores in *results the set of paths that matches
   /// that pattern. *results is cleared.
   ///
   /// More details about `pattern` in FileSystem::GetMatchingPaths.
-  virtual absl::Status GetMatchingPaths(const std::string& pattern,
+  virtual absl::Status GetMatchingPaths(std::string_view pattern,
                                         std::vector<std::string>* results);
 
-  absl::Status GetMatchingPaths(const std::string& pattern,
+  absl::Status GetMatchingPaths(std::string_view pattern,
                                 TransactionToken* token,
                                 std::vector<std::string>* results) {
     return absl::OkStatus();
   }
 
   /// Deletes the named file.
-  absl::Status DeleteFile(const std::string& fname);
+  absl::Status DeleteFile(std::string_view fname);
 
-  absl::Status DeleteFile(const std::string& fname, TransactionToken* token) {
+  absl::Status DeleteFile(std::string_view fname, TransactionToken* token) {
     return absl::OkStatus();
   }
 
@@ -262,11 +260,11 @@ class Env {
   ///  * PERMISSION_DENIED - dirname or some descendant is not writable
   ///  * UNIMPLEMENTED - Some underlying functions (like Delete) are not
   ///                    implemented
-  absl::Status DeleteRecursively(const std::string& dirname,
+  absl::Status DeleteRecursively(std::string_view dirname,
                                  int64_t* undeleted_files,
                                  int64_t* undeleted_dirs);
 
-  absl::Status DeleteRecursively(const std::string& dirname,
+  absl::Status DeleteRecursively(std::string_view dirname,
                                  TransactionToken* token,
                                  int64_t* undeleted_files,
                                  int64_t* undeleted_dirs) {
@@ -278,9 +276,9 @@ class Env {
   ///  * OK - successfully created the directory and sub directories, even if
   ///         they were already created.
   ///  * PERMISSION_DENIED - dirname or some subdirectory is not writable.
-  absl::Status RecursivelyCreateDir(const std::string& dirname);
+  absl::Status RecursivelyCreateDir(std::string_view dirname);
 
-  absl::Status RecursivelyCreateDir(const std::string& dirname,
+  absl::Status RecursivelyCreateDir(std::string_view dirname,
                                     TransactionToken* token) {
     return absl::OkStatus();
   }
@@ -288,23 +286,23 @@ class Env {
   ///  * OK - successfully created the directory.
   ///  * ALREADY_EXISTS - directory already exists.
   ///  * PERMISSION_DENIED - dirname is not writable.
-  absl::Status CreateDir(const std::string& dirname);
+  absl::Status CreateDir(std::string_view dirname);
 
-  absl::Status CreateDir(const std::string& dirname, TransactionToken* token) {
+  absl::Status CreateDir(std::string_view dirname, TransactionToken* token) {
     return absl::OkStatus();
   }
 
   /// Deletes the specified directory.
-  absl::Status DeleteDir(const std::string& dirname);
+  absl::Status DeleteDir(std::string_view dirname);
 
-  absl::Status DeleteDir(const std::string& dirname, TransactionToken* token) {
+  absl::Status DeleteDir(std::string_view dirname, TransactionToken* token) {
     return absl::OkStatus();
   }
 
   /// Obtains statistics for the given path.
-  absl::Status Stat(const std::string& fname, FileStatistics* stat);
+  absl::Status Stat(std::string_view fname, FileStatistics* stat);
 
-  absl::Status Stat(const std::string& fname, TransactionToken* token,
+  absl::Status Stat(std::string_view fname, TransactionToken* token,
                     FileStatistics* stat) {
     return absl::OkStatus();
   }
@@ -316,7 +314,7 @@ class Env {
   ///  * NOT_FOUND - The path entry does not exist.
   ///  * PERMISSION_DENIED - Insufficient permissions.
   ///  * UNIMPLEMENTED - The file factory doesn't support directories.
-  absl::Status IsDirectory(const std::string& fname);
+  absl::Status IsDirectory(std::string_view fname);
 
   /// \brief Returns whether the given path is on a file system
   /// that has atomic move capabilities. This can be used
@@ -328,7 +326,7 @@ class Env {
   ///         so has_atomic_move holds the above information.
   ///  * UNIMPLEMENTED - The file system of the path hasn't been implemented in
   ///  TF
-  absl::Status HasAtomicMove(const std::string& path, bool* has_atomic_move);
+  absl::Status HasAtomicMove(std::string_view path, bool* has_atomic_move);
 
   /// Returns whether the give path is on a file system
   /// that has ability to create a new temp file. This can be used
@@ -336,36 +334,36 @@ class Env {
   /// If this returns false, TensorFlow will write directly to output files
   /// instead of creating a temporary file and swapping it in. This may mean
   /// that incomplete writes are visible to consumers.
-  absl::Status CanCreateTempFile(const std::string& fname,
+  absl::Status CanCreateTempFile(std::string_view fname,
                                  bool* can_create_temp_file);
 
   /// Stores the size of `fname` in `*file_size`.
-  absl::Status GetFileSize(const std::string& fname, uint64_t* file_size);
+  absl::Status GetFileSize(std::string_view fname, uint64_t* file_size);
 
-  absl::Status GetFileSize(const std::string& fname, TransactionToken* token,
+  absl::Status GetFileSize(std::string_view fname, TransactionToken* token,
                            uint64_t* file_size) {
     return absl::OkStatus();
   }
 
   /// \brief Renames file src to target. If target already exists, it will be
   /// replaced.
-  absl::Status RenameFile(const std::string& src, const std::string& target);
+  absl::Status RenameFile(std::string_view src, std::string_view target);
 
-  absl::Status RenameFile(const std::string& src, const std::string& target,
+  absl::Status RenameFile(std::string_view src, std::string_view target,
                           TransactionToken* token) {
     return absl::OkStatus();
   }
 
   /// \brief Copy the src to target.
-  absl::Status CopyFile(const std::string& src, const std::string& target);
+  absl::Status CopyFile(std::string_view src, std::string_view target);
 
-  absl::Status CopyFile(const std::string& src, const std::string& target,
+  absl::Status CopyFile(std::string_view src, std::string_view target,
                         TransactionToken* token) {
     return absl::OkStatus();
   }
 
   /// \brief starts a new transaction on the filesystem that handles filename
-  absl::Status StartTransaction(const std::string& filename,
+  absl::Status StartTransaction(std::string_view filename,
                                 TransactionToken** token) {
     *token = nullptr;
     return absl::OkStatus();
@@ -373,21 +371,21 @@ class Env {
 
   /// \brief Adds `path` to transaction in `token` if token belongs to
   /// filesystem that handles the path.
-  absl::Status AddToTransaction(const std::string& path,
+  absl::Status AddToTransaction(std::string_view path,
                                 TransactionToken* token) {
     return absl::OkStatus();
   }
 
   /// \brief Get token for `path` or start a new transaction and add `path` to
   /// it.
-  absl::Status GetTokenOrStartTransaction(const std::string& path,
+  absl::Status GetTokenOrStartTransaction(std::string_view path,
                                           TransactionToken** token) {
     *token = nullptr;
     return absl::OkStatus();
   }
 
   /// \brief Returns the transaction for `path` or nullptr in `token`
-  absl::Status GetTransactionForPath(const std::string& path,
+  absl::Status GetTransactionForPath(std::string_view path,
                                      TransactionToken** token) {
     *token = nullptr;
     return absl::OkStatus();
@@ -407,7 +405,7 @@ class Env {
 
   /// Creates a local unique file name that starts with |prefix| and ends with
   /// |suffix|. Returns true if success.
-  bool CreateUniqueFileName(std::string* prefix, const std::string& suffix);
+  bool CreateUniqueFileName(std::string* prefix, std::string_view suffix);
 
   /// \brief Return the runfiles directory if running under bazel. Returns
   /// the directory the executable is located in if not running under bazel.
@@ -508,52 +506,50 @@ struct ThreadOptions {
 
 /// A utility routine: copy contents of `src` in file system `src_fs`
 /// to `target` in file system `target_fs`.
-absl::Status FileSystemCopyFile(FileSystem* src_fs, const std::string& src,
-                                FileSystem* target_fs,
-                                const std::string& target);
+absl::Status FileSystemCopyFile(FileSystem* src_fs, std::string_view src,
+                                FileSystem* target_fs, std::string_view target);
 
 /// A utility routine: reads contents of named file into `*data`
-absl::Status ReadFileToString(Env* env, const std::string& fname,
+absl::Status ReadFileToString(Env* env, std::string_view fname,
                               std::string* data);
 
 /// A utility routine: write contents of `data` to file named `fname`
 /// (overwriting existing contents, if any).
-absl::Status WriteStringToFile(Env* env, const std::string& fname,
+absl::Status WriteStringToFile(Env* env, std::string_view fname,
                                std::string_view data);
 
 /// Write binary representation of "proto" to the named file.
-absl::Status WriteBinaryProto(Env* env, const std::string& fname,
+absl::Status WriteBinaryProto(Env* env, std::string_view fname,
                               const google::protobuf::MessageLite& proto);
 
 /// Reads contents of named file and parse as binary encoded proto data
 /// and store into `*proto`.
-absl::Status ReadBinaryProto(Env* env, const std::string& fname,
+absl::Status ReadBinaryProto(Env* env, std::string_view fname,
                              google::protobuf::MessageLite* proto);
 
 /// Write the text representation of "proto" to the named file.
 inline absl::Status WriteTextProto(
-    Env* /* env */, const std::string& /* fname */,
+    Env* /* env */, std::string_view /* fname */,
     const google::protobuf::MessageLite& /* proto */) {
   return absl::UnimplementedError("Can't write text protos with protolite.");
 }
-absl::Status WriteTextProto(Env* env, const std::string& fname,
+absl::Status WriteTextProto(Env* env, std::string_view fname,
                             const google::protobuf::Message& proto);
 
 /// Read contents of named file and parse as text encoded proto data
 /// and store into `*proto`.
-inline absl::Status ReadTextProto(Env* /* env */,
-                                  const std::string& /* fname */,
+inline absl::Status ReadTextProto(Env* /* env */, std::string_view /* fname */,
                                   google::protobuf::MessageLite* /* proto */) {
   return absl::UnimplementedError("Can't parse text protos with protolite.");
 }
-absl::Status ReadTextProto(Env* env, const std::string& fname,
+absl::Status ReadTextProto(Env* env, std::string_view fname,
                            google::protobuf::Message* proto);
 
 /// Read contents of named file and parse as either text or binary encoded proto
 /// data and store into `*proto`.
-absl::Status ReadTextOrBinaryProto(Env* env, const std::string& fname,
+absl::Status ReadTextOrBinaryProto(Env* env, std::string_view fname,
                                    google::protobuf::Message* proto);
-absl::Status ReadTextOrBinaryProto(Env* env, const std::string& fname,
+absl::Status ReadTextOrBinaryProto(Env* env, std::string_view fname,
                                    google::protobuf::MessageLite* proto);
 
 // START_SKIP_DOXYGEN
@@ -565,7 +561,7 @@ namespace register_file_system {
 
 template <typename Factory>
 struct Register {
-  Register(Env* env, const std::string& scheme, bool try_modular_filesystems) {
+  Register(Env* env, std::string_view scheme, bool try_modular_filesystems) {
     // TODO(yongtang): Remove legacy file system registration for hdfs/s3/gcs
     if (try_modular_filesystems) {
       const char* env_value = getenv("ZKX_USE_MODULAR_FILESYSTEM");

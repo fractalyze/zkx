@@ -1,0 +1,73 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library")
+
+package(default_visibility = ["//benchmark:__subpackages__"])
+
+zkx_cc_library(
+    name = "curve_flag",
+    srcs = ["curve_flag.cc"],
+    hdrs = ["curve_flag.h"],
+    deps = [
+        "//zkx/base/flag",
+        "//zkx/base/flag:flag_parser",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "field_flag",
+    srcs = ["field_flag.cc"],
+    hdrs = ["field_flag.h"],
+    deps = [
+        "//zkx/base/flag",
+        "//zkx/base/flag:flag_parser",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "runner",
+    srcs = ["runner.cc"],
+    hdrs = ["runner.h"],
+    deps = [
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx/base/console:table_writer",
+        "//zkx/base/csv:csv_writer",
+        "//zkx/base/flag:flag_parser",
+        "//zkx/base/flag:numeric_flags",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/service:hlo_runner",
+        "//zkx/service:platform_util",
+        "//zkx/service/cpu:cpu_compiler_registerer",
+        "//zkx/service/cpu:cpu_transfer_manager",
+        "//zkx/stream_executor/host:host_platform",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+zkx_cc_binary(
+    name = "scalar_generator",
+    srcs = ["scalar_generator.cc"],
+    deps = [
+        ":field_flag",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:openmp_util",
+        "//zkx/base:random",
+        "//zkx/base/buffer:vector_buffer",
+        "//zkx/base/flag:flag_parser",
+        "//zkx/base/flag:numeric_flags",
+        "//zkx/math/elliptic_curves/bn/bn254:fr",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+    ],
+)

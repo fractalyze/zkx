@@ -57,21 +57,23 @@ constexpr size_t kCopyFileBufferSize = 128 * 1024;
 
 class FileSystemRegistryImpl : public FileSystemRegistry {
  public:
-  absl::Status Register(const std::string& scheme, Factory factory) override;
-  absl::Status Register(const std::string& scheme,
+  absl::Status Register(std::string_view scheme, Factory factory) override;
+  absl::Status Register(std::string_view scheme,
                         std::unique_ptr<FileSystem> filesystem) override;
-  FileSystem* Lookup(const std::string& scheme) override;
+  FileSystem* Lookup(std::string_view scheme) override;
   absl::Status GetRegisteredFileSystemSchemes(
-      std::vector<std::string>* schemes) override;
+      std::vector<std::string_view>* schemes) override;
 
  private:
   mutable absl::Mutex mu_;
+  // TODO(chokobole): Use heterogeneous lookup to avoid string copies after
+  // c++20. See https://abseil.io/tips/144
   mutable std::unordered_map<std::string, std::unique_ptr<FileSystem>> registry_
       ABSL_GUARDED_BY(mu_);
 };
 
 absl::Status FileSystemRegistryImpl::Register(
-    const std::string& scheme, FileSystemRegistry::Factory factory) {
+    std::string_view scheme, FileSystemRegistry::Factory factory) {
   absl::MutexLock lock(&mu_);
   if (!registry_.emplace(scheme, std::unique_ptr<FileSystem>(factory()))
            .second) {
@@ -82,7 +84,7 @@ absl::Status FileSystemRegistryImpl::Register(
 }
 
 absl::Status FileSystemRegistryImpl::Register(
-    const std::string& scheme, std::unique_ptr<FileSystem> filesystem) {
+    std::string_view scheme, std::unique_ptr<FileSystem> filesystem) {
   absl::MutexLock lock(&mu_);
   if (!registry_.emplace(scheme, std::move(filesystem)).second) {
     return absl::AlreadyExistsError(
@@ -91,9 +93,11 @@ absl::Status FileSystemRegistryImpl::Register(
   return absl::OkStatus();
 }
 
-FileSystem* FileSystemRegistryImpl::Lookup(const std::string& scheme) {
+FileSystem* FileSystemRegistryImpl::Lookup(std::string_view scheme) {
   absl::MutexLock lock(&mu_);
-  const auto found = registry_.find(scheme);
+  // TODO(chokobole): Use heterogeneous lookup to avoid string copies after
+  // c++20. See https://abseil.io/tips/144
+  const auto found = registry_.find(std::string(scheme));
   if (found == registry_.end()) {
     return nullptr;
   }
@@ -101,7 +105,7 @@ FileSystem* FileSystemRegistryImpl::Lookup(const std::string& scheme) {
 }
 
 absl::Status FileSystemRegistryImpl::GetRegisteredFileSystemSchemes(
-    std::vector<std::string>* schemes) {
+    std::vector<std::string_view>* schemes) {
   absl::MutexLock lock(&mu_);
   for (const auto& e : registry_) {
     schemes->push_back(e.first);
@@ -147,7 +151,7 @@ class FileStream : public google::protobuf::io::ZeroCopyInputStream {
 
 Env::Env() : file_system_registry_(new FileSystemRegistryImpl) {}
 
-absl::Status Env::GetFileSystemForFile(const std::string& fname,
+absl::Status Env::GetFileSystemForFile(std::string_view fname,
                                        FileSystem** result) {
   std::string_view scheme, host, path;
   io::ParseURI(fname, &scheme, &host, &path);
@@ -166,22 +170,22 @@ absl::Status Env::GetFileSystemForFile(const std::string& fname,
 }
 
 absl::Status Env::GetRegisteredFileSystemSchemes(
-    std::vector<std::string>* schemes) {
+    std::vector<std::string_view>* schemes) {
   return file_system_registry_->GetRegisteredFileSystemSchemes(schemes);
 }
 
-absl::Status Env::RegisterFileSystem(const std::string& scheme,
+absl::Status Env::RegisterFileSystem(std::string_view scheme,
                                      FileSystemRegistry::Factory factory) {
   return file_system_registry_->Register(scheme, std::move(factory));
 }
 
-absl::Status Env::RegisterFileSystem(const std::string& scheme,
+absl::Status Env::RegisterFileSystem(std::string_view scheme,
                                      std::unique_ptr<FileSystem> filesystem) {
   return file_system_registry_->Register(scheme, std::move(filesystem));
 }
 
-absl::Status Env::SetOption(const std::string& scheme, const std::string& key,
-                            const std::string& value) {
+absl::Status Env::SetOption(std::string_view scheme, std::string_view key,
+                            std::string_view value) {
   FileSystem* file_system = file_system_registry_->Lookup(scheme);
   if (!file_system) {
     return absl::UnimplementedError(absl::StrCat(
@@ -190,7 +194,7 @@ absl::Status Env::SetOption(const std::string& scheme, const std::string& key,
   return file_system->SetOption(key, value);
 }
 
-absl::Status Env::SetOption(const std::string& scheme, const std::string& key,
+absl::Status Env::SetOption(std::string_view scheme, std::string_view key,
                             const std::vector<std::string>& values) {
   FileSystem* file_system = file_system_registry_->Lookup(scheme);
   if (!file_system) {
@@ -200,7 +204,7 @@ absl::Status Env::SetOption(const std::string& scheme, const std::string& key,
   return file_system->SetOption(key, values);
 }
 
-absl::Status Env::SetOption(const std::string& scheme, const std::string& key,
+absl::Status Env::SetOption(std::string_view scheme, std::string_view key,
                             const std::vector<int64_t>& values) {
   FileSystem* file_system = file_system_registry_->Lookup(scheme);
   if (!file_system) {
@@ -210,7 +214,7 @@ absl::Status Env::SetOption(const std::string& scheme, const std::string& key,
   return file_system->SetOption(key, values);
 }
 
-absl::Status Env::SetOption(const std::string& scheme, const std::string& key,
+absl::Status Env::SetOption(std::string_view scheme, std::string_view key,
                             const std::vector<double>& values) {
   FileSystem* file_system = file_system_registry_->Lookup(scheme);
   if (!file_system) {
@@ -221,9 +225,9 @@ absl::Status Env::SetOption(const std::string& scheme, const std::string& key,
 }
 
 absl::Status Env::FlushFileSystemCaches() {
-  std::vector<std::string> schemes;
+  std::vector<std::string_view> schemes;
   TF_RETURN_IF_ERROR(GetRegisteredFileSystemSchemes(&schemes));
-  for (const std::string& scheme : schemes) {
+  for (std::string_view scheme : schemes) {
     FileSystem* fs = nullptr;
     TF_RETURN_IF_ERROR(
         GetFileSystemForFile(io::CreateURI(scheme, "", ""), &fs));
@@ -233,34 +237,34 @@ absl::Status Env::FlushFileSystemCaches() {
 }
 
 absl::Status Env::NewRandomAccessFile(
-    const std::string& fname, std::unique_ptr<RandomAccessFile>* result) {
+    std::string_view fname, std::unique_ptr<RandomAccessFile>* result) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->NewRandomAccessFile(fname, result);
 }
 
 absl::Status Env::NewReadOnlyMemoryRegionFromFile(
-    const std::string& fname, std::unique_ptr<ReadOnlyMemoryRegion>* result) {
+    std::string_view fname, std::unique_ptr<ReadOnlyMemoryRegion>* result) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->NewReadOnlyMemoryRegionFromFile(fname, result);
 }
 
-absl::Status Env::NewWritableFile(const std::string& fname,
+absl::Status Env::NewWritableFile(std::string_view fname,
                                   std::unique_ptr<WritableFile>* result) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->NewWritableFile(fname, result);
 }
 
-absl::Status Env::NewAppendableFile(const std::string& fname,
+absl::Status Env::NewAppendableFile(std::string_view fname,
                                     std::unique_ptr<WritableFile>* result) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->NewAppendableFile(fname, result);
 }
 
-absl::Status Env::FileExists(const std::string& fname) {
+absl::Status Env::FileExists(std::string_view fname) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->FileExists(fname);
@@ -312,71 +316,70 @@ bool Env::FilesExist(const std::vector<std::string>& files,
   return result;
 }
 
-absl::Status Env::GetChildren(const std::string& dir,
+absl::Status Env::GetChildren(std::string_view dir,
                               std::vector<std::string>* result) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(dir, &fs));
   return fs->GetChildren(dir, result);
 }
 
-absl::Status Env::GetMatchingPaths(const std::string& pattern,
+absl::Status Env::GetMatchingPaths(std::string_view pattern,
                                    std::vector<std::string>* results) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(pattern, &fs));
   return fs->GetMatchingPaths(pattern, results);
 }
 
-absl::Status Env::DeleteFile(const std::string& fname) {
+absl::Status Env::DeleteFile(std::string_view fname) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->DeleteFile(fname);
 }
 
-absl::Status Env::RecursivelyCreateDir(const std::string& dirname) {
+absl::Status Env::RecursivelyCreateDir(std::string_view dirname) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(dirname, &fs));
   return fs->RecursivelyCreateDir(dirname);
 }
 
-absl::Status Env::CreateDir(const std::string& dirname) {
+absl::Status Env::CreateDir(std::string_view dirname) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(dirname, &fs));
   return fs->CreateDir(dirname);
 }
 
-absl::Status Env::DeleteDir(const std::string& dirname) {
+absl::Status Env::DeleteDir(std::string_view dirname) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(dirname, &fs));
   return fs->DeleteDir(dirname);
 }
 
-absl::Status Env::Stat(const std::string& fname, FileStatistics* stat) {
+absl::Status Env::Stat(std::string_view fname, FileStatistics* stat) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->Stat(fname, stat);
 }
 
-absl::Status Env::IsDirectory(const std::string& fname) {
+absl::Status Env::IsDirectory(std::string_view fname) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->IsDirectory(fname);
 }
 
-absl::Status Env::HasAtomicMove(const std::string& path,
-                                bool* has_atomic_move) {
+absl::Status Env::HasAtomicMove(std::string_view path, bool* has_atomic_move) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(path, &fs));
   return fs->HasAtomicMove(path, has_atomic_move);
 }
 
-absl::Status Env::CanCreateTempFile(const std::string& fname,
+absl::Status Env::CanCreateTempFile(std::string_view fname,
                                     bool* can_create_temp_file) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->CanCreateTempFile(fname, can_create_temp_file);
 }
 
-absl::Status Env::DeleteRecursively(const std::string& dirname,
+absl::Status Env::DeleteRecursively(std::string_view dirname,
                                     int64_t* undeleted_files,
                                     int64_t* undeleted_dirs) {
   FileSystem* fs;
@@ -384,14 +387,13 @@ absl::Status Env::DeleteRecursively(const std::string& dirname,
   return fs->DeleteRecursively(dirname, undeleted_files, undeleted_dirs);
 }
 
-absl::Status Env::GetFileSize(const std::string& fname, uint64_t* file_size) {
+absl::Status Env::GetFileSize(std::string_view fname, uint64_t* file_size) {
   FileSystem* fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(fname, &fs));
   return fs->GetFileSize(fname, file_size);
 }
 
-absl::Status Env::RenameFile(const std::string& src,
-                             const std::string& target) {
+absl::Status Env::RenameFile(std::string_view src, std::string_view target) {
   FileSystem* src_fs;
   FileSystem* target_fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(src, &src_fs));
@@ -403,7 +405,7 @@ absl::Status Env::RenameFile(const std::string& src,
   return src_fs->RenameFile(src, target);
 }
 
-absl::Status Env::CopyFile(const std::string& src, const std::string& target) {
+absl::Status Env::CopyFile(std::string_view src, std::string_view target) {
   FileSystem* src_fs;
   FileSystem* target_fs;
   TF_RETURN_IF_ERROR(GetFileSystemForFile(src, &src_fs));
@@ -486,7 +488,7 @@ bool Env::LocalTempFilename(std::string* filename) {
   return false;
 }
 
-bool Env::CreateUniqueFileName(std::string* prefix, const std::string& suffix) {
+bool Env::CreateUniqueFileName(std::string* prefix, std::string_view suffix) {
   int64_t tid = GetCurrentThreadId();
   int32_t pid = GetProcessId();
   long long now_microsec = NowMicros();  // NOLINT
@@ -515,9 +517,9 @@ int32_t Env::GetProcessId() {
 
 Thread::~Thread() {}
 
-absl::Status FileSystemCopyFile(FileSystem* src_fs, const std::string& src,
+absl::Status FileSystemCopyFile(FileSystem* src_fs, std::string_view src,
                                 FileSystem* target_fs,
-                                const std::string& target) {
+                                std::string_view target) {
   std::unique_ptr<RandomAccessFile> src_file;
   TF_RETURN_IF_ERROR(src_fs->NewRandomAccessFile(src, &src_file));
 
@@ -547,7 +549,7 @@ absl::Status FileSystemCopyFile(FileSystem* src_fs, const std::string& src,
   return target_file->Close();
 }
 
-absl::Status ReadFileToString(Env* env, const std::string& fname,
+absl::Status ReadFileToString(Env* env, std::string_view fname,
                               std::string* data) {
   uint64_t file_size;
   absl::Status s = env->GetFileSize(fname, &file_size);
@@ -578,7 +580,7 @@ absl::Status ReadFileToString(Env* env, const std::string& fname,
   return s;
 }
 
-absl::Status WriteStringToFile(Env* env, const std::string& fname,
+absl::Status WriteStringToFile(Env* env, std::string_view fname,
                                std::string_view data) {
   std::unique_ptr<WritableFile> file;
   absl::Status s = env->NewWritableFile(fname, &file);
@@ -592,14 +594,14 @@ absl::Status WriteStringToFile(Env* env, const std::string& fname,
   return s;
 }
 
-absl::Status WriteBinaryProto(Env* env, const std::string& fname,
+absl::Status WriteBinaryProto(Env* env, std::string_view fname,
                               const google::protobuf::MessageLite& proto) {
   std::string serialized;
   proto.AppendToString(&serialized);
   return WriteStringToFile(env, fname, serialized);
 }
 
-absl::Status ReadBinaryProto(Env* env, const std::string& fname,
+absl::Status ReadBinaryProto(Env* env, std::string_view fname,
                              google::protobuf::MessageLite* proto) {
   std::unique_ptr<RandomAccessFile> file;
   TF_RETURN_IF_ERROR(env->NewRandomAccessFile(fname, &file));
@@ -615,7 +617,7 @@ absl::Status ReadBinaryProto(Env* env, const std::string& fname,
   return absl::OkStatus();
 }
 
-absl::Status WriteTextProto(Env* env, const std::string& fname,
+absl::Status WriteTextProto(Env* env, std::string_view fname,
                             const google::protobuf::Message& proto) {
   std::string serialized;
   if (!google::protobuf::TextFormat::PrintToString(proto, &serialized)) {
@@ -624,7 +626,7 @@ absl::Status WriteTextProto(Env* env, const std::string& fname,
   return WriteStringToFile(env, fname, serialized);
 }
 
-absl::Status ReadTextProto(Env* env, const std::string& fname,
+absl::Status ReadTextProto(Env* env, std::string_view fname,
                            google::protobuf::Message* proto) {
   std::unique_ptr<RandomAccessFile> file;
   TF_RETURN_IF_ERROR(env->NewRandomAccessFile(fname, &file));
@@ -638,7 +640,7 @@ absl::Status ReadTextProto(Env* env, const std::string& fname,
   return absl::OkStatus();
 }
 
-absl::Status ReadTextOrBinaryProto(Env* env, const std::string& fname,
+absl::Status ReadTextOrBinaryProto(Env* env, std::string_view fname,
                                    google::protobuf::Message* proto) {
   if (ReadTextProto(env, fname, proto).ok()) {
     return absl::OkStatus();
@@ -646,7 +648,7 @@ absl::Status ReadTextOrBinaryProto(Env* env, const std::string& fname,
   return ReadBinaryProto(env, fname, proto);
 }
 
-absl::Status ReadTextOrBinaryProto(Env* env, const std::string& fname,
+absl::Status ReadTextOrBinaryProto(Env* env, std::string_view fname,
                                    google::protobuf::MessageLite* proto) {
   return ReadBinaryProto(env, fname, proto);
 }

@@ -6,7 +6,8 @@
 
 namespace zkx::base {
 
-template <typename T, typename std::enable_if_t<std::is_signed_v<T>>* = nullptr>
+template <typename T,
+          typename std::enable_if_t<std::is_arithmetic_v<T>>* = nullptr>
 absl::Status ParsePositiveValue(std::string_view arg, T* value) {
   T n;
   TF_RETURN_IF_ERROR(FlagValueTraits<T>::ParseValue(arg, &n));

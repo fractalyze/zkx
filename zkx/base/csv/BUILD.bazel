@@ -1,0 +1,24 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "csv_separator",
+    hdrs = ["csv_separator.h"],
+)
+
+zkx_cc_library(
+    name = "csv_writer",
+    hdrs = ["csv_writer.h"],
+    deps = [
+        ":csv_separator",
+        "//xla/tsl/platform:env",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "csv_writer_unittest",
+    srcs = ["csv_writer_unittest.cc"],
+    deps = [":csv_writer"],
+)
