@@ -24,6 +24,7 @@ limitations under the License.
 #include <limits>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -835,6 +836,7 @@ class MutableLiteralBase : public LiteralBase {
       absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator,
       bool parallel);
 };
+std::ostream& operator<<(std::ostream& out, const Literal& literal);
 
 // The underlying buffer and shape is always owned by this class.
 class Literal : public MutableLiteralBase {

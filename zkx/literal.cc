@@ -601,6 +601,11 @@ const LiteralBase::Piece& LiteralBase::piece(
   return *piece;
 }
 
+std::ostream& operator<<(std::ostream& out, const Literal& literal) {
+  out << literal.ToString();
+  return out;
+}
+
 Shape* MutableLiteralBase::mutable_shape_do_not_use() {
   const Shape* const_shape = shape_.get();
   if (!shape_.OwnsPtr()) {
