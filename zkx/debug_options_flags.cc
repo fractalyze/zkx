@@ -171,6 +171,10 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "ZKX and dump the optimized HLO for some graph, you should be able to "
       "run it again on the same device with the same build of ZKX."));
   flag_list->push_back(tsl::Flag(
+      "zkx_hlo_profile", bool_setter_for(&DebugOptions::set_zkx_hlo_profile),
+      debug_options->zkx_hlo_profile(),
+      "Instrument the computation to collect per-HLO cycle counts"));
+  flag_list->push_back(tsl::Flag(
       "zkx_backend_extra_options", setter_for_zkx_backend_extra_options, "",
       "Extra options to pass to a backend; comma-separated list of 'key=val' "
       "strings (=val may be omitted); no whitespace around commas."));

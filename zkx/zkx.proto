@@ -91,6 +91,9 @@ message DebugOptions {
   // the code that emits a particular instruction.
   bool zkx_annotate_with_emitter_loc = 358;
 
+  // Instrument the computation to collect per-HLO cycle counts.
+  bool zkx_hlo_profile = 9;
+
   // List of HLO passes to disable/enable. These names must exactly match the
   // pass names as specified by the HloPassInterface::name() method.
   //
