@@ -3441,6 +3441,14 @@ bool HloInstruction::IsConstant() const {
   return DynCast<HloConstantInstruction>(this) != nullptr;
 }
 
+// Delegates to HloCallableInstruction::AppendInstructionIntoCalledComputation.
+HloInstruction* HloInstruction::AppendInstructionIntoCalledComputation(
+    HloInstruction* instruction_to_append, bool add_output) {
+  return Cast<HloCallableInstruction>(this)
+      ->AppendInstructionIntoCalledComputation(instruction_to_append,
+                                               add_output);
+}
+
 HloInstruction* HloInstruction::AddFusionOperand(HloInstruction* new_operand) {
   return Cast<HloFusionInstruction>(this)->AddFusionOperand(new_operand);
 }
