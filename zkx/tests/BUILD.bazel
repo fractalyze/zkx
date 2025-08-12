@@ -87,3 +87,17 @@ zkx_cc_library(
         "@com_google_protobuf//:protobuf",
     ],
 )
+
+zkx_cc_library(
+    name = "pjrt_client_registry",
+    srcs = ["pjrt_client_registry.cc"],
+    hdrs = ["pjrt_client_registry.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx/pjrt:pjrt_client",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
