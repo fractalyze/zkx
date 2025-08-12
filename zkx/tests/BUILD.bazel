@@ -3,6 +3,29 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "hlo_runner_agnostic_reference_mixin",
+    testonly = True,
+    srcs = ["hlo_runner_agnostic_reference_mixin.cc"],
+    hdrs = ["hlo_runner_agnostic_reference_mixin.h"],
+    deps = [
+        ":hlo_runner_agnostic_test_base",
+        ":literal_test_util",
+        ":test_utils",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/testlib:verified_hlo_module",
+        "//zkx/service:hlo_runner_interface",
+        "@com_google_absl//absl/base:nullability",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_runner_agnostic_test_base",
     testonly = True,
     srcs = ["hlo_runner_agnostic_test_base.cc"],
