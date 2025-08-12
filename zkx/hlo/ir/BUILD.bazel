@@ -140,6 +140,7 @@ zkx_cc_library(
     hdrs = ["hlo_module_group.h"],
     deps = [
         ":hlo",
+        "//zkx/service:hlo_cc_proto",
         "//zkx/service:hlo_module_config",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
