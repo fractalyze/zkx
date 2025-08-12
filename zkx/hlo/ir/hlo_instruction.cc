@@ -155,6 +155,19 @@ void HloInstruction::AppendComputation(HloComputation* computation) {
   mutable_rare()->called_computations.push_back(computation);
 }
 
+HloInstruction* HloInstruction::AddInstruction(
+    std::unique_ptr<HloInstruction> derived_instruction) {
+  HloInstruction* derived =
+      parent()->AddInstruction(std::move(derived_instruction));
+  const bool has_prior_sharding = derived->has_sharding();
+  SetupDerivedInstruction(derived);
+  if (!has_prior_sharding && (derived->opcode() == HloOpcode::kReshape ||
+                              derived->opcode() == HloOpcode::kTranspose)) {
+    derived->clear_sharding();
+  }
+  return derived;
+}
+
 // static
 absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
     const HloInstructionProto& proto,
@@ -205,6 +218,19 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
                      return instruction_map.at(operand_id);
                    });
     return result;
+  };
+  const auto output_to_operand_aliasing = [&proto]() {
+    std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+        output_to_operand_aliasing;
+    for (const auto& aliasing : proto.output_operand_aliasing()) {
+      output_to_operand_aliasing.emplace_back(
+          ShapeIndex(aliasing.output_shape_index().begin(),
+                     aliasing.output_shape_index().end()),
+          std::make_pair(aliasing.operand_index(),
+                         ShapeIndex(aliasing.operand_shape_index().begin(),
+                                    aliasing.operand_shape_index().end())));
+    }
+    return output_to_operand_aliasing;
   };
   const auto computations = [&computation_map, &proto](int index) {
     return computation_map.at(proto.called_computation_ids(index));
@@ -499,28 +525,24 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       // In the proto, fused computations are held exclusively within the
       // HloInstructionProto and do not appear as an HloComputationProto within
       // the HloModuleProto.
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateFusion
-      // TF_RET_CHECK(!proto.fusion_kind().empty());
-      // TF_ASSIGN_OR_RETURN(FusionKind fusion_kind,
-      //                     StringToFusionKind(proto.fusion_kind()));
+      TF_RET_CHECK(!proto.fusion_kind().empty());
+      TF_ASSIGN_OR_RETURN(FusionKind fusion_kind,
+                          StringToFusionKind(proto.fusion_kind()));
 
-      // // Find the fused computation and set its fusion instruction.
-      // TF_RET_CHECK(proto.called_computation_ids_size() == 1)
-      //     << "Expect 1 called computation for fusion instruction but sees "
-      //     << proto.called_computation_ids_size();
-      // const int64_t fusion_id = proto.called_computation_ids(0);
-      // auto* fused_computation =
-      //     tsl::gtl::FindPtrOrNull(computation_map, fusion_id);
-      // TF_RET_CHECK(fused_computation != nullptr)
-      //     << "No fusion computation with id " << fusion_id;
-      // instruction =
-      //     CreateFusion(shape, fusion_kind, all_operands(),
-      //     fused_computation);
-      // auto fusion_instr = DynCast<HloFusionInstruction>(instruction.get());
-      // fusion_instr->set_output_to_operand_aliasing(
-      //     output_to_operand_aliasing());
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Fusion not implemented");
+      // Find the fused computation and set its fusion instruction.
+      TF_RET_CHECK(proto.called_computation_ids_size() == 1)
+          << "Expect 1 called computation for fusion instruction but sees "
+          << proto.called_computation_ids_size();
+      const int64_t fusion_id = proto.called_computation_ids(0);
+      auto* fused_computation =
+          tsl::gtl::FindPtrOrNull(computation_map, fusion_id);
+      TF_RET_CHECK(fused_computation != nullptr)
+          << "No fusion computation with id " << fusion_id;
+      instruction =
+          CreateFusion(shape, fusion_kind, all_operands(), fused_computation);
+      auto fusion_instr = DynCast<HloFusionInstruction>(instruction.get());
+      fusion_instr->set_output_to_operand_aliasing(
+          output_to_operand_aliasing());
       break;
     }
     case HloOpcode::kParameter:
@@ -1610,6 +1632,23 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBroadcast(
                                                    broadcast_dimensions);
 }
 
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateFusion(
+    const Shape& shape, FusionKind fusion_kind, HloInstruction* fused_root,
+    std::string_view prefix) {
+  return std::make_unique<HloFusionInstruction>(shape, fusion_kind, fused_root,
+                                                prefix);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateFusion(
+    const Shape& shape, FusionKind fusion_kind,
+    absl::Span<HloInstruction* const> operands,
+    HloComputation* fusion_computation, std::string_view prefix) {
+  return std::make_unique<HloFusionInstruction>(shape, fusion_kind, operands,
+                                                fusion_computation, prefix);
+}
+
 void HloInstruction::set_single_sharding(const HloSharding& sharding) {
   CHECK(!sharding.IsTuple()) << sharding;
   if (shape().IsTuple()) {
@@ -2092,6 +2131,30 @@ void HloInstruction::AppendOperands(
   }
 }
 
+void HloInstruction::RemoveOperandsAtAscendingIndices(
+    absl::Span<const int> ascending_indices) {
+  if (ascending_indices.empty()) {
+    return;
+  }
+  int next_index = 0;
+  int removed_count = 0;
+  for (int to_remove : ascending_indices) {
+    while (next_index < to_remove) {
+      operands_[next_index - removed_count] = operands_[next_index];
+      ++next_index;
+    }
+    CHECK_LT(to_remove, operands_.size());
+    ++removed_count;
+    ++next_index;
+  }
+  while (next_index < operands_.size()) {
+    operands_[next_index - removed_count] = operands_[next_index];
+    ++next_index;
+  }
+  CHECK_EQ(removed_count, ascending_indices.size());
+  operands_.resize(operands_.size() - removed_count);
+}
+
 bool HloInstruction::IdenticalSlowPath(
     const HloInstruction& other,
     absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -2219,13 +2282,10 @@ absl::Status HloInstruction::ReplaceUseWithDifferentShape(
                new_producer);
   new_producer->AddUser(user);
   // Custom fusions may not be able to handle deduplicated operands.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kFusion, HloFusionInstruction
-  // clang-format on
-  // if (user->opcode() == HloOpcode::kFusion) {
-  //   TF_RETURN_IF_ERROR(
-  //       Cast<HloFusionInstruction>(user)->DeduplicateFusionOperands());
-  // }
+  if (user->opcode() == HloOpcode::kFusion) {
+    TF_RETURN_IF_ERROR(
+        Cast<HloFusionInstruction>(user)->DeduplicateFusionOperands());
+  }
   return absl::OkStatus();
 }
 
@@ -2338,13 +2398,10 @@ absl::Status HloInstruction::ReplaceAllUsesWithDifferentShape(
       std::replace(user->operands_.begin(), user->operands_.end(), this,
                    new_producer);
       new_producer->AddUser(user);
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kFusion, HloFusionInstruction
-      // clang-format on
-      // if (user->opcode() == HloOpcode::kFusion) {
-      //   TF_RETURN_IF_ERROR(
-      //       Cast<HloFusionInstruction>(user)->DeduplicateFusionOperands());
-      // }
+      if (user->opcode() == HloOpcode::kFusion) {
+        TF_RETURN_IF_ERROR(
+            Cast<HloFusionInstruction>(user)->DeduplicateFusionOperands());
+      }
     }
   }
   users_.Clear();
@@ -2784,6 +2841,19 @@ bool HloInstruction::IsElementwiseImpl(
   return IsOpElementwise(opcode_);
 }
 
+bool HloInstruction::IsCrossModuleAllReduce() const {
+  if (opcode() == HloOpcode::kAllReduce ||
+      opcode() == HloOpcode::kAllReduceStart) {
+    return channel_id() != std::nullopt;
+  } else if (opcode() == HloOpcode::kAllReduceDone) {
+    CHECK_EQ(operand_count(), 1);
+    const HloInstruction* operand = this->operand(0);
+    CHECK_EQ(operand->opcode(), HloOpcode::kAllReduceStart);
+    return operand->channel_id() != std::nullopt;
+  }
+  return false;
+}
+
 std::string FrontendAttributesToString(
     const FrontendAttributes& frontend_attributes) {
   std::vector<std::pair<std::string, std::string>> sorted_attributes(
@@ -2851,6 +2921,64 @@ HloInstructionProto HloInstruction::ToProto() const {
   }
 
   return proto;
+}
+
+std::string HloInstruction::ToCategory() const {
+  if (opcode() == HloOpcode::kTranspose || opcode() == HloOpcode::kCopy ||
+      opcode() == HloOpcode::kReshape ||
+      opcode() == HloOpcode::kDynamicReshape) {
+    return "data formatting";
+  }
+
+  if (IsElementwise()) {
+    return "non-fusion elementwise";
+  }
+
+  return std::string(HloOpcodeString(opcode()));
+}
+
+bool HloInstruction::IsFused() const {
+  return parent_ != nullptr && parent_->IsFusionComputation();
+}
+
+bool HloInstruction::IsInputFusion() const {
+  return opcode() == HloOpcode::kFusion && fusion_kind() == FusionKind::kInput;
+}
+
+bool HloInstruction::IsLoopFusion() const {
+  return opcode() == HloOpcode::kFusion && fusion_kind() == FusionKind::kLoop;
+}
+
+bool HloInstruction::IsOutputFusion() const {
+  return opcode() == HloOpcode::kFusion && fusion_kind() == FusionKind::kOutput;
+}
+
+bool HloInstruction::IsCustomFusion() const {
+  return opcode() == HloOpcode::kFusion && fusion_kind() == FusionKind::kCustom;
+}
+
+bool HloInstruction::IsFusible() const {
+  // Some kinds of instructions don't make sense to fuse.
+  switch (opcode_) {
+    case HloOpcode::kDomain:
+    case HloOpcode::kParameter:
+    case HloOpcode::kWhile:
+    case HloOpcode::kConditional:
+    case HloOpcode::kCall:
+      return false;
+    // Fusions are always fusible.
+    case HloOpcode::kFusion:
+    // Side effecting reduce would be invalid HLO.
+    case HloOpcode::kMap:
+    case HloOpcode::kReduce:
+      return true;
+    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kRng
+    // case HloOpcode::kRng:
+    //   return user_count() <= 1;
+    // Side effecting instructions cannot be fused.
+    default:
+      return !HasSideEffect();
+  }
 }
 
 HloInstruction::HloInstruction(HloOpcode opcode, const Shape& shape)
@@ -3313,6 +3441,81 @@ bool HloInstruction::IsConstant() const {
   return DynCast<HloConstantInstruction>(this) != nullptr;
 }
 
+HloInstruction* HloInstruction::AddFusionOperand(HloInstruction* new_operand) {
+  return Cast<HloFusionInstruction>(this)->AddFusionOperand(new_operand);
+}
+
+// Delegates to HloFusionInstruction::MergeFusionInstruction.
+void HloInstruction::MergeFusionInstruction(
+    HloInstruction* instruction_to_merge) {
+  return Cast<HloFusionInstruction>(this)->MergeFusionInstruction(
+      Cast<HloFusionInstruction>(instruction_to_merge));
+}
+
+// Delegates to HloFusionInstruction::MergeFusionInstructionIntoMultiOutput.
+void HloInstruction::MergeFusionInstructionIntoMultiOutput(
+    HloInstruction* instruction_to_merge) {
+  return Cast<HloFusionInstruction>(this)
+      ->MergeFusionInstructionIntoMultiOutput(
+          Cast<HloFusionInstruction>(instruction_to_merge));
+}
+
+HloInstruction* HloInstruction::FuseInstruction(
+    HloInstruction* instruction_to_fuse) {
+  return Cast<HloFusionInstruction>(this)->FuseInstruction(instruction_to_fuse);
+}
+
+HloInstruction* HloInstruction::FuseInstructionIntoMultiOutput(
+    HloInstruction* instruction_to_fuse) {
+  return Cast<HloFusionInstruction>(this)->FuseInstructionIntoMultiOutput(
+      instruction_to_fuse);
+}
+
+HloComputation* HloInstruction::fused_instructions_computation() const {
+  return Cast<HloFusionInstruction>(this)->fused_instructions_computation();
+}
+
+HloInstruction* HloInstruction::fused_expression_root() const {
+  return Cast<HloFusionInstruction>(this)->fused_expression_root();
+}
+
+tsl::gtl::iterator_range<HloInstructionUnwrappingConstIterator>
+HloInstruction::fused_instructions() const {
+  return Cast<HloFusionInstruction>(this)->fused_instructions();
+}
+
+tsl::gtl::iterator_range<HloInstructionUnwrappingIterator>
+HloInstruction::fused_instructions() {
+  return Cast<HloFusionInstruction>(this)->fused_instructions();
+}
+
+int64_t HloInstruction::fused_instruction_count() const {
+  return Cast<HloFusionInstruction>(this)->fused_instruction_count();
+}
+
+HloInstruction* HloInstruction::fused_parameter(
+    int64_t parameter_number) const {
+  return Cast<HloFusionInstruction>(this)->fused_parameter(parameter_number);
+}
+
+const HloInstruction::InstructionVector& HloInstruction::fused_parameters()
+    const {
+  return Cast<HloFusionInstruction>(this)->fused_parameters();
+}
+
+bool HloInstruction::IsMultiOutputFusion() const {
+  const HloFusionInstruction* fusion = DynCast<HloFusionInstruction>(this);
+  return fusion != nullptr && fusion->IsMultiOutputFusion();
+}
+
+HloInstruction::FusionKind HloInstruction::fusion_kind() const {
+  return Cast<HloFusionInstruction>(this)->fusion_kind();
+}
+
+void HloInstruction::set_fusion_kind(FusionKind kind) {
+  return Cast<HloFusionInstruction>(this)->set_fusion_kind(kind);
+}
+
 int64_t HloInstruction::parameter_number() const {
   return Cast<HloParameterInstruction>(this)->parameter_number();
 }
@@ -3443,6 +3646,18 @@ ComparisonDirection HloInstruction::comparison_direction() const {
 
 ComparisonOrder HloInstruction::comparison_order() const {
   return Cast<HloCompareInstruction>(this)->order();
+}
+
+const std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>&
+HloInstruction::output_operand_aliasing() const {
+  return Cast<HloCallableInstruction>(this)->output_to_operand_aliasing();
+}
+
+void HloInstruction::set_output_to_operand_aliasing(
+    std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+        aliasing) {
+  Cast<HloCallableInstruction>(this)->set_output_to_operand_aliasing(
+      std::move(aliasing));
 }
 
 std::string_view ToString(HloInstruction::FusionKind kind) {

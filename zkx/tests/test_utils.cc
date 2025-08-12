@@ -125,15 +125,12 @@ std::vector<HloInstruction*> FindConstrainedUses(
                  op_num == 1) {
         constrained_uses.push_back(instruction);
       } else if (opcode == HloOpcode::kFusion) {
-        // clang-format off
-        // TODO(chokobole): Uncomment this. Dependency: HloInstruction::fused_parameter
-        // clang-format on
-        // const HloInstruction* const to_analyze =
-        //     instruction->fused_parameter(op_num);
-        // auto fused_uses = FindConstrainedUses(dataflow, *to_analyze,
-        //                                       treat_gte_as_data_formatting);
-        // constrained_uses.insert(constrained_uses.end(), fused_uses.begin(),
-        //                         fused_uses.end());
+        const HloInstruction* const to_analyze =
+            instruction->fused_parameter(op_num);
+        auto fused_uses = FindConstrainedUses(dataflow, *to_analyze,
+                                              treat_gte_as_data_formatting);
+        constrained_uses.insert(constrained_uses.end(), fused_uses.begin(),
+                                fused_uses.end());
       } else if (NeedsInitValue(use)) {
         constrained_uses.push_back(instruction);
       } else if (opcode == HloOpcode::kConvert) {

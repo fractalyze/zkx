@@ -21,6 +21,9 @@ limitations under the License.
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 
+#include "zkx/hlo/ir/hlo_casting_utils.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
+
 namespace zkx {
 
 std::string BufferAlias::ToString() const {
@@ -135,15 +138,12 @@ absl::Status TuplePointsToAnalysis::Analyze() {
       }
     }
   }
-  // Run points-to analysis on fusion instructions in `computation`.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::fused_expression_root, HloInstruction::fused_instructions
-  // clang-format on
-  // for (auto* instruction : fusion_instructions) {
-  //   TF_RETURN_IF_ERROR(instruction->fused_expression_root()->Accept(this));
-  //   TF_RETURN_IF_ERROR(
-  //       PopulateDefinedBuffersAndAliases(instruction->fused_instructions()));
-  // }
+  // Run points-to analysis on fusion instructions in 'computation'.
+  for (auto* instruction : fusion_instructions) {
+    TF_RETURN_IF_ERROR(instruction->fused_expression_root()->Accept(this));
+    TF_RETURN_IF_ERROR(
+        PopulateDefinedBuffersAndAliases(instruction->fused_instructions()));
+  }
 
   ZKX_VLOG_LINES(3, ToString());
 
@@ -527,39 +527,34 @@ absl::Status TuplePointsToAnalysis::HandleCustomCall(
 // Adding this, which essentially does the same thing as HandleCustomCall
 // Not sure if it is really needed or it will break anything
 absl::Status TuplePointsToAnalysis::HandleFusion(HloInstruction* fusion) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloFusionInstruction
-  // clang-format on
-  // auto cfusion = Cast<HloFusionInstruction>(fusion);
-  // PointsToSet& points_to_set = CreateEmptyPointsToSet(fusion);
-  // absl::flat_hash_map<ShapeIndex, std::pair<int64_t, ShapeIndex>>
-  //     aliased_outputs;
-  // for (const auto& pair : cfusion->output_to_operand_aliasing()) {
-  //   aliased_outputs.emplace(pair.first, pair.second);
-  // }
-  // points_to_set.ForEachMutableElement([&](const ShapeIndex& index,
-  //                                         PointsToSet::BufferList* buffers) {
-  //   auto it = aliased_outputs.find(index);
-  //   if (it == aliased_outputs.end()) {
-  //     points_to_set.AddPointedToBuffer(
-  //         logical_buffer_analysis_->GetBuffer(fusion, index), index);
-  //   } else {
-  //     const PointsToSet& input_set =
-  //         *PerInst(cfusion->operand(it->second.first))->points_to_set;
-  //     for (const LogicalBuffer* input_buffer :
-  //          input_set.element(it->second.second)) {
-  //       points_to_set.AddPointedToBuffer(*input_buffer, index);
-  //     }
+  auto cfusion = Cast<HloFusionInstruction>(fusion);
+  PointsToSet& points_to_set = CreateEmptyPointsToSet(fusion);
+  absl::flat_hash_map<ShapeIndex, std::pair<int64_t, ShapeIndex>>
+      aliased_outputs;
+  for (const auto& pair : cfusion->output_to_operand_aliasing()) {
+    aliased_outputs.emplace(pair.first, pair.second);
+  }
+  points_to_set.ForEachMutableElement([&](const ShapeIndex& index,
+                                          PointsToSet::BufferList* buffers) {
+    auto it = aliased_outputs.find(index);
+    if (it == aliased_outputs.end()) {
+      points_to_set.AddPointedToBuffer(
+          logical_buffer_analysis_->GetBuffer(fusion, index), index);
+    } else {
+      const PointsToSet& input_set =
+          *PerInst(cfusion->operand(it->second.first))->points_to_set;
+      for (const LogicalBuffer* input_buffer :
+           input_set.element(it->second.second)) {
+        points_to_set.AddPointedToBuffer(*input_buffer, index);
+      }
 
-  //     for (HloInstruction* tuple :
-  //     input_set.tuple_sources(it->second.second)) {
-  //       points_to_set.add_tuple_source(index, tuple);
-  //     }
-  //   }
-  // });
-  // points_to_set.add_tuple_source({}, fusion);
-  // return absl::OkStatus();
-  return absl::UnimplementedError("");
+      for (HloInstruction* tuple : input_set.tuple_sources(it->second.second)) {
+        points_to_set.add_tuple_source(index, tuple);
+      }
+    }
+  });
+  points_to_set.add_tuple_source({}, fusion);
+  return absl::OkStatus();
 }
 
 absl::Status TuplePointsToAnalysis::HandleOptimizationBarrier(
@@ -700,12 +695,9 @@ std::string TuplePointsToAnalysis::ToString() const {
          computation->MakeInstructionPostOrder()) {
       InstructionToString(instruction, &output);
       if (instruction->opcode() == HloOpcode::kFusion) {
-        // clang-format off
-        // TODO(chokobole): Uncomment this. Dependency: HloInstruction::fused_instructions
-        // clang-format on
-        // for (auto* fused : instruction->fused_instructions()) {
-        //   InstructionToString(fused, &output);
-        // }
+        for (auto* fused : instruction->fused_instructions()) {
+          InstructionToString(fused, &output);
+        }
       }
     }
   }
@@ -722,11 +714,7 @@ std::string TuplePointsToAnalysis::ToString() const {
 
 void TuplePointsToAnalysis::InstructionToString(
     const HloInstruction* instruction, std::string* output) const {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::IsFused
-  // clang-format on
-  // const std::string prefix = instruction->IsFused() ? "    " : "";
-  const std::string prefix = "";
+  const std::string prefix = instruction->IsFused() ? "    " : "";
   absl::StrAppend(output, prefix, "  instruction ",
                   instruction->ToShortString(), ":\n");
   const PointsToSet& points_to_set = GetPointsToSet(instruction);
@@ -752,35 +740,30 @@ bool TuplePointsToAnalysis::DoesNotUseOperandBuffer(
     // GetTupleElement instructions only access the top-level buffer of their
     // operand.
     return true;
+  } else if (user->IsLoopFusion()) {
+    // Find fusion parameter associated with 'operand'.
+    auto it = absl::c_find_if(
+        user->fused_parameters(), [&](HloInstruction* fused_param) {
+          return user->operand(fused_param->parameter_number()) == operand;
+        });
+    CHECK(it != user->fused_parameters().end());
+    // Iterate through all users of all buffer aliases of the buffer in the
+    // points-to set of fusion parameter at 'index'.
+    // Return false if any uses are detected at 'index', returns true otherwise.
+    const LogicalBuffer* buffer = GetBufferDefinedAt(*it, index).value();
+    for (const BufferAlias& alias : GetBufferAliases(*buffer)) {
+      for (HloInstruction* alias_user : alias.instruction()->users()) {
+        if (DoesNotUseOperandBuffer(alias.instruction(), alias.index(),
+                                    alias_user)) {
+          continue;
+        }
+        // Return false: use detected at 'buffer' -> 'alias' -> 'alias_user'.
+        return false;
+      }
+    }
+    // Return true: found no uses of 'operand' at 'index' in 'user'.
+    return true;
   }
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::IsLoopFusion
-  // clang-format on
-  // else if (user->IsLoopFusion()) {
-  //   // Find fusion parameter associated with 'operand'.
-  //   auto it = absl::c_find_if(
-  //       user->fused_parameters(), [&](HloInstruction* fused_param) {
-  //         return user->operand(fused_param->parameter_number()) == operand;
-  //       });
-  //   CHECK(it != user->fused_parameters().end());
-  //   // Iterate through all users of all buffer aliases of the buffer in the
-  //   // points-to set of fusion parameter at 'index'.
-  //   // Return false if any uses are detected at 'index', returns true
-  //   otherwise.
-  //   const LogicalBuffer* buffer = GetBufferDefinedAt(*it, index).value();
-  //   for (const BufferAlias& alias : GetBufferAliases(*buffer)) {
-  //     for (HloInstruction* alias_user : alias.instruction()->users()) {
-  //       if (DoesNotUseOperandBuffer(alias.instruction(), alias.index(),
-  //                                   alias_user)) {
-  //         continue;
-  //       }
-  //       // Return false: use detected at 'buffer' -> 'alias' -> 'alias_user'.
-  //       return false;
-  //     }
-  //   }
-  //   // Return true: found no uses of 'operand' at 'index' in 'user'.
-  //   return true;
-  // }
   return false;
 }
 
@@ -824,28 +807,24 @@ bool TuplePointsToAnalysis::HasUniqueFusedUseOfOperandAt(
   if (fusion->OperandIndices(operand).size() > 1) {
     return false;
   }
-  // Find fusion parameter associated with `operand`.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::fused_parameters, HloInstruction::fused_expression_root
-  // clang-format on
-  // const auto& fused_params = fusion->fused_parameters();
-  // auto fused_param_it =
-  //     absl::c_find_if(fused_params, [&](HloInstruction* fused_param) {
-  //       return fusion->operand(fused_param->parameter_number()) == operand;
-  //     });
-  // if (fused_param_it == fused_params.end()) {
-  //   return false;
-  // }
-  // auto* fused_param = *fused_param_it;
-  // // Get all uses of `operand` at `index` from `fusion.fused_instructions`.
-  // auto fused_param_uses =
-  //     GetAllUsesOfInstructionAtIndex(fused_param, operand_index);
-  // // Return true iff there is exactly one use of `operand` at `index`, and
-  // // this singleton use is the fused root (at index in
-  // 'use_operand_indices'). return fused_param_uses.size() == 1 &&
-  //        fused_param_uses[0].first == fusion->fused_expression_root() &&
-  //        fused_param_uses[0].second == use_operand_index;
-  return false;
+  // Find fusion parameter associated with 'operand'.
+  const auto& fused_params = fusion->fused_parameters();
+  auto fused_param_it =
+      absl::c_find_if(fused_params, [&](HloInstruction* fused_param) {
+        return fusion->operand(fused_param->parameter_number()) == operand;
+      });
+  if (fused_param_it == fused_params.end()) {
+    return false;
+  }
+  auto* fused_param = *fused_param_it;
+  // Get all uses of 'operand' at 'index' from 'fusion.fused_instructions'.
+  auto fused_param_uses =
+      GetAllUsesOfInstructionAtIndex(fused_param, operand_index);
+  // Return true iff there is exactly one use of 'operand' at 'index', and
+  // this singleton use is the fused root (at index in 'use_operand_indices').
+  return fused_param_uses.size() == 1 &&
+         fused_param_uses[0].first == fusion->fused_expression_root() &&
+         fused_param_uses[0].second == use_operand_index;
 }
 
 }  // namespace zkx

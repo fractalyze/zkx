@@ -266,6 +266,11 @@ class HloInstruction {
   // instruction from each operand's user set and user's operand set.
   void DetachFromOperandsAndUsers();
 
+  // Adds a derived instruction to the parent computation of this instruction.
+  // Also update setup the new instruction as a derived instruction.
+  HloInstruction* AddInstruction(
+      std::unique_ptr<HloInstruction> derived_instruction);
+
   // Creates an instruction from the given proto. Arguments:
   //
   //   proto: the proto to convert from.
@@ -327,11 +332,9 @@ class HloInstruction {
       absl::Span<HloInstruction* const> operands);
 
   // Creates an FFT op, of the type indicated by fft_type.
-  static std::unique_ptr<HloInstruction> CreateFft(const Shape& shape,
-                                                   absl::Span<HloInstruction* const> operands,
-                                                   FftType fft_type,
-                                                   int64_t fft_length,
-                                                   bool fft_do_bit_reverse);
+  static std::unique_ptr<HloInstruction> CreateFft(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      FftType fft_type, int64_t fft_length, bool fft_do_bit_reverse);
 
   // Creates a MSM op
   static std::unique_ptr<HloInstruction> CreateMsm(const Shape& shape,
@@ -704,6 +707,19 @@ class HloInstruction {
       const Shape& shape, HloInstruction* operand,
       absl::Span<const int64_t> broadcast_dimensions);
 
+  // Creates a fusion instruction. A fusion instruction contains one or more
+  // fused instructions forming an expression with a single root
+  // "fused_root". Additional instructions can be added to the fusion
+  // instruction with the method FuseInstruction.
+  static std::unique_ptr<HloInstruction> CreateFusion(
+      const Shape& shape, FusionKind fusion_kind, HloInstruction* fused_root,
+      std::string_view prefix = "");
+
+  static std::unique_ptr<HloInstruction> CreateFusion(
+      const Shape& shape, FusionKind fusion_kind,
+      absl::Span<HloInstruction* const> operands,
+      HloComputation* fusion_computation, std::string_view prefix = "");
+
   // Creates a tuple instruction with the given elements. This is a convenience
   // wrapper around CreateVariadic.
   static std::unique_ptr<HloInstruction> CreateTuple(
@@ -910,6 +926,20 @@ class HloInstruction {
   // Allow subclasses to contribute additional attributes to the hash.
   virtual void HashAdditionalAttributes(absl::HashState h) const {};
 
+  // Generates a hash value of an HLO instruction. Hash considers
+  // information on opcode, shape, number of operands, and other relevant
+  // additional attributes (e.g. literal values, parameters, etc.).
+  template <typename H>
+  friend H AbslHashValue(H h, const HloInstruction& hlo) {
+    h = H::combine(std::move(h), hlo.opcode(), hlo.shape());
+    if (!hlo.IsCrossModuleAllReduce()) {
+      h = H::combine(std::move(h), hlo.operand_count());
+    }
+    // Allow subclasses to mix additional data into h before returning
+    hlo.HashAdditionalAttributes(absl::HashState::Create(&h));
+    return h;
+  }
+
   // Replaces the use of this instruction in "user" with "new_producer". Note
   // that there might be multiple uses of this instruction in "user"; all will
   // be replaced.
@@ -1079,6 +1109,23 @@ class HloInstruction {
   // Returns a serialized representation of this instruction.
   virtual HloInstructionProto ToProto() const;
 
+  // Returns a category for the HLO. This could be something like "data
+  // formatting" or "non-fusion elementwise".
+  virtual std::string ToCategory() const;
+
+  // Returns true if this instruction is fused, ie contained within a fusion
+  // instruction.
+  bool IsFused() const;
+
+  bool IsLoopFusion() const;
+  bool IsInputFusion() const;
+  bool IsOutputFusion() const;
+  bool IsCustomFusion() const;
+
+  // Returns true if this instruction can be legally fused into a fusion
+  // instruction.
+  bool IsFusible() const;
+
   // Returns the sharding applied to this operator.
   // REQUIRES: has_sharding() is true.
   const HloSharding& sharding() const {
@@ -1223,6 +1270,9 @@ class HloInstruction {
   bool IsElementwise() const;
 
   static bool IsOpElementwise(HloOpcode opcode);
+
+  // Returns true if this is a cross module all-reduce instruction.
+  bool IsCrossModuleAllReduce() const;
 
   // Returns the indices that the given operand appear in the operand list of
   // this instruction. Note that an instruction can use the same operand
@@ -1481,6 +1531,55 @@ class HloInstruction {
   // Returns whether the instruction is a constant.
   bool IsConstant() const;
 
+  // Delegates to HloFusionInstruction::AddFusionOperand.
+  HloInstruction* AddFusionOperand(HloInstruction* new_operand);
+
+  // Delegates to HloFusionInstruction::MergeFusionInstruction.
+  void MergeFusionInstruction(HloInstruction* instruction_to_merge);
+
+  // Delegates to HloFusionInstruction::MergeFusionInstructionIntoMultiOutput.
+  void MergeFusionInstructionIntoMultiOutput(
+      HloInstruction* instruction_to_merge);
+
+  // Delegates to HloFusionInstruction::FuseInstruction.
+  HloInstruction* FuseInstruction(HloInstruction* instruction_to_fuse);
+
+  // Delegates to HloFusionInstruction::FuseInstructionIntoMultiOutput.
+  HloInstruction* FuseInstructionIntoMultiOutput(
+      HloInstruction* instruction_to_fuse);
+
+  // Delegates to HloFusionInstruction::fused_instruction.
+  HloComputation* fused_instructions_computation() const;
+
+  // Delegates to HloFusionInstruction::fused_expression_root.
+  HloInstruction* fused_expression_root() const;
+
+  // Delegates to HloFusionInstruction::fused_instructions.
+  tsl::gtl::iterator_range<HloInstructionUnwrappingConstIterator>
+  fused_instructions() const;
+
+  tsl::gtl::iterator_range<HloInstructionUnwrappingIterator>
+  fused_instructions();
+
+  // Delegates to HloFusionInstruction::fused_instruction_count.
+  int64_t fused_instruction_count() const;
+
+  // Delegates to HloFusionInstruction::fused_parameter.
+  HloInstruction* fused_parameter(int64_t parameter_number) const;
+
+  // Delegates to HloFusionInstruction::fused_parameters.
+  const InstructionVector& fused_parameters() const;
+
+  // Returns true if this instruction is a fusion instruction that generates
+  // multiple outputs.
+  bool IsMultiOutputFusion() const;
+
+  // Delegates to HloFusionInstruction::fusion_kind.
+  FusionKind fusion_kind() const;
+
+  // Delegates to HloFusionInstruction::set_fusion_kind.
+  void set_fusion_kind(FusionKind kind);
+
   // Delegates to HloParameterInstruction::parameter_number.
   int64_t parameter_number() const;
 
@@ -1529,6 +1628,15 @@ class HloInstruction {
 
   // Delegates to HloCollectivePermuteInstruction::source_target_pairs.
   const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs() const;
+
+  // Delegates to HloCallableInstruction::output_to_operand_aliasing().
+  const std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>&
+  output_operand_aliasing() const;
+
+  // Delegates to HloCallableInstruction::set_output_to_operand_aliasing().
+  void set_output_to_operand_aliasing(
+      std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+          aliasing);
 
   // Appends operand(s) to the list of operands and adds this instruction as a
   // user of the operand.
@@ -1596,6 +1704,10 @@ class HloInstruction {
   void RemoveOperandAt(int index) {
     operands_.erase(operands_.begin() + index);
   }
+
+  // Removes a list of operands with the given indices in ascending order.
+  void RemoveOperandsAtAscendingIndices(
+      absl::Span<const int> ascending_indices);
 
   void AppendComputation(HloComputation* computation);
 

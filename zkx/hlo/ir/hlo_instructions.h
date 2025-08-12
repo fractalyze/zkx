@@ -1057,6 +1057,261 @@ class HloConstantInstruction : public HloInstruction {
   std::shared_ptr<Literal> literal_;
 };
 
+// Abstract class that represents an HLO instruction that "calls" a computation.
+// Fusion and Call HLOs inherit from this class.
+class HloCallableInstruction : public HloInstruction {
+ public:
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape);
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         absl::Span<HloInstruction* const> operands);
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         absl::Span<HloInstruction* const> operands,
+                         HloComputation* called_computation,
+                         std::string_view prefix = "");
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         absl::Span<HloInstruction* const> operands,
+                         absl::Span<HloComputation* const> called_computations);
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         const std::string& name, const std::string& attributes,
+                         int64_t version);
+
+  HloCallableInstruction(HloOpcode opcode, const Shape& shape,
+                         absl::Span<HloInstruction* const> operands,
+                         HloComputation* decomposition, const std::string& name,
+                         const std::string& attributes, int64_t version);
+
+  ~HloCallableInstruction() override;
+
+  // Adds a new operand to the callable instruction.
+  HloInstruction* AddCallOperand(HloInstruction* new_operand);
+
+  // Appends (fuses) the given instruction into this callable instruction.
+  // instruction_to_append is cloned and the clone is placed in the callable
+  // instruction.  The users of instruction_to_append will be redirected to this
+  // callable instruction. instruction_to_append is unchanged otherwise. When
+  // add_output is true, a clone of the instruction_to_append will be added as
+  // additional output resulting in a multi-output callable instruction.
+  HloInstruction* AppendInstructionIntoCalledComputation(
+      HloInstruction* instruction_to_append, bool add_output = false);
+  // Clones the given instruction_to_append and inserts the clone into this
+  // callable instruction. If add_output is true, a clone of
+  // instruction_to_append will be in the output of the this callable
+  // instruction (part of the tuple of the callable root).
+  HloInstruction* CloneAndAppendInstructionIntoCalledComputation(
+      HloInstruction* instruction_to_append, bool add_output = false);
+
+  // Retrieves the called computations of an HloCallableInstruction that is
+  // being cloned. If the called computations have not yet been cloned, then
+  // they are first cloned and added to the context.
+  absl::InlinedVector<HloComputation*, 1> GetOrCloneCalledComputations(
+      HloCloneContext* context) const;
+
+  HloComputation* called_computation() const;
+
+  HloInstruction* called_computation_root() const;
+
+  // Recursively sets all nested called computation to have thread name as
+  // `execution_thread`. if `skip_async_execution_thread_overwrite` is true,
+  // skip overwrite async instruction and its computations thread name
+  // overwriting.
+  void RecursivelySetComputationsThreadName(
+      std::string_view execution_thread,
+      bool skip_async_execution_thread_overwrite);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kFusion ||
+           hlo->opcode() == HloOpcode::kCall ||
+           hlo->opcode() == HloOpcode::kCustomCall;
+  }
+
+  // Gets a list of output/operand buffer pairs that alias each other, where the
+  // output buffer is represented as a ShapeIndex, and the operand buffer is
+  // represented as the operand index and the ShapeIndex. By default this list
+  // is empty.
+  const std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>&
+  output_to_operand_aliasing() const {
+    return output_to_operand_aliasing_;
+  }
+  // Sets the list of output/operand buffer pairs that alias each other.
+  void set_output_to_operand_aliasing(
+      std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+          aliasing) {
+    output_to_operand_aliasing_ = std::move(aliasing);
+  }
+
+  FrontendAttributes BuildFrontendAttributesForComposite(
+      const std::string& name,
+      std::optional<std::string_view> attributes = std::nullopt,
+      std::optional<int64_t> version = std::nullopt) {
+    FrontendAttributes frontend_attributes;
+    frontend_attributes.mutable_map()->insert({"composite.name", name});
+    frontend_attributes.mutable_map()->insert(
+        {"composite.attributes",
+         attributes.has_value() ? std::string(*attributes) : "{}"});
+    frontend_attributes.mutable_map()->insert(
+        {"composite.version",
+         version.has_value() ? std::to_string(*version) : "0"});
+    return frontend_attributes;
+  }
+
+ protected:
+  // Returns the default called computation name.
+  virtual std::string default_called_computation_name() const = 0;
+
+ private:
+  // A list of output/operand buffer pairs that alias each other. See comment of
+  // output_to_operand_aliasing().
+  std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>
+      output_to_operand_aliasing_;
+};
+
+class HloFusionInstruction : public HloCallableInstruction {
+ public:
+  explicit HloFusionInstruction(const Shape& shape, FusionKind fusion_kind,
+                                HloInstruction* fused_root,
+                                std::string_view prefix = "");
+
+  explicit HloFusionInstruction(const Shape& shape, FusionKind fusion_kind,
+                                absl::Span<HloInstruction* const> operands,
+                                HloComputation* fusion_computation,
+                                std::string_view prefix = "");
+
+  ~HloFusionInstruction() override;
+
+  void ClearCalledComputations() override;
+
+  // When a fusion instruction is being destructed, clear the back pointer of
+  // its fusion computation, to avoid referencing freed memory.
+  void ClearFusionComputationInstruction();
+
+  // Clones the given instruction_to_append and inserts the clone into this
+  // callable instruction.
+  HloInstruction* CloneAndAppendInstructionIntoCalledComputation(
+      HloInstruction* instruction_to_append, bool add_output = false);
+
+  std::string ToCategory() const override;
+  // Returns a serialized representation of this instruction.
+  HloInstructionProto ToProto() const override;
+
+  // Adds a new operand the fusion instruction.
+  HloInstruction* AddFusionOperand(HloInstruction* new_operand);
+
+  // Merges the fused instructions from 'instruction_to_merge' into the
+  // fused instruction set of 'this', updating operands as necessary.
+  //
+  // Precondition: 'instruction_to_merge' must be an operand of 'this'.
+  void MergeFusionInstruction(HloFusionInstruction* instruction_to_merge);
+
+  // Merges the fused instructions from instruction_to_merge into the fused
+  // instruction set of 'this' and generates multi-output fusion instructions.
+  // All the users of instruction_to_merge will be redirected to 'this'
+  // instruction. instruction_to_merge will be removed from its parent
+  // computation.
+  void MergeFusionInstructionIntoMultiOutput(
+      HloFusionInstruction* instruction_to_merge);
+
+  // Fuses the given instruction in this fusion instruction. instruction_to_fuse
+  // is cloned and the clone is placed in the fusion
+  // instruction. instruction_to_fuse is unchanged. Instruction is cloned rather
+  // than moved to cleanly handle the case where the instruction has a use
+  // outside the fusion instruction. Moving such an instruction into a fusion
+  // instruction would violate the single-result invariant of HLO instructions
+  // and significantly complicate code generation.
+  HloInstruction* FuseInstruction(HloInstruction* instruction_to_fuse) {
+    CHECK(instruction_to_fuse->IsFusible()) << instruction_to_fuse->ToString();
+    return AppendInstructionIntoCalledComputation(instruction_to_fuse);
+  }
+
+  // Fuses the given instruction in this fusion instruction and generates a
+  // multioutput fusion instruction. A clone of the instruction_to_fuse will
+  // be part of the output of fusion instructions. The users of
+  // instruction_to_fuse will be redirected to this fusion instructions.
+  // instruction_to_fuse is unchanged otherwise.
+  HloInstruction* FuseInstructionIntoMultiOutput(
+      HloInstruction* instruction_to_fuse) {
+    return AppendInstructionIntoCalledComputation(instruction_to_fuse,
+                                                  /*add_output=*/true);
+  }
+
+  // Returns the computation for this fused instruction.
+  HloComputation* fused_instructions_computation() const;
+
+  // Returns the root instruction of the fused expression contained within this
+  // fusion instruction.
+  HloInstruction* fused_expression_root() const;
+
+  // Returns the list of fused instructions inside this fusion instruction.  The
+  // returned type is a range of HloInstruction*s.
+  tsl::gtl::iterator_range<HloInstructionUnwrappingConstIterator>
+  fused_instructions() const;
+
+  tsl::gtl::iterator_range<HloInstructionUnwrappingIterator>
+  fused_instructions();
+
+  // Gets the number of instructions inside this fusion instruction.
+  int64_t fused_instruction_count() const;
+
+  // Returns the fused parameter instruction in this fusion instruction
+  // corresponding to the given parameter number.
+  HloInstruction* fused_parameter(int64_t parameter_number) const;
+
+  // Returns the vector of fused parameters inside this fusion instruction.
+  const HloInstruction::InstructionVector& fused_parameters() const;
+
+  // Returns true if this instruction is a fusion instruction that generates
+  // multiple outputs.
+  bool IsMultiOutputFusion() const {
+    return fused_expression_root()->opcode() == HloOpcode::kTuple;
+  }
+
+  FusionKind fusion_kind() const { return fusion_kind_; }
+
+  void set_fusion_kind(FusionKind kind) { fusion_kind_ = kind; }
+
+  // If multiple operands are the same instruction, keeps only one of them.
+  absl::Status DeduplicateFusionOperands();
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kFusion;
+  }
+
+  // Add various fusion parameters to the hash.
+  void HashAdditionalAttributes(absl::HashState h) const override {
+    absl::HashState::combine(std::move(h), *fused_expression_root(),
+                             fusion_kind(), fused_instruction_count(),
+                             fused_parameters().size());
+  }
+
+ protected:
+  std::string default_called_computation_name() const override {
+    return "fused_computation";
+  }
+
+ private:
+  bool IsElementwiseImpl(
+      const std::optional<int64_t>& operand_idx) const override;
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  // The type of the fusion.
+  FusionKind fusion_kind_;
+};
+
 class HloParameterInstruction : public HloInstruction {
  public:
   explicit HloParameterInstruction(int64_t parameter_number, const Shape& shape,
