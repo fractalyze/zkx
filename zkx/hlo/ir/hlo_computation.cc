@@ -1034,6 +1034,37 @@ absl::StatusOr<std::unique_ptr<HloComputation>> HloComputation::CreateFromProto(
   return std::move(computation);
 }
 
+void HloComputation::AppendInstructionsIntoCalledComputation(
+    absl::Span<HloInstruction* const> instructions_to_append,
+    HloInstruction* caller) {
+  HloInstruction* root = instructions_to_append.front();
+  CHECK_OK(caller->CopyAllControlDepsFrom(root));
+  CHECK_OK(root->DropAllControlDeps());
+  CHECK_OK(root->ReplaceAllUsesWith(caller));
+  if (root == root_instruction()) {
+    set_root_instruction(caller);
+  }
+  CHECK_OK(RemoveInstruction(root));
+  for (size_t i = 1; i < instructions_to_append.size(); ++i) {
+    HloInstruction* instruction = instructions_to_append[i];
+    caller->AppendInstructionIntoCalledComputation(instruction);
+    if (instruction->IsDead()) {
+      CHECK_OK(RemoveInstruction(instruction));
+    }
+  }
+}
+
+HloInstruction* HloComputation::CreateFusionInstruction(
+    absl::Span<HloInstruction* const> instructions_to_fuse,
+    HloInstruction::FusionKind fusion_kind) {
+  HloInstruction* root = instructions_to_fuse.front();
+  HloInstruction* fusion_instruction = AddInstruction(
+      HloInstruction::CreateFusion(root->shape(), fusion_kind, root));
+  AppendInstructionsIntoCalledComputation(instructions_to_fuse,
+                                          fusion_instruction);
+  return fusion_instruction;
+}
+
 absl::StatusOr<HloInstruction*> HloComputation::CreateAsyncInstructions(
     HloInstruction* instruction, absl::Span<const Shape> context_shapes,
     std::string_view async_execution_thread, bool replace,

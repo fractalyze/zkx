@@ -456,6 +456,17 @@ class HloComputation {
   // B in the list.
   std::vector<HloComputation*> MakeEmbeddedComputationsList() const;
 
+  // Creates a fusion instruction containing the given instructions.
+  // `fusion_kind` indicates the type of the fusion, e.g., loop fusion or fusion
+  // into a library call. Instructions must be in reverse topological order
+  // (root of the fused expression first). Replaces all uses of the original
+  // root instruction with the fusion instruction. The original instructions are
+  // removed if they have no uses after fusion (this is necessarily true for at
+  // least the root).
+  HloInstruction* CreateFusionInstruction(
+      absl::Span<HloInstruction* const> instructions_to_fuse,
+      HloInstruction::FusionKind fusion_kind);
+
   // Computes and returns the ProgramShape of this computation (shape of
   // parameters and result with layout).
   ProgramShape ComputeProgramShape(bool include_ids = true) const;
@@ -798,6 +809,11 @@ class HloComputation {
           absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>>
           computations_comparator,
       bool ignore_channel_id_values, bool ignore_execution_thread) const;
+  // Appends (fuses) HLOs in instructions_to_append into the called computation
+  // of the caller.
+  void AppendInstructionsIntoCalledComputation(
+      absl::Span<HloInstruction* const> instructions_to_append,
+      HloInstruction* caller);
 
   // Internal helper to collect unreachable roots.
   std::vector<HloInstruction*> CollectUnreachableRoots() const;
