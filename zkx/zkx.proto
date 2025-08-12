@@ -127,6 +127,9 @@ message DebugOptions {
   // If true, a set of expensive LLVM optimization passes will not be run.
   bool zkx_llvm_disable_expensive_passes = 73;
 
+  // Enable fast math with eigen in the HLO evaluator.
+  bool zkx_hlo_evaluator_use_fast_path = 106;
+
   //
   // BEGIN flags controlling dumping HLO modules for debugging.
   //
