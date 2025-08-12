@@ -63,6 +63,39 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_test_base",
+    testonly = True,
+    srcs = ["hlo_test_base.cc"],
+    hdrs = ["hlo_test_base.h"],
+    deps = [
+        ":hlo_runner_agnostic_reference_mixin",
+        ":hlo_runner_agnostic_test_base",
+        ":pjrt_client_registry",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/testlib:file_check",
+        "//zkx/pjrt:pjrt_client",
+        "//zkx/service:backend",
+        "//zkx/service:computation_placer",
+        "//zkx/service:hlo_runner",
+        "//zkx/service:hlo_runner_interface",
+        "//zkx/service:hlo_runner_pjrt",
+        "//zkx/service:platform_util",
+        "//zkx/stream_executor:device_memory_allocator",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:stream_executor_memory_allocator",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
     name = "literal_test_util",
     testonly = True,
     srcs = ["literal_test_util.cc"],
