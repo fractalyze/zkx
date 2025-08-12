@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -22,4 +22,26 @@ zkx_cc_library(
     ],
 )
 
-# TODO(chokobole): Add hlo_memory_scheduler_unittest.cc. Dependency: HloHardwareIndependentTestBase
+zkx_cc_unittest(
+    name = "simplifiers_unittests",
+    srcs = ["hlo_memory_scheduler_unittest.cc"],
+    deps = [
+        ":hlo_memory_scheduler",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal_util",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/analysis:hlo_alias_analysis",
+        "//zkx/hlo/analysis:hlo_ordering",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/service:buffer_value",
+        "//zkx/service:hlo_value",
+        "//zkx/service:logical_buffer",
+        "//zkx/service/heap_simulator",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/types:span",
+    ],
+)
