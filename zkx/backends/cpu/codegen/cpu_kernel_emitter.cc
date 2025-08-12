@@ -804,9 +804,18 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
     }
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
-    case HloOpcode::kPower:
-      return b.create<mlir::zkir::field::PowOp>(lhs_value.getType(), lhs_value,
-                                                rhs_value);
+    case HloOpcode::kPower: {
+      const PrimitiveType exponent_type =
+          instr->operand(1)->shape().element_type();
+      if (!primitive_util::IsUnsignedIntegralType(exponent_type)) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "The exponent for a power operation on a field must be an "
+            "unsigned integer, but got %s",
+            primitive_util::LowercasePrimitiveTypeName(exponent_type)));
+      }
+      return b.create<mlir::zkir::field::PowUIOp>(lhs_value.getType(),
+                                                  lhs_value, rhs_value);
+    }
     case HloOpcode::kSubtract:
       return b.create<mlir::zkir::field::SubOp>(lhs_value, rhs_value);
     default:
