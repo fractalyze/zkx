@@ -802,6 +802,12 @@ class MutableLiteralBase : public LiteralBase {
   template <typename NativeT>
   void PopulateWithValue(NativeT value);
 
+  // This operation is the inverse of DecomposeTuple. The given elements are
+  // moved into the tuple elements of a new tuple-shaped Literal which is
+  // returned. Upon return, each of the Literals in 'elements' is set to a nil
+  // shape (empty tuple).
+  static Literal MoveIntoTuple(absl::Span<Literal> elements);
+
   // Serialize from a proto.
   static absl::StatusOr<Literal> CreateFromProto(
       const LiteralProto& proto, bool prohibit_empty_literal = true);

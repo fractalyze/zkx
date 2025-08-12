@@ -428,6 +428,22 @@ std::string LiteralBase::ToStringWithLayoutOneline() const {
   return std::move(printer).ToString();
 }
 
+// static
+Literal MutableLiteralBase::MoveIntoTuple(absl::Span<Literal> elements) {
+  std::vector<const Shape*> element_shapes;
+  element_shapes.reserve(elements.size());
+  for (const Literal& element : elements) {
+    element_shapes.push_back(&element.shape());
+  }
+  Literal literal(ShapeUtil::MakeTupleShapeWithPtrs(element_shapes),
+                  /*allocate_arrays=*/false);
+  for (int i = 0, end = elements.size(); i < end; ++i) {
+    CHECK_OK(
+        literal.MoveFrom(std::move(elements[i]), /*dest_shape_index=*/{i}));
+  }
+  return literal;
+}
+
 template <typename NativeT>
 bool LiteralBase::Piece::EqualElementsInternal(
     const LiteralBase::Piece& other, std::vector<int64_t>* multi_index) const {
