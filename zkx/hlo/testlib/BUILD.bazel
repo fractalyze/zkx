@@ -19,3 +19,24 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
     ],
 )
+
+zkx_cc_library(
+    name = "verified_hlo_module",
+    testonly = True,
+    srcs = ["verified_hlo_module.cc"],
+    hdrs = ["verified_hlo_module.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/service:hlo_module_config",
+        "//zkx/service:hlo_verifier",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
+    ],
+)
