@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -111,5 +111,18 @@ zkx_cc_library(
 
 # TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
 # TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
-# TODO(chokobole): Add hlo_reachability_unittest.cc. Dependency: HloHardwareIndependentTestBase
 # TODO(chokobole): Add tuple_points_to_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
+zkx_cc_unittest(
+    name = "analysis_unittests",
+    srcs = ["hlo_reachability_unittest.cc"],
+    deps = [
+        ":hlo_reachability",
+        "//zkx:literal_util",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/service:computation_placer",
+        "//zkx/service:hlo_module_config",
+        "@com_google_absl//absl/random",
+    ],
+)
