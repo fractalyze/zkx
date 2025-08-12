@@ -102,6 +102,25 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
         };
       };
 
+  auto make_repeated_string_setter =
+      [debug_options](void (DebugOptions::*adder)(absl::string_view)) {
+        return [debug_options, adder](std::string comma_separated_values) {
+          for (const std::string_view passname :
+               absl::StrSplit(comma_separated_values, ',')) {
+            (debug_options->*adder)(passname);
+          }
+          return true;
+        };
+      };
+
+  // Custom "sub-parser" lambda for zkx_disable_hlo_passes.
+  auto setter_for_zkx_disable_hlo_passes =
+      make_repeated_string_setter(&DebugOptions::add_zkx_disable_hlo_passes);
+
+  // Custom "sub-parser" lambda for zkx_enable_hlo_passes_only.
+  auto setter_for_zkx_enable_hlo_passes_only = make_repeated_string_setter(
+      &DebugOptions::add_zkx_enable_hlo_passes_only);
+
   // Custom "sub-parser" lambda for zkx_backend_extra_options.
   auto setter_for_zkx_backend_extra_options =
       [debug_options](std::string comma_separated_values) {
@@ -133,6 +152,24 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       int32_setter_for(&DebugOptions::set_zkx_backend_optimization_level),
       debug_options->zkx_backend_optimization_level(),
       "Numerical optimization level for the ZKX compiler backend."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_disable_hlo_passes", setter_for_zkx_disable_hlo_passes, "",
+      "Comma-separated list of hlo passes to be disabled. These names must "
+      "exactly match the passes' names; no whitespace around commas."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_enable_hlo_passes_only", setter_for_zkx_enable_hlo_passes_only, "",
+      "Comma-separated list of hlo passes to be enabled. These names must "
+      "exactly match the passes' names; no whitespace around commas. The "
+      "unspecified passes are all disabled."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_disable_all_hlo_passes",
+      bool_setter_for(&DebugOptions::set_zkx_disable_all_hlo_passes), false,
+      "Disables all HLO passes. Notes that some passes are necessary for "
+      "correctness and the invariants that must be satisfied by 'fully "
+      "optimized' HLO are different for different devices and may change "
+      "over time. The only 'guarantee', such as it is, is that if you compile "
+      "ZKX and dump the optimized HLO for some graph, you should be able to "
+      "run it again on the same device with the same build of ZKX."));
   flag_list->push_back(tsl::Flag(
       "zkx_backend_extra_options", setter_for_zkx_backend_extra_options, "",
       "Extra options to pass to a backend; comma-separated list of 'key=val' "
