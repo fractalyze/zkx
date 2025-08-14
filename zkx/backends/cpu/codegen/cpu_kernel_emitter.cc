@@ -411,12 +411,9 @@ mlir::Value CpuKernelEmitter::EmitCSROperand(EmitterLocOpBuilder& b,
   int64_t offset1 = offset0 + (num_rows + 1) * sizeof(uint32_t);
   int64_t offset2 = offset1 + num_nonzeros * sizeof(uint32_t);
 
-  auto offset0_op = b.create<mlir::arith::ConstantOp>(
-      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset0));
-  auto offset1_op = b.create<mlir::arith::ConstantOp>(
-      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset1));
-  auto offset2_op = b.create<mlir::arith::ConstantOp>(
-      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset2));
+  auto offset0_op = b.create<mlir::arith::ConstantIndexOp>(offset0);
+  auto offset1_op = b.create<mlir::arith::ConstantIndexOp>(offset1);
+  auto offset2_op = b.create<mlir::arith::ConstantIndexOp>(offset2);
 
   Shape row_ptrs_shape = ShapeUtil::MakeShape(U32, {num_rows + 1});
   Shape col_indices_shape = ShapeUtil::MakeShape(U32, {num_nonzeros});
@@ -468,12 +465,9 @@ mlir::Value CpuKernelEmitter::EmitCSCOperand(EmitterLocOpBuilder& b,
   int64_t offset1 = offset0 + (num_cols + 1) * sizeof(uint32_t);
   int64_t offset2 = offset1 + num_nonzeros * sizeof(uint32_t);
 
-  auto offset0_op = b.create<mlir::arith::ConstantOp>(
-      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset0));
-  auto offset1_op = b.create<mlir::arith::ConstantOp>(
-      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset1));
-  auto offset2_op = b.create<mlir::arith::ConstantOp>(
-      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset2));
+  auto offset0_op = b.create<mlir::arith::ConstantIndexOp>(offset0);
+  auto offset1_op = b.create<mlir::arith::ConstantIndexOp>(offset1);
+  auto offset2_op = b.create<mlir::arith::ConstantIndexOp>(offset2);
 
   Shape col_ptrs_shape = ShapeUtil::MakeShape(U32, {num_cols + 1});
   Shape row_indices_shape = ShapeUtil::MakeShape(U32, {num_nonzeros});
@@ -531,10 +525,8 @@ mlir::Value CpuKernelEmitter::EmitCOOOperand(EmitterLocOpBuilder& b,
   int64_t offset0 = 0;
   int64_t offset1 = offset0 + num_nonzeros * sizeof(uint32_t) * 2;
 
-  auto offset0_op = b.create<mlir::arith::ConstantOp>(
-      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset0));
-  auto offset1_op = b.create<mlir::arith::ConstantOp>(
-      b.getIndexType(), b.getIntegerAttr(b.getIndexType(), offset1));
+  auto offset0_op = b.create<mlir::arith::ConstantIndexOp>(offset0);
+  auto offset1_op = b.create<mlir::arith::ConstantIndexOp>(offset1);
 
   Shape indices_shape = ShapeUtil::MakeShape(U32, {num_nonzeros, 2});
   Shape values_array_shape =
@@ -617,7 +609,7 @@ absl::Status CpuKernelEmitter::EmitEpilog(EmitterLocOpBuilder& b,
   } else {
     pass_flag_.enable_one_shot_bufferize = true;
 
-    ret_value = b.create<mlir::bufferization::ToMemrefOp>(ret_type, result);
+    ret_value = b.create<mlir::bufferization::ToBufferOp>(ret_type, result);
   }
 
   b.create<mlir::func::ReturnOp>(mlir::ValueRange{ret_value});
@@ -947,17 +939,15 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     int32_t degree = static_cast<int32_t>(
         base::Log2Ceiling(static_cast<uint64_t>(chunk_size)));
 
-    auto zero = b.create<mlir::arith::ConstantOp>(
-        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), 0));
-    auto one = b.create<mlir::arith::ConstantOp>(
-        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), 1));
+    auto zero = b.create<mlir::arith::ConstantIndexOp>(0);
+    auto one = b.create<mlir::arith::ConstantIndexOp>(1);
 
-    mlir::Value num_scalar_mul_value = b.create<mlir::arith::ConstantOp>(
-        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), num_scalar_mul));
-    mlir::Value num_threads_value = b.create<mlir::arith::ConstantOp>(
-        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), num_threads));
-    mlir::Value chunk_size_value = b.create<mlir::arith::ConstantOp>(
-        b.getIndexType(), b.getIntegerAttr(b.getIndexType(), chunk_size));
+    mlir::Value num_scalar_mul_value =
+        b.create<mlir::arith::ConstantIndexOp>(num_scalar_mul);
+    mlir::Value num_threads_value =
+        b.create<mlir::arith::ConstantIndexOp>(num_threads);
+    mlir::Value chunk_size_value =
+        b.create<mlir::arith::ConstantIndexOp>(chunk_size);
 
     TF_ASSIGN_OR_RETURN(mlir::Value zero_point, CreateZeroPoint(b, shape));
 

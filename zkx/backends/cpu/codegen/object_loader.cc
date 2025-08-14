@@ -22,7 +22,7 @@ limitations under the License.
 #include "absl/strings/str_format.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ExecutionEngine/Orc/ExecutorProcessControl.h"
+#include "llvm/ExecutionEngine/Orc/SelfExecutorProcessControl.h"
 #include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
 #include "llvm/ExecutionEngine/Orc/Shared/ExecutorSymbolDef.h"
 #include "llvm/IR/Mangler.h"
@@ -36,11 +36,16 @@ namespace {
 std::unique_ptr<ExecutionEngine> CreateExecutionEngine(
     const llvm::DataLayout& data_layout,
     ExecutionEngine::DefinitionGenerator definition_generator) {
-  return std::make_unique<ExecutionEngine>(
-      std::make_unique<llvm::orc::ExecutionSession>(
-          std::make_unique<llvm::orc::UnsupportedExecutorProcessControl>(
-              /*SSP=*/nullptr, /*D=*/nullptr)),
-      data_layout, definition_generator);
+  auto epc = llvm::orc::SelfExecutorProcessControl::Create();
+  if (!epc) {
+    LOG(ERROR) << "Failed to create SelfExecutorProcessControl: "
+               << llvm::toString(epc.takeError());
+    return nullptr;
+  }
+
+  auto es = std::make_unique<llvm::orc::ExecutionSession>(std::move(*epc));
+  return std::make_unique<ExecutionEngine>(std::move(es), data_layout,
+                                           std::move(definition_generator));
 }
 
 }  // namespace
