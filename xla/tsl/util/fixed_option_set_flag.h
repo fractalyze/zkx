@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef ZKX_TSL_UTIL_FIXED_OPTION_SET_FLAG_H_
-#define ZKX_TSL_UTIL_FIXED_OPTION_SET_FLAG_H_
+#ifndef XLA_TSL_UTIL_FIXED_OPTION_SET_FLAG_H_
+#define XLA_TSL_UTIL_FIXED_OPTION_SET_FLAG_H_
 
 #include <string>
 #include <vector>
@@ -178,4 +178,4 @@ template <typename T>
 
 }  // namespace zkx
 
-#endif  // ZKX_TSL_UTIL_FIXED_OPTION_SET_FLAG_H_
+#endif  // XLA_TSL_UTIL_FIXED_OPTION_SET_FLAG_H_
