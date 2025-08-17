@@ -106,5 +106,11 @@ build --//:has_exception
 #    26 | #define NULL ((void*)0)
 build --noenable_bzlmod
 
+build --build_tag_filters -cuda-only,-gpu
+build --test_tag_filters -cuda-only,-gpu
+
+build:cuda --build_tag_filters
+build:cuda --test_tag_filters
+
 # Load rc file with user-specific options.
 try-import %workspace%/.bazelrc.user
