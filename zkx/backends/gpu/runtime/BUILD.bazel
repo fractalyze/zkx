@@ -1,0 +1,81 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "copy_thunk",
+    srcs = ["copy_thunk.cc"],
+    hdrs = ["copy_thunk.h"],
+    deps = [
+        ":thunk",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:event",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "sequential_thunk",
+    srcs = ["sequential_thunk.cc"],
+    hdrs = ["sequential_thunk.h"],
+    deps = [
+        ":thunk",
+        "//xla/tsl/platform:errors",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "thunk",
+    srcs = ["thunk.cc"],
+    hdrs = ["thunk.h"],
+    deps = [
+        "//xla/tsl/lib/gtl:int_type",
+        "//xla/tsl/platform:statusor",
+        "//zkx:executable_run_options",
+        "//zkx:util",
+        "//zkx/backends/gpu/collectives:gpu_clique_key",
+        "//zkx/backends/gpu/collectives:gpu_cliques",
+        "//zkx/backends/gpu/collectives:gpu_collectives",
+        "//zkx/core/collectives:communicator",
+        "//zkx/core/collectives:rank_id",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:global_device_id",
+        "//zkx/service/gpu:backend_configs_cc_proto",
+        "//zkx/service/gpu:buffer_allocations",
+        "//zkx/service/gpu:gpu_executable_run_options",
+        "//zkx/service/gpu:ir_emission_utils",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:stream",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "wait_for_streams_thunk",
+    srcs = ["wait_for_streams_thunk.cc"],
+    hdrs = ["wait_for_streams_thunk.h"],
+    deps = [
+        ":thunk",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/log",
+    ],
+)

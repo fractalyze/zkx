@@ -32,6 +32,7 @@ limitations under the License.
 #include "zkx/hlo/ir/hlo_input_output_alias_config.h"
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/hlo/ir/hlo_module_group.h"
+#include "zkx/service/gpu/gpu_executable_run_options.h"
 #include "zkx/service/hlo_module_util.h"
 #include "zkx/service/maybe_owning_device_memory.h"
 #include "zkx/service/service_executable_run_options.h"
@@ -414,14 +415,13 @@ absl::StatusOr<ExecutionOutput> HloRunner::ExecuteWithExecutionInputs(
   service_run_options.mutable_run_options()->set_execution_profile(profile);
 
   auto options = executable->module().config().debug_options();
-  // TODO(chokobole): Uncomment this. Dependency: gpu::GpuExecutableRunOptions
-  // auto gpu_run_options = std::make_unique<gpu::GpuExecutableRunOptions>();
-  // if (options.xla_gpu_require_exclusive_lock()) {
-  //   gpu_run_options->set_requires_exclusive_lock_on_gpu();
-  // }
+  auto gpu_run_options = std::make_unique<gpu::GpuExecutableRunOptions>();
+  if (options.zkx_gpu_require_exclusive_lock()) {
+    gpu_run_options->set_requires_exclusive_lock_on_gpu();
+  }
 
-  // service_run_options.mutable_run_options()->set_gpu_executable_run_options(
-  //     gpu_run_options.get());
+  service_run_options.mutable_run_options()->set_gpu_executable_run_options(
+      gpu_run_options.get());
 
   TF_ASSIGN_OR_RETURN(ExecutionOutput retval,
                       executable->ExecuteOnStreamWrapper(&service_run_options,

@@ -683,7 +683,7 @@ class CpuExecutableAotCompilationResult : public AotCompilationResult {
  public:
   static absl::StatusOr<std::unique_ptr<CpuExecutableAotCompilationResult>>
   Create(const HloModule* hlo_module, const BufferAssignment* buffer_assignment,
-         absl::string_view function_name, std::vector<std::string> obj_files,
+         std::string_view function_name, std::vector<std::string> obj_files,
          std::vector<SymbolProto> symbols, const ThunkSequence* thunks,
          CompilationResultProto::ObjFileKind obj_file_kind) {
     std::optional<ThunkSequenceProto> thunk_proto;
@@ -731,7 +731,7 @@ class CpuExecutableAotCompilationResult : public AotCompilationResult {
  private:
   CpuExecutableAotCompilationResult(
       const HloModule* hlo_module, const BufferAssignment* buffer_assignment,
-      absl::string_view function_name, std::vector<std::string> obj_files,
+      std::string_view function_name, std::vector<std::string> obj_files,
       std::vector<SymbolProto> symbols,
       const std::optional<ThunkSequenceProto>& thunks,
       CompilationResultProto::ObjFileKind obj_file_kind) {
