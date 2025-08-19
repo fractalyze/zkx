@@ -2,8 +2,9 @@
 
 ## 🚀 Build Error Troubleshooting Guide
 
-This document provides solutions for common build errors encountered when compiling this project.
-If you encounter an issue that is not listed here, feel free to contribute by opening a PR or issue!
+This document provides solutions for common build errors encountered when
+compiling this project. If you encounter an issue that is not listed here, feel
+free to contribute by opening a PR or issue!
 
 ### 🛠️ Error: Aligned Deallocation on macOS
 
@@ -16,7 +17,8 @@ If you encounter an issue that is not listed here, feel free to contribute by op
  1042 |     ::operator delete(this, alignment);
 ```
 
-To ensure compatibility, add the following line to your `.bazelrc.user` file in the project root:
+To ensure compatibility, add the following line to your `.bazelrc.user` file in
+the project root:
 
 ```shell
 build --macos_minimum_os=10.13

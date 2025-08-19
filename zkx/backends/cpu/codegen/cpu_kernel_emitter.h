@@ -88,10 +88,9 @@ class CpuKernelEmitter final : public KernelEmitter {
                                            mlir::Value lhs_value,
                                            mlir::Value rhs_value);
 
-  absl::StatusOr<mlir::Value> EmitFftOp(const HloInstruction* instr,
-                                        EmitterLocOpBuilder& b,
-                                        mlir::Value value,
-                                        mlir::Value twiddle_factor = mlir::Value());
+  absl::StatusOr<mlir::Value> EmitFftOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
+      mlir::Value twiddle_factor = mlir::Value());
 
   absl::StatusOr<mlir::Value> EmitMsmOp(const HloInstruction* instr,
                                         EmitterLocOpBuilder& b,

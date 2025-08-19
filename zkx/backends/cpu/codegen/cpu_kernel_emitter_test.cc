@@ -2,7 +2,6 @@
 
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/hlo/parser/hlo_parser.h"
-
 #include "zkx/service/platform_util.h"
 
 namespace zkx::cpu {

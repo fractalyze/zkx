@@ -20,8 +20,8 @@ limitations under the License.
 #include <utility>
 #include <variant>
 
-#include "absl/synchronization/mutex.h"
 #include "absl/log/check.h"
+#include "absl/synchronization/mutex.h"
 #include "unsupported/Eigen/CXX11/Tensor"
 
 #include "xla/tsl/platform/env.h"

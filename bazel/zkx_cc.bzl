@@ -1,3 +1,5 @@
+"""ZKX cc rules."""
+
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load(
     "//bazel:zkx.bzl",

@@ -166,7 +166,7 @@ TEST_F(CompilationEnvironmentsTest, CopyAssignment) {
   ASSERT_TRUE(envs2->AddEnv(std::move(env4)).ok());
 
   // Assign envs1 to envs2, and delete envs1. After assignment, the environments
-  // originaly added to envs2 should be deleted, and copies of the environments
+  // originally added to envs2 should be deleted, and copies of the environments
   // in envs1 should be added to envs2.
   *envs2 = *envs1;
   envs1.reset();

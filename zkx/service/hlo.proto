@@ -251,7 +251,6 @@ message HloInstructionProto {
   bool is_composite = 89;
 }
 
-
 // Serialization of HloComputation.
 message HloComputationProto {
   reserved 3;
@@ -281,7 +280,6 @@ message HloComputationProto {
   // The name of execution thread this computation belongs to.
   string execution_thread = 8;
 }
-
 
 // Serialization of an HLO schedule. An HLO schedule contains a total order of
 // instructions for each non-fusion computation in the module.

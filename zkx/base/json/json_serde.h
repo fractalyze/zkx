@@ -99,9 +99,10 @@ class JsonSerde<T,
 };
 
 template <typename T>
-class JsonSerde<T,
-                std::enable_if_t<std::is_integral<T>::value &&
-                                 std::is_signed<T>::value && sizeof(T) < 8>> {
+class JsonSerde<
+    T,
+    std::enable_if_t<std::is_integral<T>::value && std::is_signed<T>::value &&
+                     sizeof(T) < 8>> {  // NOLINT(whitespace/operators)
  public:
   template <typename Allocator>
   static rapidjson::Value From(T value, Allocator& allocator) {
@@ -135,9 +136,10 @@ class JsonSerde<T,
 };
 
 template <typename T>
-class JsonSerde<T,
-                std::enable_if_t<std::is_integral<T>::value &&
-                                 !std::is_signed<T>::value && sizeof(T) < 8>> {
+class JsonSerde<
+    T,
+    std::enable_if_t<std::is_integral<T>::value && !std::is_signed<T>::value &&
+                     sizeof(T) < 8>> {  // NOLINT(whitespace/operators)
  public:
   template <typename Allocator>
   static rapidjson::Value From(T value, Allocator& allocator) {

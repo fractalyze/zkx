@@ -924,7 +924,7 @@ class HloInstruction {
   }
 
   // Allow subclasses to contribute additional attributes to the hash.
-  virtual void HashAdditionalAttributes(absl::HashState h) const {};
+  virtual void HashAdditionalAttributes(absl::HashState h) const {}
 
   // Generates a hash value of an HLO instruction. Hash considers
   // information on opcode, shape, number of operands, and other relevant
@@ -1337,7 +1337,7 @@ class HloInstruction {
   }
 
   // Adds attributes only if they not already present in the HloInstruction.
-  // Skips all atributes already present in the HloInstruction.
+  // Skips all attributes already present in the HloInstruction.
   void add_frontend_attributes(FrontendAttributes frontend_attributes) {
     if (!frontend_attributes.map().empty()) {
       mutable_rare()->frontend_attributes.mutable_map()->insert(

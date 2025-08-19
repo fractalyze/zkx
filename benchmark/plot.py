@@ -13,7 +13,7 @@ def main(args):
 
     for degree, group in df.groupby("degree"):
         y = group[run_cols].values.flatten()
-        plt.plot(x, y, marker='o', label=f"degree {degree}")
+        plt.plot(x, y, marker="o", label=f"degree {degree}")
 
     plt.xlabel("Run")
     plt.ylabel("Time (ms)")
@@ -25,8 +25,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Plot benchmark results from CSV.")
+    parser = argparse.ArgumentParser(description="Plot benchmark results from CSV.")
     parser.add_argument("csv_file", help="Path to the csv file")
     args = parser.parse_args()
 

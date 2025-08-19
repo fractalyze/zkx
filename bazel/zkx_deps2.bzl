@@ -1,3 +1,5 @@
+"""ZKX dependencies 2."""
+
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
 load("@zkx//third_party/llvm:setup.bzl", "llvm_setup")
 

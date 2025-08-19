@@ -94,7 +94,7 @@ absl::Status HloModuleMetadata::set_custom_metadata(
     LOG(WARNING) << "failed to pack custom metadata for "
                  << pass_metadata->pass_id();
     return absl::InternalError("failed to pack custom metadata");
-  };
+  }
   return absl::OkStatus();
 }
 

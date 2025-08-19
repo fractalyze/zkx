@@ -122,7 +122,7 @@ class PlatformManager {
   // undecorated pointers to prevent races during program exit (between this
   // object's data and the underlying platforms (e.g., CUDA, OpenCL).
   // Because certain platforms have unpredictable deinitialization
-  // times/sequences, it is not possible to strucure a safe deinitialization
+  // times/sequences, it is not possible to structure a safe deinitialization
   // sequence. Thus, we intentionally "leak" allocated platforms to defer
   // cleanup to the OS. This should be acceptable, as these are one-time
   // allocations per program invocation.

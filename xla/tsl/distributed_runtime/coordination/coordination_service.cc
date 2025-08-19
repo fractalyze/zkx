@@ -1569,7 +1569,7 @@ void CoordinationServiceStandaloneImpl::BarrierAsync(
   absl::MutexLock l(&state_mu_);
   return BarrierAsyncLocked(barrier_id, counter, timeout, task,
                             participating_tasks, std::move(done));
-};
+}
 
 void CoordinationServiceStandaloneImpl::BarrierAsyncLocked(
     std::string barrier_id, int64_t counter, absl::Duration timeout,
@@ -2029,7 +2029,7 @@ void CoordinationServiceStandaloneImpl::ReachBarrier(
       return;
     }
   }
-};
+}
 
 void CoordinationServiceStandaloneImpl::AggregateClusterDevices() {
   assert(cluster_devices_.device_size() == 0);

@@ -82,4 +82,4 @@ class LocalFileSystemPosix : public FileSystemPosix {
 
 }  // namespace tsl
 
-#endif  // XLA_TSL_PLATFORM_DEFAULT_POSIX_FILE_SYSTEM_H_
+#endif  // XLA_TSL_PLATFORM_FILE_SYSTEM_POSIX_H_

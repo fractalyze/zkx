@@ -191,7 +191,7 @@ bool Shape::Equal::operator()(const Shape& lhs, const Shape& rhs) {
                lhs.tuple_shapes(), rhs.tuple_shapes(),
                [=](const Shape& l, const Shape& r) { return (*this)(l, r); });
   } else if (!lhs.IsArray()) {
-    // Non-tuple, non-array tupes such as opaque and token types are trivially
+    // Non-tuple, non-array types such as opaque and token types are trivially
     // the same.
     return lhs.element_type() == rhs.element_type();
   }
@@ -201,7 +201,7 @@ bool Shape::Equal::operator()(const Shape& lhs, const Shape& rhs) {
   }
 
   // TODO(chokobole): Sparse array has a u8 array internally. For example, CSR
-  // matrix has a concatenated u8 array of row ptrs, col indicies, and values.
+  // matrix has a concatenated u8 array of row ptrs, col indices, and values.
   bool is_lhs_sparse = LayoutUtil::IsSparseArray(lhs);
   bool is_rhs_sparse = LayoutUtil::IsSparseArray(rhs);
   if (is_lhs_sparse && !is_rhs_sparse) {

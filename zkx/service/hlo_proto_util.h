@@ -21,6 +21,7 @@ limitations under the License.
 #include <vector>
 
 #include "absl/status/statusor.h"
+
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/service/buffer_assignment.h"
 #include "zkx/service/hlo.pb.h"

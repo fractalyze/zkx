@@ -85,4 +85,4 @@ class LlvmCompiler : public Compiler {
 
 }  // namespace zkx
 
-#endif  // ZKX_SERVICE_Llvm_COMPILER_H_
+#endif  // ZKX_SERVICE_LLVM_COMPILER_H_

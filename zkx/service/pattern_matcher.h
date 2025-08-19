@@ -2102,7 +2102,7 @@ class HloInstructionControlDepsImpl {
 
   static void fmt(std::string* out, const HloInstruction* inst) {
     absl::StrAppend(out, inst->name());
-  };
+  }
 
   absl::Span<HloInstruction* const> preds_, succs_;
 };

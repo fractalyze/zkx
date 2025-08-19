@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef XLA_TSL_PLATFORM_THREADPOOL_H_
-#define XLA_TSL_PLATFORM_THREADPOOL_H_
+#ifndef XLA_TSL_PLATFORM_THREAD_POOL_H_
+#define XLA_TSL_PLATFORM_THREAD_POOL_H_
 
 #include <stdint.h>
 
@@ -243,4 +243,4 @@ class ThreadPool {
 
 }  // namespace tsl::thread
 
-#endif  // XLA_TSL_PLATFORM_THREADPOOL_H_
+#endif  // XLA_TSL_PLATFORM_THREAD_POOL_H_

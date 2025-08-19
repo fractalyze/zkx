@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_CURVE_POINT_DECLARATIONS_H_
-#define ZKX_MATH_CURVE_POINT_DECLARATIONS_H_
+#ifndef ZKX_MATH_GEOMETRY_POINT_DECLARATIONS_H_
+#define ZKX_MATH_GEOMETRY_POINT_DECLARATIONS_H_
 
 #include <ostream>
 
@@ -95,4 +95,4 @@ std::ostream& operator<<(std::ostream& os, const PointXyzz<Curve>& point) {
 
 }  // namespace zkx::math
 
-#endif  // ZKX_MATH_CURVE_POINT_DECLARATIONS_H_
+#endif  // ZKX_MATH_GEOMETRY_POINT_DECLARATIONS_H_

@@ -1,3 +1,5 @@
+"""ZKX dependencies."""
+
 load("@zkx//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
 load("@zkx//third_party/farmhash:workspace.bzl", farmhash = "repo")
@@ -8,6 +10,8 @@ load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 
 def zkx_deps():
+    """ZKX dependencies."""
+
     omp_configure(name = "local_config_omp")
 
     eigen3()

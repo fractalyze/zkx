@@ -228,9 +228,7 @@ class TileAssignment {
     return array_ ? array_->num_elements() : iota_->num_elements();
   }
 
-  int64_t first() const {
-    return array_ ? *array_->begin() : 0;
-  }
+  int64_t first() const { return array_ ? *array_->begin() : 0; }
 
   void Each(
       absl::FunctionRef<void(absl::Span<const int64_t>, int64_t)> f) const;

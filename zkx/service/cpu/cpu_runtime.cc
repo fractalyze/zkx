@@ -350,9 +350,8 @@ void AllToAllImpl(const ExecutableRunOptions* run_options,
         se::DeviceMemoryBase(destination_buffers[i], buffer_size));
   }
 
-  CHECK_OK(communicator->AllToAll(source_buffers_data,
-                                     destination_buffers_data, U8, buffer_size,
-                                     executor));
+  CHECK_OK(communicator->AllToAll(source_buffers_data, destination_buffers_data,
+                                  U8, buffer_size, executor));
 }
 
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY
@@ -383,7 +382,7 @@ void AllGatherImpl(const ExecutableRunOptions* run_options,
 
   CpuCollectives::Executor executor(rendezvous_key, DefaultCollectiveTimeout());
   CHECK_OK(communicator->AllGather(input_buffer_data, output_buffer_data, U8,
-                                      buffer_size, executor));
+                                   buffer_size, executor));
 }
 
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY

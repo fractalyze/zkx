@@ -1,6 +1,7 @@
 # GTL
 
-This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a2/xla/tsl/lib/gtl).
+This is taken and modified from
+[xla](https://github.com/openxla/xla/tree/8bac4a2/xla/tsl/lib/gtl).
 
 ```shell
 diff -r /path/to/openxla/xla/xla/tsl/lib/gtl xla/tsl/lib/gtl

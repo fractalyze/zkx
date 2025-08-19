@@ -674,8 +674,8 @@ absl::StatusOr<Shape> ShapeInference::InferBinaryOpShape(
                                            broadcast_dimensions);
 
       // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAnd, HloOpcode::kOr, HloOpcode::kXor
-      //clang-format on
+    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAnd, HloOpcode::kOr, HloOpcode::kXor
+    // clang-format on
     // case HloOpcode::kAnd:
     // case HloOpcode::kOr:
     // case HloOpcode::kXor: {
@@ -694,62 +694,66 @@ absl::StatusOr<Shape> ShapeInference::InferBinaryOpShape(
 }
 
 // static
- absl::StatusOr<Shape> ShapeInference::InferTernaryOpShape(
-  HloOpcode opcode, const HloInstruction* lhs, const HloInstruction* rhs,
-  const HloInstruction* ehs) {
-return InferTernaryOpShape(opcode, lhs->shape(), rhs->shape(), ehs->shape());
+absl::StatusOr<Shape> ShapeInference::InferTernaryOpShape(
+    HloOpcode opcode, const HloInstruction* lhs, const HloInstruction* rhs,
+    const HloInstruction* ehs) {
+  return InferTernaryOpShape(opcode, lhs->shape(), rhs->shape(), ehs->shape());
 }
 
 // static
- absl::StatusOr<Shape> ShapeInference::InferTernaryOpShape(
-  HloOpcode opcode, const Shape& lhs, const Shape& rhs, const Shape& ehs) {
-DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(lhs));
-DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(rhs));
-DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(ehs));
-switch (opcode) {
-  case HloOpcode::kSelect:
-    return InferSelectShape(lhs, rhs, ehs);
-  default:
-    return absl::InvalidArgumentError(absl::StrFormat("Unknown operation %s.", HloOpcodeString(opcode)));
-}
-}
-
-// static
- absl::StatusOr<Shape> ShapeInference::InferVariadicOpShape(
-  HloOpcode opcode, absl::Span<const HloInstruction* const> operands) {
-    std::vector<const Shape*> operand_shapes;
-    operand_shapes.reserve(operands.size());
-    for (const HloInstruction* operand : operands) {
-      operand_shapes.push_back(&operand->shape());
-    }
-    return InferVariadicOpShape(opcode, operand_shapes);
+absl::StatusOr<Shape> ShapeInference::InferTernaryOpShape(HloOpcode opcode,
+                                                          const Shape& lhs,
+                                                          const Shape& rhs,
+                                                          const Shape& ehs) {
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(lhs));
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(rhs));
+  DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(ehs));
+  switch (opcode) {
+    case HloOpcode::kSelect:
+      return InferSelectShape(lhs, rhs, ehs);
+    default:
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Unknown operation %s.", HloOpcodeString(opcode)));
   }
+}
 
-  // static
-   absl::StatusOr<Shape> ShapeInference::InferVariadicOpShape(
-      HloOpcode opcode, absl::Span<const Shape* const> operand_shapes) {
-    for (const Shape* shape : operand_shapes) {
-      DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(*shape));
-    }
-    switch (opcode) {
-      case HloOpcode::kTuple: {
-        Shape result = ShapeUtil::MakeTupleShape({});
-        result.mutable_tuple_shapes()->reserve(operand_shapes.size());
-        for (const Shape* shape : operand_shapes) {
-          ShapeUtil::AppendShapeToTuple(*shape, &result);
-        }
-        return result;
+// static
+absl::StatusOr<Shape> ShapeInference::InferVariadicOpShape(
+    HloOpcode opcode, absl::Span<const HloInstruction* const> operands) {
+  std::vector<const Shape*> operand_shapes;
+  operand_shapes.reserve(operands.size());
+  for (const HloInstruction* operand : operands) {
+    operand_shapes.push_back(&operand->shape());
+  }
+  return InferVariadicOpShape(opcode, operand_shapes);
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferVariadicOpShape(
+    HloOpcode opcode, absl::Span<const Shape* const> operand_shapes) {
+  for (const Shape* shape : operand_shapes) {
+    DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(*shape));
+  }
+  switch (opcode) {
+    case HloOpcode::kTuple: {
+      Shape result = ShapeUtil::MakeTupleShape({});
+      result.mutable_tuple_shapes()->reserve(operand_shapes.size());
+      for (const Shape* shape : operand_shapes) {
+        ShapeUtil::AppendShapeToTuple(*shape, &result);
       }
-      // TODO(chokobole): Uncomment this. Dependency HloOpcode::kSort
-      // case HloOpcode::kSort: {
-      default:
-        return absl::InvalidArgumentError(absl::StrFormat("Unknown operation %s.", HloOpcodeString(opcode)));
+      return result;
     }
+    // TODO(chokobole): Uncomment this. Dependency HloOpcode::kSort
+    // case HloOpcode::kSort: {
+    default:
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Unknown operation %s.", HloOpcodeString(opcode)));
   }
+}
 
 // static
-absl::StatusOr<Shape> ShapeInference::InferFftShape(
-    const Shape& in, FftType fft_type) {
+absl::StatusOr<Shape> ShapeInference::InferFftShape(const Shape& in,
+                                                    FftType fft_type) {
   switch (fft_type) {
     case FFT:
     case IFFT:
@@ -760,8 +764,7 @@ absl::StatusOr<Shape> ShapeInference::InferFftShape(
 }
 
 // static
-absl::StatusOr<Shape> ShapeInference::InferMsmShape(
-    const Shape& bases) {
+absl::StatusOr<Shape> ShapeInference::InferMsmShape(const Shape& bases) {
   return ShapeUtil::MakeScalarShape(bases.element_type());
 }
 
@@ -1010,18 +1013,19 @@ absl::StatusOr<Shape> ShapeInference::InferCollectivePermuteDoneShape(
 }
 
 // static
- absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
+absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
     const Shape& operand, absl::Span<const int64_t> broadcast_sizes) {
   // This method is used to infer shape for zkx::BroadcastInDim.
   TF_RETURN_IF_ERROR(ExpectArray(operand, "operand of broadcast"));
   TF_RET_CHECK(!operand.is_unbounded_dynamic());
   for (int64_t size : broadcast_sizes) {
     if (size == Shape::kUnboundedSize) {
-      return absl::InvalidArgumentError("Non-broadcast dimensions must not be dynamic.");
+      return absl::InvalidArgumentError(
+          "Non-broadcast dimensions must not be dynamic.");
     }
     if (size < 0) {
-      return absl::InvalidArgumentError(absl::StrFormat("Broadcast with negative dimension size %d.",
-                             size));
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Broadcast with negative dimension size %d.", size));
     }
   }
 
@@ -1059,13 +1063,12 @@ absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
     return absl::InvalidArgumentError(absl::StrFormat(
         "Size of broadcast_dimensions has to match operand's rank; operand "
         "rank: %lld, size of broadcast_dimensions %u.",
-        operand_rank, broadcast_dimensions.size())
-    );
+        operand_rank, broadcast_dimensions.size()));
   }
   for (int64_t i = 0; i < operand_rank; i++) {
     if (broadcast_dimensions[i] < 0 || broadcast_dimensions[i] >= output_rank) {
-      return absl::InvalidArgumentError(absl::StrFormat("Broadcast dimension %lld is out of bound",
-                             broadcast_dimensions[i]));
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Broadcast dimension %lld is out of bound", broadcast_dimensions[i]));
     }
     if (!operand_shape.is_unbounded_dynamic_dimension(i) &&
         operand_shape.dimensions(i) !=
@@ -1099,65 +1102,65 @@ absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
 }
 
 // static
-absl::StatusOr<Shape> ShapeInference::InferSelectShape(
-  const Shape& pred, const Shape& on_true, const Shape& on_false) {
-    TF_RETURN_IF_ERROR(ExpectArray(pred, "select pred"));
-    TF_RETURN_IF_ERROR(ExpectArray(on_true, "select on-true"));
-    TF_RETURN_IF_ERROR(ExpectArray(on_false, "select on-false"));
+absl::StatusOr<Shape> ShapeInference::InferSelectShape(const Shape& pred,
+                                                       const Shape& on_true,
+                                                       const Shape& on_false) {
+  TF_RETURN_IF_ERROR(ExpectArray(pred, "select pred"));
+  TF_RETURN_IF_ERROR(ExpectArray(on_true, "select on-true"));
+  TF_RETURN_IF_ERROR(ExpectArray(on_false, "select on-false"));
 
-    if (!ShapeUtil::Compatible(on_true, on_false)) {
-      return absl::InvalidArgumentError(absl::StrFormat(
-          "Operands to select must be the same shape; got %s and %s.",
-          ShapeUtil::HumanString(on_true), ShapeUtil::HumanString(on_false)));
-    }
-
-    if (pred.element_type() != PRED) {
-      return absl::InvalidArgumentError(absl::StrFormat(
-          "Select's pred operand must have PRED element type; got %s.",
-          ShapeUtil::HumanString(pred)));
-    }
-
-    // If pred is not scalar, it must be compatible with on_true and on_false
-    if ((!ShapeUtil::IsScalar(pred) &&
-         (!ShapeUtil::CompatibleIgnoringElementType(pred, on_true) ||
-          !ShapeUtil::CompatibleIgnoringElementType(pred, on_false))) ||
-        !ShapeUtil::Compatible(on_true, on_false)) {
-      return absl::InvalidArgumentError(absl::StrFormat(
-          "Operands to select and predicate must be the same shape; got %s and "
-          "%s and %s.",
-          ShapeUtil::HumanString(on_true), ShapeUtil::HumanString(on_false),
-          ShapeUtil::HumanString(pred)));
-    }
-
-    Shape full_rank_shape = ShapeUtil::IsScalar(pred) ? on_true : pred;
-    Shape result = ShapeUtil::ChangeElementType(
-        full_rank_shape,
-        ShapeUtil::HigherPrecisionElementType(on_true, on_false));
-    for (int64_t dimension = 0; dimension < full_rank_shape.rank(); ++dimension) {
-      if (on_true.is_unbounded_dynamic_dimension(dimension) ||
-          on_false.is_unbounded_dynamic_dimension(dimension)) {
-        absl::StatusOr<DimAndBound> inferred = InferMostSpecificDimAndBound(
-            dimension, on_true.dimensions(dimension),
-            on_false.dimensions(dimension), on_true.dimensions(dimension),
-            on_false.dimensions(dimension));
-        result.set_dimensions(dimension, (*inferred).dimension);
-        result.set_dynamic_dimension(
-            dimension, on_true.is_dynamic_dimension(dimension) &&
-                           on_false.is_dynamic_dimension(dimension));
-      } else {
-        result.set_dynamic_dimension(
-            dimension, (!ShapeUtil::IsScalar(pred) &&
-                        pred.is_dynamic_dimension(dimension)) ||
-                           on_true.is_dynamic_dimension(dimension) ||
-                           on_false.is_dynamic_dimension(dimension));
-      }
-    }
-    if (result.has_layout()) {
-      result.mutable_layout()->set_element_size_in_bits(
-          on_true.layout().element_size_in_bits());
-    }
-    return std::move(result);
+  if (!ShapeUtil::Compatible(on_true, on_false)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Operands to select must be the same shape; got %s and %s.",
+        ShapeUtil::HumanString(on_true), ShapeUtil::HumanString(on_false)));
   }
 
+  if (pred.element_type() != PRED) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Select's pred operand must have PRED element type; got %s.",
+        ShapeUtil::HumanString(pred)));
+  }
+
+  // If pred is not scalar, it must be compatible with on_true and on_false
+  if ((!ShapeUtil::IsScalar(pred) &&
+       (!ShapeUtil::CompatibleIgnoringElementType(pred, on_true) ||
+        !ShapeUtil::CompatibleIgnoringElementType(pred, on_false))) ||
+      !ShapeUtil::Compatible(on_true, on_false)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Operands to select and predicate must be the same shape; got %s and "
+        "%s and %s.",
+        ShapeUtil::HumanString(on_true), ShapeUtil::HumanString(on_false),
+        ShapeUtil::HumanString(pred)));
+  }
+
+  Shape full_rank_shape = ShapeUtil::IsScalar(pred) ? on_true : pred;
+  Shape result = ShapeUtil::ChangeElementType(
+      full_rank_shape,
+      ShapeUtil::HigherPrecisionElementType(on_true, on_false));
+  for (int64_t dimension = 0; dimension < full_rank_shape.rank(); ++dimension) {
+    if (on_true.is_unbounded_dynamic_dimension(dimension) ||
+        on_false.is_unbounded_dynamic_dimension(dimension)) {
+      absl::StatusOr<DimAndBound> inferred = InferMostSpecificDimAndBound(
+          dimension, on_true.dimensions(dimension),
+          on_false.dimensions(dimension), on_true.dimensions(dimension),
+          on_false.dimensions(dimension));
+      result.set_dimensions(dimension, (*inferred).dimension);
+      result.set_dynamic_dimension(
+          dimension, on_true.is_dynamic_dimension(dimension) &&
+                         on_false.is_dynamic_dimension(dimension));
+    } else {
+      result.set_dynamic_dimension(
+          dimension, (!ShapeUtil::IsScalar(pred) &&
+                      pred.is_dynamic_dimension(dimension)) ||
+                         on_true.is_dynamic_dimension(dimension) ||
+                         on_false.is_dynamic_dimension(dimension));
+    }
+  }
+  if (result.has_layout()) {
+    result.mutable_layout()->set_element_size_in_bits(
+        on_true.layout().element_size_in_bits());
+  }
+  return std::move(result);
+}
 
 }  // namespace zkx

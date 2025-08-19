@@ -1,5 +1,5 @@
-#ifndef ZX_BASE_BITS_H_
-#define ZX_BASE_BITS_H_
+#ifndef ZKX_BASE_BITS_H_
+#define ZKX_BASE_BITS_H_
 
 #include <type_traits>
 
@@ -25,4 +25,4 @@ constexpr inline int Log2Ceiling(T x) {
 
 }  // namespace zkx::base
 
-#endif  // ZX_BASE_BITS_H_
+#endif  // ZKX_BASE_BITS_H_

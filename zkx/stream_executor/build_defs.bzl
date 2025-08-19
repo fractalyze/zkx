@@ -1,3 +1,5 @@
+"""Build defs for stream_executor."""
+
 load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda_is_configured")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 

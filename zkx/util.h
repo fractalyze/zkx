@@ -329,4 +329,4 @@ using Vector3 = std::array<int64_t, 3>;
 
 }  // namespace zkx
 
-#endif  // ZKX_UTIL_H_s
+#endif  // ZKX_UTIL_H_

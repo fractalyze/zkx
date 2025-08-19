@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef ZKX_STREAM_EXECUTOR_PLATFORM_DEFAULT_INITIALIZE_H_
-#define ZKX_STREAM_EXECUTOR_PLATFORM_DEFAULT_INITIALIZE_H_
+#ifndef ZKX_STREAM_EXECUTOR_PLATFORM_INITIALIZE_H_
+#define ZKX_STREAM_EXECUTOR_PLATFORM_INITIALIZE_H_
 
 #include "zkx/stream_executor/namespace_alias.h"
 
@@ -31,4 +31,4 @@ class Initializer {
   ::stream_executor::port::Initializer a41_initializer_module##_##name( \
       []() { body; })
 
-#endif  // ZKX_STREAM_EXECUTOR_PLATFORM_DEFAULT_INITIALIZE_H_
+#endif  // ZKX_STREAM_EXECUTOR_PLATFORM_INITIALIZE_H_

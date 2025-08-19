@@ -59,7 +59,7 @@ namespace zkx {
 // pseudo_random does not save any noticeable amount of time so that the
 // parameter can be removed.
 absl::StatusOr<std::vector<Literal>> MakeFakeArguments(
-  const HloModule* module, bool pseudo_random = true,
+    const HloModule* module, bool pseudo_random = true,
     bool treat_gte_as_data_formatting = false,
     std::optional<int64_t> max_bits_of_precision = std::nullopt,
     std::minstd_rand0* engine = nullptr);

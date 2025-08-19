@@ -160,7 +160,7 @@ HloLiveRange::LogicalTime HloLiveRange::GetLastUsageTime(
       // The current live range is at the end of the while, move it to
       // the beginning of the body.
       // clang-format off
-        // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_body
+      // TODO(chokobole): Uncomment this. Dependency: HloInstruction::while_body
       // clang-format on
       // used = used->while_body()->parameter_instruction(0);
       VLOG(1) << "Moved value " << value.ToShortString()

@@ -12,8 +12,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  ==============================================================================*/
-#ifndef ZKX_HLO_IR_PTRVEC_H_
-#define ZKX_HLO_IR_PTRVEC_H_
+#ifndef ZKX_HLO_IR_PTR_VEC_H_
+#define ZKX_HLO_IR_PTR_VEC_H_
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -378,4 +378,4 @@ bool operator!=(const PtrVec<T>& a, const PtrVec<T>& b) {
 
 }  // namespace zkx
 
-#endif  // ZKX_HLO_IR_PTRVEC_H_
+#endif  // ZKX_HLO_IR_PTR_VEC_H_

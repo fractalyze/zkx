@@ -1,6 +1,7 @@
 # Concurrency
 
-This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a2/xla/tsl/concurrency).
+This is taken and modified from
+[xla](https://github.com/openxla/xla/tree/8bac4a2/xla/tsl/concurrency).
 
 ```shell
 > diff -r /path/to/openxla/xla/xla/tsl/concurrency xla/tsl/concurrency
@@ -178,4 +179,5 @@ diff --color -r /path/to/openxla/xla/xla/tsl/concurrency/concurrent_vector_test.
 > #include "xla/tsl/platform/thread_pool.h"
 ```
 
-The implementations are the same, but there are some differences in `BUILD.bazel`.
+The implementations are the same, but there are some differences in
+`BUILD.bazel`.

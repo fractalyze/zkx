@@ -816,7 +816,7 @@ class AsyncValuePtr {
       return MakeIndirectAsyncValue<R>();
     } else {
       return MakeIndirectAsyncValue();
-    };
+    }
   }
 
   AsyncValue* value_;  // doesn't own the async value
