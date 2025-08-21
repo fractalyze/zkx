@@ -22,6 +22,7 @@ limitations under the License.
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <limits>
 #include <type_traits>
 #include <vector>
@@ -322,6 +323,9 @@ using HloModulePredicate = std::function<bool(const HloModule*)>;
 
 inline bool HloPredicateTrue(const HloInstruction*) { return true; }
 inline bool HloPredicateFalse(const HloInstruction*) { return false; }
+
+using Vector2 = std::array<int64_t, 2>;
+using Vector3 = std::array<int64_t, 3>;
 
 }  // namespace zkx
 
