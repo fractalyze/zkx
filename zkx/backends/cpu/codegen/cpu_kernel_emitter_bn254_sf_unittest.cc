@@ -1,4 +1,5 @@
 #include "xla/tsl/platform/status.h"
+#include "xla/tsl/platform/status_matchers.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/literal_util.h"
 #include "zkx/math/base/sparse_matrix.h"
@@ -212,6 +213,20 @@ ENTRY %f (x: bn254.sf[], y: u32[]) -> bn254.sf[] {
   TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(x.Pow(y)));
+}
+
+TEST_F(CpuKernelEmitterTest, FieldScalarPowWithSignedExponentShouldFail) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[], y: s32[]) -> bn254.sf[] {
+  %x = bn254.sf[] parameter(0)
+  %y = s32[] parameter(1)
+
+  ROOT %ret = bn254.sf[] power(%x, %y)
+}
+)";
+
+  EXPECT_THAT(Compile(kHloText),
+              ::tsl::testing::StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(CpuKernelEmitterTest, FieldTensorAdd) {

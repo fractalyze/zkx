@@ -280,6 +280,7 @@ zkx_cc_unittest(
     deps = [
         ":cpu_kernel_emitter_test",
         "//xla/tsl/platform:status",
+        "//xla/tsl/platform:status_matchers",
         "//zkx:literal_util",
         "//zkx/math/base:sparse_matrix",
         "//zkx/math/poly:root_of_unity",
