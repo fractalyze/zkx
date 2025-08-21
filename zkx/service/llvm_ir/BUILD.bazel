@@ -30,6 +30,7 @@ zkx_cc_library(
         "//zkx/hlo/ir:hlo",
         "//zkx/math/elliptic_curves/bn/bn254:fr",
         "//zkx/math/elliptic_curves/bn/bn254:g1",
+        "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
         "@llvm-project//llvm:Core",

@@ -4,6 +4,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/optimization.h"
 #include "absl/strings/substitute.h"
 
 #include "xla/tsl/platform/errors.h"
