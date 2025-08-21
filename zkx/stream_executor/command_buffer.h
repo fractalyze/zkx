@@ -151,6 +151,17 @@ class CommandBuffer {
   //
   enum class State { kCreate, kUpdate, kFinalized };
 
+  friend std::string_view StateToString(State state) {
+    switch (state) {
+      case State::kCreate:
+        return "create";
+      case State::kUpdate:
+        return "update";
+      case State::kFinalized:
+        return "finalized";
+    }
+  }
+
   // Command buffers have two modes of execution:
   //
   //   (1) kPrimary: command buffer can be submitted for execution via
