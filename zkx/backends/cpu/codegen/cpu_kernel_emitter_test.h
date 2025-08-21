@@ -16,7 +16,7 @@ class CpuKernelEmitterTest : public testing::Test {
  public:
   CpuKernelEmitterTest();
 
-  void Compile(std::string_view hlo_string);
+  absl::Status Compile(std::string_view hlo_string);
   absl::StatusOr<Literal> Run(absl::Span<Literal> literals);
 
  protected:

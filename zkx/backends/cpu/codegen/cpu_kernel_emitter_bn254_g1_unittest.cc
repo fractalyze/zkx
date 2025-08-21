@@ -1,3 +1,4 @@
+#include "xla/tsl/platform/status.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/literal_util.h"
 
@@ -13,7 +14,7 @@ ENTRY %f (x: bn254.g1_affine[]) -> bn254.g1_xyzz[]
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::G1AffinePoint::Random();
 
@@ -33,7 +34,7 @@ ENTRY %f (x: bn254.g1_affine[]) -> bn254.g1_affine[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::G1AffinePoint::Random();
 
@@ -55,7 +56,7 @@ ENTRY %f (x: bn254.g1_affine[], y: bn254.g1_affine[]) -> bn254.g1_jacobian[]
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::G1AffinePoint::Random();
   auto y = math::bn254::G1AffinePoint::Random();
@@ -77,7 +78,7 @@ ENTRY %f (x: bn254.g1_affine[]) -> bn254.g1_jacobian[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::G1AffinePoint::Random();
 
@@ -99,7 +100,7 @@ ENTRY %f (x: bn254.g1_affine[], y: bn254.g1_affine[]) -> bn254.g1_jacobian[]
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::G1AffinePoint::Random();
   auto y = math::bn254::G1AffinePoint::Random();
@@ -122,7 +123,7 @@ ENTRY %f (x: bn254.sf[], y: bn254.g1_affine[]) -> bn254.g1_jacobian[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::G1AffinePoint::Random();

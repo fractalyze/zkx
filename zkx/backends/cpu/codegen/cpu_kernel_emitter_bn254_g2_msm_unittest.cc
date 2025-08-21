@@ -1,4 +1,5 @@
 #include "xla/tsl/platform/cpu_info.h"
+#include "xla/tsl/platform/status.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/base/containers/container_util.h"
 #include "zkx/literal_util.h"
@@ -17,7 +18,7 @@ ENTRY %f (x: bn254.sf[$0], y: bn254.g2_affine[$0]) -> bn254.g2_jacobian[] {
 )",
                                                 num_scalar_muls);
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   std::vector<math::bn254::Fr> scalars = base::CreateVector(
       num_scalar_muls, []() { return math::bn254::Fr::Random(); });
