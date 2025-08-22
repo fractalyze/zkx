@@ -23,6 +23,21 @@ _Note: Imported code from XLA may not fully follow these rules and should genera
 
 The following are project-specific deviations and clarifications from the [Google C++ Style Guide].
 
+### Pointer & Reference Style
+
+- Place the `*` (pointer) or `&` (reference) symbol **next to the type**, not the variable name.
+- This ensures consistency and avoids ambiguity when declaring multiple variables.
+
+```c++
+// ✅ preferred
+std::string* ptr;
+const Context& ctx;
+
+// ❌ avoid
+std::string *ptr;
+const Context &ctx;
+```
+
 ### Static Methods
 
 - For **static methods** implemented in `.cc` files, explicitly annotate with `// static`.
