@@ -89,6 +89,45 @@ class Prover {
 
 ---
 
+## Naming & Migration Hygiene (XLA → ZKX)
+
+- All **new identifiers** (namespaces, classes, variables, include guards, Bazel packages) must use **ZKX**, not `XLA`.
+- Code migrated from `XLA` should be renamed where practical, except where it breaks compatibility.
+- PR checklist: ensure no new identifiers introduce `XLA`.
+
+### XLA Compatibility Exceptions
+
+The following usages of `XLA` are explicitly allowed:
+
+1. **License headers**
+
+   - Example:
+
+     ```c++
+     // Copyright 2017 The OpenXLA Authors.
+     ```
+
+2. **Includes from XLA/TSL paths**
+
+   ```c++
+   #include "xla/tsl/platform/env.h"
+   #include "xla/tsl/platform/env_time.h"
+   ```
+
+3. **Bazel dependencies/labels**
+
+   ```bazel
+   deps = [
+       "//xla/tsl/platform:env",
+   ]
+   ```
+
+4. **Explicit external references** in comments or documentation (e.g., “ported from XLA …”).
+
+_Disallowed:_ Introducing new identifiers with `XLA` inside ZKX code, except in vendored or third-party files that keep upstream names.
+
+---
+
 ## Comment Style
 
 - Non-trivial code changes must be accompanied by comments.
