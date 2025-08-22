@@ -20,8 +20,8 @@ limitations under the License.
 #include <utility>
 #include <variant>
 
-#include "absl/synchronization/mutex.h"
 #include "absl/log/check.h"
+#include "absl/synchronization/mutex.h"
 #include "unsupported/Eigen/CXX11/Tensor"
 
 #include "xla/tsl/platform/env.h"
@@ -773,11 +773,10 @@ std::string_view HloRunner::Name() const {
 
 bool HloRunner::HasProperty(const HloRunnerPropertyTag::Type tag) const {
   if (tag == HloRunnerPropertyTag::kUsingGpuRocm) {
-    // TODO(chokobole): Uncomment this. Dependency: RocmComputeCapability
-    // const stream_executor::DeviceDescription& device_description =
-    //     backend().default_stream_executor()->GetDeviceDescription();
-    // return std::holds_alternative<stream_executor::RocmComputeCapability>(
-    //     device_description.gpu_compute_capability());
+    const stream_executor::DeviceDescription& device_description =
+        backend().default_stream_executor()->GetDeviceDescription();
+    return std::holds_alternative<stream_executor::RocmComputeCapability>(
+        device_description.gpu_compute_capability());
   }
   if (tag == HloRunnerPropertyTag::kCpu) {
     return backend().platform()->Name() == "Host";

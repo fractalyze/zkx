@@ -25,10 +25,142 @@ limitations under the License.
 #include <string>
 #include <variant>
 
+#include "absl/strings/match.h"
+#include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
+
+#include "zkx/stream_executor/cuda/cuda_compute_capability.h"
+#include "zkx/stream_executor/device_description.pb.h"
 #include "zkx/stream_executor/launch_dim.h"
 #include "zkx/stream_executor/semantic_version.h"
 
 namespace stream_executor {
+
+// ROCm compute capability, as reported by the device description.
+class RocmComputeCapability {
+ public:
+  // gcn_arch_name example --  gfx90a:sramecc+:xnack-
+  // gfx_version is the "gfx90a" part of the gcn_arch_name
+  explicit RocmComputeCapability(std::string gcn_arch_name)
+      : gcn_arch_name_(std::move(gcn_arch_name)) {
+    std::vector<std::string> tokens = absl::StrSplit(gcn_arch_name_, ':');
+    gfx_version_ = tokens[0];
+  }
+
+  explicit RocmComputeCapability(const RocmComputeCapabilityProto& proto)
+      : gcn_arch_name_(proto.gcn_arch_name()) {
+    std::vector<std::string> tokens = absl::StrSplit(gcn_arch_name_, ':');
+    gfx_version_ = tokens[0];
+  }
+
+  RocmComputeCapability() = default;
+
+  std::string_view gcn_arch_name() const { return gcn_arch_name_; }
+
+  std::string_view gfx_version() const { return gfx_version_; }
+
+  bool is_supported_gfx_version() const {
+    return absl::c_count(kSupportedGfxVersions, gfx_version_) != 0;
+  }
+
+  std::string supported_gfx_versions_str() const {
+    return absl::StrJoin(kSupportedGfxVersions, ", ");
+  }
+
+  bool gfx9_mi100() const { return gfx_version_ == "gfx908"; }
+
+  bool gfx9_mi200() const { return gfx_version_ == "gfx90a"; }
+
+  bool gfx9_mi300() const {
+    static constexpr std::string_view kList[] = {"gfx940", "gfx941", "gfx942"};
+    return absl::c_count(kList, gfx_version_) != 0;
+  }
+
+  bool gfx9_mi100_or_later() const {
+    static constexpr std::string_view kList[] = {"gfx908", "gfx90a", "gfx940",
+                                                 "gfx941", "gfx942"};
+    return absl::c_count(kList, gfx_version_) != 0;
+  }
+
+  bool gfx9_mi200_or_later() const {
+    static constexpr std::string_view kList[] = {"gfx90a", "gfx940", "gfx941",
+                                                 "gfx942"};
+    return absl::c_count(kList, gfx_version_) != 0;
+  }
+
+  bool gfx10_rx68xx() const { return gfx_version_ == "gfx1030"; }
+
+  bool gfx10_rx69xx() const { return gfx_version_ == "gfx1030"; }
+
+  bool gfx11_rx7900() const { return gfx_version_ == "gfx1100"; }
+
+  bool gfx1200() const { return gfx_version_ == "gfx1200"; }
+
+  bool gfx1201() const { return gfx_version_ == "gfx1201"; }
+
+  bool has_nhwc_layout_support() const { return gfx9_mi100_or_later(); }
+
+  bool has_bf16_dtype_support() const { return gfx9_mi100_or_later(); }
+
+  bool has_fast_fp16_support() const {
+    return gfx9_mi100_or_later() || gfx10_rx68xx() || gfx10_rx69xx() ||
+           gfx11_rx7900();
+  }
+
+  bool has_mfma_instr_support() const { return gfx9_mi100_or_later(); }
+
+  bool has_amd_matrix_core() const {
+    return (gfx9_mi100_or_later() || absl::StartsWith(gfx_version_, "gfx11") ||
+            absl::StartsWith(gfx_version_, "gfx12"));
+  }
+
+  bool has_fp16_atomics_support() const {
+    // TODO(rocm): Check. This should be the same as has_fast_fp16_support().
+    return gfx9_mi200_or_later();
+  }
+
+  bool fence_before_barrier() const {
+    return gfx_version_ != "gfx900" && gfx_version_ != "gfx906";
+  }
+
+  bool has_hipblaslt() const {
+    return gfx9_mi200_or_later() || gfx1200() || gfx1201();
+  }
+
+  bool has_fp8_support() const {
+    return gfx9_mi300() || gfx1200() || gfx1201();
+  }
+
+  std::string ToString() const { return std::string(gcn_arch_name_); }
+
+  RocmComputeCapabilityProto ToProto() const {
+    RocmComputeCapabilityProto proto;
+    proto.set_gcn_arch_name(gcn_arch_name_);
+    return proto;
+  }
+
+  bool operator==(const RocmComputeCapability& other) const {
+    return gcn_arch_name_ == other.gcn_arch_name_;
+  }
+
+ private:
+  std::string gcn_arch_name_ = "gfx000";  // default to invalid arch.
+  std::string gfx_version_ = "gfx000";
+
+  static constexpr std::string_view kSupportedGfxVersions[]{
+      "gfx900",                        // MI25
+      "gfx906",                        // MI50 / MI60
+      "gfx908",                        // MI100
+      "gfx90a",                        // MI200
+      "gfx940",  "gfx941",  "gfx942",  // MI300
+      "gfx1030",                       // RX68xx / RX69xx
+      "gfx1100",                       // RX7900
+      "gfx1200", "gfx1201",
+  };
+};
+
+using GpuComputeCapability =
+    std::variant<CudaComputeCapability, RocmComputeCapability>;
 
 // Data that describes the execution target of the StreamExecutor, in terms of
 // important logical parameters. These include dimensionality limits and
@@ -145,17 +277,14 @@ class DeviceDescription {
   // Returns the CUDA compute capability if we're running on the CUDA platform.
   // If a CUDA compute capability is not available, the major version will be
   // zero.
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // CudaComputeCapability cuda_compute_capability() const;
+  CudaComputeCapability cuda_compute_capability() const;
 
   // Returns the ROCm compute capability if we're running on the ROCm platform.
   // If a ROCm compute capability is not available, the default gfx_arch will
   // be "gfx000" (which is an invalid gfx arch).
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // RocmComputeCapability rocm_compute_capability() const;
+  RocmComputeCapability rocm_compute_capability() const;
 
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // const GpuComputeCapability& gpu_compute_capability() const;
+  const GpuComputeCapability& gpu_compute_capability() const;
 
   // Returns the maximum amount of shared memory present on a single core
   // (i.e. Streaming Multiprocessor on NVIDIA GPUs; Compute Unit for OpenCL
@@ -177,66 +306,62 @@ class DeviceDescription {
   // configured as shared memory; there is no easy way to query its actual size;
   // also we do not count what occupies cache, but rather claim that what is
   // much smaller than the cache size will likely stay in it.
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // constexpr int64_t l1_cache_size_per_SM() const {
-  //   return std::visit(
-  //       [](const auto& capability) -> int64_t {
-  //         if constexpr (std::is_same_v<std::decay_t<decltype(capability)>,
-  //                                      RocmComputeCapability>) {
-  //           // MI100 and MI200 has 16KB L1 cache per CU.
-  //           if (capability.gfx9_mi100() || capability.gfx9_mi200()) {
-  //             return 16 * 1024;
-  //           }
-  //           // MI300 has 32KB L1 cache per CU.
-  //           if (capability.gfx9_mi300()) {
-  //             return 32 * 1024;
-  //           }
-  //         }
-  //         // Default return for other GPUs (e.g., RTX A6000).
-  //         return 2 * 1024;
-  //       },
-  //       gpu_compute_capability_);
-  // }
+  constexpr int64_t l1_cache_size_per_SM() const {
+    return std::visit(
+        [](const auto& capability) -> int64_t {
+          if constexpr (std::is_same_v<std::decay_t<decltype(capability)>,
+                                       RocmComputeCapability>) {
+            // MI100 and MI200 has 16KB L1 cache per CU.
+            if (capability.gfx9_mi100() || capability.gfx9_mi200()) {
+              return 16 * 1024;
+            }
+            // MI300 has 32KB L1 cache per CU.
+            if (capability.gfx9_mi300()) {
+              return 32 * 1024;
+            }
+          }
+          // Default return for other GPUs (e.g., RTX A6000).
+          return 2 * 1024;
+        },
+        gpu_compute_capability_);
+  }
 
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // constexpr int64_t dram_to_l2_transaction_size_bytes() const {
-  //   return std::visit(
-  //       [](const auto& capability) -> int {
-  //         if constexpr (std::is_same_v<std::decay_t<decltype(capability)>,
-  //                                      RocmComputeCapability>) {
-  //           // DRAM->L2 bus is 128 Byte width for MI300.
-  //           if (capability.gfx9_mi300()) {
-  //             return 128;
-  //           }
-  //         }
-  //         // Cache line is 128B that is split into 4 sectors of 32B. Default
-  //         // transaction size from DRAM -> L2 = 64 Bytes = 2 sectors, since
-  //         // V100, but it can be also configured.
-  //         //
-  //         https://developer.download.nvidia.com/video/gputechconf/gtc/2020/presentations/s21819-optimizing-applications-for-nvidia-ampere-gpu-architecture.pdf
-  //         // (page 10).
-  //         // return 64 Bytes by default.
-  //         return 64;
-  //       },
-  //       gpu_compute_capability_);
-  // }
+  constexpr int64_t dram_to_l2_transaction_size_bytes() const {
+    return std::visit(
+        [](const auto& capability) -> int {
+          if constexpr (std::is_same_v<std::decay_t<decltype(capability)>,
+                                       RocmComputeCapability>) {
+            // DRAM->L2 bus is 128 Byte width for MI300.
+            if (capability.gfx9_mi300()) {
+              return 128;
+            }
+          }
+          // Cache line is 128B that is split into 4 sectors of 32B. Default
+          // transaction size from DRAM -> L2 = 64 Bytes = 2 sectors, since
+          // V100, but it can be also configured.
+          // https://developer.download.nvidia.com/video/gputechconf/gtc/2020/presentations/s21819-optimizing-applications-for-nvidia-ampere-gpu-architecture.pdf
+          // (page 10).
+          // return 64 Bytes by default.
+          return 64;
+        },
+        gpu_compute_capability_);
+  }
 
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // constexpr int64_t memory_transactions_per_clock() const {
-  //   return std::visit(
-  //       [](const auto& capability) -> int {
-  //         if constexpr (std::is_same_v<std::decay_t<decltype(capability)>,
-  //                                      RocmComputeCapability>) {
-  //           // 16 works well on MI300.
-  //           if (capability.gfx9_mi300()) {
-  //             return 16;
-  //           }
-  //         }
-  //         // Default return for other GPUs.
-  //         return 32;
-  //       },
-  //       gpu_compute_capability_);
-  // }
+  constexpr int64_t memory_transactions_per_clock() const {
+    return std::visit(
+        [](const auto& capability) -> int {
+          if constexpr (std::is_same_v<std::decay_t<decltype(capability)>,
+                                       RocmComputeCapability>) {
+            // 16 works well on MI300.
+            if (capability.gfx9_mi300()) {
+              return 16;
+            }
+          }
+          // Default return for other GPUs.
+          return 32;
+        },
+        gpu_compute_capability_);
+  }
 
   DeviceDescription() = default;
 
@@ -244,10 +369,9 @@ class DeviceDescription {
   // value will be provided.
   static inline const char* const kUndefinedString = "<undefined>";
 
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // void set_gpu_compute_capability(const GpuComputeCapability& c) {
-  //   gpu_compute_capability_ = c;
-  // }
+  void set_gpu_compute_capability(const GpuComputeCapability& c) {
+    gpu_compute_capability_ = c;
+  }
 
   void set_block_dim_limit_x(int64_t limit) { block_dim_limit_.x = limit; }
 
@@ -311,16 +435,13 @@ class DeviceDescription {
 
   void set_clock_rate_ghz(float value) { clock_rate_ghz_ = value; }
 
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // void set_cuda_compute_capability(int major, int minor) {
-  //   gpu_compute_capability_ = CudaComputeCapability{major, minor};
-  // }
+  void set_cuda_compute_capability(int major, int minor) {
+    gpu_compute_capability_ = CudaComputeCapability{major, minor};
+  }
 
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // void set_rocm_compute_capability(std::string gcn_arch_name) {
-  //   gpu_compute_capability_ =
-  //   RocmComputeCapability(std::move(gcn_arch_name));
-  // }
+  void set_rocm_compute_capability(std::string gcn_arch_name) {
+    gpu_compute_capability_ = RocmComputeCapability(std::move(gcn_arch_name));
+  }
 
   void set_numa_node(int value) { numa_node_ = value; }
   void set_core_count(int value) { core_count_ = value; }
@@ -364,8 +485,7 @@ class DeviceDescription {
 
   float clock_rate_ghz_ = kUninitialized<float>;
 
-  // TODO(chokobole): Uncomment this. Dependency: GpuComputeCapability
-  // GpuComputeCapability gpu_compute_capability_{};
+  GpuComputeCapability gpu_compute_capability_{};
 
   int numa_node_ = kUninitialized<int>;
   int core_count_ = kUninitialized<int>;
