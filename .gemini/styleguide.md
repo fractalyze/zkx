@@ -145,15 +145,38 @@ ______________________________________________________________________
 ## Comment Style
 
 - Non-trivial code changes must be accompanied by comments.
+
 - Comments should explain **why** a change or design decision was made, not just
   what the code does.
+
 - Use full sentences with proper punctuation.
+
 - Add the lint type to `NOLINT` comments
 
-Example:
+  ```c++
+  #include "farmhash.h"  // NOLINT(build/include_subdir)
+  ```
+
+- Do not use **double spaces** in comments. Always use a **single space** after
+  periods.
+
+  ```c++
+  // ✅ Correct: This is a proper comment. It follows the rule.
+  // ❌ Wrong: This is an improper comment.  It has double spaces.
+  ```
+
+### Dependency TODO Comments
+
+- TODO comments that include **`Dependency:`** (used to mark code temporarily
+  disabled or pending due to upstream XLA dependencies) must remain **inline on
+  a single line**.
+- If `clang-format` attempts to wrap such a comment, enforce inline formatting
+  with `clang-format off/on`.
 
 ```c++
-#include "farmhash.h"  // NOLINT(build/include_subdir)
+// clang-format off
+// TODO(chokobole): Uncomment this. Dependency: Something
+// clang-format on
 ```
 
 ______________________________________________________________________
