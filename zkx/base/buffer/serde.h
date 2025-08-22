@@ -7,7 +7,7 @@
 #include <tuple>
 #include <vector>
 
-#include "absl/log/check.h"
+#include "absl/base/optimization.h"
 #include "absl/types/span.h"
 
 #include "zkx/base/buffer/buffer.h"

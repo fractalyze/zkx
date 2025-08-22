@@ -9,7 +9,7 @@ zkx_cc_binary(
         "//zkx:literal_util",
         "//zkx/math/elliptic_curves/bn/bn254:g1",
         "//zkx/math/elliptic_curves/bn/bn254:g2",
-        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/strings",
     ],
 )

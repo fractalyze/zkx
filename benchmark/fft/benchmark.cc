@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 
-#include "absl/log/check.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/substitute.h"
 
 // clang-format off

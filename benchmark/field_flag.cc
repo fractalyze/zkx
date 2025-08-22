@@ -1,6 +1,6 @@
 #include "benchmark/field_flag.h"
 
-#include "absl/log/check.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/substitute.h"
 
 #include "zkx/base/flag/flag.h"

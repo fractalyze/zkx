@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/service/llvm_ir/llvm_util.h"
 
+#include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "llvm/Support/raw_ostream.h"

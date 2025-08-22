@@ -8,7 +8,7 @@ zkx_cc_binary(
         "//benchmark:runner",
         "//zkx:literal_util",
         "//zkx/math/elliptic_curves/bn/bn254:fr",
-        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/strings",
     ],
 )
