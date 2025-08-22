@@ -10,13 +10,14 @@ namespace zkx::cpu {
 CpuKernelEmitterTest::CpuKernelEmitterTest()
     : runner_(PlatformUtil::GetPlatform("cpu").value()) {}
 
-void CpuKernelEmitterTest::Compile(std::string_view hlo_string) {
-  TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
-                          ParseAndReturnUnverifiedModule(hlo_string));
+absl::Status CpuKernelEmitterTest::Compile(std::string_view hlo_string) {
+  TF_ASSIGN_OR_RETURN(std::unique_ptr<HloModule> module,
+                      ParseAndReturnUnverifiedModule(hlo_string));
 
-  TF_ASSERT_OK_AND_ASSIGN(
-      opaque_executable_,
-      runner_.CreateExecutable(std::move(module), /*run_hlo_passes=*/false));
+  TF_ASSIGN_OR_RETURN(opaque_executable_,
+                      runner_.CreateExecutable(std::move(module),
+                                               /*run_hlo_passes=*/false));
+  return absl::OkStatus();
 }
 
 absl::StatusOr<Literal> CpuKernelEmitterTest::Run(

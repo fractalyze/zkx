@@ -1,4 +1,5 @@
 #include "xla/tsl/platform/status.h"
+#include "xla/tsl/platform/status_matchers.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/literal_util.h"
 #include "zkx/math/base/sparse_matrix.h"
@@ -15,7 +16,7 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[]{:MONT(false)} {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
 
@@ -36,7 +37,7 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
 
@@ -56,7 +57,7 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
   while (x.IsZero()) {
@@ -79,7 +80,7 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   std::vector<math::bn254::Fr> x(4, math::bn254::Fr::Zero());
   for (size_t i = 0; i < x.size(); ++i) {
@@ -107,7 +108,7 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::Fr::Random();
@@ -129,7 +130,7 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::Fr::Random();
@@ -152,7 +153,7 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::Fr::Random();
@@ -175,7 +176,7 @@ ENTRY %f (x: bn254.sf[], y: bn254.sf[]) -> bn254.sf[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
   auto y = math::bn254::Fr::Random();
@@ -201,7 +202,7 @@ ENTRY %f (x: bn254.sf[], y: u32[]) -> bn254.sf[] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
   auto y = base::Uniform<uint32_t>();
@@ -214,6 +215,20 @@ ENTRY %f (x: bn254.sf[], y: u32[]) -> bn254.sf[] {
   EXPECT_EQ(ret_literal, LiteralUtil::CreateR0<math::bn254::Fr>(x.Pow(y)));
 }
 
+TEST_F(CpuKernelEmitterTest, FieldScalarPowWithSignedExponentShouldFail) {
+  const std::string kHloText = R"(
+ENTRY %f (x: bn254.sf[], y: s32[]) -> bn254.sf[] {
+  %x = bn254.sf[] parameter(0)
+  %y = s32[] parameter(1)
+
+  ROOT %ret = bn254.sf[] power(%x, %y)
+}
+)";
+
+  EXPECT_THAT(Compile(kHloText),
+              ::tsl::testing::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST_F(CpuKernelEmitterTest, FieldTensorAdd) {
   const std::string kHloText = R"(
 ENTRY %f (x: bn254.sf[2,3], y: bn254.sf[2,3]) -> bn254.sf[2,3] {
@@ -224,7 +239,7 @@ ENTRY %f (x: bn254.sf[2,3], y: bn254.sf[2,3]) -> bn254.sf[2,3] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   std::vector<std::vector<math::bn254::Fr>> x = {{
                                                      math::bn254::Fr::Random(),
@@ -274,7 +289,7 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   std::vector<math::bn254::Fr> coeffs = {
       math::bn254::Fr::Random(),
@@ -312,7 +327,7 @@ ENTRY %f (x: bn254.sf[4], twiddles: bn254.sf[4]) -> bn254.sf[4] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   std::vector<math::bn254::Fr> coeffs = {
       math::bn254::Fr::Random(),
@@ -350,7 +365,7 @@ ENTRY %f (x: bn254.sf[4]) -> bn254.sf[4] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   std::vector<math::bn254::Fr> evals = {
       math::bn254::Fr::Random(),
@@ -391,7 +406,7 @@ ENTRY %f (x: bn254.sf[4], twiddles: bn254.sf[4]) -> bn254.sf[4] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   std::vector<math::bn254::Fr> evals = {
       math::bn254::Fr::Random(),
@@ -432,7 +447,7 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[4] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   auto x = math::bn254::Fr::Random();
 
@@ -467,7 +482,7 @@ TEST_F(CpuKernelEmitterTest, BroadcastTensor) {
   )",
                                                   i);
 
-    Compile(kHloText);
+    TF_ASSERT_OK(Compile(kHloText));
 
     std::vector<Literal> literals;
     literals.push_back(LiteralUtil::CreateR1<math::bn254::Fr>(x));
@@ -487,7 +502,7 @@ ENTRY %f (x: bn254.sf[4,3]{1,0:D(D, C)NNZ(8)}, y: bn254.sf[3]) -> bn254.sf[4] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   math::SparseMatrix<math::bn254::Fr> x =
       math::SparseMatrix<math::bn254::Fr>::Random(4, 3, 8);
@@ -527,7 +542,7 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[3] {
 }
 )";
 
-  Compile(kHloText);
+  TF_ASSERT_OK(Compile(kHloText));
 
   std::vector<math::bn254::Fr> x = {1, 2, 3, 4, 5, 6};
 

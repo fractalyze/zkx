@@ -280,6 +280,7 @@ zkx_cc_unittest(
     deps = [
         ":cpu_kernel_emitter_test",
         "//xla/tsl/platform:status",
+        "//xla/tsl/platform:status_matchers",
         "//zkx:literal_util",
         "//zkx/math/base:sparse_matrix",
         "//zkx/math/poly:root_of_unity",
@@ -292,6 +293,7 @@ zkx_cc_unittest(
     srcs = ["cpu_kernel_emitter_bn254_g1_unittest.cc"],
     deps = [
         ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:status",
         "//zkx:literal_util",
     ],
 )
@@ -303,6 +305,7 @@ zkx_cc_unittest(
     deps = [
         ":cpu_kernel_emitter_test",
         "//xla/tsl/platform:cpu_info",
+        "//xla/tsl/platform:status",
         "//zkx:literal_util",
         "//zkx/base/containers:container_util",
     ],
@@ -314,6 +317,7 @@ zkx_cc_unittest(
     srcs = ["cpu_kernel_emitter_bn254_g2_unittest.cc"],
     deps = [
         ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:status",
         "//zkx:literal_util",
     ],
 )
@@ -325,6 +329,7 @@ zkx_cc_unittest(
     deps = [
         ":cpu_kernel_emitter_test",
         "//xla/tsl/platform:cpu_info",
+        "//xla/tsl/platform:status",
         "//zkx:literal_util",
         "//zkx/base/containers:container_util",
     ],
