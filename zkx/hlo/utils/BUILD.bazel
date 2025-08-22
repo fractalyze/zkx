@@ -1,4 +1,4 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -48,5 +48,17 @@ zkx_cc_library(
     ],
 )
 
-# TODO(chokobole): Add hlo_traversal_unittest.cc Dependency: HloTestBase.
-# TODO(chokobole): Add hlo_query_unittest.cc Dependency: HloHardwareIndependentTestBase.
+zkx_cc_unittest(
+    name = "utils_unittests",
+    srcs = [
+        "hlo_query_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: HloTestBase.
+        # "hlo_traversal_unittest.cc",
+    ],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "@com_google_absl//absl/strings",
+    ],
+)
