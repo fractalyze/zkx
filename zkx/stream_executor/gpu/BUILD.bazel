@@ -1,6 +1,196 @@
+load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda_is_configured")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+load("//zkx/service/gpu:build_defs.bzl", "gpu_kernel_library")
+load("//zkx/stream_executor:build_defs.bzl", "gpu_only_cc_library")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "context",
+    hdrs = ["context.h"],
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
+    name = "context_map",
+    hdrs = ["context_map.h"],
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "gpu_asm_opts",
+    hdrs = ["gpu_asm_opts.h"],
+    deps = ["//zkx/stream_executor:namespace_alias"],
+)
+
+zkx_cc_library(
+    name = "gpu_executor",
+    hdrs = ["gpu_executor.h"],
+    deps = [
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:namespace_alias",
+        "//zkx/stream_executor:stream_executor_common",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+gpu_only_cc_library(
+    name = "gpu_helpers",
+    hdrs = ["gpu_helpers.h"],
+    deps = ["//zkx/stream_executor:device_memory"],
+)
+
+zkx_cc_library(
+    name = "gpu_init",
+    srcs = ["gpu_init.cc"],
+    hdrs = ["gpu_init.h"],
+    # TODO(chokobole): Uncomment this. Dependency: if_rocm_is_configured
+    # local_defines = if_rocm_is_configured([
+    #     "TENSORFLOW_USE_ROCM=1",
+    # ]) +
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+gpu_only_cc_library(
+    name = "gpu_semaphore",
+    srcs = ["gpu_semaphore.cc"],
+    hdrs = ["gpu_semaphore.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:memory_allocation",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+gpu_only_cc_library(
+    name = "gpu_stream",
+    srcs = ["gpu_stream.cc"],
+    hdrs = ["gpu_stream.h"],
+    deps = [
+        ":gpu_types",
+        "//zkx/stream_executor:stream",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+gpu_kernel_library(
+    name = "gpu_test_kernels",
+    testonly = True,
+    srcs = ["gpu_test_kernels.cu.cc"],
+    hdrs = ["gpu_test_kernels.h"],
+    linkstatic = True,
+    tags = ["gpu"],
+    deps = [
+        "//zkx/stream_executor:kernel_spec",
+    ] + if_cuda_is_configured([
+        "@local_config_cuda//cuda:cuda_headers",
+    ]),
+    # TODO(chokobole): Uncomment this. Dependency: if_rocm_is_configured
+    #  + if_rocm_is_configured([
+    #     "@local_config_rocm//rocm:rocm_headers",
+    # ]),
+)
+
+zkx_cc_library(
+    name = "gpu_test_kernels_fatbin",
+    testonly = True,
+    srcs = ["gpu_test_kernels_fatbin.cc"],
+    hdrs = ["gpu_test_kernels_fatbin.h"],
+    data = [":gpu_test_kernels"],
+    tags = ["gpu"],
+    deps = [
+        ":gpu_init",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:test_util",
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Object",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+gpu_only_cc_library(
+    name = "gpu_types",
+    hdrs = ["gpu_types.h"],
+    # TODO(chokobole): Uncomment this. Dependency: if_rocm_is_configured
+    # defines = if_rocm_is_configured([
+    #     "TENSORFLOW_USE_ROCM=1",
+    # ]) +
+    # TODO(chokobole): Uncomment this. Dependency: if_sycl_is_configured
+    # defines = if_sycl_is_configured([
+    #     "TENSORFLOW_USE_SYCL=1",
+    # ]),
+    deps = if_cuda_is_configured([
+        "@local_config_cuda//cuda:cuda_headers",
+    ]),
+    # TODO(chokobole): Uncomment this. Dependency: if_rocm_is_configured
+    # + if_rocm_is_configured([
+    #     "@local_config_rocm//rocm:rocm_headers",
+    # ]) +
+    # TODO(chokobole): Uncomment this. Dependency: if_sycl_is_configured
+    # if_sycl_is_configured([
+    #     "@local_config_sycl//sycl:sycl_headers",
+    # ]),
+)
+
+zkx_cc_library(
+    name = "mock_context",
+    hdrs = ["mock_context.h"],
+    deps = [
+        ":context",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
+    name = "scoped_activate_context",
+    srcs = ["scoped_activate_context.cc"],
+    hdrs = ["scoped_activate_context.h"],
+    deps = [
+        ":context",
+        "//zkx/stream_executor:activate_context",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "scoped_gpu_graph_exec",
+    hdrs = ["scoped_gpu_graph_exec.h"],
+    deps = [":scoped_update_mode"],
+)
+
+zkx_cc_library(
+    name = "scoped_update_mode",
+    hdrs = ["scoped_update_mode.h"],
+    deps = ["//zkx/stream_executor:namespace_alias"],
+)
 
 zkx_cc_library(
     name = "tma_metadata",
@@ -23,11 +213,26 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "gpu_unittests",
-    srcs = ["tma_metadata_unittest.cc"],
+    srcs = [
+        "context_map_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
+        # "gpu_executor_unittest.cc",
+        "scoped_activate_context_unittest.cc",
+        "tma_metadata_unittest.cc",
+    ] + if_cuda_is_configured([
+        "gpu_test_kernels_fatbin_unittest.cc",
+    ]),
     deps = [
+        ":context_map",
+        ":mock_context",
+        ":scoped_activate_context",
         ":tma_metadata",
+        "//xla/tsl/platform:env",
         "//xla/tsl/platform:status_matchers",
         "@com_google_absl//absl/status",
         "@llvm-project//llvm:Support",
-    ],
+    ] + if_cuda_is_configured([
+        ":gpu_test_kernels_fatbin",
+        "//xla/tsl/platform:statusor",
+    ]),
 )
