@@ -148,6 +148,13 @@ ______________________________________________________________________
 - Comments should explain **why** a change or design decision was made, not just
   what the code does.
 - Use full sentences with proper punctuation.
+- Add the lint type to `NOLINT` comments
+
+Example:
+
+```c++
+#include "farmhash.h"  // NOLINT(build/include_subdir)
+```
 
 ______________________________________________________________________
 
