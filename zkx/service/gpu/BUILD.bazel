@@ -30,6 +30,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_constants",
+    hdrs = ["gpu_constants.h"],
+)
+
+zkx_cc_library(
     name = "gpu_executable_run_options",
     srcs = ["gpu_executable_run_options.cc"],
     hdrs = ["gpu_executable_run_options.h"],
@@ -100,7 +105,57 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "kernel_arguments",
+    srcs = ["kernel_arguments.cc"],
+    hdrs = ["kernel_arguments.h"],
+    deps = [
+        ":gpu_constants",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "launch_dimensions",
+    srcs = ["launch_dimensions.cc"],
+    hdrs = ["launch_dimensions.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/service:platform_util",
+        "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:launch_dim",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "stream_executor_util",
+    srcs = ["stream_executor_util.cc"],
+    hdrs = ["stream_executor_util.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/service/gpu:launch_dimensions",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:kernel",
+        "//zkx/stream_executor:kernel_spec",
+        "//zkx/stream_executor:launch_dim",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add hlo_fusion_analysis_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add ir_emission_utils_unittest.cc. Dependency: HloTestBase.
+# TODO(chokobole): Add stream_executor_util_unittest.cc. Dependency: PickBestResult
 # TODO(chokobole): Add reduction_utils_unittest.cc. Dependency: HloTestBase.

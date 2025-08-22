@@ -239,7 +239,7 @@ zkx_cc_library(
 zkx_cc_library(
     name = "namespace_alias",
     hdrs = ["namespace_alias.h"],
-    visibility = ["//zkx/stream_executor/platform:__subpackages__"],
+    visibility = ["//zkx/stream_executor:__subpackages__"],
 )
 
 zkx_cc_library(
@@ -337,6 +337,7 @@ zkx_cc_library(
         ":platform",
         ":stream",
         "//zkx/base:logging",
+        "//zkx/stream_executor/gpu:tma_metadata",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",

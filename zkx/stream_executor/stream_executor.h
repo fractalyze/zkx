@@ -36,6 +36,7 @@ limitations under the License.
 #include "zkx/stream_executor/device_memory.h"
 #include "zkx/stream_executor/event.h"
 #include "zkx/stream_executor/event_based_timer.h"
+#include "zkx/stream_executor/gpu/tma_metadata.h"
 #include "zkx/stream_executor/kernel.h"
 #include "zkx/stream_executor/kernel_spec.h"
 #include "zkx/stream_executor/memory_allocation.h"
@@ -313,11 +314,10 @@ class StreamExecutor {
   // descriptor.  Returns a DeviceMemoryBase pointing to the allocated
   // CUtensorMap object to be used as an argument to a kernel.
   // Only implemented on CUDA GPUs.
-  // TODO(chokobole): Uncomment this. Dependency: TmaDescriptor
-  // virtual absl::StatusOr<DeviceMemoryBase> CreateTensorMap(
-  //     gpu::TmaDescriptor tma_desc, void* global_address) {
-  //   return absl::UnimplementedError("Not Implemented");
-  // }
+  virtual absl::StatusOr<DeviceMemoryBase> CreateTensorMap(
+      gpu::TmaDescriptor tma_desc, void* global_address) {
+    return absl::UnimplementedError("Not Implemented");
+  }
 };
 
 template <typename T>
