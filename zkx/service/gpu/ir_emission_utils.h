@@ -19,11 +19,10 @@ limitations under the License.
 #include <stdint.h>
 
 #include <optional>
-#include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/types/span.h"
 
@@ -33,9 +32,6 @@ limitations under the License.
 #include "zkx/stream_executor/device_description.h"
 
 namespace zkx::gpu {
-
-// <HLO computation fingerprint, serialized compiled object>.
-using BinaryMap = absl::flat_hash_map<std::string, std::string>;
 
 // If a dimensions is smaller than this, untiled transposition may be more
 // efficient.
