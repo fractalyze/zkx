@@ -185,7 +185,7 @@ class CommandBuffer {
   //===--------------------------------------------------------------------===//
 
   // Adds an execution barrier to a given execution scope: all commands added
-  // before a barrier in a the execution scope will complete before any of the
+  // before a barrier in the execution scope will complete before any of the
   // commands added after a barrier in the same execution scope.
   virtual absl::Status Barrier(ExecutionScopeId execution_scope_id) = 0;
 
