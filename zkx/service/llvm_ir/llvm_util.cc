@@ -16,6 +16,7 @@ limitations under the License.
 #include "zkx/service/llvm_ir/llvm_util.h"
 
 #include <algorithm>
+#include <cctype>
 
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
@@ -75,6 +76,44 @@ std::string IrName(std::string_view a, std::string_view b) {
 
 std::string IrName(const HloInstruction* a, std::string_view b) {
   return IrName(a->name(), b);
+}
+
+std::string SanitizeFunctionName(std::string_view old_function_name) {
+  std::string function_name(old_function_name);
+  // The backend with the strictest requirements on function names is NVPTX, so
+  // we sanitize to its requirements.
+  //
+  // A slightly stricter version of the NVPTX requirements is that names match
+  // /[a-zA-Z_$][a-zA-Z0-9_$]*/, with the exception that the names "_" and "$"
+  // are illegal.
+
+  // Sanitize chars in function_name.
+  std::transform(function_name.begin(), function_name.end(),
+                 function_name.begin(), [](char c) {
+                   if (std::isalnum(static_cast<unsigned char>(c)) ||
+                       c == '_' || c == '$') {
+                     return c;
+                   }
+                   return '_';
+                 });
+
+  // Ensure the name isn't empty.
+  if (function_name.empty()) {
+    function_name = "__unnamed";
+  }
+
+  // Ensure the name doesn't start with a number.
+  if (!function_name.empty() && function_name[0] >= '0' &&
+      function_name[0] <= '9') {
+    function_name.insert(function_name.begin(), '_');
+  }
+
+  // Ensure the name isn't "_" or "$".
+  if (function_name == "_" || function_name == "$") {
+    function_name += '_';
+  }
+
+  return function_name;
 }
 
 }  // namespace zkx::llvm_ir

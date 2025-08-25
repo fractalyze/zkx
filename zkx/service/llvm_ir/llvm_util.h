@@ -62,6 +62,12 @@ std::string IrName(std::string_view a);
 std::string IrName(std::string_view a, std::string_view b);
 std::string IrName(const HloInstruction* a, std::string_view b = "");
 
+// Removes special characters from a function name.
+//
+// Note that this can cause different inputs to map to the same output, so after
+// sanitizing a function name, you must run it through a uniquer.
+std::string SanitizeFunctionName(std::string_view function_name);
+
 template <typename T>
 llvm::APInt ConvertBigIntToAPInt(const T& value) {
   return {T::kBitWidth, static_cast<unsigned>(T::kLimbNums), value.limbs()};
