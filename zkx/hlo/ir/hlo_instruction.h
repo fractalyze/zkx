@@ -1531,6 +1531,11 @@ class HloInstruction {
   // Returns whether the instruction is a constant.
   bool IsConstant() const;
 
+  // Delegates to
+  // HloCallableInstruction::AppendInstructionIntoCalledComputation.
+  HloInstruction* AppendInstructionIntoCalledComputation(
+      HloInstruction* instruction_to_append, bool add_output = false);
+
   // Delegates to HloFusionInstruction::AddFusionOperand.
   HloInstruction* AddFusionOperand(HloInstruction* new_operand);
 

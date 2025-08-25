@@ -56,6 +56,36 @@ std::string HloModuleGroup::ToString() const {
   return s.str();
 }
 
+HloModuleGroupProto HloModuleGroup::ToProto() const {
+  HloModuleGroupProto proto;
+  proto.set_name(name());
+  for (const HloModule* module : modules()) {
+    *proto.add_hlo_modules() = module->ToProto();
+  }
+  return proto;
+}
+
+// static
+absl::StatusOr<HloModuleGroup> HloModuleGroup::CreateFromProto(
+    const HloModuleGroupProto& proto,
+    absl::Span<const HloModuleConfig> module_configs) {
+  TF_RET_CHECK(!proto.name().empty()) << "Module group name cannot be empty";
+  TF_RET_CHECK(proto.hlo_modules_size() > 0)
+      << "Module group must have at least one HLO module";
+  TF_RET_CHECK(proto.hlo_modules_size() == module_configs.size());
+
+  std::vector<std::unique_ptr<HloModule>> modules;
+  for (int i = 0; i < proto.hlo_modules_size(); ++i) {
+    const HloModuleProto& module_proto = proto.hlo_modules(i);
+    TF_ASSIGN_OR_RETURN(
+        std::unique_ptr<HloModule> module,
+        HloModule::CreateFromProto(module_proto, module_configs[i]));
+    modules.push_back(std::move(module));
+  }
+
+  return HloModuleGroup(proto.name(), std::move(modules));
+}
+
 void HloModuleGroup::push_back(std::unique_ptr<HloModule> module) {
   module->metadata()->set_module_group_name(name());
   modules_.push_back(std::move(module));

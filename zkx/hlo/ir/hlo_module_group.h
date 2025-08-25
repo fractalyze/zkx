@@ -26,6 +26,7 @@ limitations under the License.
 #include "absl/types/span.h"
 
 #include "zkx/hlo/ir/hlo_module.h"
+#include "zkx/service/hlo.pb.h"
 #include "zkx/service/hlo_module_config.h"
 
 namespace zkx {
@@ -86,6 +87,12 @@ class HloModuleGroup {
     }
     return H::combine(std::move(h), group.modules_.size());
   }
+
+  // Serialize the module group to/from a proto.
+  HloModuleGroupProto ToProto() const;
+  static absl::StatusOr<HloModuleGroup> CreateFromProto(
+      const HloModuleGroupProto& proto,
+      absl::Span<const HloModuleConfig> module_configs);
 
   // Returns the number of modules in the module group.
   int size() const { return modules_.size(); }

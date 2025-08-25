@@ -567,6 +567,13 @@ message HeapSimulatorTrace {
   int64 buffer_allocation_index = 3;
 }
 
+// An abstraction representing a set of HLO modules built to run concurrently
+// across different devices.
+message HloModuleGroupProto {
+  string name = 1;
+  repeated HloModuleProto hlo_modules = 2;
+}
+
 // Serialization of BufferAssignment.
 message BufferAssignmentProto {
   // Alias represents a source LogicalBuffer, and the buffer location that
