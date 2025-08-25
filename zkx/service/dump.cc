@@ -256,9 +256,8 @@ class DataProducer {
   std::queue<std::function<std::string()>> produce_funcs_;
 };
 
-static absl::Status WriteStringToFile(tsl::Env* env, std::string_view fname,
-                                      DataProducer& data_producer,
-                                      bool compressed) {
+absl::Status WriteStringToFile(tsl::Env* env, std::string_view fname,
+                               DataProducer& data_producer, bool compressed) {
   std::unique_ptr<tsl::WritableFile> file;
   TF_RETURN_IF_ERROR(env->NewWritableFile(fname, &file));
   if (compressed) {
@@ -280,8 +279,8 @@ static absl::Status WriteStringToFile(tsl::Env* env, std::string_view fname,
   }
 }
 
-static absl::Status WriteStringToFile(tsl::Env* env, std::string_view fname,
-                                      std::string_view data, bool compressed) {
+absl::Status WriteStringToFile(tsl::Env* env, std::string_view fname,
+                               std::string_view data, bool compressed) {
   if (!compressed) {
     return tsl::WriteStringToFile(env, fname, data);
   }
@@ -297,8 +296,8 @@ static absl::Status WriteStringToFile(tsl::Env* env, std::string_view fname,
   return absl::UnimplementedError("gzip is not supported");
 }
 
-static std::optional<std::string> GetDumpFilePath(
-    std::string_view filename, const CanonicalDebugOptions& opts) {
+std::optional<std::string> GetDumpFilePath(std::string_view filename,
+                                           const CanonicalDebugOptions& opts) {
   if (opts.dumping_to_stdout()) {
     LOG(ERROR) << "Refusing to write " << filename
                << " to stdout. Pass --zkx_dump_to=<path> to write to a file.";
@@ -349,7 +348,7 @@ static std::optional<std::string> GetDumpFilePath(
   return tsl::io::JoinPath(dir, SanitizeFileName(std::string(filename)));
 }
 
-static std::optional<std::string> DumpToFileInDirImpl(
+std::optional<std::string> DumpToFileInDirImpl(
     std::string_view filename, std::string_view contents,
     const CanonicalDebugOptions& opts, bool compress = false) {
   auto file_path = GetDumpFilePath(filename, opts);
@@ -366,7 +365,7 @@ static std::optional<std::string> DumpToFileInDirImpl(
   return file_path;
 }
 
-static std::optional<std::string> DumpToFileInDirImpl(
+std::optional<std::string> DumpToFileInDirImpl(
     std::string_view filename, DataProducer& data_producer,
     const CanonicalDebugOptions& opts, bool compress = false) {
   auto file_path = GetDumpFilePath(filename, opts);
@@ -383,9 +382,9 @@ static std::optional<std::string> DumpToFileInDirImpl(
   return file_path;
 }
 
-static absl::Mutex stdout_dump_mutex(absl::kConstInit);
+absl::Mutex stdout_dump_mutex(absl::kConstInit);
 
-static std::optional<std::string> DumpToFileInDirOrStdoutImpl(
+std::optional<std::string> DumpToFileInDirOrStdoutImpl(
     std::string_view filename, std::string_view contents,
     const CanonicalDebugOptions& opts) {
   // Dump to stdout if that's called for.
@@ -400,7 +399,7 @@ static std::optional<std::string> DumpToFileInDirOrStdoutImpl(
   return DumpToFileInDirImpl(filename, contents, opts);
 }
 
-static std::optional<std::string> DumpToFileInDirOrStdoutImpl(
+std::optional<std::string> DumpToFileInDirOrStdoutImpl(
     std::string_view filename, DataProducer& data_producer,
     const CanonicalDebugOptions& opts) {
   // Dump to stdout if that's called for.
@@ -419,10 +418,11 @@ static std::optional<std::string> DumpToFileInDirOrStdoutImpl(
 }
 
 // Returns full file paths of all dumps of the module.
-static std::vector<std::string> DumpHloModuleImpl(
-    const HloModule& module, const BufferAssignment* buffer_assn,
-    std::string_view prefix, std::string_view suffix,
-    const CanonicalDebugOptions& opts) {
+std::vector<std::string> DumpHloModuleImpl(const HloModule& module,
+                                           const BufferAssignment* buffer_assn,
+                                           std::string_view prefix,
+                                           std::string_view suffix,
+                                           const CanonicalDebugOptions& opts) {
   // TODO(chokobole): Uncomment this. Dependency: profiler
   // tsl::profiler::ScopedAnnotation annotation([&] {
   //   return absl::StrFormat("ZkxDumpHloModule:#module=%s,program_id=%d#",
@@ -550,9 +550,9 @@ static std::vector<std::string> DumpHloModuleImpl(
   return dumped_file_paths;
 }
 
-static void DumpHloModuleMetadata(
-    const HloModuleMetadataProto& metadata, const CanonicalDebugOptions& opts,
-    absl::flat_hash_set<int64_t>* dumped_module_ids) {
+void DumpHloModuleMetadata(const HloModuleMetadataProto& metadata,
+                           const CanonicalDebugOptions& opts,
+                           absl::flat_hash_set<int64_t>* dumped_module_ids) {
   // Return if metadata for this module has already been dumped.
   if (!dumped_module_ids->insert(metadata.canonical_module_id()).second) {
     return;
@@ -567,7 +567,7 @@ static void DumpHloModuleMetadata(
   }
 }
 
-static absl::Mutex mu(absl::kConstInit);
+absl::Mutex mu(absl::kConstInit);
 
 // Maps a module's unique ID to a counter indicating how many times we've dumped
 // this module during the compilation pipeline. This lets us keep the filenames
@@ -577,7 +577,7 @@ static absl::Mutex mu(absl::kConstInit);
 // dies. But we only add an entry if dumping is enabled for this module, and
 // dumping a module leaks buffer space in stdout or bytes on disk *way* faster
 // than this hashtable leaks memory.
-static auto& module_id_to_step_number ABSL_GUARDED_BY(mu) =
+auto& module_id_to_step_number ABSL_GUARDED_BY(mu) =
     *new absl::flat_hash_map<int64_t, int64_t>();
 
 // Maps a module's unique ID to a timestamp indicating when we've first dumped
@@ -588,7 +588,7 @@ static auto& module_id_to_step_number ABSL_GUARDED_BY(mu) =
 // dies. But we only add an entry if dumping is enabled for this module, and
 // dumping a module leaks buffer space in stdout or bytes on disk *way* faster
 // than this hashtable leaks memory.
-static auto& module_id_to_timestamp ABSL_GUARDED_BY(mu) =
+auto& module_id_to_timestamp ABSL_GUARDED_BY(mu) =
     *new absl::flat_hash_map<int64_t, uint64_t>();
 
 int64_t StepNumberForModule(const HloModule& module) {
