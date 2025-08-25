@@ -330,7 +330,7 @@ absl::StatusOr<ExecutionOutput> CpuExecutable::CreateResultShapedBuffer(
         // not be releasing it as it contains valid data (for example, it is a
         // parameter which the user wants us to alias, in a gradient update
         // computation). So we store the index into the result in the aliased
-        // vactor, which will be fed to the ExecutionOutput, which will be
+        // vector, which will be fed to the ExecutionOutput, which will be
         // using the indices to drop the addresses from its own
         // ScopedShapedBuffer result, if the ExecutionOutput is not committed.
         result.AddAliasedIndex(index);

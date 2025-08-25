@@ -225,7 +225,7 @@ class HloSchedule {
   absl::flat_hash_map<int64_t, HloInstructionSequence> sequences_;
 
   // A corresponding map of `sequences_`, mapping the computation unique ID
-  // included in the shedule to execution threads. We need to store this since
+  // included in the schedule to execution threads. We need to store this since
   // sometimes, computation could be removed while we still need the execution
   // thread info for the remaining sequences.
   absl::flat_hash_map<int64_t, std::string> execution_threads_;

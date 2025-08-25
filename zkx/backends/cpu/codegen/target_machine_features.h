@@ -37,7 +37,8 @@ class TargetMachineFeatures {
   // want to call an Eigen backed GEMM or Convolution.
   static constexpr int32_t kEigenExpectedTensorAlignment = 16;
 
-  explicit TargetMachineFeatures(llvm::TargetMachine* target_machine) : target_machine_(target_machine) {}
+  explicit TargetMachineFeatures(llvm::TargetMachine* target_machine)
+      : target_machine_(target_machine) {}
   virtual ~TargetMachineFeatures() = default;
 
   TargetMachineFeatures(TargetMachineFeatures&&) = default;

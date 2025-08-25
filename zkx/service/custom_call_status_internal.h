@@ -36,4 +36,4 @@ std::optional<std::string_view> CustomCallStatusGetMessage(
 
 }  // namespace zkx
 
-#endif  // ZKX_SERVICE_CUSTOM_CALL_INTERNAL_STATUS_H_
+#endif  // ZKX_SERVICE_CUSTOM_CALL_STATUS_INTERNAL_H_

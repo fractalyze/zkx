@@ -1,6 +1,7 @@
 # Math
 
-This is taken and modified from [xla](https://github.com/openxla/xla/tree/8bac4a2/xla/tsl/lib/math).
+This is taken and modified from
+[xla](https://github.com/openxla/xla/tree/8bac4a2/xla/tsl/lib/math).
 
 ```shell
 > diff -r /path/to/openxla/xla/xla/tsl/lib/math xla/tsl/lib/math

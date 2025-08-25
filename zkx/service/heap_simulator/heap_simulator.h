@@ -646,7 +646,7 @@ class GlobalDecreasingSizeBestFitHeap : public HeapAlgorithm<BufferType> {
   // A class for finding locations to allocate a sliced allocation. A sliced
   // allocation is an allocation of a buffer, in which slices of the buffer are
   // allocated at different times, called slice times. Slice time is a logical
-  // time. For example, a requestor may ask for 15 Mib, allocated 5 MiB at a
+  // time. For example, a requester may ask for 15 Mib, allocated 5 MiB at a
   // time, at 3 slices times t0, t1, and t2.
   //
   // The primary data structure inside this class is free_chunks_. free_chunks_
@@ -735,7 +735,7 @@ class GlobalDecreasingSizeBestFitHeap : public HeapAlgorithm<BufferType> {
     // - slice_time_permutation_iterator: An iterator for iterating over the
     //   different slice time permutations for slices. Users may specify the
     //   order in which different permutations are tried by the HeapSimulator.
-    //   Users are also responsbile for ensuring that returned permutations are
+    //   Users are also responsible for ensuring that returned permutations are
     //   legal.
     // - is_offset_allowed: Indicates if a the entire sliced allocation is
     //   allowed to be allocated at a given offset.

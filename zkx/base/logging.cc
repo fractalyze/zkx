@@ -29,7 +29,7 @@ limitations under the License.
 #include <iostream>
 #include <sstream>
 
-#include <android/log.h>
+#include <android/log.h>  // NOLINT(build/include_order)
 #else
 #include <stdio.h>
 
@@ -325,7 +325,7 @@ void DefaultLogSink::Send(const LogEntry& entry) {
   time_t now_seconds = static_cast<time_t>(now_micros / 1000000);
   int32_t micros_remainder = static_cast<int32_t>(now_micros % 1000000);
   const size_t time_buffer_size = 30;
-  char time_buffer[time_buffer_size];
+  char time_buffer[time_buffer_size];  // NOLINT(runtime/arrays)
   struct tm* tp;
 #if defined(__linux__) || defined(__APPLE__)
   struct tm now_tm;

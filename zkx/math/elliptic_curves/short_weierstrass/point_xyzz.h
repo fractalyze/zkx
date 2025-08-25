@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_POINT_XYZZ_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_POINT_XYZZ_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_POINT_XYZZ_H_
+#define ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_POINT_XYZZ_H_
 
 #include <string>
 #include <type_traits>
@@ -334,4 +334,4 @@ class JsonSerde<math::PointXyzz<
 
 #include "zkx/math/elliptic_curves/short_weierstrass/point_xyzz_impl.h"
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_POINT_XYZZ_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_POINT_XYZZ_H_

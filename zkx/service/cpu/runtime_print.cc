@@ -21,9 +21,10 @@ void PrintMemref(void* memref_in) {
     impl::printMemRef(
         *reinterpret_cast<StridedMemRefType<zkx::math::bn254::Fq, N + 1>*>(
             memref_in));
-  } else if constexpr (std::is_same_v<T, zkx::math::bn254::G2AffinePoint> ||
-                       std::is_same_v<T, zkx::math::bn254::G2JacobianPoint> ||
-                       std::is_same_v<T, zkx::math::bn254::G2PointXyzz>) {
+  } else if constexpr (  // NOLINT(readability/braces)
+      std::is_same_v<T, zkx::math::bn254::G2AffinePoint> ||
+      std::is_same_v<T, zkx::math::bn254::G2JacobianPoint> ||
+      std::is_same_v<T, zkx::math::bn254::G2PointXyzz>) {
     impl::printMemRef(
         *reinterpret_cast<StridedMemRefType<zkx::math::bn254::Fq, N + 2>*>(
             memref_in));

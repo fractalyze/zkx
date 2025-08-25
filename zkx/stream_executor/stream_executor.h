@@ -182,10 +182,10 @@ class StreamExecutor {
     return absl::UnimplementedError("Not implemented for this executor.");
   }
 
-  virtual bool HostMemoryUnregister(void* location) { return false; };
+  virtual bool HostMemoryUnregister(void* location) { return false; }
   virtual bool HostMemoryRegister(void* location, uint64_t size) {
     return false;
-  };
+  }
 
   // Blocks the caller while "size" bytes are copied to the given location in
   // device memory.

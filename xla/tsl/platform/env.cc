@@ -31,7 +31,6 @@ limitations under the License.
 #define PATH_MAX MAX_PATH
 #else
 #include <fcntl.h>
-#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 #endif

@@ -37,7 +37,7 @@ namespace {
 absl::StatusOr<std::unique_ptr<FunctionLibrary>> Compile(
     JitCompiler compiler, absl::Span<const FunctionLibrary::Symbol> symbols) {
   return std::move(compiler).Compile(symbols);
-};
+}
 
 // Parses the LLVM IR into a ThreadSafeModule.
 absl::StatusOr<llvm::orc::ThreadSafeModule> ParseModule(

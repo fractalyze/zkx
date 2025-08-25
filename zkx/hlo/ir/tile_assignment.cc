@@ -300,9 +300,9 @@ std::optional<IotaTileAssignment> IotaTileAssignment::Transpose(
     if (target != 1) {
       // TODO(b/341371396): Handle remaining patterns and remove nullopt path.
       // It seems this cannot happen under the valid condition that we generate
-      // code with predefined mesh axises, but the C++ API does not restrict
+      // code with predefined mesh axes, but the C++ API does not restrict
       // people from constructing sharding like `[2,3]<=[2,3]T(1,0]` which
-      // breaks the axises and transposing it will result in V1 sharding.
+      // breaks the axes and transposing it will result in V1 sharding.
       return std::nullopt;
     }
   }

@@ -2127,7 +2127,7 @@ absl::Status GlobalDecreasingSizeBestFitHeap<BufferType>::
   }
   if (offset + max_colocation_size_ > root.chunk.chunk_end()) {
     return absl::FailedPreconditionError(absl::StrFormat(
-        "%s", absl::StrCat("Not enough space to fit enitre allocation [",
+        "%s", absl::StrCat("Not enough space to fit entire allocation [",
                            offset, ", ", offset + max_colocation_size_,
                            ") in free chunk root ", root.chunk.ToString())));
   }

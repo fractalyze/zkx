@@ -37,7 +37,7 @@ extern "C" {
 // today ZKX:CPU backend is statically linked and we do not plan to load
 // kernels from dynamic libraries. It's defined as C API because we have to
 // match it in the codegen backend (built on top of LLVM) and C structs have
-// trivial layout that can be expressed as llvm stuct (*).
+// trivial layout that can be expressed as llvm struct (*).
 //
 // (*) https://llvm.org/docs/LangRef.html#structure-types
 

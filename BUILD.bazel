@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@version//:build_defs.bzl", "lastchange", "version_header")
+load("@version//:build_defs.bzl", "version_header")
 load("//bazel:zkx.bzl", "VERSION_MAJOR", "VERSION_MINOR", "VERSION_PATCH", "VERSION_PRERELEASE")
 
 package(default_visibility = ["//visibility:public"])
@@ -99,14 +99,9 @@ config_setting(
     flag_values = {":has_rtti": "true"},
 )
 
-lastchange(
-    name = "lastchange",
-    git_root = "//:WORKSPACE.bazel",
-)
-
 version_header(
     name = "version_generated",
-    lastchange = ":lastchange",
+    lastchange = "@lastchange//:lastchange",
     major = VERSION_MAJOR,
     minor = VERSION_MINOR,
     output = "version_generated.h",

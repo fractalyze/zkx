@@ -2,30 +2,37 @@
 
 ## Introduction
 
-This document defines the coding standards for C++ code in ZKX.
-The base guideline is the [Google C++ Style Guide], combined with the [Angular Commit Convention], with explicit project-specific modifications.
-In addition to code style, this guide incorporates our rules for commit messages, pull requests, and IDE/editor setup.
+This document defines the coding standards for C++ code in ZKX. The base
+guideline is the [Google C++ Style Guide], combined with the
+[Angular Commit Convention], with explicit project-specific modifications. In
+addition to code style, this guide incorporates our rules for commit messages,
+pull requests, and IDE/editor setup.
 
-_Note: Imported code from XLA may not fully follow these rules and should generally remain unchanged._
+_Note: Imported code from XLA may not fully follow these rules and should
+generally remain unchanged._
 
----
+______________________________________________________________________
 
 ## Core Principles
 
 - **Readability:** Both code and commits should be immediately understandable.
 - **Maintainability:** Code should be easy to refactor and extend.
-- **Consistency:** Apply the same conventions across files and modules, except where external code (e.g., XLA) is imported.
-- **Performance:** Prioritize clarity, but optimize carefully where latency and cost are critical.
+- **Consistency:** Apply the same conventions across files and modules, except
+  where external code (e.g., XLA) is imported.
+- **Performance:** Prioritize clarity, but optimize carefully where latency and
+  cost are critical.
 
----
+______________________________________________________________________
 
 ## C++ Coding Style
 
-The following are project-specific deviations and clarifications from the [Google C++ Style Guide].
+The following are project-specific deviations and clarifications from the
+[Google C++ Style Guide].
 
 ### Static Methods
 
-- For **static methods** implemented in `.cc` files, explicitly annotate with `// static`.
+- For **static methods** implemented in `.cc` files, explicitly annotate with
+  `// static`.
 
   ```c++
   // static
@@ -36,7 +43,8 @@ The following are project-specific deviations and clarifications from the [Googl
 
 ### File-Scoped Symbols
 
-- Wrap **file-scoped functions, constants, and variables** inside an **anonymous namespace**.
+- Wrap **file-scoped functions, constants, and variables** inside an **anonymous
+  namespace**.
 
   ```c++
   namespace {
@@ -56,7 +64,8 @@ The following are project-specific deviations and clarifications from the [Googl
 
 ### Header Inclusion
 
-- **Avoid redundant includes**: Do not repeat headers in `.cc` files that are already included in the corresponding `.h`.
+- **Avoid redundant includes**: Do not repeat headers in `.cc` files that are
+  already included in the corresponding `.h`.
 
   ```c++
   // in a.h
@@ -71,7 +80,8 @@ The following are project-specific deviations and clarifications from the [Googl
 
 ### Raw Pointer Ownership
 
-- When using a **raw pointer** (`T*`) in **class or struct members**, explicitly document ownership by adding an inline comment `// not owned` or `// owned`.
+- When using a **raw pointer** (`T*`) in **class or struct members**, explicitly
+  document ownership by adding an inline comment `// not owned` or `// owned`.
 - Prefer `std::unique_ptr` or `std::shared_ptr` for owned resources.
 
 Example:
@@ -87,12 +97,14 @@ class Prover {
 };
 ```
 
----
+______________________________________________________________________
 
 ## Naming & Migration Hygiene (XLA → ZKX)
 
-- All **new identifiers** (namespaces, classes, variables, include guards, Bazel packages) must use **ZKX**, not `XLA`.
-- Code migrated from `XLA` should be renamed where practical, except where it breaks compatibility.
+- All **new identifiers** (namespaces, classes, variables, include guards, Bazel
+  packages) must use **ZKX**, not `XLA`.
+- Code migrated from `XLA` should be renamed where practical, except where it
+  breaks compatibility.
 - PR checklist: ensure no new identifiers introduce `XLA`.
 
 ### XLA Compatibility Exceptions
@@ -107,14 +119,14 @@ The following usages of `XLA` are explicitly allowed:
      // Copyright 2017 The OpenXLA Authors.
      ```
 
-2. **Includes from XLA/TSL paths**
+1. **Includes from XLA/TSL paths**
 
    ```c++
    #include "xla/tsl/platform/env.h"
    #include "xla/tsl/platform/env_time.h"
    ```
 
-3. **Bazel dependencies/labels**
+1. **Bazel dependencies/labels**
 
    ```bazel
    deps = [
@@ -122,52 +134,70 @@ The following usages of `XLA` are explicitly allowed:
    ]
    ```
 
-4. **Explicit external references** in comments or documentation (e.g., “ported from XLA …”).
+1. **Explicit external references** in comments or documentation (e.g., “ported
+   from XLA …”).
 
-_Disallowed:_ Introducing new identifiers with `XLA` inside ZKX code, except in vendored or third-party files that keep upstream names.
+_Disallowed:_ Introducing new identifiers with `XLA` inside ZKX code, except in
+vendored or third-party files that keep upstream names.
 
----
+______________________________________________________________________
 
 ## Comment Style
 
 - Non-trivial code changes must be accompanied by comments.
-- Comments should explain **why** a change or design decision was made, not just what the code does.
+- Comments should explain **why** a change or design decision was made, not just
+  what the code does.
 - Use full sentences with proper punctuation.
+- Add the lint type to `NOLINT` comments
 
----
+Example:
+
+```c++
+#include "farmhash.h"  // NOLINT(build/include_subdir)
+```
+
+______________________________________________________________________
 
 ## Bazel Style
 
-- Every header included in a Bazel target must also be declared as a Bazel dependency.
+- Every header included in a Bazel target must also be declared as a Bazel
+  dependency.
 
----
+______________________________________________________________________
 
 ## Testing
 
 - **Framework**: Use gtest/gmock.
 - **Coverage**: New features must include tests whenever applicable.
 - **Completeness**: Always include boundary cases and error paths.
-- **Determinism**: Tests must be deterministic and runnable independently (no hidden state dependencies).
-- **Performance**: Add benchmarks for performance-critical code paths when appropriate.
+- **Determinism**: Tests must be deterministic and runnable independently (no
+  hidden state dependencies).
+- **Performance**: Add benchmarks for performance-critical code paths when
+  appropriate.
 
----
+______________________________________________________________________
 
 ## Collaboration Rules
 
 ### Commits (Angular Commit Convention)
 
 - Must follow the [Commit Message Guideline].
+
 - Format:
 
   ```
   <type>(<scope>): <summary>
   ```
 
-  where `type` ∈ {build, chore, ci, docs, feat, fix, perf, refactor, style, test}.
+  where `type` ∈ {build, chore, ci, docs, feat, fix, perf, refactor, style,
+  test}.
 
 - Commit body: explain **why** the change was made (minimum 20 characters).
+
 - Footer: record breaking changes, deprecations, and related issues/PRs.
-- Each commit must include only **minimal, logically related changes**. Avoid mixing style fixes with functional changes.
+
+- Each commit must include only **minimal, logically related changes**. Avoid
+  mixing style fixes with functional changes.
 
 ### Pull Requests
 
@@ -181,17 +211,18 @@ _Disallowed:_ Introducing new identifiers with `XLA` inside ZKX code, except in 
 - No trailing whitespace.
 - No extra blank lines at EOF.
 
----
+______________________________________________________________________
 
 ## Tooling
 
-- **Formatter:** `clang-format` (Google preset with project overrides). Refer to the [.clang-format] file in the repo.
+- **Formatter:** `clang-format` (Google preset with project overrides). Refer to
+  the [.clang-format] file in the repo.
 - **Linter:** `clang-tidy`.
 - **Pre-commit hooks:** Recommended for enforcing format and lint locally.
 - **CI:** All PRs must pass lint, format, and tests before merge.
 
-[Google C++ Style Guide]: https://google.github.io/styleguide/cppguide.html
-[Angular Commit Convention]: https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md
-[Commit Message Guideline]: https://github.com/zk-rabbit/.github/blob/main/COMMIT_MESSAGE_GUIDELINE.md
-[Pull Request Guideline]: https://github.com/zk-rabbit/.github/blob/main/PULL_REQUEST_GUIDELINE.md
 [.clang-format]: /.clang-format
+[angular commit convention]: https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md
+[commit message guideline]: https://github.com/zk-rabbit/.github/blob/main/COMMIT_MESSAGE_GUIDELINE.md
+[google c++ style guide]: https://google.github.io/styleguide/cppguide.html
+[pull request guideline]: https://github.com/zk-rabbit/.github/blob/main/PULL_REQUEST_GUIDELINE.md

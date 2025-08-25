@@ -1812,7 +1812,7 @@ void HloFusionInstruction::MergeFusionInstruction(
                                       /*accept_different_shape=*/true);
   }
 
-  // Fuse 'unfused_instructions' into 'this'. Everytime we fuse an instruction
+  // Fuse 'unfused_instructions' into 'this'. Every time we fuse an instruction
   // we remove it from the closed fusion node. This is so that we don't add
   // extra users to the producer of that instruction (we use user count to
   // decide if a side-effectful instruction is fusible).

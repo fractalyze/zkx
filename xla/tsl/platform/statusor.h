@@ -65,8 +65,8 @@ limitations under the License.
 // stored value cannot invalidate the argument; in other words, the argument
 // cannot be an alias for the current value, or anything owned by the current
 // value.
-#ifndef XLA_TSL_BASE_STATUSOR_H_
-#define XLA_TSL_BASE_STATUSOR_H_
+#ifndef XLA_TSL_PLATFORM_STATUSOR_H_
+#define XLA_TSL_PLATFORM_STATUSOR_H_
 
 #include <utility>
 
@@ -98,4 +98,4 @@ limitations under the License.
 #define TF_STATUS_MACROS_CONCAT_NAME(x, y) TF_STATUS_MACROS_CONCAT_IMPL(x, y)
 #define TF_STATUS_MACROS_CONCAT_IMPL(x, y) x##y
 
-#endif  // XLA_TSL_BASE_STATUSOR_H_
+#endif  // XLA_TSL_PLATFORM_STATUSOR_H_

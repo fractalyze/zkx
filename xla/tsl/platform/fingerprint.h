@@ -22,7 +22,7 @@ limitations under the License.
 #include <string_view>
 
 #include "absl/numeric/int128.h"
-#include "farmhash.h"
+#include "farmhash.h"  // NOLINT(build/include_subdir)
 
 namespace tsl {
 

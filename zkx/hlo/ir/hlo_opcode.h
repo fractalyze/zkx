@@ -46,7 +46,7 @@ namespace zkx {
 // If you change one of these opcodes, please make the corresponding change to
 // the MHLO opset to keep both opsets synchronized.
 
-// NOTE(chokobole): If you add a new opcode, please update the followings:
+// NOTE(chokobole): If you add a new opcode, please update the following:
 // - HloInstruction::IsOpElementwise
 // - HloInstruction::IdenticalSlowPath
 // - HloInstruction::MightHaveCalledComputations

@@ -41,7 +41,7 @@ class CpuCollectives : public Collectives {
   class Executor : public Communicator::Executor {
    public:
     Executor(RendezvousKey rendezvous_key, absl::Duration timeout)
-    : rendezvous_key_(rendezvous_key), timeout_(timeout) {}
+        : rendezvous_key_(rendezvous_key), timeout_(timeout) {}
 
     const RendezvousKey& rendezvous_key() const { return rendezvous_key_; }
     const absl::Duration& timeout() const { return timeout_; }

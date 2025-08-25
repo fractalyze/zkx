@@ -274,7 +274,7 @@ auto KernelApiIrBuilder::EmitKernelPrototype(
 
   int64_t idx = 0;
 
-  // A set of invariant (read-only) buffer indices, feeded in the loop array in
+  // A set of invariant (read-only) buffer indices, fed in the loop array in
   // the next section.
   absl::flat_hash_set<int64_t> invariant_arguments;
 

@@ -193,7 +193,7 @@ TEST_F(MappedPtrContainerSorterTest, WithUnmappedPtrsInCustomLocations) {
           Pointee(std::string("u2")),  // unmapped u2 comes after mapped index 2
           Pointee(std::string("m3")),  // mapped index 3
           Pointee(std::string("u0"))   // unmapped u0 comes after mapped ptrs
-          ));
+          ));                          // NOLINT(whitespace/parens)
 }
 
 TEST_F(MappedPtrContainerSorterTest,

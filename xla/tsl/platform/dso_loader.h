@@ -16,8 +16,8 @@ limitations under the License.
 // Common DSO loading functionality: exposes callables that dlopen DSOs
 // in either the runfiles directories
 
-#ifndef XLA_TSL_PLATFORM_DEFAULT_DSO_LOADER_H_
-#define XLA_TSL_PLATFORM_DEFAULT_DSO_LOADER_H_
+#ifndef XLA_TSL_PLATFORM_DSO_LOADER_H_
+#define XLA_TSL_PLATFORM_DSO_LOADER_H_
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -84,4 +84,4 @@ absl::StatusOr<void*> GetHipDsoHandle();
 
 }  // namespace tsl::internal
 
-#endif  // XLA_TSL_PLATFORM_DEFAULT_DSO_LOADER_H_
+#endif  // XLA_TSL_PLATFORM_DSO_LOADER_H_

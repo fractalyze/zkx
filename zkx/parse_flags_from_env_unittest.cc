@@ -106,7 +106,7 @@ TEST(ParseFlagsFromEnv, File) {
 static const char* binary_name;
 
 // Test that when we use both the environment variable and actual
-// commend line flags (when the latter is possible), the latter win.
+// command line flags (when the latter is possible), the latter win.
 TEST(ParseFlagsFromEnv, EnvAndFlag) {
   static struct {
     const char* env;

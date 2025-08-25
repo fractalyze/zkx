@@ -44,7 +44,7 @@ absl::StatusOr<llvm::orc::ThreadSafeModule> ParseModule(
 absl::StatusOr<std::unique_ptr<FunctionLibrary>> Compile(
     JitCompiler compiler, absl::Span<const FunctionLibrary::Symbol> symbols) {
   return std::move(compiler).Compile(symbols);
-};
+}
 
 }  // namespace
 

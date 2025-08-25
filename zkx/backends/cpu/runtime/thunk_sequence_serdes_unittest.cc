@@ -599,7 +599,7 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
 // List of all serdes implementations to test.
 using Implementations = ::testing::Types<ThunkSequenceSerDesProtobuf>;
 
-TYPED_TEST_SUITE(ThunkSequenceSerdesTest, Implementations, );
+TYPED_TEST_SUITE(ThunkSequenceSerdesTest, Implementations);
 
 TYPED_TEST(ThunkSequenceSerdesTest, SerializeAndDeserialize) {
   TF_ASSERT_OK_AND_ASSIGN(ThunkSequence thunk_sequence,

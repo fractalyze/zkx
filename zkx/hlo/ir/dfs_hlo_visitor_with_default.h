@@ -41,7 +41,7 @@ namespace zkx {
 // HandleElementwiseUnary/Binary in DfsHloVisitorBase. Adding such a handler
 // here will break passes which rely on the HandleElementwiseUnary/Binary
 // handling these opcodes.
-// NOTE(chokobole): If you add a new opcode, please update the followings:
+// NOTE(chokobole): If you add a new opcode, please update the following:
 // - InstructionVerifier
 template <typename HloInstructionPtr>
 class DfsHloVisitorWithDefaultBase

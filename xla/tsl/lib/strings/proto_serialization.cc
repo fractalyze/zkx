@@ -18,11 +18,11 @@ limitations under the License.
 
 #include <memory>
 
+#include "absl/log/check.h"
 #include "google/protobuf/io/coded_stream.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 
 #include "xla/tsl/platform/hash.h"
-#include "absl/log/check.h"
 
 namespace tsl {
 namespace {

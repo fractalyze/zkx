@@ -78,7 +78,7 @@ class HloDataflowAnalysis {
   // may-alias table. If an empty optional is returned, default rules are used.
   //
   // Must-alias rules (as defined by GetInPlaceInputOutputPairs) cannot be
-  // overriden using backend-specific overrides.
+  // overridden using backend-specific overrides.
   //
   // The first parameter of the function should be the instruction, the
   // second parameter should be an operand of the instruction. The third
@@ -250,7 +250,7 @@ class HloDataflowAnalysis {
   // records those phi values as well as their inputs in a phi graph.
   //
   // 2. Post value propagation, Dataflow analysis can then do certain
-  // optimization(OptimizePhiValues) on the phi graph to prune unecessary phi
+  // optimization(OptimizePhiValues) on the phi graph to prune unnecessary phi
   // nodes.
   //
   // Note that this applies in SSA form, and Both of the functions are

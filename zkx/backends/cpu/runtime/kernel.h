@@ -101,10 +101,10 @@ class Kernel {
   // most one instance of a kernel on a given thread.
   absl::StatusOr<int32_t> GetMaxOccupiedBlocksPerCore(ThreadDim, size_t) const {
     return 1;
-  };
+  }
 
-  void SetArity(unsigned arity) { arity_ = arity; };
-  unsigned Arity() const { return arity_; };
+  void SetArity(unsigned arity) { arity_ = arity; }
+  unsigned Arity() const { return arity_; }
 
   template <typename T,
             std::enable_if_t<std::is_base_of_v<KernelFunction, T>>* = nullptr>

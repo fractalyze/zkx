@@ -60,7 +60,8 @@ TEST(ZkxCustomCallStatusTest, SetFailureTruncatesErrorAtGivenLength) {
   ZkxCustomCallStatus status;
   ZkxCustomCallStatusSetFailure(&status, "error", 4);
 
-  ASSERT_EQ(CustomCallStatusGetMessage(&status), "erro");
+  ASSERT_EQ(CustomCallStatusGetMessage(&status),
+            "erro");  // codespell:ignore erro
 }
 
 TEST(ZkxCustomCallStatusTest, SetFailureTruncatesErrorAtNullTerminator) {

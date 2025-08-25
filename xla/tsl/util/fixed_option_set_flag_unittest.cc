@@ -32,7 +32,7 @@ static const FixedOptionSetFlagParser<Foo>& GetFooParser() {
       {"baz", Foo::kBaz},
   });
   return parser;
-};
+}
 
 bool AbslParseFlag(std::string_view text, Foo* foo, std::string* error) {
   return GetFooParser().Parse(text, foo, error);

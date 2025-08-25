@@ -442,7 +442,7 @@ class PodArgs {
 
  private:
   struct Arg {
-    alignas(alignment) std::byte storage[size];
+    alignas(alignment) std::byte storage[size];  // NOLINT(runtime/arrays)
   };
 
   size_t num_args_ = 0;

@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef XLA_TSL_PLATFORM_DEFAULT_SUBPROCESS_H_
-#define XLA_TSL_PLATFORM_DEFAULT_SUBPROCESS_H_
+#ifndef XLA_TSL_PLATFORM_SUBPROCESS_POSIX_H_
+#define XLA_TSL_PLATFORM_SUBPROCESS_POSIX_H_
 
 #include <errno.h>
 #include <unistd.h>
@@ -132,4 +132,4 @@ class SubProcess {
 
 }  // namespace tsl
 
-#endif  // XLA_TSL_PLATFORM_DEFAULT_SUBPROCESS_H_
+#endif  // XLA_TSL_PLATFORM_SUBPROCESS_POSIX_H_

@@ -96,11 +96,11 @@ class CollectiveDeviceList {
 
   explicit CollectiveDeviceList(absl::Span<const ReplicaGroup> replica_groups)
       : replica_groups_(std::make_shared<std::vector<ReplicaGroup>>(
-            replica_groups.begin(), replica_groups.end())) {};
+            replica_groups.begin(), replica_groups.end())) {}
 
   explicit CollectiveDeviceList(
       absl::Span<const std::vector<int64_t>> replica_groups)
-      : replica_groups_(ToReplicaGroupVector(replica_groups)) {};
+      : replica_groups_(ToReplicaGroupVector(replica_groups)) {}
 
   // Replica groups are materialized lazily upon first access.
   explicit CollectiveDeviceList(
@@ -131,7 +131,7 @@ class CollectiveDeviceList {
       google::protobuf::RepeatedPtrField<ReplicaGroup>::const_iterator start,
       google::protobuf::RepeatedPtrField<ReplicaGroup>::const_iterator end)
       : replica_groups_(
-            std::make_shared<std::vector<ReplicaGroup>>(start, end)) {};
+            std::make_shared<std::vector<ReplicaGroup>>(start, end)) {}
 
   static std::shared_ptr<std::vector<ReplicaGroup>> ToReplicaGroupVector(
       absl::Span<const std::vector<int64_t>> replica_groups) {

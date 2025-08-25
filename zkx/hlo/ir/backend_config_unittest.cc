@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <memory>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "absl/synchronization/notification.h"

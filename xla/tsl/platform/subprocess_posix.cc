@@ -19,8 +19,8 @@ limitations under the License.
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
-#include <sys/wait.h>
 #include <string.h>
+#include <sys/wait.h>
 
 #include <memory>
 

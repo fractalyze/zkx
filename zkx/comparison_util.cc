@@ -131,11 +131,10 @@ absl::StatusOr<Comparison::Direction> StringToComparisonDirection(
 
 absl::StatusOr<Comparison::Order> StringToComparisonOrder(
     std::string_view order) {
-  static auto* map =
-      new absl::flat_hash_map<std::string, Comparison::Order>({
-        {"PARTIALORDER", Comparison::Order::kPartial},
-          {"TOTALORDER", Comparison::Order::kTotal},
-      });
+  static auto* map = new absl::flat_hash_map<std::string, Comparison::Order>({
+      {"PARTIALORDER", Comparison::Order::kPartial},
+      {"TOTALORDER", Comparison::Order::kTotal},
+  });
   auto it = map->find(order);
   if (it == map->end()) {
     return absl::InvalidArgumentError(

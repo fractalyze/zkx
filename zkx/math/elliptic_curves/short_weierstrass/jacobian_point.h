@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_JACOBIAN_POINT_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_JACOBIAN_POINT_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_JACOBIAN_POINT_H_
+#define ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_JACOBIAN_POINT_H_
 
 #include <string>
 #include <type_traits>
@@ -320,4 +320,4 @@ class JsonSerde<math::JacobianPoint<
 
 #include "zkx/math/elliptic_curves/short_weierstrass/jacobian_point_impl.h"
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_JACOBIAN_POINT_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_JACOBIAN_POINT_H_

@@ -1,3 +1,5 @@
+"""ZKX dependencies."""
+
 load("@zkx//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
 load("@zkx//third_party/farmhash:workspace.bzl", farmhash = "repo")
@@ -8,6 +10,8 @@ load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 
 def zkx_deps():
+    """ZKX dependencies."""
+
     omp_configure(name = "local_config_omp")
 
     eigen3()
@@ -88,11 +92,11 @@ def zkx_deps():
     #     path = "../zkir",
     # )
 
-    VERSION_COMMIT = "628481ed998e2231479ba43f7ed7d67ed3fdb534"
+    VERSION_COMMIT = "022bd9f7851643966bc3ee0bf2c2fe8795d3488f"
 
     tf_http_archive(
         name = "version",
-        sha256 = "65d8fdbe3894491a68363d24fbd99ef4e342133049feccd1ef47f96253b5f6a6",
+        sha256 = "2e65daa275198d4fa6e2081746a48b70999f5a6c0b533478b5ce77752d5ad54c",
         strip_prefix = "version-{commit}".format(commit = VERSION_COMMIT),
         urls = tf_mirror_urls("https://github.com/zk-rabbit/version/archive/{commit}.tar.gz".format(commit = VERSION_COMMIT)),
     )

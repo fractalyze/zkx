@@ -53,7 +53,7 @@ class GenericCachingChannelCache : public ChannelCacheT {
       }
     }
     ChannelState new_chan_state;
-    for (int indx = 0; indx < num_channels_per_target_; indx++) {
+    for (int index = 0; index < num_channels_per_target_; index++) {
       auto ch = FindChannelOnce(target);
       if (!ch) return nullptr;
       new_chan_state.channels.push_back(ch);

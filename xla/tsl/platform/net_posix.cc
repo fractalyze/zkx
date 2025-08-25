@@ -58,7 +58,7 @@ bool IsPortAvailable(int* port, bool is_tcp) {
     LOG(ERROR) << "setsockopt() failed: " << strerror(errno);
     if (close(fd) < 0) {
       LOG(ERROR) << "close() failed: " << strerror(errno);
-    };
+    }
     return false;
   }
 
@@ -70,7 +70,7 @@ bool IsPortAvailable(int* port, bool is_tcp) {
     LOG(WARNING) << "bind(port=" << *port << ") failed: " << strerror(errno);
     if (close(fd) < 0) {
       LOG(ERROR) << "close() failed: " << strerror(errno);
-    };
+    }
     return false;
   }
 
@@ -80,7 +80,7 @@ bool IsPortAvailable(int* port, bool is_tcp) {
     LOG(WARNING) << "getsockname() failed: " << strerror(errno);
     if (close(fd) < 0) {
       LOG(ERROR) << "close() failed: " << strerror(errno);
-    };
+    }
     return false;
   }
   CHECK_LE(addr_len, sizeof(addr));
@@ -93,7 +93,7 @@ bool IsPortAvailable(int* port, bool is_tcp) {
   }
   if (close(fd) < 0) {
     LOG(ERROR) << "close() failed: " << strerror(errno);
-  };
+  }
   return true;
 }
 

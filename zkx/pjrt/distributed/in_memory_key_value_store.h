@@ -30,7 +30,7 @@ class InMemoryKeyValueStore : public KeyValueStoreInterface {
   // allow overwriting.
   InMemoryKeyValueStore() : allow_overwrite_(true) {}
   explicit InMemoryKeyValueStore(bool allow_overwrite)
-      : allow_overwrite_(allow_overwrite) {};
+      : allow_overwrite_(allow_overwrite) {}
   absl::StatusOr<std::string> Get(std::string_view key,
                                   absl::Duration timeout) override;
 
