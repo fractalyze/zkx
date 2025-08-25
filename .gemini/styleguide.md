@@ -97,6 +97,34 @@ class Prover {
 };
 ```
 
+### Static Lifetime (Teardown-Sensitive Resources)
+
+Some runtimes (e.g., **CUDA drivers**) are **sensitive to destruction order** at
+program shutdown. If their destructors run after or before certain subsystems,
+this can cause **deadlocks or crashes**.
+
+In these cases, we intentionally avoid destruction and use **static lifetime
+patterns**.
+
+- Use `absl::NoDestructor` to create a **function-local static** that will never
+  be destroyed.
+- Guarantees **thread-safe initialization** (C++11 and later).
+- Clearly communicates intent (“this object should live for the lifetime of the
+  process”) and avoids false-positive warnings from code review tools.
+
+Example:(CUDA driver thread pool):
+
+```c++
+#include "absl/base/no_destructor.h"
+
+tsl::thread::ThreadPool* GetDriverExecutor() {
+  // NOTE: Avoid destruction to prevent teardown-order issues with CUDA driver.
+  static absl::NoDestructor<tsl::thread::ThreadPool> pool(
+      tsl::Env::Default(), tsl::ThreadOptions(), "cuda_driver", /*num_threads=*/1);
+  return &*pool;
+}
+```
+
 ______________________________________________________________________
 
 ## Naming & Migration Hygiene (XLA → ZKX)
