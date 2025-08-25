@@ -61,7 +61,7 @@ limitations under the License.
 
 namespace zkx {
 
-absl::Status CreateDirIfNeeded(const std::string& dir, tsl::Env* env) {
+absl::Status CreateDirIfNeeded(std::string_view dir, tsl::Env* env) {
   if (!env->IsDirectory(dir).ok()) {
     absl::Status status = env->RecursivelyCreateDir(dir);
     // Two threads can race to observe the absence of the dump directory and
@@ -256,7 +256,7 @@ class DataProducer {
   std::queue<std::function<std::string()>> produce_funcs_;
 };
 
-static absl::Status WriteStringToFile(tsl::Env* env, const std::string& fname,
+static absl::Status WriteStringToFile(tsl::Env* env, std::string_view fname,
                                       DataProducer& data_producer,
                                       bool compressed) {
   std::unique_ptr<tsl::WritableFile> file;
@@ -280,7 +280,7 @@ static absl::Status WriteStringToFile(tsl::Env* env, const std::string& fname,
   }
 }
 
-static absl::Status WriteStringToFile(tsl::Env* env, const std::string& fname,
+static absl::Status WriteStringToFile(tsl::Env* env, std::string_view fname,
                                       std::string_view data, bool compressed) {
   if (!compressed) {
     return tsl::WriteStringToFile(env, fname, data);
@@ -947,8 +947,8 @@ void DumpHloModuleMetadataIfEnabled(const std::vector<HloModule*>& modules) {
 }
 
 absl::Status DumpProtoToDirectory(const google::protobuf::Message& message,
-                                  const std::string& directory,
-                                  const std::string& file_name,
+                                  std::string_view directory,
+                                  std::string_view file_name,
                                   std::string* full_path) {
   tsl::Env* env = tsl::Env::Default();
   TF_RETURN_IF_ERROR(env->RecursivelyCreateDir(directory));

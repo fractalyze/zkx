@@ -107,7 +107,8 @@ absl::InlinedVector<std::pair<int64_t, int64_t>, 8> CommonFactors(
   return bounds;
 }
 
-std::string SanitizeFileName(std::string file_name) {
+std::string SanitizeFileName(std::string_view old_file_name) {
+  std::string file_name = std::string(old_file_name);
   for (char& c : file_name) {
     if (c == '/' || c == '\\' || c == '[' || c == ']' || c == ' ') {
       c = '_';

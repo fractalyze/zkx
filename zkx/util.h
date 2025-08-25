@@ -204,7 +204,7 @@ absl::InlinedVector<std::pair<int64_t, int64_t>, 8> CommonFactors(
     absl::Span<const int64_t> a, absl::Span<const int64_t> b);
 
 // Removes illegal characters from filenames.
-std::string SanitizeFileName(std::string file_name);
+std::string SanitizeFileName(std::string_view file_name);
 
 template <typename T>
 std::vector<T> SpanToVector(absl::Span<const T> slice) {
