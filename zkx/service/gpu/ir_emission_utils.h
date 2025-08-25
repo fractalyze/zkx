@@ -77,6 +77,19 @@ absl::StatusOr<BufferAllocation::Slice> GetAllocationSlice(
     const BufferAssignment& buffer_assignment, const HloInstruction* instr,
     const ShapeIndex& index);
 
+// Returns whether the fusion represented by 'fusion_adaptor' can be emitted
+// with the dynamic update slice in-place emitter. If 'fusion_adaptor'
+// represents a single fusion computation, 'fusion' should provide the fusion
+// instruction corresponding to that fusion computation. 'get_allocation_slice'
+// is a callback for getting the allocated buffer slice, given an instruction
+// and a shape index. This is ignored in case 'fusion' is a nullptr.
+absl::StatusOr<bool> CanEmitFusedDynamicUpdateSliceInPlaceForGpu(
+    const HloFusionAdaptor& fusion_adaptor,
+    std::function<absl::StatusOr<BufferAllocation::Slice>(
+        const HloInstruction* instr, const ShapeIndex& index)>
+        get_allocation_slice,
+    const HloInstruction* fusion = nullptr);
+
 // Returns the first hero instruction reachable from `instr` as root. Hero
 // instruction can be in a different computation if the parent HloFusionAdaptor
 // is a producer-consumer fusion.
