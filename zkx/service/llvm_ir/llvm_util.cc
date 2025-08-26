@@ -18,6 +18,7 @@ limitations under the License.
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
@@ -172,10 +173,9 @@ mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,
       shape.element_type(), context,
       layout.has_is_montgomery_form() && layout.is_montgomery_form());
   // TODO(chokobole): Take `major_to_minor` into account.
-  std::vector<int64_t> dimensions;
-  for (int64_t dimension : shape.dimensions()) {
-    dimensions.push_back(dimension);
-  }
+  auto dimensions_span = shape.dimensions();
+  llvm::ArrayRef<int64_t> dimensions(dimensions_span.data(),
+                                     dimensions_span.size());
   return mlir::MemRefType::get(dimensions, element_type);
 }
 
@@ -230,10 +230,9 @@ mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
   }
 
   // TODO(chokobole): Take `major_to_minor` into account.
-  std::vector<int64_t> dimensions;
-  for (int64_t dimension : shape.dimensions()) {
-    dimensions.push_back(dimension);
-  }
+  auto dimensions_span = shape.dimensions();
+  llvm::ArrayRef<int64_t> dimensions(dimensions_span.data(),
+                                     dimensions_span.size());
   if (encoding.has_value()) {
     return mlir::RankedTensorType::get(dimensions, element_type,
                                        encoding.value());
