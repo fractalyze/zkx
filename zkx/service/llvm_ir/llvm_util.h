@@ -243,6 +243,9 @@ mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,
 mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
                                              mlir::MLIRContext* context);
 
+std::vector<mlir::Type> ShapeToMLIRTensorTypes(const Shape& shape,
+                                               mlir::MLIRContext* context);
+
 template <typename T>
 mlir::Value CreateMLIRPrimeFieldConstant(mlir::ImplicitLocOpBuilder& b,
                                          const T& value, bool use_montgomery) {

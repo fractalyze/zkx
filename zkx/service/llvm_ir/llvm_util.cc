@@ -273,4 +273,13 @@ mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
   }
 }
 
+std::vector<mlir::Type> ShapeToMLIRTensorTypes(const Shape& shape,
+                                               mlir::MLIRContext* context) {
+  std::vector<mlir::Type> types;
+  for (int i = 0; i < shape.tuple_shapes_size(); ++i) {
+    types.push_back(ShapeToMLIRTensorType(shape.tuple_shapes(i), context));
+  }
+  return types;
+}
+
 }  // namespace zkx::llvm_ir
