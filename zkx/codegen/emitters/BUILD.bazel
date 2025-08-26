@@ -3,6 +3,31 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "computation_partitioner",
+    srcs = ["computation_partitioner.cc"],
+    hdrs = ["computation_partitioner.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/hlo/analysis:indexing_analysis",
+        "//zkx/hlo/analysis:indexing_map",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/mlir:mlir_utils",
+        "//zkx/service/llvm_ir:llvm_util",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+    ],
+)
+
+zkx_cc_library(
     name = "elemental_hlo_to_mlir",
     srcs = ["elemental_hlo_to_mlir.cc"],
     hdrs = ["elemental_hlo_to_mlir.h"],
@@ -15,4 +40,5 @@ zkx_cc_library(
     ],
 )
 
+# TODO(chokobole): Add computation_partitioner_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add elemental_hlo_to_mlir_unittest.cc. Dependency: HloTestBase
