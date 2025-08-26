@@ -26,6 +26,7 @@ limitations under the License.
 #include "zkx/layout_util.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fr.h"
 #include "zkx/math/elliptic_curves/bn/bn254/g1.h"
+#include "zkx/primitive_util.h"
 
 namespace zkx::llvm_ir {
 namespace {
@@ -142,6 +143,25 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }
+}
+
+mlir::Type PrimitiveTypeToMLIRTypeWithSign(PrimitiveType element_type,
+                                           mlir::MLIRContext* context,
+                                           bool use_montgomery) {
+  if (element_type == PRED) {
+    return mlir::IntegerType::get(context, 1);
+  } else if (primitive_util::IsIntegralType(element_type)) {
+    return mlir::IntegerType::get(
+        context,
+        /*width=*/primitive_util::BitWidth(element_type),
+        /*signed=*/
+        primitive_util::IsUnsignedIntegralType(element_type)
+            ? mlir::IntegerType::Unsigned
+            : mlir::IntegerType::Signless);
+  }
+  // Delegate to the other function for non-integer and signed integer
+  // types.
+  return PrimitiveTypeToMLIRType(element_type, context, use_montgomery);
 }
 
 mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,

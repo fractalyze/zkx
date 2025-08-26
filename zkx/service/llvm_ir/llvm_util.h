@@ -217,9 +217,21 @@ mlir::zkir::elliptic_curve::XYZZType GetMLIRPointXyzzType(
   }
 }
 
+// Converts a ZKX primitive type to the corresponding MLIR type.
+//
+// - Signed/unsigned ZKX primitive types → signless MLIR types
 mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
                                    mlir::MLIRContext* context,
                                    bool use_montgomery = false);
+
+// Converts a ZKX primitive type to the corresponding MLIR type,
+// preserving signedness where applicable.
+//
+// - Unsigned ZKX primitive types → unsigned MLIR types
+// - Other types → same as PrimitiveTypeToMLIRType()
+mlir::Type PrimitiveTypeToMLIRTypeWithSign(PrimitiveType element_type,
+                                           mlir::MLIRContext* context,
+                                           bool use_montgomery = false);
 
 // Returns the MLIR memref type which represents the given ZKX shape. For
 // example, if "shape" is [5 x [10 x i32]], the function returns [5 x 10 x i32].

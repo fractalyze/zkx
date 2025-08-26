@@ -24,6 +24,7 @@ zkx_cc_library(
     srcs = ["llvm_util.cc"],
     hdrs = ["llvm_util.h"],
     deps = [
+        "//zkx:primitive_util",
         "//zkx:shape_util",
         "//zkx:zkx_data_cc_proto",
         "//zkx/base:logging",
