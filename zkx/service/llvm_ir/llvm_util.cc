@@ -168,6 +168,8 @@ mlir::Type PrimitiveTypeToMLIRTypeWithSign(PrimitiveType element_type,
 mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,
                                        mlir::MLIRContext* context) {
   CHECK(shape.IsArray());
+  CHECK(shape.is_static())
+      << "ShapeToMLIRMemRefType only supports static shapes.";
   const Layout& layout = shape.layout();
   mlir::Type element_type = PrimitiveTypeToMLIRType(
       shape.element_type(), context,
@@ -176,8 +178,36 @@ mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,
   auto dimensions_span = shape.dimensions();
   llvm::ArrayRef<int64_t> dimensions(dimensions_span.data(),
                                      dimensions_span.size());
-  return mlir::MemRefType::get(dimensions, element_type);
+  if (LayoutUtil::IsMonotonicWithDim0Major(layout)) {
+    return mlir::MemRefType::get(dimensions, element_type);
+  }
+
+  llvm::SmallVector<int64_t> strides(dimensions.size(), 0);
+  int64_t running = 1;
+  for (int64_t d : layout.minor_to_major()) {
+    strides[d] = running;
+    // NOTE(chokobole): CHECK_GE(dimensions[d], 0) is used to allow for cases
+    // where a dimension can legitimately have a size of zero. For example, an
+    // empty array [2, 0, 3] is a valid shape.
+    CHECK_GE(dimensions[d], 0);
+    running *= dimensions[d];
+  }
+
+  auto strided = mlir::StridedLayoutAttr::get(context, /*offset=*/0, strides);
+  return mlir::MemRefType::get(dimensions, element_type, strided);
 }
+
+namespace {
+
+mlir::DenseIntElementsAttr CreateDenseIntElementsAttrFromVector(
+    mlir::MLIRContext* context, const llvm::ArrayRef<int64_t> vector) {
+  return mlir::DenseIntElementsAttr::get(
+      mlir::RankedTensorType::get(vector.size(),
+                                  mlir::IntegerType::get(context, 64)),
+      vector);
+}
+
+}  // namespace
 
 mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
                                              mlir::MLIRContext* context) {
@@ -187,7 +217,9 @@ mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
       shape.element_type(), context,
       layout.has_is_montgomery_form() && layout.is_montgomery_form());
 
-  std::optional<mlir::sparse_tensor::SparseTensorEncodingAttr> encoding;
+  auto dimensions_span = shape.dimensions();
+  llvm::ArrayRef<int64_t> dimensions(dimensions_span.data(),
+                                     dimensions_span.size());
   if (LayoutUtil::IsSparse(layout)) {
     llvm::SmallVector<mlir::sparse_tensor::LevelType> lts;
     for (int i = 0; i < layout.dim_level_types_size(); ++i) {
@@ -225,19 +257,18 @@ mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
                                                  ordering.rend()};
     mlir::AffineMap id_map =
         mlir::AffineMap::getPermutationMap(major_to_minor, context);
-    encoding = mlir::sparse_tensor::SparseTensorEncodingAttr::get(
+    auto encoding = mlir::sparse_tensor::SparseTensorEncodingAttr::get(
         context, lts, id_map, mlir::AffineMap(), 32, 32);
-  }
-
-  // TODO(chokobole): Take `major_to_minor` into account.
-  auto dimensions_span = shape.dimensions();
-  llvm::ArrayRef<int64_t> dimensions(dimensions_span.data(),
-                                     dimensions_span.size());
-  if (encoding.has_value()) {
-    return mlir::RankedTensorType::get(dimensions, element_type,
-                                       encoding.value());
+    return mlir::RankedTensorType::get(dimensions, element_type, encoding);
   } else {
-    return mlir::RankedTensorType::get(dimensions, element_type);
+    // Default layouts create a lot of clutter in the IR, so only add an
+    // encoding when needed.
+    mlir::Attribute layout = {};
+    if (!LayoutUtil::IsMonotonicWithDim0Major(shape.layout())) {
+      layout = CreateDenseIntElementsAttrFromVector(
+          context, llvm::to_vector(shape.layout().minor_to_major()));
+    }
+    return mlir::RankedTensorType::get(dimensions, element_type, layout);
   }
 }
 
