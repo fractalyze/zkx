@@ -166,99 +166,80 @@ mlir::Type PrimitiveTypeToMLIRTypeWithSign(PrimitiveType element_type,
 
 mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,
                                        mlir::MLIRContext* context) {
+  CHECK(shape.IsArray());
   const Layout& layout = shape.layout();
-  mlir::Type result_type = PrimitiveTypeToMLIRType(
+  mlir::Type element_type = PrimitiveTypeToMLIRType(
       shape.element_type(), context,
       layout.has_is_montgomery_form() && layout.is_montgomery_form());
-  if (shape.IsTuple()) {
-    // A tuple buffer is an array of pointers.
-    // clang-format off
-    // TODO(chokobole): Use https://mlir.llvm.org/docs/Dialects/Builtin/#tupletype.
-    // clang-format on
-    result_type =
-        mlir::MemRefType::get({shape.tuple_shapes_size()}, result_type);
-  } else if (shape.IsArray()) {
-    // TODO(chokobole): Take `major_to_minor` into account.
-    std::vector<int64_t> dimensions;
-    for (int64_t dimension : shape.dimensions()) {
-      dimensions.push_back(dimension);
-    }
-    result_type = mlir::MemRefType::get(dimensions, result_type);
+  // TODO(chokobole): Take `major_to_minor` into account.
+  std::vector<int64_t> dimensions;
+  for (int64_t dimension : shape.dimensions()) {
+    dimensions.push_back(dimension);
   }
-  return mlir::cast<mlir::MemRefType>(result_type);
+  return mlir::MemRefType::get(dimensions, element_type);
 }
 
 mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
                                              mlir::MLIRContext* context) {
+  CHECK(shape.IsArray());
   const Layout& layout = shape.layout();
-  mlir::Type result_type = PrimitiveTypeToMLIRType(
+  mlir::Type element_type = PrimitiveTypeToMLIRType(
       shape.element_type(), context,
       layout.has_is_montgomery_form() && layout.is_montgomery_form());
-  if (shape.IsTuple()) {
-    // A tuple buffer is an array of pointers.
-    // clang-format off
-    // TODO(chokobole): Use https://mlir.llvm.org/docs/Dialects/Builtin/#tupletype.
-    // clang-format on
-    result_type =
-        mlir::RankedTensorType::get({shape.tuple_shapes_size()}, result_type);
-  } else if (shape.IsArray()) {
-    // TODO(chokobole): Take `major_to_minor` into account.
-    std::optional<mlir::sparse_tensor::SparseTensorEncodingAttr> encoding;
-    if (LayoutUtil::IsSparse(layout)) {
-      llvm::SmallVector<mlir::sparse_tensor::LevelType> lts;
-      for (int i = 0; i < layout.dim_level_types_size(); ++i) {
-        DimLevelType dlt = layout.dim_level_type(i);
-        bool ordered =
-            i < layout.dim_ordered_size() ? layout.dim_ordered(i) : true;
-        bool unique =
-            i < layout.dim_unique_size() ? layout.dim_unique(i) : true;
-        auto convert_to_mlir_level = [](DimLevelType dlt, bool ordered,
-                                        bool unique) {
-          switch (dlt) {
-            case DimLevelType::DIM_DENSE:
-              return *mlir::sparse_tensor::buildLevelType(
-                  mlir::sparse_tensor::LevelFormat::Dense, ordered, unique);
-            case DimLevelType::DIM_COMPRESSED:
-              return *mlir::sparse_tensor::buildLevelType(
-                  mlir::sparse_tensor::LevelFormat::Compressed, ordered,
-                  unique);
-            case DimLevelType::DIM_SINGLETON:
-              return *mlir::sparse_tensor::buildLevelType(
-                  mlir::sparse_tensor::LevelFormat::Singleton, ordered, unique);
-            case DimLevelType::DIM_LOOSE_COMPRESSED:
-              return *mlir::sparse_tensor::buildLevelType(
-                  mlir::sparse_tensor::LevelFormat::LooseCompressed, ordered,
-                  unique);
-            case DimLevelType_INT_MIN_SENTINEL_DO_NOT_USE_:
-            case DimLevelType_INT_MAX_SENTINEL_DO_NOT_USE_:
-              break;
-          }
-          ABSL_UNREACHABLE();
-          return mlir::sparse_tensor::LevelType(0);
-        };
-        lts.push_back(convert_to_mlir_level(dlt, ordered, unique));
-      }
-      absl::Span<const int64_t> ordering = layout.minor_to_major();
-      llvm::SmallVector<int64_t> major_to_minor = {ordering.rbegin(),
-                                                   ordering.rend()};
-      mlir::AffineMap id_map =
-          mlir::AffineMap::getPermutationMap(major_to_minor, context);
-      encoding = mlir::sparse_tensor::SparseTensorEncodingAttr::get(
-          context, lts, id_map, mlir::AffineMap(), 32, 32);
-    }
 
-    std::vector<int64_t> dimensions;
-    for (int64_t dimension : shape.dimensions()) {
-      dimensions.push_back(dimension);
+  std::optional<mlir::sparse_tensor::SparseTensorEncodingAttr> encoding;
+  if (LayoutUtil::IsSparse(layout)) {
+    llvm::SmallVector<mlir::sparse_tensor::LevelType> lts;
+    for (int i = 0; i < layout.dim_level_types_size(); ++i) {
+      DimLevelType dlt = layout.dim_level_type(i);
+      bool ordered =
+          i < layout.dim_ordered_size() ? layout.dim_ordered(i) : true;
+      bool unique = i < layout.dim_unique_size() ? layout.dim_unique(i) : true;
+      auto convert_to_mlir_level = [](DimLevelType dlt, bool ordered,
+                                      bool unique) {
+        switch (dlt) {
+          case DimLevelType::DIM_DENSE:
+            return *mlir::sparse_tensor::buildLevelType(
+                mlir::sparse_tensor::LevelFormat::Dense, ordered, unique);
+          case DimLevelType::DIM_COMPRESSED:
+            return *mlir::sparse_tensor::buildLevelType(
+                mlir::sparse_tensor::LevelFormat::Compressed, ordered, unique);
+          case DimLevelType::DIM_SINGLETON:
+            return *mlir::sparse_tensor::buildLevelType(
+                mlir::sparse_tensor::LevelFormat::Singleton, ordered, unique);
+          case DimLevelType::DIM_LOOSE_COMPRESSED:
+            return *mlir::sparse_tensor::buildLevelType(
+                mlir::sparse_tensor::LevelFormat::LooseCompressed, ordered,
+                unique);
+          case DimLevelType_INT_MIN_SENTINEL_DO_NOT_USE_:
+          case DimLevelType_INT_MAX_SENTINEL_DO_NOT_USE_:
+            break;
+        }
+        ABSL_UNREACHABLE();
+        return mlir::sparse_tensor::LevelType(0);
+      };
+      lts.push_back(convert_to_mlir_level(dlt, ordered, unique));
     }
-    if (encoding.has_value()) {
-      result_type = mlir::RankedTensorType::get(dimensions, result_type,
-                                                encoding.value());
-    } else {
-      result_type = mlir::RankedTensorType::get(dimensions, result_type);
-    }
+    absl::Span<const int64_t> ordering = layout.minor_to_major();
+    llvm::SmallVector<int64_t> major_to_minor = {ordering.rbegin(),
+                                                 ordering.rend()};
+    mlir::AffineMap id_map =
+        mlir::AffineMap::getPermutationMap(major_to_minor, context);
+    encoding = mlir::sparse_tensor::SparseTensorEncodingAttr::get(
+        context, lts, id_map, mlir::AffineMap(), 32, 32);
   }
-  return mlir::cast<mlir::RankedTensorType>(result_type);
+
+  // TODO(chokobole): Take `major_to_minor` into account.
+  std::vector<int64_t> dimensions;
+  for (int64_t dimension : shape.dimensions()) {
+    dimensions.push_back(dimension);
+  }
+  if (encoding.has_value()) {
+    return mlir::RankedTensorType::get(dimensions, element_type,
+                                       encoding.value());
+  } else {
+    return mlir::RankedTensorType::get(dimensions, element_type);
+  }
 }
 
 }  // namespace zkx::llvm_ir
