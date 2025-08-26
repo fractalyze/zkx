@@ -107,6 +107,19 @@ absl::InlinedVector<std::pair<int64_t, int64_t>, 8> CommonFactors(
   return bounds;
 }
 
+DimensionVector GetNonContractingDims(
+    int64_t rank, absl::Span<const int64_t> contracting_dim_numbers,
+    absl::Span<const int64_t> batch_dim_numbers) {
+  DimensionVector non_contracting_dim_numbers;
+  for (int64_t i = 0; i < rank; ++i) {
+    if (!absl::c_linear_search(contracting_dim_numbers, i) &&
+        !absl::c_linear_search(batch_dim_numbers, i)) {
+      non_contracting_dim_numbers.push_back(i);
+    }
+  }
+  return non_contracting_dim_numbers;
+}
+
 std::string SanitizeFileName(std::string_view old_file_name) {
   std::string file_name = std::string(old_file_name);
   for (char& c : file_name) {
