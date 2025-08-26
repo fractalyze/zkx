@@ -18,7 +18,7 @@ limitations under the License.
 #include <stddef.h>
 #include <stdint.h>
 
-#include "google/protobuf/message.h"
+#include "google/protobuf/message_lite.h"
 
 namespace tsl {
 
