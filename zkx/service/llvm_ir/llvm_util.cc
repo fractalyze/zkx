@@ -221,35 +221,36 @@ mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
   llvm::ArrayRef<int64_t> dimensions(dimensions_span.data(),
                                      dimensions_span.size());
   if (LayoutUtil::IsSparse(layout)) {
+    auto convert_to_mlir_level = [](DimLevelType dlt, bool ordered,
+                                    bool unique) {
+      switch (dlt) {
+        case DimLevelType::DIM_DENSE:
+          return *mlir::sparse_tensor::buildLevelType(
+              mlir::sparse_tensor::LevelFormat::Dense, ordered, unique);
+        case DimLevelType::DIM_COMPRESSED:
+          return *mlir::sparse_tensor::buildLevelType(
+              mlir::sparse_tensor::LevelFormat::Compressed, ordered, unique);
+        case DimLevelType::DIM_SINGLETON:
+          return *mlir::sparse_tensor::buildLevelType(
+              mlir::sparse_tensor::LevelFormat::Singleton, ordered, unique);
+        case DimLevelType::DIM_LOOSE_COMPRESSED:
+          return *mlir::sparse_tensor::buildLevelType(
+              mlir::sparse_tensor::LevelFormat::LooseCompressed, ordered,
+              unique);
+        case DimLevelType_INT_MIN_SENTINEL_DO_NOT_USE_:
+        case DimLevelType_INT_MAX_SENTINEL_DO_NOT_USE_:
+          break;
+      }
+      ABSL_UNREACHABLE();
+      return mlir::sparse_tensor::LevelType(0);
+    };
+
     llvm::SmallVector<mlir::sparse_tensor::LevelType> lts;
     for (int i = 0; i < layout.dim_level_types_size(); ++i) {
       DimLevelType dlt = layout.dim_level_type(i);
       bool ordered =
           i < layout.dim_ordered_size() ? layout.dim_ordered(i) : true;
       bool unique = i < layout.dim_unique_size() ? layout.dim_unique(i) : true;
-      auto convert_to_mlir_level = [](DimLevelType dlt, bool ordered,
-                                      bool unique) {
-        switch (dlt) {
-          case DimLevelType::DIM_DENSE:
-            return *mlir::sparse_tensor::buildLevelType(
-                mlir::sparse_tensor::LevelFormat::Dense, ordered, unique);
-          case DimLevelType::DIM_COMPRESSED:
-            return *mlir::sparse_tensor::buildLevelType(
-                mlir::sparse_tensor::LevelFormat::Compressed, ordered, unique);
-          case DimLevelType::DIM_SINGLETON:
-            return *mlir::sparse_tensor::buildLevelType(
-                mlir::sparse_tensor::LevelFormat::Singleton, ordered, unique);
-          case DimLevelType::DIM_LOOSE_COMPRESSED:
-            return *mlir::sparse_tensor::buildLevelType(
-                mlir::sparse_tensor::LevelFormat::LooseCompressed, ordered,
-                unique);
-          case DimLevelType_INT_MIN_SENTINEL_DO_NOT_USE_:
-          case DimLevelType_INT_MAX_SENTINEL_DO_NOT_USE_:
-            break;
-        }
-        ABSL_UNREACHABLE();
-        return mlir::sparse_tensor::LevelType(0);
-      };
       lts.push_back(convert_to_mlir_level(dlt, ordered, unique));
     }
     absl::Span<const int64_t> ordering = layout.minor_to_major();
