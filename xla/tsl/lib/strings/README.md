@@ -81,7 +81,7 @@ diff --color -r /Users/chokobole/Workspace/openxla/xla/xla/tsl/lib/strings/proto
 > #include <stddef.h>
 > #include <stdint.h>
 19a21,22
-> #include "google/protobuf/message.h"
+> #include "google/protobuf/message_lite.h"
 >
 29c32
 <                                     string* result);
