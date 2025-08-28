@@ -1,0 +1,130 @@
+/* Copyright 2023 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+#include "zkx/backends/gpu/codegen/fusions.h"
+
+#include <memory>
+#include <optional>
+#include <utility>
+
+#include "absl/algorithm/container.h"
+#include "absl/strings/match.h"
+
+#include "zkx/layout_util.h"
+
+namespace zkx::gpu {
+namespace {
+
+bool IsDynamicUpdateSliceFusion(const HloFusionAnalysis& analysis) {
+  return absl::c_all_of(
+      analysis.fusion_roots(), [](const HloInstructionAdaptor& root) {
+        return root.opcode() == HloOpcode::kDynamicUpdateSlice ||
+               (root.opcode() == HloOpcode::kBitcast &&
+                root.GetOperand(0).opcode() == HloOpcode::kDynamicUpdateSlice);
+      });
+}
+
+}  // namespace
+
+std::optional<std::unique_ptr<FusionInterface>> HloFusionInfo::GetCopyFusion()
+    const {
+  for (const HloInstructionAdaptor& root_adaptor : analysis().fusion_roots()) {
+    const HloInstruction* root = &root_adaptor.instruction();
+    if (root->opcode() != HloOpcode::kCopy ||
+        root->operand(0)->opcode() != HloOpcode::kParameter ||
+        !LayoutUtil::Equal(root->operand(0)->shape().layout(),
+                           root->shape().layout())) {
+      return std::nullopt;
+    }
+  }
+
+  // TODO(chokobole): Implement this. Dependency: MemcpyFusion
+  // return std::make_unique<MemcpyFusion>(analysis(), buffer_assignment_);
+  return nullptr;
+}
+
+bool HloFusionInfo::CanEmitDynamicUpdateSliceInPlace() const {
+  auto ret = CanEmitFusedDynamicUpdateSliceInPlaceForGpu(
+      analysis().fusion(),
+      [this](const HloInstruction* instruction, const ShapeIndex& index) {
+        return GetAllocationSlice(*buffer_assignment_, instruction, index);
+      },
+      instr_);
+  return ret.ok() && *ret;
+}
+
+std::unique_ptr<FusionInterface> GetFusionEmitter(
+    const FusionInfo& fusion_info) {
+  const auto& analysis = fusion_info.analysis();
+  const FusionBackendConfig& backend_config = analysis.fusion_backend_config();
+
+  switch (analysis.GetEmitterFusionKind()) {
+    case HloFusionAnalysis::EmitterFusionKind::kCustomFusion: {
+      const auto& config = backend_config.custom_fusion_config();
+      if (absl::StrContains(config.name(), "address_computation")) {
+        // TODO(chokobole): Implement this. Dependency: DynamicSliceFusion
+        // return std::make_unique<DynamicSliceFusion>(analysis);
+        return nullptr;
+      }
+      // TODO(chokobole): Implement this. Dependency: CustomFusion
+      // return std::make_unique<CustomFusion>();
+      return nullptr;
+    }
+    case HloFusionAnalysis::EmitterFusionKind::kInputSlices:
+      // TODO(chokobole): Implement this. Dependency: InputSlicesFusion
+      // return std::make_unique<InputSlicesFusion>(analysis);
+      return nullptr;
+    case HloFusionAnalysis::EmitterFusionKind::kLoop: {
+      if (IsDynamicUpdateSliceFusion(analysis) &&
+          fusion_info.CanEmitDynamicUpdateSliceInPlace()) {
+        // clang-format off
+        // TODO(chokobole): Implement this. Dependency: InPlaceDynamicUpdateSliceFusion
+        // clang-format on
+        // return std::make_unique<InPlaceDynamicUpdateSliceFusion>(analysis);
+        return nullptr;
+      }
+      if (auto copy_fusion = fusion_info.GetCopyFusion()) {
+        return *std::move(copy_fusion);
+      }
+      // TODO(chokobole): Implement this. Dependency: LoopFusion
+      // return std::make_unique<LoopFusion>(analysis);
+      return nullptr;
+    }
+    case HloFusionAnalysis::EmitterFusionKind::kReduction:
+      // TODO(chokobole): Implement this. Dependency: CreateReductionFusion
+      // return CreateReductionFusion(analysis);
+      return nullptr;
+    case HloFusionAnalysis::EmitterFusionKind::kScatter: {
+      // TODO(chokobole): Implement this. Dependency: CreateScatterFusion
+      // return CreateScatterFusion(analysis);
+      return nullptr;
+    }
+    case HloFusionAnalysis::EmitterFusionKind::kTranspose: {
+      // TODO(chokobole): Implement this. Dependency: TransposeFusion
+      // return std::make_unique<TransposeFusion>(analysis);
+      return nullptr;
+    }
+    case HloFusionAnalysis::EmitterFusionKind::kConcatenate: {
+      // TODO(chokobole): Implement this. Dependency: ConcatenateFusion
+      // return std::make_unique<ConcatenateFusion>(analysis);
+      return nullptr;
+    }
+    case HloFusionAnalysis::EmitterFusionKind::kTriton:
+      // TODO(chokobole): Implement this. Dependency: TritonFusion
+      // return std::make_unique<TritonFusion>(analysis);
+      return nullptr;
+  }
+}
+
+}  // namespace zkx::gpu
