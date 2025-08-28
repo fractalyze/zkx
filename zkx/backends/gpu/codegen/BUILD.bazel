@@ -1,0 +1,25 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "fusion_emitter",
+    srcs = ["fusion_emitter.cc"],
+    hdrs = ["fusion_emitter.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx/backends/gpu/runtime:thunk",
+        "//zkx/hlo/analysis:indexing_map",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service/gpu:ir_emitter_context",
+        "//zkx/service/gpu:launch_dimensions",
+        "//zkx/service/llvm_ir:llvm_util",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//mlir:IR",
+    ],
+)
