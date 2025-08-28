@@ -23,3 +23,20 @@ zkx_cc_library(
         "@llvm-project//mlir:IR",
     ],
 )
+
+zkx_cc_library(
+    name = "fusions",
+    srcs = ["fusions.cc"],
+    hdrs = ["fusions.h"],
+    deps = [
+        ":fusion_emitter",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service/gpu:hlo_fusion_analysis",
+        "//zkx/service/gpu:ir_emission_utils",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
