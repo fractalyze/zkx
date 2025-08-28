@@ -1,0 +1,978 @@
+/* Copyright 2023 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#include "zkx/hlo/analysis/indexing_analysis.h"
+
+#include <stddef.h>
+
+#include <algorithm>
+#include <iterator>
+#include <sstream>
+#include <utility>
+#include <variant>
+
+#include "absl/algorithm/container.h"
+#include "absl/log/check.h"
+#include "absl/log/log.h"
+#include "llvm/ADT/STLExtras.h"
+#include "mlir/Support/LLVM.h"
+
+#include "zkx/hlo/ir/hlo_casting_utils.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
+#include "zkx/layout.h"
+#include "zkx/permutation_util.h"
+#include "zkx/service/gpu/matmul_indexing_utils.h"
+#include "zkx/shape_util.h"
+#include "zkx/util.h"
+#include "zkx/zkx_data.pb.h"
+
+namespace zkx {
+namespace {
+
+HloInstructionIndexing CreateUnknownIndexing(int64_t count = 1) {
+  HloInstructionIndexing indexing;
+  indexing.indexing_maps = std::vector<absl::flat_hash_set<IndexingMap>>(
+      count, {IndexingMap::GetUndefined()});
+  return indexing;
+}
+
+struct HLORTVar {
+  Interval feasible_values;
+  const HloInstruction* hlo;  // not owned
+  // This is a map from the iteration space of the corresponding indexing map to
+  // the iteration space of `hlo`. It shows what element of `hlo` we need to
+  // extract to get the runtime value for the RTVar.
+  mlir::AffineMap map;
+};
+
+// The return type of `OptimizeRTVar` below
+struct RTVarOptimizationResult {
+  // An affine expr which maps the old RTVar to the new, optimized RTVar:
+  // `()[sk] -> s'k` (with k being `symbol_index` in the `OptimizeRTVar` call).
+  // If `expr` doesn't depend on `sk` it means the RTVar could be optimized
+  // away completely and the value of `rt_var` can be ignored.
+  mlir::AffineExpr remapped_symbol;
+
+  // The new, optimized RTVar
+  HLORTVar rt_var;
+};
+
+HloInstructionIndexing ComputeOutputToInputCwiseOpIndexing(
+    const HloInstruction* instr, mlir::MLIRContext* mlir_context) {
+  IndexingMap identity_map = CreateIdentityMap(instr->shape(), mlir_context);
+  IndexingMap unit_map(
+      mlir::AffineMap::get(identity_map.GetAffineMap().getNumDims(),
+                           /*symbolCount=*/0, mlir_context),
+      identity_map.GetDimVars(), /*range_vars=*/{}, /*rt_vars=*/{});
+
+  HloInstructionIndexing instr_indexing;
+  instr_indexing.indexing_maps.resize(instr->operand_count());
+  int64_t operand_count = instr->operand_count();
+  for (int64_t operand_id = 0; operand_id < operand_count; ++operand_id) {
+    // Select allows implicit broadcasting in the predicate. We just handle it
+    // generically here.
+    auto* operand = instr->operand(operand_id);
+    if (operand->shape().rank() == 0 && instr->shape().rank() > 0) {
+      instr_indexing.indexing_maps[operand_id].insert(unit_map);
+    } else {
+      instr_indexing.indexing_maps[operand_id].insert(identity_map);
+    }
+  }
+  return instr_indexing;
+}
+
+HloInstructionIndexing ComputeInputToOutputCwiseOpIndexing(
+    const HloInstruction* instr, mlir::MLIRContext* mlir_context) {
+  IndexingMap identity_map = CreateIdentityMap(instr->shape(), mlir_context);
+  return HloInstructionIndexing::FromIndexingMaps({identity_map});
+}
+
+HloInstructionIndexing ComputeOutputToInputBroadcastOpIndexing(
+    const HloBroadcastInstruction* bcast, mlir::MLIRContext* mlir_context) {
+  auto output_dims = bcast->shape().dimensions();
+
+  std::vector<mlir::AffineExpr> exprs;
+  exprs.reserve(bcast->dimensions().size());
+  for (int64_t bcast_dim : bcast->dimensions()) {
+    exprs.push_back(getAffineDimExpr(bcast_dim, mlir_context));
+  }
+  IndexingMap indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(output_dims.size(), /*symbolCount=*/0, exprs,
+                           mlir_context),
+      output_dims, {});
+  return HloInstructionIndexing::FromIndexingMaps({indexing_map});
+}
+
+HloInstructionIndexing ComputeInputToOutputBroadcastOpIndexing(
+    const HloBroadcastInstruction* bcast, mlir::MLIRContext* mlir_context) {
+  absl::Span<const int64_t> bcast_dims = bcast->dimensions();
+
+  const Shape& input_shape = bcast->operand(0)->shape();
+  const Shape& output_shape = bcast->shape();
+
+  std::vector<int64_t> added_dims_sizes;
+  std::vector<mlir::AffineExpr> exprs;
+  exprs.reserve(output_shape.rank());
+  for (auto [output_dim_id, output_dim] :
+       llvm::enumerate(output_shape.dimensions())) {
+    auto bcast_dim =
+        std::find(bcast_dims.begin(), bcast_dims.end(), output_dim_id);
+    if (bcast_dim == bcast_dims.end()) {
+      exprs.push_back(
+          mlir::getAffineSymbolExpr(added_dims_sizes.size(), mlir_context));
+      added_dims_sizes.push_back(output_dim);
+      continue;
+    }
+    exprs.push_back(getAffineDimExpr(
+        std::distance(bcast_dims.begin(), bcast_dim), mlir_context));
+  }
+  IndexingMap indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(input_shape.rank(), added_dims_sizes.size(), exprs,
+                           mlir_context),
+      input_shape.dimensions(), added_dims_sizes);
+
+  return HloInstructionIndexing::FromIndexingMaps({indexing_map});
+}
+
+HloInstructionIndexing ComputeOutputToInputConcatenateOpIndexing(
+    const HloConcatenateInstruction* concat, mlir::MLIRContext* mlir_context) {
+  const auto& operand_0_dims = concat->operand(0)->shape().dimensions();
+
+  // Initialize affine map and domain. Only concat_dim elements of both have to
+  // be adjusted for a particular operand_id.
+  mlir::MutableAffineMap affine_map = mlir::AffineMap::getMultiDimIdentityMap(
+      operand_0_dims.size(), mlir_context);
+  std::vector<IndexingMap::Variable> dim_vars =
+      DimVarsFromTensorSizes(operand_0_dims);
+
+  HloInstructionIndexing concat_indexing;
+  concat_indexing.indexing_maps.resize(concat->operand_count());
+  int64_t concat_dim = concat->concatenate_dimension();
+  mlir::AffineExpr concat_dim_expr = getAffineDimExpr(concat_dim, mlir_context);
+  int64_t offset = 0;
+  for (const auto [operand_id, operand] : llvm::enumerate(concat->operands())) {
+    affine_map.setResult(concat_dim, concat_dim_expr - offset);
+    int64_t operand_concat_dim = operand->shape().dimensions()[concat_dim];
+    dim_vars[concat_dim] =
+        IndexingMap::Variable{{offset, offset + operand_concat_dim - 1}};
+    concat_indexing.indexing_maps[operand_id].insert(
+        IndexingMap(affine_map.getAffineMap(), dim_vars,
+                    /*range_vars=*/{}, /*rt_vars=*/{}));
+    offset += operand_concat_dim;
+  }
+  return concat_indexing;
+}
+
+HloInstructionIndexing ComputeInputToOutputConcatenateOpIndexing(
+    const HloConcatenateInstruction* concat, int input_id,
+    mlir::MLIRContext* mlir_context) {
+  int64_t concat_dim = concat->concatenate_dimension();
+  int64_t offset = 0;
+  for (int64_t operand_id = 0; operand_id < input_id; ++operand_id) {
+    offset += concat->operand(operand_id)->shape().dimensions()[concat_dim];
+  }
+  // Initialize affine map. Only concat_dim element has to be adjusted for a
+  // particular operand_id.
+  const auto& operand_dims = concat->operand(input_id)->shape().dimensions();
+  mlir::MutableAffineMap affine_map = mlir::AffineMap::getMultiDimIdentityMap(
+      operand_dims.size(), mlir_context);
+  affine_map.setResult(concat_dim,
+                       getAffineDimExpr(concat_dim, mlir_context) + offset);
+  IndexingMap indexing_map =
+      IndexingMap::FromTensorSizes(affine_map.getAffineMap(), operand_dims, {});
+  return HloInstructionIndexing::FromIndexingMaps({indexing_map});
+}
+
+// Composes instruction indexing maps starting at the root instruction
+// until the HloParameterInstruction is found.
+HloInstructionIndexing ComputeOutputToInputFusionOpIndexing(
+    const HloFusionInstruction* fusion, int output_id,
+    mlir::MLIRContext* mlir_context) {
+  auto fusion_adaptor = HloFusionAdaptor::ForInstruction(fusion);
+  auto grouped_indexing_maps = ComputeGroupedOutputToInputIndexing(
+      *fusion_adaptor, fusion_adaptor->GetRoots()[output_id], mlir_context);
+
+  // After the traversal, `grouped_indexing_maps` is keyed by
+  // HloParameterInstructions. Convert them back to the operand id and return.
+  HloInstructionIndexing fusion_indexing;
+  fusion_indexing.indexing_maps.resize(fusion->operand_count());
+  for (auto [operand_id, operand] : llvm::enumerate(fusion->operands())) {
+    fusion_indexing.indexing_maps[operand_id] = grouped_indexing_maps[operand];
+  }
+  return fusion_indexing;
+}
+
+HloInstructionIndexing ComputeOutputToInputDotOpIndexing(
+    const HloDotInstruction* dot, mlir::MLIRContext* mlir_context) {
+  CHECK_NE(dot, nullptr);
+  const DotDimensionNumbers& dim_numbers = dot->dot_dimension_numbers();
+  absl::Span<const int64_t> lhs_contracting_dims(
+      dim_numbers.lhs_contracting_dimensions());
+  absl::Span<const int64_t> rhs_contracting_dims =
+      dim_numbers.rhs_contracting_dimensions();
+
+  absl::Span<const int64_t> lhs_batch_dims = dim_numbers.lhs_batch_dimensions();
+  absl::Span<const int64_t> rhs_batch_dims = dim_numbers.rhs_batch_dimensions();
+
+  const Shape& lhs_shape = dot->operand(0)->shape();
+  const Shape& rhs_shape = dot->operand(1)->shape();
+  // According to the StableHLO specification, the dimensions of the output
+  // shape are ordered as follows:
+  //   lhs_batch_dims | lhs_non_contracting_dims | rhs_non_contracting_dims
+  llvm::SmallVector<mlir::AffineExpr> lhs_exprs(lhs_shape.rank());
+  llvm::SmallVector<mlir::AffineExpr> rhs_exprs(rhs_shape.rank());
+  int64_t output_dim_id = 0;
+
+  // lhs_batch_dims
+  for (auto [lhs_batch_dim, rhs_batch_dim] :
+       llvm::zip(lhs_batch_dims, rhs_batch_dims)) {
+    mlir::AffineExpr output_dim_expr =
+        getAffineDimExpr(output_dim_id, mlir_context);
+    lhs_exprs[lhs_batch_dim] = output_dim_expr;
+    rhs_exprs[rhs_batch_dim] = output_dim_expr;
+    ++output_dim_id;
+  }
+
+  // lhs_non_contracting_dims
+  auto lhs_non_contracting_dims = gpu::GetNonContractingDims(
+      lhs_shape, lhs_batch_dims, lhs_contracting_dims);
+  DCHECK(lhs_non_contracting_dims.ok());
+
+  for (int64_t lhs_non_contracting_dim : lhs_non_contracting_dims.value()) {
+    lhs_exprs[lhs_non_contracting_dim] =
+        getAffineDimExpr(output_dim_id++, mlir_context);
+  }
+
+  // rhs_non_contracting_dims
+  auto rhs_non_contracting_dims = gpu::GetNonContractingDims(
+      rhs_shape, rhs_batch_dims, rhs_contracting_dims);
+  DCHECK(rhs_non_contracting_dims.ok());
+  for (int64_t rhs_non_contracting_dim : rhs_non_contracting_dims.value()) {
+    rhs_exprs[rhs_non_contracting_dim] =
+        getAffineDimExpr(output_dim_id++, mlir_context);
+  }
+
+  int64_t input_dim_id = 0;
+  std::vector<int64_t> input_dim_sizes;
+  input_dim_sizes.reserve(lhs_contracting_dims.size());
+
+  for (auto [lhs_contracting_dim, rhs_contracting_dim] :
+       llvm::zip(lhs_contracting_dims, rhs_contracting_dims)) {
+    mlir::AffineExpr input_dim_expr =
+        mlir::getAffineSymbolExpr(input_dim_id, mlir_context);
+    lhs_exprs[lhs_contracting_dim] = input_dim_expr;
+    rhs_exprs[rhs_contracting_dim] = input_dim_expr;
+    ++input_dim_id;
+
+    // LHS and RHS contracting dimensions must match pairwise, and we therefore
+    // need only populate a single input_dim_sizes vector.
+    input_dim_sizes.push_back(lhs_shape.dimensions(lhs_contracting_dim));
+  }
+
+  IndexingMap lhs_indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(dot->shape().rank(), input_dim_sizes.size(),
+                           lhs_exprs, mlir_context),
+      dot->shape().dimensions(), input_dim_sizes);
+
+  IndexingMap rhs_indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(dot->shape().rank(), input_dim_sizes.size(),
+                           rhs_exprs, mlir_context),
+      dot->shape().dimensions(), input_dim_sizes);
+  return HloInstructionIndexing::FromIndexingMaps(
+      {lhs_indexing_map, rhs_indexing_map});
+}
+
+// Computes strides for a shape.
+std::vector<int64_t> ComputeStrides(absl::Span<const int64_t> dims) {
+  int rank = static_cast<int>(dims.size());
+  std::vector<int64_t> strides(rank, 1);
+  for (int i = rank - 2; i >= 0; --i) {
+    strides[i] = dims[i + 1] * strides[i + 1];
+  }
+  return strides;
+}
+
+}  // namespace
+
+mlir::AffineExpr LinearizeShape(
+    absl::Span<const int64_t> dims,
+    absl::Span<const mlir::AffineExpr> dimension_exprs,
+    mlir::MLIRContext* mlir_context) {
+  mlir::AffineExpr linear_index = getAffineConstantExpr(0, mlir_context);
+
+  auto strides = ComputeStrides(dims);
+  for (auto [stride, dimension_expr] : llvm::zip(strides, dimension_exprs)) {
+    linear_index = linear_index + dimension_expr * stride;
+  }
+  return linear_index;
+}
+
+std::vector<mlir::AffineExpr> DelinearizeIndex(
+    absl::Span<const int64_t> dims, mlir::AffineExpr linear_index,
+    mlir::MLIRContext* mlir_context) {
+  std::vector<mlir::AffineExpr> multi_index;
+  multi_index.reserve(dims.size());
+
+  mlir::AffineExpr remainder = linear_index;
+  for (int64_t stride : ComputeStrides(dims)) {
+    multi_index.push_back(remainder.floorDiv(stride));
+    remainder = remainder % stride;
+  }
+  return multi_index;
+}
+
+namespace {
+
+// Computes indexing for "minimal" reshapes, i.e. reshapes that cannot be
+// represented by a series of composed reshapes, i.e. when there are no
+// subshapes in input and output that have the same number of elements.
+// For example, [8, 4] -> [8, 2, 2] is not a minimal reshape, it has matching
+// subshapes [8] -> [8] and [4] -> [2, 2].
+//
+// There are only 4 types of "minimal" reshapes considers only 4 cases:
+//   1. Dimension is not changed, e.g. [8] -> [8]
+//   2. Dimension is expanded, e.g. [8] -> [4, 2]
+//   3. Dimension is collapsed, e.g. [4, 2] -> [8]
+//   4. Dimension is collapsed and expanded, e.g. [8, 16] -> [4, 32]
+//
+// The function computes indexing maps for these 4 cases, i.e. considers given
+// input/output shapes and checks if the shapes are the same, expanded or
+// collapsed. Otherwise, performs linearization/delinearization.
+void ComputeMinimalReshapeIndexing(
+    absl::Span<const int64_t> input_dims, absl::Span<const int64_t> output_dims,
+    absl::Span<const mlir::AffineExpr> output_dims_exprs,
+    std::vector<mlir::AffineExpr>* exprs, mlir::MLIRContext* mlir_context) {
+  // The shape does not change.
+  if (input_dims.size() == 1 && output_dims.size() == 1) {
+    absl::c_copy(output_dims_exprs, std::back_inserter(*exprs));
+    return;
+  }
+  // Expand shape.
+  if (input_dims.size() == 1) {
+    exprs->push_back(
+        LinearizeShape(output_dims, output_dims_exprs, mlir_context));
+    return;
+  }
+  // Collapse shape.
+  if (output_dims.size() == 1) {
+    auto multi_index =
+        DelinearizeIndex(input_dims, output_dims_exprs.front(), mlir_context);
+    absl::c_copy(multi_index, std::back_inserter(*exprs));
+    return;
+  }
+  // Generic case.
+  mlir::AffineExpr linear_index =
+      LinearizeShape(output_dims, output_dims_exprs, mlir_context);
+  auto multi_index = DelinearizeIndex(input_dims, linear_index, mlir_context);
+  absl::c_copy(multi_index, std::back_inserter(*exprs));
+}
+
+// Scans input and output shapes from left to right in an attempt to find
+// subshapes with the same number of elements and then computes indexing map for
+// every pair of subshapes.
+//
+// Example:
+//   p0 = u32[4, 8, 12] parameter(0)
+//   reshape = u32[32, 3, 4] reshape(p0)
+//
+// This reshape can be represented as a composition of two reshapes.
+// The first reshape collapses the first two input dimensions [4, 8] into
+// the output dimension [32].
+// The second reshape expands the input dimension [12] into two output
+// dimensions [3, 4].
+// This is an optimization that allows us to construct simpler affine maps,
+// otherwise we would need to linearize/delinearize even some of the simpler
+// cases.
+mlir::AffineMap ComputeReshapeIndexingMap(const Shape& input,
+                                          const Shape& output,
+                                          mlir::MLIRContext* mlir_context) {
+  absl::Span<const int64_t> input_dims = input.dimensions();
+  absl::Span<const int64_t> output_dims = output.dimensions();
+
+  std::vector<mlir::AffineExpr> exprs;
+  exprs.reserve(input.rank());
+
+  // If the input shape has no elements (e.g. 1000x10x0 -> 100x100x0), just set
+  // everything to 0.
+  if (ShapeUtil::ElementsIn(input) == 0) {
+    for (int i = 0; i < input.rank(); ++i) {
+      exprs.push_back(getAffineConstantExpr(0, mlir_context));
+    }
+    return mlir::AffineMap::get(output_dims.size(), /*symbolCount=*/0, exprs,
+                                mlir_context);
+  }
+
+  std::vector<mlir::AffineExpr> output_dims_exprs;
+
+  // Find subshapes with the same element count and compute indexing for them.
+  int64_t input_num_elements = 1;
+  int64_t output_num_elements = 1;
+  std::vector<int64_t> input_subshape, output_subshape;
+  size_t input_dim_id = 0, output_dim_id = 0;
+  while (input_dim_id < input.rank() || output_dim_id < output.rank() ||
+         !input_subshape.empty()) {
+    if (input_dim_id < input.rank() &&
+        (input_subshape.empty() || input_num_elements < output_num_elements ||
+         input_dims[input_dim_id] == 1)) {
+      input_num_elements *= input_dims[input_dim_id];
+      input_subshape.push_back(input_dims[input_dim_id]);
+      ++input_dim_id;
+      continue;
+    }
+    if (output_dim_id < output.rank() &&
+        (output_subshape.empty() || output_num_elements < input_num_elements ||
+         output_dims[output_dim_id] == 1)) {
+      output_num_elements *= output_dims[output_dim_id];
+      output_subshape.push_back(output_dims[output_dim_id]);
+      output_dims_exprs.push_back(
+          getAffineDimExpr(output_dim_id, mlir_context));
+      ++output_dim_id;
+      continue;
+    }
+    ComputeMinimalReshapeIndexing(input_subshape, output_subshape,
+                                  output_dims_exprs, &exprs, mlir_context);
+    input_num_elements = 1;
+    output_num_elements = 1;
+    input_subshape.clear();
+    output_subshape.clear();
+    output_dims_exprs.clear();
+  }
+  return mlir::AffineMap::get(output_dims.size(), /*symbolCount=*/0, exprs,
+                              mlir_context);
+}
+
+HloInstructionIndexing ComputeReverseOpIndexing(
+    const HloReverseInstruction* reverse, mlir::MLIRContext* mlir_context) {
+  absl::flat_hash_set<int64_t> reverse_dims(reverse->dimensions().begin(),
+                                            reverse->dimensions().end());
+  auto output_dims = reverse->shape().dimensions();
+
+  std::vector<mlir::AffineExpr> exprs;
+  exprs.reserve(output_dims.size());
+  for (auto [output_dim_id, output_dim] : llvm::enumerate(output_dims)) {
+    auto dim_expr = getAffineDimExpr(output_dim_id, mlir_context);
+    if (!reverse_dims.contains(output_dim_id)) {
+      exprs.push_back(dim_expr);
+      continue;
+    }
+    exprs.push_back(-dim_expr + output_dim - 1);
+  }
+
+  IndexingMap indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(output_dims.size(), /*symbolCount=*/0, exprs,
+                           mlir_context),
+      output_dims, {});
+
+  return HloInstructionIndexing::FromIndexingMaps({indexing_map});
+}
+
+HloInstructionIndexing ComputeOutputToInputSliceOpIndexing(
+    const HloSliceInstruction* slice, mlir::MLIRContext* mlir_context) {
+  auto output_rank = slice->shape().rank();
+
+  std::vector<mlir::AffineExpr> exprs;
+  exprs.reserve(output_rank);
+  for (int64_t dim = 0; dim < output_rank; ++dim) {
+    mlir::AffineExpr dim_expr = getAffineDimExpr(dim, mlir_context);
+    exprs.push_back(dim_expr * slice->slice_strides()[dim] +
+                    slice->slice_starts()[dim]);
+  }
+  IndexingMap indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(output_rank, /*symbolCount=*/0, exprs, mlir_context),
+      slice->shape().dimensions(), {});
+  return HloInstructionIndexing::FromIndexingMaps({indexing_map});
+}
+
+HloInstructionIndexing ComputeInputToOutputSliceOpIndexing(
+    const HloSliceInstruction* slice, mlir::MLIRContext* mlir_context) {
+  auto output_rank = slice->shape().rank();
+
+  std::vector<mlir::AffineExpr> exprs;
+  exprs.reserve(output_rank);
+  for (int64_t dim = 0; dim < output_rank; ++dim) {
+    mlir::AffineExpr dim_expr = getAffineDimExpr(dim, mlir_context);
+    exprs.push_back((dim_expr - slice->slice_starts()[dim])
+                        .floorDiv(slice->slice_strides()[dim]));
+  }
+  IndexingMap indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(output_rank, /*symbolCount=*/0, exprs, mlir_context),
+      slice->operand(0)->shape().dimensions(), {});
+
+  for (int64_t dim = 0; dim < output_rank; ++dim) {
+    mlir::AffineExpr dim_expr = getAffineDimExpr(dim, mlir_context);
+    int64_t lb = slice->slice_starts()[dim];
+    int64_t ub =
+        (slice->shape().dimensions(dim) - 1) * slice->slice_strides()[dim] +
+        slice->slice_starts()[dim];
+    indexing_map.AddConstraint(dim_expr, {lb, ub});
+    indexing_map.AddConstraint((dim_expr - lb) % slice->slice_strides()[dim],
+                               {0, 0});
+  }
+
+  return HloInstructionIndexing::FromIndexingMaps({std::move(indexing_map)});
+}
+
+mlir::AffineMap ComputeTransposeIndexingMap(
+    absl::Span<const int64_t> permutation, mlir::MLIRContext* mlir_context) {
+  return mlir::AffineMap::getPermutationMap(
+      std::vector<unsigned>(permutation.begin(), permutation.end()),
+      mlir_context);
+}
+
+}  // namespace
+
+IndexingMap GetBitcastMap(absl::Span<const int64_t> input_shape,
+                          const Shape& output_shape,
+                          mlir::MLIRContext* mlir_context) {
+  return GetBitcastMap(ShapeUtil::MakeShapeWithDescendingLayout(
+                           output_shape.element_type(), input_shape),
+                       output_shape, mlir_context);
+}
+IndexingMap GetBitcastMap(absl::Span<const int64_t> input_shape,
+                          absl::Span<const int64_t> output_shape,
+                          mlir::MLIRContext* mlir_context) {
+  return GetBitcastMap(
+      ShapeUtil::MakeShapeWithDescendingLayout(PrimitiveType::S8, input_shape),
+      ShapeUtil::MakeShapeWithDescendingLayout(PrimitiveType::S8, output_shape),
+      mlir_context);
+}
+IndexingMap GetBitcastMap(const Shape& input_shape, const Shape& output_shape,
+                          mlir::MLIRContext* mlir_context) {
+  ShapeUtil::BitcastDecomposition decomposed_bitcast =
+      ShapeUtil::DecomposeBitcast(input_shape, output_shape);
+
+  if (std::holds_alternative<ShapeUtil::BitcastDecompositionTranspose>(
+          decomposed_bitcast)) {
+    auto permutation = ShapeUtil::DeduceTransposeDimensionsForBitcast(
+        input_shape, output_shape);
+    CHECK(permutation.has_value())
+        << "Failed to deduce permutation for a bitcast.";
+
+    return IndexingMap::FromTensorSizes(
+        ComputeTransposeIndexingMap(permutation.value(), mlir_context),
+        input_shape.dimensions(), {});
+  }
+  if (std::holds_alternative<ShapeUtil::BitcastDecompositionReshape>(
+          decomposed_bitcast)) {
+    // Note: ComputeReshapeIndexingMap assumes it's computing an output->input
+    // indexing, so input and output are reversed.
+    return IndexingMap::FromTensorSizes(
+        ComputeReshapeIndexingMap(output_shape, input_shape, mlir_context),
+        input_shape.dimensions(), {});
+  }
+  // `trt` stands for transpose-reshape-transpose decomposition of bitcast.
+  auto trt = std::get<ShapeUtil::BitcastDecompositionTrt>(decomposed_bitcast);
+  auto transpose_map_1 =
+      ComputeTransposeIndexingMap(trt.transpose1_dims, mlir_context);
+  auto reshape_map = ComputeReshapeIndexingMap(
+      trt.reshape_shape, trt.transpose1_shape, mlir_context);
+  auto transpose_map_2 =
+      ComputeTransposeIndexingMap(trt.transpose2_dims, mlir_context);
+  auto bitcast_map =
+      transpose_map_2.compose(reshape_map).compose(transpose_map_1);
+  return IndexingMap::FromTensorSizes(bitcast_map, input_shape.dimensions(),
+                                      {});
+}
+
+namespace {
+
+HloInstructionIndexing ComputeOutputToInputBitcastOpIndexing(
+    const HloInstruction* bitcast, mlir::MLIRContext* mlir_context) {
+  auto bitcast_map = GetBitcastMap(bitcast->shape(),
+                                   bitcast->operand(0)->shape(), mlir_context);
+  bitcast_map.Simplify();
+  return HloInstructionIndexing::FromIndexingMaps({bitcast_map});
+}
+
+HloInstructionIndexing ComputeInputToOutputBitcastOpIndexing(
+    const HloInstruction* bitcast, mlir::MLIRContext* mlir_context) {
+  auto bitcast_map = GetBitcastMap(bitcast->operand(0)->shape(),
+                                   bitcast->shape(), mlir_context);
+  bitcast_map.Simplify();
+  return HloInstructionIndexing::FromIndexingMaps({bitcast_map});
+}
+
+// Converts a layout to a dimensions transposition necessary to get to that
+// layout from identity.
+std::vector<int64_t> ToTransposeDimensions(const Layout& l) {
+  std::vector<int64_t> out(l.minor_to_major().begin(),
+                           l.minor_to_major().end());
+  absl::c_reverse(out);
+  return out;
+}
+
+}  // namespace
+
+IndexingMap CreateIdentityMap(absl::Span<const int64_t> dimensions,
+                              mlir::MLIRContext* mlir_context) {
+  return IndexingMap::FromTensorSizes(
+      mlir::AffineMap::getMultiDimIdentityMap(dimensions.size(), mlir_context),
+      /*dim_upper_bounds=*/dimensions, /*symbol_upper_bounds=*/{});
+}
+
+IndexingMap CreateIdentityMap(const Shape& shape,
+                              mlir::MLIRContext* mlir_context) {
+  if (shape.IsTuple()) {
+    // Should happen only for variadic reduce. In that case all tuple shapes are
+    // equal.
+    return CreateIdentityMap(shape.tuple_shapes(0), mlir_context);
+  }
+  return CreateIdentityMap(shape.dimensions(), mlir_context);
+}
+
+llvm::SmallVector<mlir::AffineExpr, 4> DelinearizeInBoundsIndex(
+    mlir::AffineExpr linear, absl::Span<const int64_t> sizes) {
+  llvm::SmallVector<mlir::AffineExpr, 4> result;
+  result.reserve(sizes.size());
+  if (absl::c_linear_search(sizes, 0)) {
+    for (int dim = 0; dim < sizes.size(); ++dim) {
+      result.push_back(mlir::getAffineConstantExpr(0, linear.getContext()));
+    }
+    return result;
+  }
+
+  auto strides = ComputeStrides(sizes);
+  for (auto [size, stride] : llvm::zip(sizes, strides)) {
+    result.push_back(linear.floorDiv(stride) % size);
+  }
+  for (int dim = 0; dim < sizes.size(); ++dim) {
+    if (sizes[dim] > 1) {
+      // We assume the linear index is in bounds, so no mod for the first major
+      // non-degenerate dimension. Degenerate dimensions are already rewritten
+      // to 0 by operator%.
+      result[dim] = linear.floorDiv(strides[dim]);
+      break;
+    }
+  }
+  return result;
+}
+
+IndexingMap GetIndexingMapFromPhysicalLayoutToLogical(
+    const Shape& shape, mlir::MLIRContext* mlir_context) {
+  if (shape.rank() == 0) {
+    return IndexingMap(mlir::AffineMap::get(mlir_context),
+                       /*dimensions=*/{}, /*range vars=*/{}, /*rt_vars=*/{});
+  }
+  return IndexingMap::FromTensorSizes(
+      ComputeTransposeIndexingMap(
+          InversePermutation(ToTransposeDimensions(shape.layout())),
+          mlir_context),
+      ShapeUtil::MakeShapeWithDescendingLayoutAndSamePhysicalLayout(shape)
+          .dimensions(),
+      {});
+}
+
+IndexingMap GetIndexingMapFromLogicalToPhysicalLayout(
+    const Shape& shape, mlir::MLIRContext* mlir_context) {
+  if (shape.rank() == 0) {
+    return IndexingMap(mlir::AffineMap::get(mlir_context),
+                       /*dimensions=*/{}, /*range vars=*/{}, /*rt_vars=*/{});
+  }
+  return IndexingMap::FromTensorSizes(
+      ComputeTransposeIndexingMap(ToTransposeDimensions(shape.layout()),
+                                  mlir_context),
+      shape.dimensions(), {});
+}
+
+bool HloInstructionIndexing::Simplify() {
+  bool any_simplified = false;
+  for (IndexingMapSet& operand_indexing : indexing_maps) {
+    absl::flat_hash_set<IndexingMap> new_maps;
+    new_maps.reserve(operand_indexing.size());
+    bool changed = false;
+    for (IndexingMap map : operand_indexing) {
+      if (map.IsUndefined()) {
+        new_maps.insert(std::move(map));
+        continue;
+      }
+      if (map.Simplify()) {
+        map.RemoveUnusedSymbols();
+        changed = true;
+      }
+      new_maps.insert(std::move(map));
+    }
+    if (changed || new_maps.size() != operand_indexing.size()) {
+      operand_indexing = std::move(new_maps);
+      any_simplified = true;
+    }
+  }
+  return any_simplified;
+}
+
+// static
+HloInstructionIndexing HloInstructionIndexing::FromIndexingMaps(
+    absl::Span<const IndexingMap> indexing_maps) {
+  HloInstructionIndexing instr_indexing;
+  instr_indexing.indexing_maps.resize(indexing_maps.size());
+  for (const auto& [index, map] : llvm::enumerate(indexing_maps)) {
+    instr_indexing.indexing_maps[index].insert(map);
+  }
+  return instr_indexing;
+}
+
+std::string HloInstructionIndexing::ToString() const {
+  std::stringstream ss;
+  ss << *this;
+  return ss.str();
+}
+
+std::ostream& operator<<(std::ostream& out,
+                         const HloInstructionIndexing& instr_indexing) {
+  for (const auto& [operand_id, indexing_maps] :
+       llvm::enumerate(instr_indexing.indexing_maps)) {
+    out << "operand id = " << operand_id << ' ';
+    for (const auto& indexing_map : indexing_maps) {
+      if (indexing_map.IsUndefined()) {
+        out << "unknown indexing";
+        continue;
+      }
+      out << indexing_map;
+    }
+  }
+  return out;
+}
+
+const Shape& GetOutputShape(const HloInstruction* instr, int64_t output_id) {
+  return instr->shape().IsTuple()
+             ? ShapeUtil::GetSubshape(instr->shape(), {output_id})
+             : instr->shape();
+}
+
+GroupedByOpIndexingMap GroupIndexingMapsByProducers(
+    const HloInstructionIndexing& indexing, const HloInstruction* instr) {
+  GroupedByOpIndexingMap result;
+  for (const auto& [operand_id, indexing_maps] :
+       llvm::enumerate(indexing.indexing_maps)) {
+    result[instr->operand(operand_id)].insert(indexing_maps.begin(),
+                                              indexing_maps.end());
+  }
+  return result;
+}
+
+GroupedByOpIndexingMap ComputeGroupedOutputToInputIndexing(
+    const HloFusionAdaptor& fusion_adaptor, HloInstructionAdaptor target_instr,
+    mlir::MLIRContext* ctx) {
+  auto initial_map = CreateIdentityMap(target_instr.instruction().shape(), ctx);
+
+  GroupedByOpIndexingMap grouped_indexing_maps;
+  // If target_instr is a parameter of a fusion, then we create an identity map
+  // for the fusion operand.
+  if (fusion_adaptor.ContainsInstruction(target_instr)) {
+    if (auto parameter_instr =
+            DynCast<HloParameterInstruction>(&target_instr.instruction())) {
+      auto fusion_instr = parameter_instr->parent()->FusionInstruction();
+      auto fusion_operand =
+          fusion_instr->operand(parameter_instr->parameter_number());
+      grouped_indexing_maps[fusion_operand] = {initial_map};
+      return grouped_indexing_maps;
+    }
+  }
+  grouped_indexing_maps[&target_instr.instruction()].insert(initial_map);
+
+  auto post_order = fusion_adaptor.MakeInstructionPostOrder();
+
+  // Iterator in reversed post-order (use-before-def).
+  auto it = std::find(post_order.rbegin(), post_order.rend(), target_instr);
+  for (; it != post_order.rend(); ++it) {
+    auto producer_indexing = ComputeOutputToInputIndexing(&it->instruction(),
+                                                          /*output_id=*/0, ctx);
+    auto consumer_indexing_maps =
+        grouped_indexing_maps.find(&it->instruction());
+    if (consumer_indexing_maps == grouped_indexing_maps.end()) {
+      continue;
+    }
+    // Indexing maps have to be copied because of rehashing. Consider using a
+    // different container to get better performance.
+    IndexingMapSet consumer_indexing_maps_copy = consumer_indexing_maps->second;
+    for (const auto& [producer_operand_id, producer_operand_indexing] :
+         llvm::enumerate(producer_indexing.indexing_maps)) {
+      auto producer_operand_adaptor = it->GetOperand(producer_operand_id);
+      for (const IndexingMap& producer_map : producer_operand_indexing) {
+        for (const IndexingMap& consumer_map : consumer_indexing_maps_copy) {
+          auto composed_map = ComposeIndexingMaps(consumer_map, producer_map);
+          composed_map.Simplify();
+          composed_map.RemoveUnusedSymbols();
+          grouped_indexing_maps[&producer_operand_adaptor.instruction()].insert(
+              composed_map);
+        }
+      }
+    }
+  }
+  return grouped_indexing_maps;
+}
+
+bool FuseProducerConsumerOutputToInputIndexing(
+    const HloInstruction* producer_instr,
+    absl::flat_hash_map<const HloInstruction*, IndexingMapSet>*
+        consumer_indexing,
+    mlir::MLIRContext* mlir_context) {
+  auto producer_indexing = ComputeOutputToInputIndexing(
+      producer_instr, /*output_id=*/0, mlir_context);
+  auto consumer_indexing_maps = (*consumer_indexing)[producer_instr];
+  for (const auto& [producer_operand_id, producer_operand_indexing] :
+       llvm::enumerate(producer_indexing.indexing_maps)) {
+    const HloInstruction* producer_operand_instr =
+        producer_instr->operand(producer_operand_id);
+    for (const IndexingMap& producer_map : producer_operand_indexing) {
+      for (const IndexingMap& consumer_map : consumer_indexing_maps) {
+        (*consumer_indexing)[producer_operand_instr].insert(
+            ComposeIndexingMaps(producer_map, consumer_map));
+      }
+    }
+  }
+  consumer_indexing->erase(producer_instr);
+  return true;
+}
+
+HloInstructionIndexing ComputeOutputToInputIndexing(const HloInstruction* instr,
+                                                    int output_id,
+                                                    mlir::MLIRContext* ctx) {
+  if (HloInstruction::IsOpElementwise(instr->opcode()) ||
+      instr->opcode() == HloOpcode::kMap) {
+    // Note: map has a `dimensions` attribute, but it does nothing. See
+    // b/65689298.
+    return ComputeOutputToInputCwiseOpIndexing(instr, ctx);
+  }
+  if (instr->opcode() == HloOpcode::kBitcast) {
+    return ComputeOutputToInputBitcastOpIndexing(instr, ctx);
+  }
+  if (auto broadcast = DynCast<HloBroadcastInstruction>(instr)) {
+    return ComputeOutputToInputBroadcastOpIndexing(broadcast, ctx);
+  }
+  if (auto concat = DynCast<HloConcatenateInstruction>(instr)) {
+    return ComputeOutputToInputConcatenateOpIndexing(concat, ctx);
+  }
+  if (HloConstantInstruction::ClassOf(instr)) {
+    return HloInstructionIndexing{};
+  }
+  if (auto dot = DynCast<HloDotInstruction>(instr)) {
+    return ComputeOutputToInputDotOpIndexing(dot, ctx);
+  }
+  // TODO(chokobole): Uncomment this. Dependency: HloDynamicSliceInstruction
+  // if (auto dynamic_slice = DynCast<HloDynamicSliceInstruction>(instr)) {
+  //   return ComputeOutputToInputDynamicSliceOpIndexing(dynamic_slice, ctx);
+  // }
+  // clang-format off
+  // TODO(chokobole): Uncomment this. Dependency: HloDynamicUpdateSliceInstruction
+  // clang-format on
+  // if (auto dus = DynCast<HloDynamicUpdateSliceInstruction>(instr)) {
+  //   return ComputeOutputToInputDynamicUpdateSliceOpIndexing(dus, ctx);
+  // }
+  if (auto fusion = DynCast<HloFusionInstruction>(instr)) {
+    return ComputeOutputToInputFusionOpIndexing(fusion, output_id, ctx);
+  }
+  // TODO(chokobole): Uncomment this. Dependency: HloGatherInstruction
+  // if (auto gather = DynCast<HloGatherInstruction>(instr)) {
+  //   return ComputeOutputToInputGatherOpIndexing(gather, ctx);
+  // }
+  // TODO(chokobole): Uncomment this. Dependency: HloIotaInstruction
+  // if (auto iota = DynCast<HloIotaInstruction>(instr)) {
+  //   return HloInstructionIndexing{};
+  // }
+  // TODO(chokobole): Uncomment this. Dependency: HloPadInstruction
+  // if (auto pad = DynCast<HloPadInstruction>(instr)) {
+  //   return ComputeOutputToInputPadOpIndexing(pad, ctx);
+  // }
+  // TODO(chokobole): Uncomment this. Dependency: HloReduceInstruction
+  // if (auto reduce = DynCast<HloReduceInstruction>(instr)) {
+  //   return ComputeOutputToInputReduceOpIndexing(reduce, ctx);
+  // }
+  // TODO(chokobole): Uncomment this. Dependency: HloReshapeInstruction
+  // if (auto reshape = DynCast<HloReshapeInstruction>(instr)) {
+  // return ComputeOutputToInputReshapeOpIndexing(reshape, ctx);
+  // }
+  if (auto reverse = DynCast<HloReverseInstruction>(instr)) {
+    return ComputeReverseOpIndexing(reverse, ctx);
+  }
+  if (auto slice = DynCast<HloSliceInstruction>(instr)) {
+    return ComputeOutputToInputSliceOpIndexing(slice, ctx);
+  }
+  // TODO(chokobole): Uncomment this. Dependency: HloTransposeInstruction
+  // if (auto transpose = DynCast<HloTransposeInstruction>(instr)) {
+  //   return ComputeOutputToInputTransposeOpIndexing(transpose, ctx);
+  // }
+  LOG(ERROR) << "ComputeOutputToInputIndexing is not implemented for opcode "
+             << instr->opcode();
+  // If we cannot compute output-to-input indexing, we return std::nullopt for
+  // every op parameter.
+  return CreateUnknownIndexing(instr->operand_count());
+}
+
+HloInstructionIndexing ComputeInputToOutputIndexing(const HloInstruction* instr,
+                                                    int input_id,
+                                                    mlir::MLIRContext* ctx) {
+  if (HloInstruction::IsOpElementwise(instr->opcode()) ||
+      instr->opcode() == HloOpcode::kMap) {
+    // Note: map has a `dimensions` attribute, but it does nothing. See
+    // b/65689298.
+    return ComputeInputToOutputCwiseOpIndexing(instr, ctx);
+  }
+  if (instr->opcode() == HloOpcode::kBitcast) {
+    return ComputeInputToOutputBitcastOpIndexing(instr, ctx);
+  }
+  if (auto broadcast = DynCast<HloBroadcastInstruction>(instr)) {
+    return ComputeInputToOutputBroadcastOpIndexing(broadcast, ctx);
+  }
+  if (auto concat = DynCast<HloConcatenateInstruction>(instr)) {
+    return ComputeInputToOutputConcatenateOpIndexing(concat, input_id, ctx);
+  }
+  // TODO(chokobole): Uncomment this. Dependency: HloReduceInstruction
+  // if (auto reduce = DynCast<HloReduceInstruction>(instr)) {
+  //   return ComputeInputToOutputReduceOpIndexing(reduce, input_id, ctx);
+  // }
+  // TODO(chokobole): Uncomment this. Dependency: HloReshapeInstruction
+  // if (auto reshape = DynCast<HloReshapeInstruction>(instr)) {
+  //   return ComputeInputToOutputReshapeOpIndexing(reshape, ctx);
+  // }
+  if (auto reverse = DynCast<HloReverseInstruction>(instr)) {
+    return ComputeReverseOpIndexing(reverse, ctx);
+  }
+  // TODO(chokobole): Uncomment this. Dependency: HloTransposeInstruction
+  // if (auto transpose = DynCast<HloTransposeInstruction>(instr)) {
+  //   return ComputeInputToOutputTransposeOpIndexing(transpose, ctx);
+  // }
+  if (auto slice = DynCast<HloSliceInstruction>(instr)) {
+    return ComputeInputToOutputSliceOpIndexing(slice, ctx);
+  }
+  if (instr->opcode() == HloOpcode::kTuple) {
+    return HloInstructionIndexing::FromIndexingMaps(
+        {CreateIdentityMap(instr->shape().tuple_shapes(input_id), ctx)});
+  }
+  // If we cannot compute input-to-output indexing, we return std::nullopt for
+  // every op result.
+  int64_t num_results =
+      instr->shape().IsTuple() ? instr->shape().tuple_shapes_size() : 1;
+  return CreateUnknownIndexing(num_results);
+}
+
+IndexingMap ComputeEpilogueInputToOutputIndexing(
+    HloInstructionAdaptor epilogue_parent, HloInstructionAdaptor epilogue_root,
+    mlir::MLIRContext* mlir_context) {
+  auto chain = HloFindUseChain(epilogue_parent, epilogue_root);
+  CHECK(!chain.empty()) << "There is no use chain from parent to root";
+  auto root_indexing = CreateIdentityMap(epilogue_parent.shape(), mlir_context);
+  for (int i = 1; i < chain.size(); ++i) {
+    const auto& producer = chain[i - 1].instruction();
+    const auto& user = chain[i].instruction();
+    auto user_indexing = ComputeInputToOutputIndexing(
+        &user, user.operand_index(&producer), mlir_context);
+    root_indexing = root_indexing * *user_indexing.indexing_maps[0].begin();
+    root_indexing.Simplify();
+    root_indexing.RemoveUnusedSymbols();
+  }
+  return root_indexing;
+}
+
+}  // namespace zkx

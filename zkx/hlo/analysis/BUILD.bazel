@@ -76,6 +76,31 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "indexing_analysis",
+    srcs = ["indexing_analysis.cc"],
+    hdrs = ["indexing_analysis.h"],
+    deps = [
+        ":indexing_map",
+        "//zkx:permutation_util",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/utils:hlo_traversal",
+        "//zkx/service/gpu:matmul_indexing_utils",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "indexing_map",
     srcs = [
         "indexing_map.cc",
@@ -136,6 +161,7 @@ zkx_cc_library(
 
 # TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: FlattenCallGraph
 # TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: FlattenCallGraph
+# TODO(chokobole): Add indexing_analysis_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add indexing_map_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add indexing_map_serialization_unittest.cc. Dependency: HloTestBase
 zkx_cc_unittest(
