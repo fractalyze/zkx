@@ -77,8 +77,14 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "indexing_map",
-    srcs = ["indexing_map.cc"],
-    hdrs = ["indexing_map.h"],
+    srcs = [
+        "indexing_map.cc",
+        "indexing_map_serialization.cc",
+    ],
+    hdrs = [
+        "indexing_map.h",
+        "indexing_map_serialization.h",
+    ],
     deps = [
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/log",
@@ -88,6 +94,7 @@ zkx_cc_library(
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AsmParser",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
@@ -130,6 +137,7 @@ zkx_cc_library(
 # TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: FlattenCallGraph
 # TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: FlattenCallGraph
 # TODO(chokobole): Add indexing_map_unittest.cc. Dependency: HloTestBase
+# TODO(chokobole): Add indexing_map_serialization_unittest.cc. Dependency: HloTestBase
 zkx_cc_unittest(
     name = "analysis_unittests",
     srcs = [
