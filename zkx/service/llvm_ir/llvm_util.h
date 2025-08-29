@@ -18,14 +18,19 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/OwningOpRef.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 
@@ -64,6 +69,13 @@ std::string DumpToString(mlir::Value value);
 std::string IrName(std::string_view a);
 std::string IrName(std::string_view a, std::string_view b);
 std::string IrName(const HloInstruction* a, std::string_view b = "");
+
+// Construct a module from the given location with an optional name.
+//
+// The underlying "create" method is unsafe, because it leaks the new module by
+// default. This function avoids this by always returning an OwningOpRef.
+mlir::OwningOpRef<mlir::ModuleOp> CreateMlirModuleOp(
+    mlir::Location loc, std::optional<llvm::StringRef> name = std::nullopt);
 
 // Removes special characters from a function name.
 //
