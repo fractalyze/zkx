@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <algorithm>
 #include <cctype>
+#include <utility>
 
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
@@ -97,6 +98,12 @@ std::string IrName(std::string_view a, std::string_view b) {
 
 std::string IrName(const HloInstruction* a, std::string_view b) {
   return IrName(a->name(), b);
+}
+
+mlir::OwningOpRef<mlir::ModuleOp> CreateMlirModuleOp(
+    mlir::Location loc, std::optional<llvm::StringRef> name) {
+  return mlir::OwningOpRef<mlir::ModuleOp>(
+      mlir::ModuleOp::create(std::move(loc), std::move(name)));
 }
 
 std::string SanitizeFunctionName(std::string_view old_function_name) {
