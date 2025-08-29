@@ -349,6 +349,17 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "target_util",
+    srcs = ["target_util.cc"],
+    hdrs = ["target_util.h"],
+    deps = [
+        "@com_google_absl//absl/log",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:TargetParser",
+    ],
+)
+
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add execution_stream_assignment_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add hlo_fusion_analysis_unittest.cc. Dependency: HloTestBase.
