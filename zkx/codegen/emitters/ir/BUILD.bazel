@@ -1,0 +1,108 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+td_library(
+    name = "zkx_td_files",
+    srcs = glob(["*.td"]),
+    includes = ["."],
+    deps = [
+        "@llvm-project//mlir:AttrTdFiles",
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:CallInterfacesTdFiles",
+        "@llvm-project//mlir:ControlFlowInterfacesTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:SideEffectInterfacesTdFiles",
+    ],
+)
+
+gentbl_cc_library(
+    name = "zkx_dialect_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-dialect-decls"],
+            "zkx_dialect.h.inc",
+        ),
+        (
+            ["-gen-dialect-defs"],
+            "zkx_dialect.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "zkx_dialect.td",
+    deps = [":zkx_td_files"],
+)
+
+gentbl_cc_library(
+    name = "zkx_ops_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-op-decls"],
+            "zkx_ops.h.inc",
+        ),
+        (
+            ["-gen-op-defs"],
+            "zkx_ops.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "zkx_ops.td",
+    deps = [":zkx_td_files"],
+)
+
+gentbl_cc_library(
+    name = "zkx_attrs_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-enum-decls"],
+            "zkx_enums.h.inc",
+        ),
+        (
+            ["-gen-enum-defs"],
+            "zkx_enums.cc.inc",
+        ),
+        (
+            ["-gen-attrdef-decls"],
+            "zkx_attrs.h.inc",
+        ),
+        (
+            ["-gen-attrdef-defs"],
+            "zkx_attrs.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "zkx_attrs.td",
+    deps = [":zkx_td_files"],
+)
+
+cc_library(
+    name = "zkx",
+    srcs = [
+        "zkx_attrs.cc",
+        "zkx_dialect.cc",
+        "zkx_ops.cc",
+    ],
+    hdrs = ["zkx_ops.h"],
+    deps = [
+        ":zkx_attrs_inc_gen",
+        ":zkx_dialect_inc_gen",
+        ":zkx_ops_inc_gen",
+        "//zkx/hlo/analysis:indexing_analysis",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InliningUtils",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+# TODO(chokobole): Add zkx_ops_unittest.cc Dependency: HloTestBase
