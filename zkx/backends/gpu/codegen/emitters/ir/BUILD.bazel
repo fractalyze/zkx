@@ -1,0 +1,133 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+td_library(
+    name = "zkx_gpu_td_files",
+    srcs = glob(["*.td"]),
+    includes = ["."],
+    deps = [
+        "//zkx/codegen/emitters/ir:zkx_td_files",
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:CallInterfacesTdFiles",
+        "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:SideEffectInterfacesTdFiles",
+    ],
+)
+
+gentbl_cc_library(
+    name = "zkx_gpu_dialect_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-dialect-decls"],
+            "zkx_gpu_dialect.h.inc",
+        ),
+        (
+            ["-gen-dialect-defs"],
+            "zkx_gpu_dialect.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "zkx_gpu_dialect.td",
+    deps = [":zkx_gpu_td_files"],
+)
+
+gentbl_cc_library(
+    name = "zkx_gpu_ops_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-op-decls"],
+            "zkx_gpu_ops.h.inc",
+        ),
+        (
+            ["-gen-op-defs"],
+            "zkx_gpu_ops.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "zkx_gpu_ops.td",
+    deps = [":zkx_gpu_td_files"],
+)
+
+gentbl_cc_library(
+    name = "zkx_gpu_attrs_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-enum-decls"],
+            "zkx_gpu_enums.h.inc",
+        ),
+        (
+            ["-gen-enum-defs"],
+            "zkx_gpu_enums.cc.inc",
+        ),
+        (
+            [
+                "-gen-attrdef-decls",
+                "-attrdefs-dialect=zkx_gpu",
+            ],
+            "zkx_gpu_attrs.h.inc",
+        ),
+        (
+            [
+                "-gen-attrdef-defs",
+                "-attrdefs-dialect=zkx_gpu",
+            ],
+            "zkx_gpu_attrs.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "zkx_gpu_attrs.td",
+    deps = [":zkx_gpu_td_files"],
+)
+
+gentbl_cc_library(
+    name = "zkx_gpu_types_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            [
+                "-gen-typedef-decls",
+                "-typedefs-dialect=zkx_gpu",
+            ],
+            "zkx_gpu_types.h.inc",
+        ),
+        (
+            [
+                "-gen-typedef-defs",
+                "-typedefs-dialect=zkx_gpu",
+            ],
+            "zkx_gpu_types.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "zkx_gpu_types.td",
+    deps = [":zkx_gpu_td_files"],
+)
+
+cc_library(
+    name = "zkx_gpu",
+    srcs = [
+        "zkx_gpu_attrs.cc",
+        "zkx_gpu_dialect.cc",
+        "zkx_gpu_ops.cc",
+        "zkx_gpu_types.cc",
+    ],
+    hdrs = ["zkx_gpu_ops.h"],
+    deps = [
+        ":zkx_gpu_attrs_inc_gen",
+        ":zkx_gpu_dialect_inc_gen",
+        ":zkx_gpu_ops_inc_gen",
+        ":zkx_gpu_types_inc_gen",
+        "//zkx/codegen/emitters/ir:zkx",
+        "//zkx/hlo/analysis:indexing_analysis",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
