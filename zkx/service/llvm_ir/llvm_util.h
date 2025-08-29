@@ -16,9 +16,12 @@ limitations under the License.
 #ifndef ZKX_SERVICE_LLVM_IR_LLVM_UTIL_H_
 #define ZKX_SERVICE_LLVM_IR_LLVM_UTIL_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "llvm/ADT/APInt.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
@@ -72,6 +75,11 @@ template <typename T>
 llvm::APInt ConvertBigIntToAPInt(const T& value) {
   return {T::kBitWidth, static_cast<unsigned>(T::kLimbNums), value.limbs()};
 }
+
+// Tells LLVM `inst >= lower && inst < upper`. Returns `inst` for convenience.
+llvm::Instruction* AddRangeMetadata(int32_t lower, int32_t upper,
+                                    llvm::Instruction* inst,
+                                    llvm::Module* module);
 
 }  // namespace zkx::llvm_ir
 

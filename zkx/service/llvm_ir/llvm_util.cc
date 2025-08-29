@@ -20,7 +20,11 @@ limitations under the License.
 
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Triple.h"
 
 namespace zkx::llvm_ir {
 namespace {
@@ -59,6 +63,23 @@ std::string DumpToString(mlir::Type type) { return DumpToStringTempl(&type); }
 
 std::string DumpToString(mlir::Value value) {
   return DumpToStringTempl(&value);
+}
+
+llvm::Instruction* AddRangeMetadata(int32_t lower, int32_t upper,
+                                    llvm::Instruction* inst,
+                                    llvm::Module* module) {
+  if (llvm::Triple(module->getTargetTriple()).isSPIR()) {
+    return inst;
+  }
+  llvm::LLVMContext& context = inst->getParent()->getContext();
+  llvm::IntegerType* i32 = llvm::Type::getInt32Ty(context);
+  inst->setMetadata(
+      llvm::LLVMContext::MD_range,
+      llvm::MDNode::get(
+          context,
+          {llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(i32, lower)),
+           llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(i32, upper))}));
+  return inst;
 }
 
 std::string IrName(std::string_view a) {
