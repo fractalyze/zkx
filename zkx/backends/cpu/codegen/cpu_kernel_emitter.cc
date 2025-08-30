@@ -642,8 +642,8 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
       mlir::NameLoc::get(mlir::StringAttr::get(mlir_context_, instr_->name()));
   EmitterLocOpBuilder b(loc, mlir_context_);
 
-  mlir::OwningOpRef<mlir::ModuleOp> mlir_module(
-      mlir::ModuleOp::create(std::move(loc)));
+  mlir::OwningOpRef<mlir::ModuleOp> mlir_module =
+      llvm_ir::CreateMlirModuleOp(std::move(loc));
   b.setInsertionPointToEnd(mlir_module->getBody());
 
   TF_ASSIGN_OR_RETURN(llvm::SmallVector<mlir::Type> fn_arg_types,
