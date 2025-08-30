@@ -4,6 +4,7 @@ load("@zkx//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
 load("@zkx//third_party/farmhash:workspace.bzl", farmhash = "repo")
 load("@zkx//third_party/gloo:workspace.bzl", gloo = "repo")
+load("@zkx//third_party/gpus/cuda/hermetic:cuda_json_init_repository.bzl", "cuda_json_init_repository")
 load("@zkx//third_party/implib_so:workspace.bzl", implib_so = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
@@ -23,6 +24,8 @@ def zkx_deps():
     # Load the raw llvm-project.  llvm does not have build rules set up by default,
     # but provides a script for setting up build rules via overlays.
     llvm("llvm-raw")
+
+    cuda_json_init_repository()
 
     # TODO(chokobole): Delete after removing `build --noenable_bzlmod` from .bazelrc
     tf_http_archive(
