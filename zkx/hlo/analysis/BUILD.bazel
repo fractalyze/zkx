@@ -109,8 +109,8 @@ zkx_cc_library(
     ],
 )
 
-# TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
-# TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: HloHardwareIndependentTestBase
+# TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: FlattenCallGraph
+# TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: FlattenCallGraph
 zkx_cc_unittest(
     name = "analysis_unittests",
     srcs = [
