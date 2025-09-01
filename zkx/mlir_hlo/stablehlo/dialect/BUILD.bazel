@@ -1,6 +1,19 @@
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "base",
+    srcs = ["Base.cpp"],
+    hdrs = ["Base.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":base_attr_interfaces_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+    ],
+)
 
 gentbl_cc_library(
     name = "base_attr_interfaces_inc_gen",
