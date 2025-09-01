@@ -62,6 +62,7 @@ zkx_cc_library(
         "//zkx/codegen:kernel_emitter",
         "//zkx/codegen:llvm_ir_kernel_source",
         "//zkx/math/poly:root_of_unity",
+        "//zkx/mlir:mlir_utils",
         "//zkx/service:buffer_assignment",
         "//zkx/service/llvm_ir:llvm_util",
         "@com_google_absl//absl/container:flat_hash_map",

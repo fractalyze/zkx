@@ -1,0 +1,29 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "mlir_utils",
+    srcs = ["mlir_utils.cc"],
+    hdrs = ["mlir_utils.h"],
+    deps = [
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/math/elliptic_curves/bn/bn254:fr",
+        "//zkx/math/elliptic_curves/bn/bn254:g1",
+        "//zkx/math/elliptic_curves/bn/bn254:g2",
+        "//zkx/service/llvm_ir:llvm_util",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:MemRefDialect",
+        "@llvm-project//mlir:SparseTensorDialect",
+        "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@zkir//zkir/Dialect/ModArith/IR:ModArith",
+    ],
+)
