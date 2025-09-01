@@ -87,6 +87,8 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
                                    mlir::MLIRContext* context,
                                    bool use_montgomery) {
   switch (element_type) {
+    case PRED:
+      return mlir::IntegerType::get(context, 1);
     case S2:
     case U2:
       return mlir::IntegerType::get(context, 2);
@@ -94,7 +96,6 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
     case U4:
       return mlir::IntegerType::get(context, 4);
     case S8:
-    case PRED:
     case U8:
       return mlir::IntegerType::get(context, 8);
     case S16:
