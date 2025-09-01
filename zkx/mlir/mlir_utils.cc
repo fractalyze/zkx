@@ -21,25 +21,20 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
     case PRED:
     case S1:
     case U1:
-      return mlir::IntegerType::get(context, 1);
     case S2:
     case U2:
-      return mlir::IntegerType::get(context, 2);
     case S4:
     case U4:
-      return mlir::IntegerType::get(context, 4);
     case S8:
     case U8:
-      return mlir::IntegerType::get(context, 8);
     case S16:
     case U16:
-      return mlir::IntegerType::get(context, 16);
     case S32:
     case U32:
-      return mlir::IntegerType::get(context, 32);
     case S64:
     case U64:
-      return mlir::IntegerType::get(context, 64);
+      return mlir::IntegerType::get(context,
+                                    primitive_util::BitWidth(element_type));
     // TODO(chokobole): For Tuple, see the comments in
     // ShapeToMlirMemRefType().
     case TUPLE:
