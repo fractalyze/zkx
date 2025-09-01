@@ -191,6 +191,152 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_context",
+    srcs = ["cuda_context.cc"],
+    hdrs = ["cuda_context.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_status",
+        "//xla/tsl/platform:errors",
+        "//zkx/stream_executor/gpu:context",
+        "//zkx/stream_executor/gpu:context_map",
+        "//zkx/stream_executor/gpu:scoped_activate_context",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
+    name = "cuda_diagnostics",
+    srcs = ["cuda_diagnostics.cc"],
+    hdrs = ["cuda_diagnostics.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:host_info",
+        "//zkx/stream_executor/gpu:gpu_diagnostics",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "cuda_event",
+    srcs = ["cuda_event.cc"],
+    hdrs = ["cuda_event.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_status",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:activate_context",
+        "//zkx/stream_executor:event",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/status:statusor",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
+    name = "cuda_kernel",
+    srcs = ["cuda_kernel.cc"],
+    hdrs = ["cuda_kernel.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_status",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:activate_context",
+        "//zkx/stream_executor:kernel",
+        "//zkx/stream_executor:stream",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
+    name = "cuda_platform_id",
+    srcs = ["cuda_platform_id.cc"],
+    hdrs = ["cuda_platform_id.h"],
+    deps = ["//zkx/stream_executor:platform"],
+)
+
+zkx_cc_library(
+    name = "cuda_status",
+    srcs = ["cuda_status.cc"],
+    hdrs = ["cuda_status.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
+    name = "cuda_stream",
+    srcs = ["cuda_stream.cc"],
+    hdrs = ["cuda_stream.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_context",
+        ":cuda_event",
+        ":cuda_status",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor:activate_context",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:event",
+        "//zkx/stream_executor:event_based_timer",
+        "//zkx/stream_executor:launch_dim",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:stream",
+        "//zkx/stream_executor:stream_common",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "cuda_version_parser",
     srcs = ["cuda_version_parser.cc"],
     hdrs = ["cuda_version_parser.h"],
@@ -430,6 +576,12 @@ zkx_cc_unittest(
         "compilation_provider_options_unittest.cc",
         "composite_compilation_provider_unittest.cc",
         "cuda_compute_capability_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
+        # "cuda_event_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
+        # "cuda_kernel_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
+        # "cuda_stream_unittest.cc",
         "cuda_version_parser_unittest.cc",
         "defer_relocatable_compilation_compilation_provider_unittest.cc",
         "nvjitlink_known_issues_unittest.cc",

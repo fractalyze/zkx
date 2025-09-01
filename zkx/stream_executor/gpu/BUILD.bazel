@@ -34,6 +34,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_diagnostics",
+    hdrs = ["gpu_diagnostics.h"],
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "gpu_executor",
     hdrs = ["gpu_executor.h"],
     deps = [
