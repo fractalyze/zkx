@@ -1,0 +1,31 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+
+package(default_visibility = ["//visibility:public"])
+
+gentbl_cc_library(
+    name = "base_attr_interfaces_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-attr-interface-decls"],
+            "BaseAttrInterfaces.h.inc",
+        ),
+        (
+            ["-gen-attr-interface-defs"],
+            "BaseAttrInterfaces.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "Base.td",
+    deps = [":ops_td_files"],
+)
+
+td_library(
+    name = "base_td_files",
+    srcs = ["Base.td"],
+    includes = ["."],
+    deps = [
+        "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+    ],
+)
