@@ -1,0 +1,69 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+
+package(default_visibility = ["//visibility:public"])
+
+td_library(
+    name = "hlo_ops_td_files",
+    srcs = glob(["*.td"]),
+    includes = ["."],
+    deps = [
+        "//zkx/mlir_hlo/stablehlo/dialect:base_td_files",
+        "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:SideEffectInterfacesTdFiles",
+    ],
+)
+
+gentbl_cc_library(
+    name = "hlo_ops_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-op-decls"],
+            "hlo_ops.h.inc",
+        ),
+        (
+            ["-gen-op-defs"],
+            "hlo_ops.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "hlo_ops.td",
+    deps = [":hlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "hlo_ops_attrs_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-attrdef-decls"],
+            "hlo_ops_attrs.h.inc",
+        ),
+        (
+            ["-gen-attrdef-defs"],
+            "hlo_ops_attrs.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "hlo_ops.td",
+    deps = [":hlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "hlo_ops_enums_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-enum-decls"],
+            "hlo_ops_enums.h.inc",
+        ),
+        (
+            ["-gen-enum-defs"],
+            "hlo_ops_enums.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "hlo_ops.td",
+    deps = [":hlo_ops_td_files"],
+)
