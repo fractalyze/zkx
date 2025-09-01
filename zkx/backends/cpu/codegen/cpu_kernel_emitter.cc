@@ -76,7 +76,6 @@ limitations under the License.
 #include "zkx/base/bits.h"
 #include "zkx/base/logging.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
-#include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/layout_util.h"
 #include "zkx/math/poly/root_of_unity.h"
 #include "zkx/primitive_util.h"
