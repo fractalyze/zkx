@@ -23,14 +23,17 @@ limitations under the License.
 
 #include "llvm/ADT/APSInt.h"
 #include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/DialectInterface.h"
+#include "mlir/IR/Region.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
@@ -155,6 +158,74 @@ ArrayRef<int64_t> encodingToBounds(Attribute encoding);
 // bounds. Requires a prototype - an existing encoding attribute - to obtain
 // the underlying dialect that knows how to create these attributes.
 Attribute boundsToEncoding(Attribute prototype, ArrayRef<int64_t> bounds);
+
+namespace OpTrait {
+
+template <typename ConcreteType>
+class CompatibleOperandsAndResultType
+    : public mlir::OpTrait::TraitBase<ConcreteType,
+                                      CompatibleOperandsAndResultType> {
+ public:
+  static LogicalResult verifyTrait(Operation *op) {
+    Type expected;
+    if (op->getNumResults() != 0) expected = op->getResult(0).getType();
+    if (op->getNumOperands() != 0) expected = op->getOperand(0).getType();
+    if (!expected) return failure();
+
+    auto typeMatch = [&](Type actual) {
+      return isCompatibleForHloTypeInference(actual, expected);
+    };
+    bool allMatch = llvm::all_of(op->getOperandTypes(), typeMatch) &&
+                    llvm::all_of(op->getResultTypes(), typeMatch);
+    if (!allMatch) {
+      return op->emitOpError(
+          "requires compatible types for all operands and results");
+    }
+
+    return success(allMatch);
+  }
+
+  static LogicalResult inferReturnTypes(
+      MLIRContext * /*context*/, std::optional<Location> location,
+      ValueRange operands, DictionaryAttr /*attributes*/,
+      OpaqueProperties /*properties*/, RegionRange /*regions*/,
+      SmallVectorImpl<Type> &inferredReturnTypes) {
+    // TODO(b/231358795): Review the use of InferTypeOpInterface for ops that
+    // support sparsity.
+    if (operands.empty())
+      return emitOptionalError(
+          location,
+          "Expected non-empty operands for [CompatibleOperandsAndResultType]");
+
+    FailureOr<Type> inferredTypeOrErr =
+        inferMostSpecificType(location, operands.getTypes());
+    if (failed(inferredTypeOrErr)) return failure();
+    inferredReturnTypes.emplace_back(*inferredTypeOrErr);
+    return success();
+  }
+
+  // This function is not going to be called automatically.
+  // It needs to be paired with INFER_RETURN_TYPE_COMPONENTS_FROM_OPERANDS
+  // (see examples in StablehloOps.cpp).
+  static LogicalResult inferReturnTypeComponentsFromOperands(
+      MLIRContext *context, std::optional<Location> location,
+      ValueShapeRange operands, DictionaryAttr attributes,
+      OpaqueProperties properties, RegionRange regions,
+      SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
+    SmallVector<Type> inferredReturnTypes;
+    if (failed(inferReturnTypes(context, location, operands.getValues(),
+                                attributes, properties, regions,
+                                inferredReturnTypes)))
+      return failure();
+    if (inferredReturnTypes.size() != 1) return failure();
+    auto inferredReturnType = dyn_cast<ShapedType>(inferredReturnTypes[0]);
+    if (!inferredReturnType) return failure();
+    inferredReturnShapes.push_back(inferredReturnType);
+    return success();
+  }
+};
+
+}  // namespace OpTrait
 
 // This interface is implemented by both StableHLO and MHLO dialects
 // and is used as the foundation for sharing verification, type inference and
