@@ -93,7 +93,7 @@ absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> GetRootOfUnityAttr(
   TF_ASSIGN_OR_RETURN(T root_of_unity, math::GetRootOfUnity<T>(fft_length));
   return mlir::zkir::field::RootOfUnityAttr::get(
       mlir_context, /*root=*/
-      mlir_utils::GetMLIRPrimeFieldAttr(mlir_context, root_of_unity,
+      mlir_utils::GetMlirPrimeFieldAttr(mlir_context, root_of_unity,
                                         /*use_montgomery=*/false),
       /*degree=*/
       mlir::IntegerAttr::get(mlir::IntegerType::get(mlir_context, 64),
@@ -105,22 +105,22 @@ absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,
   bool use_montgomery = shape.layout().is_montgomery_form();
   switch (shape.element_type()) {
     case BN254_G1_AFFINE:
-      return mlir_utils::CreateMLIREcPointConstant(
+      return mlir_utils::CreateMlirEcPointConstant(
           b, math::bn254::G1AffinePoint::Zero(), use_montgomery);
     case BN254_G1_JACOBIAN:
-      return mlir_utils::CreateMLIREcPointConstant(
+      return mlir_utils::CreateMlirEcPointConstant(
           b, math::bn254::G1JacobianPoint::Zero(), use_montgomery);
     case BN254_G1_XYZZ:
-      return mlir_utils::CreateMLIREcPointConstant(
+      return mlir_utils::CreateMlirEcPointConstant(
           b, math::bn254::G1PointXyzz::Zero(), use_montgomery);
     case BN254_G2_AFFINE:
-      return mlir_utils::CreateMLIREcPointConstant(
+      return mlir_utils::CreateMlirEcPointConstant(
           b, math::bn254::G2AffinePoint::Zero(), use_montgomery);
     case BN254_G2_JACOBIAN:
-      return mlir_utils::CreateMLIREcPointConstant(
+      return mlir_utils::CreateMlirEcPointConstant(
           b, math::bn254::G2JacobianPoint::Zero(), use_montgomery);
     case BN254_G2_XYZZ:
-      return mlir_utils::CreateMLIREcPointConstant(
+      return mlir_utils::CreateMlirEcPointConstant(
           b, math::bn254::G2PointXyzz::Zero(), use_montgomery);
     default:
       return absl::InvalidArgumentError(absl::StrFormat(
@@ -379,11 +379,11 @@ CpuKernelEmitter::MakeFuncArguments() const {
     const HloInstruction* operand = instr_->operand(i);
     const Shape& shape = operand->shape();
     if (LayoutUtil::IsSparseArray(shape)) {
-      args.push_back(mlir_utils::ShapeToMLIRMemRefType(
+      args.push_back(mlir_utils::ShapeToMlirMemRefType(
           ShapeUtil::MakeShape(U8, {ShapeUtil::SparseArrayDataSize(shape)}),
           mlir_context_));
     } else {
-      args.push_back(mlir_utils::ShapeToMLIRMemRefType(shape, mlir_context_));
+      args.push_back(mlir_utils::ShapeToMlirMemRefType(shape, mlir_context_));
     }
   }
   return std::move(args);
@@ -397,7 +397,7 @@ CpuKernelEmitter::MakeFuncReturnTypes() const {
   }
   llvm::SmallVector<mlir::Type> ret;
   ret.push_back(
-      mlir_utils::ShapeToMLIRMemRefType(instr_->shape(), mlir_context_));
+      mlir_utils::ShapeToMlirMemRefType(instr_->shape(), mlir_context_));
   return std::move(ret);
 }
 
@@ -425,33 +425,33 @@ mlir::Value CpuKernelEmitter::EmitCSROperand(EmitterLocOpBuilder& b,
   LayoutUtil::SetToDefaultLayout(&values_array_shape);
 
   auto row_ptrs_memref = b.create<mlir::memref::ViewOp>(
-      mlir_utils::ShapeToMLIRMemRefType(row_ptrs_shape, mlir_context_),
+      mlir_utils::ShapeToMlirMemRefType(row_ptrs_shape, mlir_context_),
       entry_block->getArgument(i), offset0_op, mlir::ValueRange{});
   auto col_indices_memref = b.create<mlir::memref::ViewOp>(
-      mlir_utils::ShapeToMLIRMemRefType(col_indices_shape, mlir_context_),
+      mlir_utils::ShapeToMlirMemRefType(col_indices_shape, mlir_context_),
       entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
   auto values_array_memref = b.create<mlir::memref::ViewOp>(
-      mlir_utils::ShapeToMLIRMemRefType(values_array_shape, mlir_context_),
+      mlir_utils::ShapeToMlirMemRefType(values_array_shape, mlir_context_),
       entry_block->getArgument(i), offset2_op, mlir::ValueRange{});
 
   auto row_ptrs = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMLIRTensorType(row_ptrs_shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(row_ptrs_shape, mlir_context_),
       row_ptrs_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto col_indices = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMLIRTensorType(col_indices_shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(col_indices_shape, mlir_context_),
       col_indices_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto values_array = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMLIRTensorType(values_array_shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(values_array_shape, mlir_context_),
       values_array_memref,
       /*restrict=*/true,
       /*writable=*/false);
 
   return b.create<mlir::sparse_tensor::AssembleOp>(
-      mlir_utils::ShapeToMLIRTensorType(shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(shape, mlir_context_),
       mlir::ValueRange{row_ptrs, col_indices}, values_array);
 }
 
@@ -479,33 +479,33 @@ mlir::Value CpuKernelEmitter::EmitCSCOperand(EmitterLocOpBuilder& b,
   LayoutUtil::SetToDefaultLayout(&values_array_shape);
 
   auto col_ptrs_memref = b.create<mlir::memref::ViewOp>(
-      mlir_utils::ShapeToMLIRMemRefType(col_ptrs_shape, mlir_context_),
+      mlir_utils::ShapeToMlirMemRefType(col_ptrs_shape, mlir_context_),
       entry_block->getArgument(i), offset0_op, mlir::ValueRange{});
   auto row_indices_memref = b.create<mlir::memref::ViewOp>(
-      mlir_utils::ShapeToMLIRMemRefType(row_indices_shape, mlir_context_),
+      mlir_utils::ShapeToMlirMemRefType(row_indices_shape, mlir_context_),
       entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
   auto values_array_memref = b.create<mlir::memref::ViewOp>(
-      mlir_utils::ShapeToMLIRMemRefType(values_array_shape, mlir_context_),
+      mlir_utils::ShapeToMlirMemRefType(values_array_shape, mlir_context_),
       entry_block->getArgument(i), offset2_op, mlir::ValueRange{});
 
   auto col_ptrs = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMLIRTensorType(col_ptrs_shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(col_ptrs_shape, mlir_context_),
       col_ptrs_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto row_indices = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMLIRTensorType(row_indices_shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(row_indices_shape, mlir_context_),
       row_indices_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto values_array = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMLIRTensorType(values_array_shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(values_array_shape, mlir_context_),
       values_array_memref,
       /*restrict=*/true,
       /*writable=*/false);
 
   return b.create<mlir::sparse_tensor::AssembleOp>(
-      mlir_utils::ShapeToMLIRTensorType(shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(shape, mlir_context_),
       mlir::ValueRange{col_ptrs, row_indices}, values_array);
 }
 
@@ -537,25 +537,25 @@ mlir::Value CpuKernelEmitter::EmitCOOOperand(EmitterLocOpBuilder& b,
   LayoutUtil::SetToDefaultLayout(&values_array_shape);
 
   auto indices_memref = b.create<mlir::memref::ViewOp>(
-      mlir_utils::ShapeToMLIRMemRefType(indices_shape, mlir_context_),
+      mlir_utils::ShapeToMlirMemRefType(indices_shape, mlir_context_),
       entry_block->getArgument(i), offset0_op, mlir::ValueRange{});
   auto values_array_memref = b.create<mlir::memref::ViewOp>(
-      mlir_utils::ShapeToMLIRMemRefType(values_array_shape, mlir_context_),
+      mlir_utils::ShapeToMlirMemRefType(values_array_shape, mlir_context_),
       entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
 
   auto indices = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMLIRTensorType(indices_shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(indices_shape, mlir_context_),
       indices_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto values_array = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMLIRTensorType(values_array_shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(values_array_shape, mlir_context_),
       values_array_memref,
       /*restrict=*/true,
       /*writable=*/false);
 
   return b.create<mlir::sparse_tensor::AssembleOp>(
-      mlir_utils::ShapeToMLIRTensorType(shape, mlir_context_),
+      mlir_utils::ShapeToMlirTensorType(shape, mlir_context_),
       mlir::ValueRange{positions, indices}, values_array);
 }
 
@@ -586,7 +586,7 @@ CpuKernelEmitter::EmitOperands(EmitterLocOpBuilder& b,
       pass_flag_.enable_one_shot_bufferize = true;
 
       values[operand] = b.create<mlir::bufferization::ToTensorOp>(
-          mlir_utils::ShapeToMLIRTensorType(shape, mlir_context_),
+          mlir_utils::ShapeToMlirTensorType(shape, mlir_context_),
           entry_block->getArgument(i),
           /*restrict=*/true,
           /*writable=*/false);
@@ -736,7 +736,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointUnaryOp(
         return value;
       }
       return b.create<mlir::zkir::elliptic_curve::ConvertPointTypeOp>(
-          mlir_utils::PrimitiveTypeToMLIRType(
+          mlir_utils::PrimitiveTypeToMlirType(
               to, b.getContext(),
               instr->operand(0)->shape().layout().is_montgomery_form()),
           value);
@@ -830,7 +830,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     mlir::Value rhs_value) {
   const Shape& shape = instr->shape();
   mlir::Type ret_type =
-      mlir_utils::PrimitiveTypeToMLIRType(shape.element_type(), b.getContext(),
+      mlir_utils::PrimitiveTypeToMlirType(shape.element_type(), b.getContext(),
                                           shape.layout().is_montgomery_form());
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
@@ -899,7 +899,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   pass_flag_.enable_tensor_ext_to_tensor = true;
 
   auto alloc_tensor = b.create<mlir::bufferization::AllocTensorOp>(
-      mlir_utils::ShapeToMLIRTensorType(instr->shape(), b.getContext()),
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
       mlir::ValueRange{});
   switch (instr->fft_type()) {
     case FftType::FFT: {
@@ -933,7 +933,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     int32_t window_bits = instr->window_bits();
 
     const Shape& shape = instr->shape();
-    auto result_type = mlir_utils::PrimitiveTypeToMLIRType(
+    auto result_type = mlir_utils::PrimitiveTypeToMlirType(
         shape.element_type(), b.getContext(),
         shape.layout().is_montgomery_form());
     if (num_scalar_mul < num_threads) {
@@ -1068,7 +1068,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
   };
 
   auto init = b.create<mlir::tensor::EmptyOp>(
-      mlir_utils::ShapeToMLIRTensorType(instr->shape(), b.getContext()),
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
       mlir::ValueRange{});
 
   switch (instr->opcode()) {
@@ -1082,7 +1082,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
             return absl::InternalError("input is not a memref");
           }
           input = b.create<mlir::bufferization::ToTensorOp>(
-              mlir_utils::ShapeToMLIRTensorType(input_instr->shape(),
+              mlir_utils::ShapeToMlirTensorType(input_instr->shape(),
                                                 b.getContext()),
               load.getMemref(),
               /*restrict=*/true,
@@ -1114,7 +1114,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
 
   mlir::MLIRContext* ctx = lhs.getContext();
   auto result_type = mlir::cast<mlir::RankedTensorType>(
-      mlir_utils::ShapeToMLIRTensorType(instr->shape(), ctx));
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), ctx));
   CHECK(result_type);
   llvm::SmallVector<int64_t> shapes;
   for (int64_t i = 0; i < instr->shape().dimensions_size(); ++i) {
@@ -1223,7 +1223,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
   }
 
   auto result_type = mlir::dyn_cast<mlir::RankedTensorType>(
-      mlir_utils::ShapeToMLIRTensorType(shape, b.getContext()));
+      mlir_utils::ShapeToMlirTensorType(shape, b.getContext()));
   CHECK(result_type);
 
   llvm::SmallVector<mlir::OpFoldResult> offsets;

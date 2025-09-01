@@ -14,7 +14,7 @@
 
 namespace zkx::mlir_utils {
 
-mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
+mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
                                    mlir::MLIRContext* context,
                                    bool use_montgomery) {
   switch (element_type) {
@@ -41,7 +41,7 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
     case U64:
       return mlir::IntegerType::get(context, 64);
     // TODO(chokobole): For Tuple, see the comments in
-    // ShapeToMLIRMemRefType().
+    // ShapeToMlirMemRefType().
     case TUPLE:
     // An Opaque is like a void*, use i8*.
     case OPAQUE_TYPE:
@@ -51,31 +51,31 @@ mlir::Type PrimitiveTypeToMLIRType(PrimitiveType element_type,
       // some placeholder type, so use int8_t*.
       return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
     case BN254_SCALAR:
-      return GetMLIRPrimeFieldType<math::bn254::Fr>(context, use_montgomery);
+      return GetMlirPrimeFieldType<math::bn254::Fr>(context, use_montgomery);
     case BN254_G1_AFFINE:
-      return GetMLIRAffinePointType<math::bn254::G1AffinePoint>(context,
+      return GetMlirAffinePointType<math::bn254::G1AffinePoint>(context,
                                                                 use_montgomery);
     case BN254_G1_JACOBIAN:
-      return GetMLIRJacobianPointType<math::bn254::G1JacobianPoint>(
+      return GetMlirJacobianPointType<math::bn254::G1JacobianPoint>(
           context, use_montgomery);
     case BN254_G1_XYZZ:
-      return GetMLIRPointXyzzType<math::bn254::G1PointXyzz>(context,
+      return GetMlirPointXyzzType<math::bn254::G1PointXyzz>(context,
                                                             use_montgomery);
     case BN254_G2_AFFINE:
-      return GetMLIRAffinePointType<math::bn254::G2AffinePoint>(context,
+      return GetMlirAffinePointType<math::bn254::G2AffinePoint>(context,
                                                                 use_montgomery);
     case BN254_G2_JACOBIAN:
-      return GetMLIRJacobianPointType<math::bn254::G2JacobianPoint>(
+      return GetMlirJacobianPointType<math::bn254::G2JacobianPoint>(
           context, use_montgomery);
     case BN254_G2_XYZZ:
-      return GetMLIRPointXyzzType<math::bn254::G2PointXyzz>(context,
+      return GetMlirPointXyzzType<math::bn254::G2PointXyzz>(context,
                                                             use_montgomery);
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }
 }
 
-mlir::Type PrimitiveTypeToMLIRTypeWithSign(PrimitiveType element_type,
+mlir::Type PrimitiveTypeToMlirTypeWithSign(PrimitiveType element_type,
                                            mlir::MLIRContext* context,
                                            bool use_montgomery) {
   if (element_type == PRED) {
@@ -91,16 +91,16 @@ mlir::Type PrimitiveTypeToMLIRTypeWithSign(PrimitiveType element_type,
   }
   // Delegate to the other function for non-integer and signed integer
   // types.
-  return PrimitiveTypeToMLIRType(element_type, context, use_montgomery);
+  return PrimitiveTypeToMlirType(element_type, context, use_montgomery);
 }
 
-mlir::MemRefType ShapeToMLIRMemRefType(const Shape& shape,
+mlir::MemRefType ShapeToMlirMemRefType(const Shape& shape,
                                        mlir::MLIRContext* context) {
   CHECK(shape.IsArray());
   CHECK(shape.is_static())
-      << "ShapeToMLIRMemRefType only supports static shapes.";
+      << "ShapeToMlirMemRefType only supports static shapes.";
   const Layout& layout = shape.layout();
-  mlir::Type element_type = PrimitiveTypeToMLIRType(
+  mlir::Type element_type = PrimitiveTypeToMlirType(
       shape.element_type(), context,
       layout.has_is_montgomery_form() && layout.is_montgomery_form());
   // TODO(chokobole): Take `major_to_minor` into account.
@@ -138,11 +138,11 @@ mlir::DenseIntElementsAttr CreateDenseIntElementsAttrFromVector(
 
 }  // namespace
 
-mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
+mlir::RankedTensorType ShapeToMlirTensorType(const Shape& shape,
                                              mlir::MLIRContext* context) {
   CHECK(shape.IsArray());
   const Layout& layout = shape.layout();
-  mlir::Type element_type = PrimitiveTypeToMLIRType(
+  mlir::Type element_type = PrimitiveTypeToMlirType(
       shape.element_type(), context,
       layout.has_is_montgomery_form() && layout.is_montgomery_form());
 
@@ -202,11 +202,11 @@ mlir::RankedTensorType ShapeToMLIRTensorType(const Shape& shape,
   }
 }
 
-std::vector<mlir::Type> ShapeToMLIRTensorTypes(const Shape& shape,
+std::vector<mlir::Type> ShapeToMlirTensorTypes(const Shape& shape,
                                                mlir::MLIRContext* context) {
   std::vector<mlir::Type> types;
   for (int i = 0; i < shape.tuple_shapes_size(); ++i) {
-    types.push_back(ShapeToMLIRTensorType(shape.tuple_shapes(i), context));
+    types.push_back(ShapeToMlirTensorType(shape.tuple_shapes(i), context));
   }
   return types;
 }
