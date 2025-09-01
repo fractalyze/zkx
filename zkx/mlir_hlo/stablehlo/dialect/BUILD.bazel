@@ -4,6 +4,19 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "assembly_format",
+    srcs = ["AssemblyFormat.cpp"],
+    hdrs = ["AssemblyFormat.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":base",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "base",
     srcs = ["Base.cpp"],
     hdrs = ["Base.h"],
