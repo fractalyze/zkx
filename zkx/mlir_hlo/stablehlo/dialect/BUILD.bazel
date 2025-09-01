@@ -25,6 +25,7 @@ zkx_cc_library(
         ":base_attr_interfaces_inc_gen",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
     ],
 )
 
