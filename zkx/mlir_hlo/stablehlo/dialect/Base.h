@@ -19,6 +19,8 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <optional>
+
 #include "llvm/ADT/APSInt.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
@@ -26,8 +28,10 @@ limitations under the License.
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/DialectInterface.h"
+#include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
+#include "mlir/Interfaces/InferTypeOpInterface.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 
@@ -77,6 +81,49 @@ bool isCompatibleForHloTypeInference(Value shape1, Type tp2);
 // Returns true if the given shape, expressed as a slice of integers, is
 // compatible with the given type for the purposes of HLO type inference.
 bool isCompatibleForHloTypeInference(ArrayRef<int64_t> shape1, Type tp2);
+
+// Inference rules to merge dimensions with bounds (lhs/rhs are commutative):
+//       Dim of lhs     Dim of rhs      Infer
+//  c0:  X              X               X
+//  c1:  X              ?               X
+//  c2:  X              ?, B(>=X)       X
+//  c3:  X              ?, B(<X)        Will error out by compatible checks
+//  c4:  ?              ?               ?
+//  c5:  ?              ?, B            ?, B
+//  c6:  ?, B           ?, C            ?, min(B, C)
+FailureOr<std::pair<int64_t, int64_t>> inferMostSpecificDimAndBound(
+    std::optional<Location> location, int64_t dim, int64_t leftSize,
+    int64_t rightSize, int64_t leftBound, int64_t rightBound);
+
+// Inference rules for conditional branches (lhs/rhs are commutative):
+//       Dim of lhs     Dim of rhs      Infer
+//  c0:  X              X               X
+//  c1:  X              ?               ?
+//  c2:  X              ?, B            ?, max(X, B)
+//  c3:  ?              ?               ?
+//  c4:  ?              ?, B            ?
+//  c5:  ?, B           ?, C            ?, max(B, C)
+FailureOr<std::pair<int64_t, int64_t>> inferLeastSpecificDimAndBound(
+    std::optional<Location> location, int64_t dim, int64_t leftSize,
+    int64_t rightSize, int64_t leftBound, int64_t rightBound);
+
+// Infer single least specific return type from inputTypes with support for
+// bounds. (Size, bound) of each dimension of the return type will be merged
+// from corresponding dimensions of every inputType by extracting the least
+// specific one. Return unranked tensor if any input is unranked.
+FailureOr<Type> inferLeastSpecificType(std::optional<Location> location,
+                                       TypeRange inputTypes);
+
+// Infer single most specific return type from inputTypes with support for
+// bounds. (Size, bound) of each dimension of the return type will be merged
+// from corresponding dimensions of every inputType by extracting the most
+// specific one. Return unranked tensor if all inputs are unranked.
+FailureOr<Type> inferMostSpecificType(std::optional<Location> location,
+                                      TypeRange inputTypes);
+
+LogicalResult inferMostSpecificTypeComponents(
+    std::optional<Location> location, TypeRange inputTypes,
+    SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes);
 
 // Matches a constant with integer value into int64_t.
 LogicalResult matchInt(Value value, int64_t &result);
