@@ -20,8 +20,8 @@ limitations under the License.
 #include <string>
 #include <utility>
 
-#include "absl/container/btree_map.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "llvm/ADT/SmallVector.h"
@@ -36,9 +36,6 @@ limitations under the License.
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/base/logging.h"
-#include "zkx/cpu_function_runtime.h"
-#include "zkx/service/llvm_ir/llvm_util.h"
 #include "zkx/shape_util.h"
 
 namespace zkx::cpu {
