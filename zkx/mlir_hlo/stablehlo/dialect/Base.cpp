@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "mlir/Dialect/Shape/IR/Shape.h"
 #include "mlir/IR/Matchers.h"
 #include "mlir/IR/TypeUtilities.h"
 
@@ -149,6 +150,19 @@ LogicalResult matchInts(Value value, SmallVector<APSInt>& result) {
 LogicalResult matchInts(Value value) {
   DenseIntElementsAttr attr;
   return success(/*isSuccess=*/matchPattern(value, m_Constant(&attr)));
+}
+
+LogicalResult deriveShapeFromOperand(
+    OpBuilder* builder, Operation* op, Value operand,
+    SmallVectorImpl<Value>* reifiedReturnShapes) {
+  auto shapedTy = dyn_cast<ShapedType>(operand.getType());
+  if (!shapedTy) {
+    op->emitOpError() << "operand is not a shaped type";
+    return failure();
+  }
+  reifiedReturnShapes->assign(
+      {builder->create<shape::ShapeOfOp>(op->getLoc(), operand)});
+  return success();
 }
 
 //===----------------------------------------------------------------------===//
