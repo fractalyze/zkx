@@ -29,3 +29,15 @@ td_library(
         "@llvm-project//mlir:OpBaseTdFiles",
     ],
 )
+
+td_library(
+    name = "ops_td_files",
+    srcs = ["StablehloAttrs.td"],
+    includes = ["."],
+    deps = [
+        ":base_td_files",
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:ShapeOpsTdFiles",
+    ],
+)
