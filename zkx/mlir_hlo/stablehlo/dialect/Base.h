@@ -145,6 +145,21 @@ LogicalResult matchInts(Value value, SmallVector<APSInt> &result);
 // that the given argument is indeed a constant tensor with integer values.
 LogicalResult matchInts(Value value);
 
+// Shape derivation function that computes the shape of the result based on an
+// operand. For a 2-dimensional input tensor, this produces IR of the form
+//
+//  %0 = dim %arg0, 0 : memref<?x?xf32>
+//  %1 = index_cast %0 : index to i64
+//  %2 = dim %arg0, 1 : memref<?x?xf32>
+//  %3 = index_cast %2 : index to i64
+//  %4 = "shape.shape_of"(%1, %3)
+//    : (i64, i64) -> tensor<2xi64>
+//
+// and returns %4 as the shape value.
+LogicalResult deriveShapeFromOperand(
+    OpBuilder *builder, Operation *op, Value operand,
+    SmallVectorImpl<Value> *reifiedReturnShapes);
+
 // Verify bounds expressed by HLO_BoundedAttrInterface against the provided
 // type. See documentation for HLO_BoundedAttrInterface for the list of checks.
 LogicalResult verifyBounds(ArrayRef<int64_t> bounds, RankedTensorType type,
