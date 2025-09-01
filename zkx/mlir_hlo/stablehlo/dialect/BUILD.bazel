@@ -67,3 +67,18 @@ td_library(
         "@llvm-project//mlir:ShapeOpsTdFiles",
     ],
 )
+
+zkx_cc_library(
+    name = "type_inference",
+    srcs = ["TypeInference.cpp"],
+    hdrs = ["TypeInference.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":assembly_format",
+        ":base",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Support",
+    ],
+)
