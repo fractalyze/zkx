@@ -27,6 +27,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_root_path",
+    srcs = ["cuda_root_path.cc"],
+    hdrs = ["cuda_root_path.h"],
+    deps = [
+        ":env",
+        ":path",
+        ":platform",
+        "@com_google_absl//absl/log",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "dso_loader",
     srcs = ["dso_loader.cc"],
     hdrs = ["dso_loader.h"],
@@ -327,5 +340,6 @@ zkx_cc_unittest(
         ":str_util",
         ":subprocess",
         ":test_util",
+        "//zkx/base/test:scoped_environment",
     ],
 )

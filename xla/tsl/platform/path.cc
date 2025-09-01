@@ -239,6 +239,21 @@ std::string CreateURI(std::string_view scheme, std::string_view host,
   return absl::StrCat(scheme, "://", host, path);
 }
 
+bool GetTestWorkspaceDir(std::string* dir) {
+  const char* srcdir = getenv("TEST_SRCDIR");
+  if (srcdir == nullptr) {
+    return false;
+  }
+  const char* workspace = getenv("TEST_WORKSPACE");
+  if (workspace == nullptr) {
+    return false;
+  }
+  if (dir != nullptr) {
+    *dir = tsl::io::JoinPath(srcdir, workspace);
+  }
+  return true;
+}
+
 bool GetTestUndeclaredOutputsDir(std::string* dir) {
   const char* outputs_dir = getenv("TEST_UNDECLARED_OUTPUTS_DIR");
   if (outputs_dir == nullptr) {

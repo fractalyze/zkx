@@ -154,6 +154,15 @@ The following usages of `XLA` are explicitly allowed:
    #include "xla/tsl/platform/env_time.h"
    ```
 
+1. **Header guard**
+
+   ```c++
+   #ifndef XLA_TSL_PLATFORM_CUDA_ROOT_PATH_H_
+   #define XLA_TSL_PLATFORM_CUDA_ROOT_PATH_H_
+
+   #endif XLA_TSL_PLATFORM_CUDA_ROOT_PATH_H_
+   ```
+
 1. **Bazel dependencies/labels**
 
    ```bazel
@@ -161,6 +170,13 @@ The following usages of `XLA` are explicitly allowed:
        "//xla/tsl/platform:env",
    ]
    ```
+
+1. **Widely used macros**: Macros starting with the `TF_` prefix are allowed
+   as-is, since they are part of the established XLA/TSL API surface.
+
+   - `TF_RETURN_IF_ERROR`
+   - `TF_ASSIGN_OR_RETURN`
+   - ...
 
 1. **Explicit external references** in comments or documentation (e.g., “ported
    from XLA …”).
