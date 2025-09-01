@@ -25,25 +25,15 @@ jobs:
 
       - name: Run cpu `bazel test`
         run: |
-          bazel test \
-            --remote_cache=grpc://127.0.0.1:9092 \
-            --action_env=CC=/usr/bin/clang \
-            --action_env=CXX=/usr/bin/clang++ \
-            --action_env=LOCAL_CUDA_PATH=/usr/local/cuda-12.9 \
+          bazel --bazelrc=.bazelrc.ci test \
             --config=ci \
-            --test_output=errors \
             //...
 
       - name: Run gpu `bazel test`
         run: |
-          bazel test \
-            --remote_cache=grpc://127.0.0.1:9092 \
-            --action_env=CC=/usr/bin/clang \
-            --action_env=CXX=/usr/bin/clang++ \
-            --action_env=LOCAL_CUDA_PATH=/usr/local/cuda-12.9 \
-            --config=cuda_clang \
+          bazel --bazelrc=.bazelrc.ci test \
             --config=ci \
-            --test_output=errors \
+            --config=cuda_clang \
             //...
 
   pre-commit-style:
