@@ -6,6 +6,12 @@ def if_libnvptxcompiler_support_enabled(a, b = []):
         "//conditions:default": b,
     })
 
+def if_libnvjitlink_support_enabled(a, b = []):
+    return select({
+        "//zkx/stream_executor/cuda:libnvjitlink_support_enabled": a,
+        "//conditions:default": b,
+    })
+
 def _stage_in_bin_subdirectory_impl(ctx):
     if len(ctx.files.data) != 1:
         fail("Expected exactly one data dependency.")

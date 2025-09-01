@@ -1,9 +1,11 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda_newer_than")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 load(
     ":build_defs.bzl",
+    "if_libnvjitlink_support_enabled",
     "if_libnvptxcompiler_support_enabled",
     "stage_in_bin_subdirectory",
 )
@@ -15,10 +17,22 @@ bool_flag(
     build_setting_default = False,
 )
 
+bool_flag(
+    name = "enable_libnvjitlink_support",
+    build_setting_default = False,
+)
+
 config_setting(
     name = "libnvptxcompiler_support_enabled",
     flag_values = {
         ":enable_libnvptxcompiler_support": "True",
+    },
+)
+
+config_setting(
+    name = "libnvjitlink_support_enabled",
+    flag_values = {
+        ":enable_libnvjitlink_support": "True",
     },
 )
 
@@ -58,6 +72,56 @@ stage_in_bin_subdirectory(
 )
 
 zkx_cc_library(
+    name = "assemble_compilation_provider",
+    srcs = ["assemble_compilation_provider.cc"],
+    hdrs = ["assemble_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        ":compilation_provider_options",
+        ":composite_compilation_provider",
+        ":defer_relocatable_compilation_compilation_provider",
+        ":nvjitlink_compilation_provider",
+        ":nvjitlink_known_issues",
+        ":nvjitlink_support",
+        ":nvptxcompiler_compilation_provider",
+        ":ptx_compiler_support",
+        ":subprocess_compilation",
+        ":subprocess_compilation_provider",
+        "//zkx/stream_executor:namespace_alias",
+        "//zkx/stream_executor:semantic_version",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "caching_compilation_provider",
+    srcs = ["caching_compilation_provider.cc"],
+    hdrs = ["caching_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "composite_compilation_provider",
+    srcs = ["composite_compilation_provider.cc"],
+    hdrs = ["composite_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "compilation_options",
     hdrs = ["compilation_options.h"],
     deps = [
@@ -78,9 +142,39 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "compilation_provider_options",
+    srcs = ["compilation_provider_options.cc"],
+    hdrs = ["compilation_provider_options.h"],
+    deps = [
+        "//zkx:zkx_cc_proto",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "cubin_or_ptx_image",
     hdrs = ["cubin_or_ptx_image.h"],
     deps = ["//zkx/stream_executor:namespace_alias"],
+)
+
+zkx_cc_library(
+    name = "cuda_asm_compiler",
+    srcs = ["cuda_asm_compiler.cc"],
+    hdrs = ["cuda_asm_compiler.h"],
+    deps = [
+        ":cubin_or_ptx_image",
+        ":cuda_compute_capability",
+        ":ptx_compiler",
+        ":ptx_compiler_support",
+        ":subprocess_compilation",
+        "//zkx/stream_executor/gpu:gpu_asm_opts",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
 )
 
 zkx_cc_library(
@@ -97,12 +191,102 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_version_parser",
+    srcs = ["cuda_version_parser.cc"],
+    hdrs = ["cuda_version_parser.h"],
+    deps = [
+        "//zkx/stream_executor:semantic_version",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
+    name = "defer_relocatable_compilation_compilation_provider",
+    srcs = ["defer_relocatable_compilation_compilation_provider.cc"],
+    hdrs = ["defer_relocatable_compilation_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "mock_compilation_provider",
     testonly = True,
     hdrs = ["mock_compilation_provider.h"],
     deps = [
         ":compilation_provider",
         "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
+    name = "nvjitlink",
+    srcs = if_libnvjitlink_support_enabled(
+        ["nvjitlink_impl.cc"],
+        ["nvjitlink_stub.cc"],
+    ),
+    hdrs = ["nvjitlink.h"],
+    deps = [
+        ":cuda_compute_capability",
+        "//zkx/stream_executor/gpu:gpu_asm_opts",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ] + if_libnvjitlink_support_enabled([
+        ":ptx_compiler_helpers",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@local_config_cuda//cuda:cuda_headers",
+        "@local_config_cuda//cuda:nvjitlink",
+    ]),
+)
+
+zkx_cc_library(
+    name = "nvjitlink_known_issues",
+    srcs = ["nvjitlink_known_issues.cc"],
+    hdrs = ["nvjitlink_known_issues.h"],
+    deps = [
+        ":nvjitlink",
+        "//zkx/stream_executor:namespace_alias",
+    ],
+)
+
+zkx_cc_library(
+    name = "nvjitlink_support",
+    srcs = ["nvjitlink_support.cc"],
+    hdrs = ["nvjitlink_support.h"],
+    local_defines = if_libnvjitlink_support_enabled(
+        [
+            "LIBNVJITLINK_SUPPORT=true",
+        ],
+        [
+            "LIBNVJITLINK_SUPPORT=false",
+        ],
+    ) + if_cuda_newer_than(
+        "12_0",
+        ["CUDA_SUPPORTS_NVJITLINK=true"],
+        ["CUDA_SUPPORTS_NVJITLINK=false"],
+    ),
+    deps = ["//zkx/stream_executor:namespace_alias"],
+)
+
+zkx_cc_library(
+    name = "nvjitlink_compilation_provider",
+    srcs = ["nvjitlink_compilation_provider.cc"],
+    hdrs = ["nvjitlink_compilation_provider.h"],
+    deps = [
+        ":compilation_provider",
+        ":nvjitlink",
+        "//xla/tsl/platform:statusor",
     ],
 )
 
@@ -160,6 +344,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ptx_compilation_method",
+    hdrs = ["ptx_compilation_method.h"],
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "ptx_compiler_support",
     srcs = ["ptx_compiler_support.cc"],
     hdrs = ["ptx_compiler_support.h"],
@@ -172,6 +365,15 @@ zkx_cc_library(
         ],
     ),
     deps = ["//zkx/stream_executor:namespace_alias"],
+)
+
+zkx_cc_library(
+    name = "ptx_linking_method",
+    hdrs = ["ptx_linking_method.h"],
+    deps = [
+        "//zkx/stream_executor:namespace_alias",
+        "@com_google_absl//absl/strings",
+    ],
 )
 
 zkx_cc_library(
@@ -222,8 +424,16 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "cuda_unittests",
     srcs = [
+        "assemble_compilation_provider_unittest.cc",
+        "caching_compilation_provider_unittest.cc",
         "compilation_options_unittest.cc",
+        "compilation_provider_options_unittest.cc",
+        "composite_compilation_provider_unittest.cc",
         "cuda_compute_capability_unittest.cc",
+        "cuda_version_parser_unittest.cc",
+        "defer_relocatable_compilation_compilation_provider_unittest.cc",
+        "nvjitlink_known_issues_unittest.cc",
+        "nvjitlink_unittest.cc",
         "ptx_compiler_unittest.cc",
         "subprocess_compilation_unittest.cc",
     ],
@@ -233,16 +443,28 @@ zkx_cc_unittest(
         ":ptxas",
     ],
     deps = [
+        ":assemble_compilation_provider",
+        ":caching_compilation_provider",
         ":compilation_options",
+        ":compilation_provider_options",
+        ":composite_compilation_provider",
         ":cuda_compute_capability",
+        ":cuda_version_parser",
+        ":defer_relocatable_compilation_compilation_provider",
+        ":mock_compilation_provider",
+        ":nvjitlink",
+        ":nvjitlink_known_issues",
+        ":nvjitlink_support",
         ":ptx_compiler",
         ":ptx_compiler_support",
         ":subprocess_compilation",
+        "//xla/tsl/platform:env",
         "//xla/tsl/platform:path",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/hash:hash_testing",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
     ],
 )
