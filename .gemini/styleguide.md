@@ -106,26 +106,73 @@ this can cause **deadlocks or crashes**.
 In these cases, we intentionally avoid destruction and use **static lifetime
 patterns**.
 
-- Use `absl::NoDestructor` to create a **function-local static** that will never
-  be destroyed.
-- Guarantees **thread-safe initialization** (C++11 and later).
-- Clearly communicates intent (“this object should live for the lifetime of the
-  process”) and avoids false-positive warnings from code review tools.
+#### Allowed Patterns
 
-Example:(CUDA driver thread pool):
+- **Trivially destructible types** (per [Google C++ Style Guide]).
 
-```c++
-#include "absl/base/no_destructor.h"
+  - Examples: pointers, integers, arrays of trivially destructible types,
+    `constexpr` objects.
 
-tsl::thread::ThreadPool* GetDriverExecutor() {
-  // NOTE: Avoid destruction to prevent teardown-order issues with CUDA driver.
-  static absl::NoDestructor<tsl::thread::ThreadPool> pool(
-      tsl::Env::Default(), tsl::ThreadOptions(), "cuda_driver", /*num_threads=*/1);
-  return &*pool;
-}
-```
+- **Function-local static references to heap objects**
 
-______________________________________________________________________
+  - Pattern: `static T& t = *new T(...);`
+  - This avoids destruction at shutdown by intentionally leaking the object.
+  - Use **`absl::IgnoreLeak`** to clearly communicate intentional
+    process-lifetime leaks and to prevent false positives in leak detectors
+    (e.g., LeakSanitizer / ASan’s leak detection, Valgrind memcheck).
+  - This ensures CI runs with sanitizers (e.g., ASAN_OPTIONS=detect_leaks=1) do
+    not fail on approved, process-lifetime singletons.
+
+  ```c++
+  static Foo& GetFoo() {
+    static Foo* foo = absl::IgnoreLeak(new Foo(...));
+    return *foo;
+  }
+  ```
+
+- **absl::NoDestructor<T>**
+
+  - For cases where the object must live for the lifetime of the process.
+  - Guarantees thread-safe initialization and avoids teardown-order issues.
+
+  ```c++
+  #include "absl/base/no_destructor.h"
+
+  // A teardown-sensitive background executor.
+  // Destruction order at process exit is hard to control and can crash/hang
+  // if other subsystems (logging, metrics, OS handles) go away first.
+  class BackgroundExecutor {
+  public:
+    BackgroundExecutor();
+    ~BackgroundExecutor();                 // non-trivial destructor (threads, queues)
+    void Post(std::function<void()> fn);   // schedules work
+    // ...
+  };
+
+  // Use a process-lifetime singleton to avoid destructor at shutdown.
+  BackgroundExecutor* GetBackgroundExecutor() {
+    // NOTE: Avoid destruction to prevent teardown-order issues at process exit.
+    static absl::NoDestructor<BackgroundExecutor> exec;
+    return &*exec;
+  }
+  ```
+
+#### Forbidden Patterns
+
+- **Static/global objects with non-trivial destructors**
+
+  ```c++
+  // ❌ Bad: destructor will run at shutdown, order is undefined.
+  static std::map<int, int> kData = {{1, 0}, {2, 0}};
+  ```
+
+- **Lifetime-extended temporaries with non-trivial destructors**
+
+  ```c++
+  // ❌ Bad
+  const std::string kFoo = "foo";
+  const std::string& kBar = StrCat("a", "b", "c");
+  ```
 
 ## Naming & Migration Hygiene (XLA → ZKX)
 
