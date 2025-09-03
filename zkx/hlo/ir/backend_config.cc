@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/hlo/ir/backend_config.h"
 
+#include "absl/debugging/leak_check.h"
 #include "google/protobuf/util/message_differencer.h"
 
 #include "xla/tsl/platform/errors.h"
@@ -46,7 +47,7 @@ const std::string& BackendConfigWrapper::GetRawStringWithoutMutex() const {
     // Cache the raw string.
     raw_string_ = BackendConfigToRawString(*proto_).value();
   }
-  static const std::string* kEmptyString = new std::string();
+  static const std::string* kEmptyString = absl::IgnoreLeak(new std::string());
   return raw_string_.empty() ? *kEmptyString : raw_string_;
 }
 

@@ -16,6 +16,7 @@ limitations under the License.
 #include "zkx/comparison_util.h"
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/strings/str_cat.h"
 
 #include "zkx/base/logging.h"
@@ -112,7 +113,7 @@ std::string_view ComparisonOrderToString(Comparison::Order order) {
 
 absl::StatusOr<Comparison::Direction> StringToComparisonDirection(
     std::string_view direction) {
-  static auto* map =
+  static auto* map = absl::IgnoreLeak(
       new absl::flat_hash_map<std::string, Comparison::Direction>({
           {"EQ", Comparison::Direction::kEq},
           {"NE", Comparison::Direction::kNe},
@@ -120,7 +121,7 @@ absl::StatusOr<Comparison::Direction> StringToComparisonDirection(
           {"GT", Comparison::Direction::kGt},
           {"LE", Comparison::Direction::kLe},
           {"LT", Comparison::Direction::kLt},
-      });
+      }));
   auto it = map->find(direction);
   if (it == map->end()) {
     return absl::InvalidArgumentError(
@@ -131,10 +132,11 @@ absl::StatusOr<Comparison::Direction> StringToComparisonDirection(
 
 absl::StatusOr<Comparison::Order> StringToComparisonOrder(
     std::string_view order) {
-  static auto* map = new absl::flat_hash_map<std::string, Comparison::Order>({
-      {"PARTIALORDER", Comparison::Order::kPartial},
-      {"TOTALORDER", Comparison::Order::kTotal},
-  });
+  static auto* map =
+      absl::IgnoreLeak(new absl::flat_hash_map<std::string, Comparison::Order>({
+          {"PARTIALORDER", Comparison::Order::kPartial},
+          {"TOTALORDER", Comparison::Order::kTotal},
+      }));
   auto it = map->find(order);
   if (it == map->end()) {
     return absl::InvalidArgumentError(

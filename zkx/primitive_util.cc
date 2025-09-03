@@ -18,6 +18,7 @@ limitations under the License.
 #include <stddef.h>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
 #include "absl/strings/ascii.h"
 
@@ -71,7 +72,7 @@ class PrimitiveTypeNameGenerator {
 }  // namespace
 
 std::string_view LowercasePrimitiveTypeName(PrimitiveType s) {
-  static auto* gen = new PrimitiveTypeNameGenerator();
+  static auto* gen = absl::IgnoreLeak(new PrimitiveTypeNameGenerator());
   return gen->LowercaseName(s);
 }
 
@@ -84,7 +85,8 @@ namespace {
 const absl::flat_hash_map<std::string, PrimitiveType>&
 GetPrimitiveTypeStringMap() {
   static absl::flat_hash_map<std::string, PrimitiveType>* name_to_type = [] {
-    static auto* map = new absl::flat_hash_map<std::string, PrimitiveType>;
+    static auto* map =
+        absl::IgnoreLeak(new absl::flat_hash_map<std::string, PrimitiveType>);
     for (int i = 0; i < PrimitiveType_ARRAYSIZE; i++) {
       if (PrimitiveType_IsValid(i) && i != PRIMITIVE_TYPE_INVALID) {
         auto value = static_cast<PrimitiveType>(i);

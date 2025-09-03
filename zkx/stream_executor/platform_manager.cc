@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
@@ -210,7 +211,7 @@ absl::StatusOr<Platform*> PlatformManagerImpl::LookupByIdLocked(
 }
 
 PlatformManagerImpl& Impl() {
-  static PlatformManagerImpl* impl = new PlatformManagerImpl;
+  static PlatformManagerImpl* impl = absl::IgnoreLeak(new PlatformManagerImpl);
   return *impl;
 }
 

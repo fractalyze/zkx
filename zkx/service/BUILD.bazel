@@ -187,6 +187,7 @@ zkx_cc_library(
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -215,6 +216,7 @@ zkx_cc_library(
         "//zkx/stream_executor:platform",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
@@ -237,6 +239,7 @@ zkx_cc_library(
         "//zkx/stream_executor/host:host_platform_id",
         "//zkx/stream_executor/rocm:rocm_platform_id",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
@@ -256,6 +259,7 @@ zkx_cc_library(
     name = "custom_call_target_registry",
     srcs = ["custom_call_target_registry.cc"],
     hdrs = ["custom_call_target_registry.h"],
+    deps = ["@com_google_absl//absl/debugging:leak_check"],
 )
 
 zkx_cc_library(

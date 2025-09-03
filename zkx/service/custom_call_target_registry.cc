@@ -18,10 +18,12 @@ limitations under the License.
 #include <cstdlib>
 #include <iostream>
 
+#include "absl/debugging/leak_check.h"
+
 namespace zkx {
 
 CustomCallTargetRegistry* CustomCallTargetRegistry::Global() {
-  static auto* registry = new CustomCallTargetRegistry;
+  static auto* registry = absl::IgnoreLeak(new CustomCallTargetRegistry);
   return registry;
 }
 

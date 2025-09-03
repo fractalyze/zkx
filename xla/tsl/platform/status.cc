@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "absl/base/call_once.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -54,7 +55,7 @@ std::string MakeString(const absl::Status& status) {
 class StatusLogSink : public zkx::base::LogSink {
  public:
   static StatusLogSink* GetInstance() {
-    static StatusLogSink* sink = new StatusLogSink();
+    static StatusLogSink* sink = absl::IgnoreLeak(new StatusLogSink());
     return sink;
   }
 

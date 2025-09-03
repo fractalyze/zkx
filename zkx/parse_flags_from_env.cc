@@ -29,6 +29,7 @@ limitations under the License.
 
 #include "absl/base/const_init.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_join.h"
@@ -181,7 +182,8 @@ static void SetArgvFromEnv(std::string_view envvar, EnvArgv* a) {
 // The simulated argv[] parsed from the environment, one for each different
 // environment variable we've seen.
 static absl::flat_hash_map<std::string, EnvArgv>& EnvArgvs() {
-  static auto* env_argvs = new absl::flat_hash_map<std::string, EnvArgv>();
+  static auto* env_argvs =
+      absl::IgnoreLeak(new absl::flat_hash_map<std::string, EnvArgv>());
   return *env_argvs;
 }
 

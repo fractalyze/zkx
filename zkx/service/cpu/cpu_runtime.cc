@@ -27,6 +27,7 @@ limitations under the License.
 #include "absl/base/attributes.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -59,8 +60,9 @@ limitations under the License.
 namespace zkx::cpu::runtime {
 
 XfeedManager* GetXfeedManager(int device_ordinal) {
-  static auto* managers = new absl::flat_hash_map<int, XfeedManager*>();
-  static absl::Mutex* mutex = new absl::Mutex();
+  static auto* managers =
+      absl::IgnoreLeak(new absl::flat_hash_map<int, XfeedManager*>());
+  static absl::Mutex* mutex = absl::IgnoreLeak(new absl::Mutex());
 
   absl::MutexLock lock(mutex);
   auto it = managers->find(device_ordinal);
@@ -283,7 +285,7 @@ RendezvousKey GetRendezvousKey(const ExecutableRunOptions* run_options,
 }
 
 CpuCollectives* GetInProcessCollectivesImpl() {
-  static InProcessCollectives* c = new InProcessCollectives();
+  static InProcessCollectives* c = absl::IgnoreLeak(new InProcessCollectives());
   return c;
 }
 

@@ -16,6 +16,7 @@ limitations under the License.
 #include <string_view>
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
 #include "third_party/gpus/cuda/include/cuda.h"
 #include "third_party/gpus/cuda/include/cusparse.h"
@@ -56,11 +57,12 @@ const char* kSymbols[] = {
 constexpr size_t kNumSymbols = sizeof(kSymbols) / sizeof(const char*);
 
 absl::flat_hash_set<std::string_view> const& StringErrorSymbols() {
-  static const absl::flat_hash_set<std::string_view> syms{
-      "cusparseGetErrorName",
-      "cusparseGetErrorString",
-  };
-  return syms;
+  static auto* syms =
+      absl::IgnoreLeak(new absl::flat_hash_set<std::string_view>{
+          "cusparseGetErrorName",
+          "cusparseGetErrorString",
+      });
+  return *syms;
 }
 
 }  // namespace

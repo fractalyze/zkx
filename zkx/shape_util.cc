@@ -17,6 +17,7 @@ limitations under the License.
 
 #include "absl/algorithm/container.h"
 #include "absl/base/optimization.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -1470,8 +1471,8 @@ struct ParallelState {
   explicit ParallelState(int64_t task_count) : counter(task_count) {
     // If this method is changed, please remember to change
     // GetForEachIndexParallelThreadCount() as well.
-    static auto* global_pool = new tsl::thread::ThreadPool(
-        tsl::Env::Default(), "foreach", tsl::port::MaxParallelism());
+    static auto* global_pool = absl::IgnoreLeak(new tsl::thread::ThreadPool(
+        tsl::Env::Default(), "foreach", tsl::port::MaxParallelism()));
     pool = global_pool;
   }
   ~ParallelState() = default;

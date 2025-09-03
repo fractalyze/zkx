@@ -20,6 +20,7 @@ limitations under the License.
 #include <queue>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/strings/numbers.h"
 #include "absl/synchronization/mutex.h"
 
@@ -93,13 +94,13 @@ class LogSinks {
 
 LogSinks::LogSinks() {
 #ifndef NO_DEFAULT_LOGGER
-  static DefaultLogSink* default_sink = new DefaultLogSink();
+  static DefaultLogSink* default_sink = absl::IgnoreLeak(new DefaultLogSink());
   sinks_.push_back(default_sink);
 #endif
 }
 
 LogSinks& LogSinks::Instance() {
-  static LogSinks* instance = new LogSinks();
+  static LogSinks* instance = absl::IgnoreLeak(new LogSinks());
   return *instance;
 }
 

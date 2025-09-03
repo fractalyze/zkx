@@ -96,7 +96,9 @@ zkx_cc_library(
         "@com_google_absl//absl/time",
         "@com_google_protobuf//:protobuf",
         "@eigen_archive//:eigen3",
-    ],
+    ] + if_posix([
+        "@com_google_absl//absl/debugging:leak_check",
+    ]),
 )
 
 zkx_cc_library(
@@ -243,6 +245,7 @@ zkx_cc_library(
     deps = [
         "//zkx/base:logging",
         "@com_google_absl//absl/base",
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",

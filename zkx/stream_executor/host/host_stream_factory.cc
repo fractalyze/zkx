@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/synchronization/mutex.h"
 
 namespace stream_executor::host {
@@ -36,7 +37,7 @@ struct FactoryItem {
 };
 
 FactoryItem& host_stream_factory() {
-  static FactoryItem* factory = new FactoryItem();
+  static FactoryItem* factory = absl::IgnoreLeak(new FactoryItem());
   return *factory;
 }
 

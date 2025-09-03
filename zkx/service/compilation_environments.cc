@@ -21,6 +21,7 @@ limitations under the License.
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -43,7 +44,8 @@ absl::flat_hash_map<const google::protobuf::Descriptor*,
 class GlobalCompEnvStats {
  public:
   static GlobalCompEnvStats& GetSingleton() {
-    static GlobalCompEnvStats* singleton = new GlobalCompEnvStats();
+    static GlobalCompEnvStats* singleton =
+        absl::IgnoreLeak(new GlobalCompEnvStats());
 
     return *singleton;
   }

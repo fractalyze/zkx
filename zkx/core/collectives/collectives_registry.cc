@@ -21,6 +21,7 @@ limitations under the License.
 #include "absl/base/thread_annotations.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/synchronization/mutex.h"
 
 #include "xla/tsl/platform/statusor.h"
@@ -52,7 +53,7 @@ struct Registry {
 }  // namespace
 
 static Registry& GetCollectivesRegistry() {
-  static auto* const registry = new Registry();
+  static auto* const registry = absl::IgnoreLeak(new Registry());
   return *registry;
 }
 
