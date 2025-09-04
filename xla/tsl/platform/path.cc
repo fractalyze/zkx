@@ -42,7 +42,7 @@ std::pair<std::string_view, std::string_view> SplitPath(std::string_view uri) {
 
   auto pos = path.rfind('/');
 #ifdef PLATFORM_WINDOWS
-  if (pos == StringPiece::npos) pos = path.rfind('\\');
+  if (pos == std::string_view::npos) pos = path.rfind('\\');
 #endif
   // Handle the case with no '/' in 'path'.
   if (pos == std::string_view::npos)
