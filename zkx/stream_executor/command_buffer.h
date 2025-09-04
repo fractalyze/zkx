@@ -151,6 +151,17 @@ class CommandBuffer {
   //
   enum class State { kCreate, kUpdate, kFinalized };
 
+  friend std::string_view StateToString(State state) {
+    switch (state) {
+      case State::kCreate:
+        return "create";
+      case State::kUpdate:
+        return "update";
+      case State::kFinalized:
+        return "finalized";
+    }
+  }
+
   // Command buffers have two modes of execution:
   //
   //   (1) kPrimary: command buffer can be submitted for execution via
@@ -174,7 +185,7 @@ class CommandBuffer {
   //===--------------------------------------------------------------------===//
 
   // Adds an execution barrier to a given execution scope: all commands added
-  // before a barrier in a the execution scope will complete before any of the
+  // before a barrier in the execution scope will complete before any of the
   // commands added after a barrier in the same execution scope.
   virtual absl::Status Barrier(ExecutionScopeId execution_scope_id) = 0;
 

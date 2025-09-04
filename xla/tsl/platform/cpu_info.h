@@ -48,8 +48,7 @@ int MaxParallelism();
 // Returns an estimate for the maximum parallelism for this process on the
 // provided numa node, or any numa node if `numa_node` is kNUMANoAffinity.
 // See MaxParallelism() for more information.
-// TODO(chokobole): Uncomment this. Dependency: numa
-// int MaxParallelism(int numa_node);
+int MaxParallelism(int numa_node);
 
 // Returns the total number of CPUs on the system.  This number should
 // not change even if the underlying cluster management software may

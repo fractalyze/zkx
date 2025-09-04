@@ -33,6 +33,32 @@ zkx_cc_library(
     deps = ["//zkx/stream_executor:namespace_alias"],
 )
 
+gpu_only_cc_library(
+    name = "gpu_command_buffer",
+    srcs = ["gpu_command_buffer.cc"],
+    hdrs = ["gpu_command_buffer.h"],
+    deps = [
+        ":scoped_update_mode",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:command_buffer",
+        "//zkx/stream_executor:kernel_spec",
+        "//zkx/stream_executor:semantic_version",
+        "//zkx/stream_executor:stream",
+        "//zkx/stream_executor/cuda:cuda_platform_id",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
 zkx_cc_library(
     name = "gpu_diagnostics",
     hdrs = ["gpu_diagnostics.h"],
@@ -174,6 +200,18 @@ zkx_cc_library(
     deps = [
         ":context",
         "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
+    name = "read_numa_node",
+    srcs = ["read_numa_node.cc"],
+    hdrs = ["read_numa_node.h"],
+    deps = [
+        "//xla/tsl/platform:numa",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
     ],
 )
 
