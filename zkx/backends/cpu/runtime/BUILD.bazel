@@ -117,6 +117,7 @@ zkx_cc_library(
         ":kernel_c_api",
         "//xla/tsl/lib/gtl:int_type",
         "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status:statusor",
     ],
 )
@@ -202,6 +203,7 @@ zkx_cc_library(
         "//zkx/stream_executor:device_memory",
         "//zkx/stream_executor:launch_dim",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
@@ -316,6 +318,7 @@ zkx_cc_library(
         "//zkx/service/cpu:cpu_executable_run_options",
         "//zkx/service/cpu:xfeed_manager",
         "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status:statusor",
     ],
 )

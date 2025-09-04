@@ -18,6 +18,8 @@ limitations under the License.
 #include <algorithm>
 #include <limits>
 
+#include "absl/debugging/leak_check.h"
+
 #define EIGEN_USE_THREADS
 #include "unsupported/Eigen/CXX11/Tensor"
 
@@ -29,9 +31,10 @@ using LaunchEvent = Kernel::LaunchEvent;
 // Non-reference-counted async value ref for host kernels executed inline.
 tsl::AsyncValueRef<LaunchEvent> OkLaunchEvent() {
   static tsl::AsyncValueOwningRef<LaunchEvent>* event = [] {
-    auto* storage = new tsl::internal::AsyncValueStorage<LaunchEvent>();
-    return new tsl::AsyncValueOwningRef<LaunchEvent>(
-        tsl::MakeAvailableAsyncValueRef<LaunchEvent>(*storage));
+    auto* storage =
+        absl::IgnoreLeak(new tsl::internal::AsyncValueStorage<LaunchEvent>());
+    return absl::IgnoreLeak(new tsl::AsyncValueOwningRef<LaunchEvent>(
+        tsl::MakeAvailableAsyncValueRef<LaunchEvent>(*storage)));
   }();
   return event->AsRef();
 }

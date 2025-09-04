@@ -17,10 +17,12 @@ limitations under the License.
 
 #include <atomic>
 
+#include "absl/debugging/leak_check.h"
+
 namespace zkx::cpu {
 
 FunctionLibrary::TypeId FunctionLibrary::GetNextTypeId() {
-  static auto* counter = new std::atomic<int64_t>(1);
+  static auto* counter = absl::IgnoreLeak(new std::atomic<int64_t>(1));
   return TypeId(counter->fetch_add(1));
 }
 

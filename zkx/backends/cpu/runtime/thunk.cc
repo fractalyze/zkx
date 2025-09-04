@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "zkx/backends/cpu/runtime/thunk.h"
 
+#include "absl/debugging/leak_check.h"
+
 #include "zkx/backends/cpu/collectives/in_process_collectives.h"
 #include "zkx/service/cpu/cpu_executable_run_options.h"
 
@@ -63,7 +65,8 @@ Thunk::CollectiveExecuteParams::Create(
 
   // Default implementation of a collectives interface that can execute
   // collective operations within the same process.
-  static CpuCollectives* in_process_collectives = new InProcessCollectives();
+  static CpuCollectives* in_process_collectives =
+      absl::IgnoreLeak(new InProcessCollectives());
 
   // If CPU executable run options are set, use the collectives interface
   // provided by the executable run options if it is set. Otherwise, use the
@@ -82,9 +85,10 @@ Thunk::CollectiveExecuteParams::Create(
 
 tsl::AsyncValueRef<Thunk::ExecuteEvent> Thunk::OkExecuteEventSingleton() {
   static tsl::AsyncValueOwningRef<ExecuteEvent>* singleton = [] {
-    auto* storage = new tsl::internal::AsyncValueStorage<ExecuteEvent>();
-    return new tsl::AsyncValueOwningRef<ExecuteEvent>(
-        tsl::MakeAvailableAsyncValueRef<ExecuteEvent>(*storage));
+    auto* storage =
+        absl::IgnoreLeak(new tsl::internal::AsyncValueStorage<ExecuteEvent>());
+    return absl::IgnoreLeak(new tsl::AsyncValueOwningRef<ExecuteEvent>(
+        tsl::MakeAvailableAsyncValueRef<ExecuteEvent>(*storage)));
   }();
   return singleton->AsRef();
 }

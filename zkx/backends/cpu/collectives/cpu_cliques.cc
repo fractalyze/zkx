@@ -22,6 +22,7 @@ limitations under the License.
 
 #include "absl/base/thread_annotations.h"
 #include "absl/container/node_hash_map.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/synchronization/mutex.h"
 
 #include "xla/tsl/platform/errors.h"
@@ -57,7 +58,7 @@ struct ProcessCpuCliques {
 
 // Returns process-local CPU cliques.
 static ProcessCpuCliques& GetProcessCpuCliques() {
-  static auto* cliques = new ProcessCpuCliques;
+  static auto* cliques = absl::IgnoreLeak(new ProcessCpuCliques);
   return *cliques;
 }
 

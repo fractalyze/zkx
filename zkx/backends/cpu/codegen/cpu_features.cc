@@ -17,6 +17,7 @@ limitations under the License.
 
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
@@ -60,7 +61,7 @@ std::optional<CPUFeature> CpuFeatureFromString(std::string_view cpu_feature) {
   // Non-exhaustive list of CPU features. (Only the ones we care about.)
   // TODO(penporn): Handle ARM
   static auto* x86 = [] {
-    return new absl::flat_hash_map<std::string, CPUFeature>(
+    return absl::IgnoreLeak(new absl::flat_hash_map<std::string, CPUFeature>(
         {{"SSE4_2", CPUFeature::SSE4_2},
          {"AVX", CPUFeature::AVX},
          {"AVX2", CPUFeature::AVX2},
@@ -68,7 +69,7 @@ std::optional<CPUFeature> CpuFeatureFromString(std::string_view cpu_feature) {
          {"AVX512_VNNI", CPUFeature::AVX512_VNNI},
          {"AVX512_BF16", CPUFeature::AVX512_BF16},
          {"AMX", CPUFeature::AMX_BF16},  // Includes AMX_INT8.
-         {"AMX_FP16", CPUFeature::AMX_FP16}});
+         {"AMX_FP16", CPUFeature::AMX_FP16}}));
   }();
 
   if (auto it = x86->find(absl::AsciiStrToUpper(cpu_feature));

@@ -23,6 +23,7 @@ limitations under the License.
 
 #include "absl/base/optimization.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/log/log.h"
 #include "absl/synchronization/blocking_counter.h"
@@ -58,7 +59,8 @@ uint16_t AsyncValue::CreateTypeInfoAndReturnTypeIdImpl(
 
 AsyncValue::TypeInfoTable* AsyncValue::GetTypeInfoTableSingleton() {
   constexpr int kInitialCapacity = 64;
-  static auto* type_info_table = new TypeInfoTable(kInitialCapacity);
+  static auto* type_info_table =
+      absl::IgnoreLeak(new TypeInfoTable(kInitialCapacity));
   return type_info_table;
 }
 

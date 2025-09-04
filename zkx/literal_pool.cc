@@ -17,12 +17,14 @@ limitations under the License.
 
 #include <algorithm>
 
+#include "absl/debugging/leak_check.h"
+
 #include "zkx/base/logging.h"
 
 namespace zkx {
 
 LiteralPool* LiteralPool::Default() {
-  static auto* pool = new LiteralPool();
+  static auto* pool = absl::IgnoreLeak(new LiteralPool());
   return pool;
 }
 

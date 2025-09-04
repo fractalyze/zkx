@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/service/computation_placer.h"
 
+#include "absl/debugging/leak_check.h"
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/statusor.h"
@@ -219,7 +220,8 @@ absl::Mutex ComputationPlacer::platform_computation_placer_mutex_(
 // static
 std::map<se::Platform::Id, ComputationPlacer::State>*
 ComputationPlacer::GetPlatformComputationPlacers() {
-  static auto* r = new std::map<se::Platform::Id, ComputationPlacer::State>;
+  static auto* r = absl::IgnoreLeak(
+      new std::map<se::Platform::Id, ComputationPlacer::State>);
   return r;
 }
 

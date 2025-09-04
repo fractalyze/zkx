@@ -16,6 +16,7 @@ limitations under the License.
 #include "zkx/debug_options_flags.h"
 
 #include "absl/base/call_once.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -489,10 +490,11 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
 // than once - its call done via call_once.
 static void AllocateFlags(DebugOptions* defaults) {
   if (defaults == nullptr) {
-    defaults = new DebugOptions(DefaultDebugOptionsIgnoringFlags());
+    defaults =
+        absl::IgnoreLeak(new DebugOptions(DefaultDebugOptionsIgnoringFlags()));
   }
   flag_values = defaults;
-  flag_objects = new std::vector<tsl::Flag>();
+  flag_objects = absl::IgnoreLeak(new std::vector<tsl::Flag>());
   MakeDebugOptionsFlags(flag_objects, flag_values);
   ParseFlagsFromEnvAndDieIfUnknown("ZKX_FLAGS", *flag_objects);
 }

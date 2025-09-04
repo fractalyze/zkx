@@ -223,6 +223,7 @@ zkx_cc_library(
     deps = [
         ":pjrt_client",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",

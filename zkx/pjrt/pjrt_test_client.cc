@@ -18,6 +18,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/base/thread_annotations.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
 
@@ -45,7 +46,7 @@ class PjRtTestClientFactory {
 };
 
 PjRtTestClientFactory& GetPjRtTestClientFactory() {
-  static auto* const factory = new PjRtTestClientFactory;
+  static auto* const factory = absl::IgnoreLeak(new PjRtTestClientFactory);
   return *factory;
 }
 

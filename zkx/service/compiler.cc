@@ -18,6 +18,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/base/const_init.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
 
 #include "zkx/debug_options_flags.h"
@@ -59,15 +60,16 @@ Compiler::CompileAheadOfTime(
 // static
 absl::flat_hash_map<se::Platform::Id, Compiler::CompilerFactory>*
 Compiler::GetPlatformCompilerFactories() {
-  static auto* r = new absl::flat_hash_map<se::Platform::Id, CompilerFactory>;
+  static auto* r = absl::IgnoreLeak(
+      new absl::flat_hash_map<se::Platform::Id, CompilerFactory>);
   return r;
 }
 
 // static
 absl::flat_hash_map<se::Platform::Id, std::unique_ptr<Compiler>>*
 Compiler::GetPlatformCompilers() {
-  static auto* r =
-      new absl::flat_hash_map<se::Platform::Id, std::unique_ptr<Compiler>>;
+  static auto* r = absl::IgnoreLeak(
+      new absl::flat_hash_map<se::Platform::Id, std::unique_ptr<Compiler>>);
   return r;
 }
 

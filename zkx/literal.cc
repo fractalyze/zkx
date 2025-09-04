@@ -17,6 +17,8 @@ limitations under the License.
 
 #include <string.h>
 
+#include "absl/debugging/leak_check.h"
+
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/mem.h"
 #include "zkx/primitive_util.h"
@@ -64,7 +66,7 @@ const Shape& ScalarShapeImpl() {
   static_assert(primitive_util::IsArrayType(kType),
                 "Not a valid type for a scalar.");
   static const Shape* shape = [] {
-    auto shape = new Shape(kType, {}, {}, {});
+    auto shape = absl::IgnoreLeak(new Shape(kType, {}, {}, {}));
     shape->mutable_layout();
     return shape;
   }();
@@ -80,7 +82,7 @@ const Shape& ScalarShape(PrimitiveType type) {
 }
 
 const Shape& NilShape() {
-  static const Shape* shape = new Shape(TUPLE, {}, {}, {});
+  static const Shape* shape = absl::IgnoreLeak(new Shape(TUPLE, {}, {}, {}));
   return *shape;
 }
 
