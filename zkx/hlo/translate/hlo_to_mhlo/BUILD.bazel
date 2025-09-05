@@ -1,0 +1,37 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "hlo_utils",
+    srcs = ["hlo_utils.cc"],
+    hdrs = ["hlo_utils.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/mlir:mlir_utils",
+        "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:SparseTensorDialect",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "hlo_to_mhlo_unittests",
+    srcs = ["hlo_utils_unittest.cc"],
+    deps = [
+        ":hlo_utils",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
