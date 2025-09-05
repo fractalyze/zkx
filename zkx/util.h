@@ -203,6 +203,12 @@ int64_t Product(absl::Span<const int64_t> xs);
 absl::InlinedVector<std::pair<int64_t, int64_t>, 8> CommonFactors(
     absl::Span<const int64_t> a, absl::Span<const int64_t> b);
 
+// Returns non contracting dimensions for a dot operand based on rank, batch and
+// contracting dimension numbers.
+DimensionVector GetNonContractingDims(
+    int64_t rank, absl::Span<const int64_t> contracting_dim_numbers,
+    absl::Span<const int64_t> batch_dim_numbers);
+
 // Removes illegal characters from filenames.
 std::string SanitizeFileName(std::string_view file_name);
 
