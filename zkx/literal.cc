@@ -152,6 +152,113 @@ StrideConfig::StrideConfig(const Shape& source_shape, const Shape& dest_shape,
 
 LiteralBase::~LiteralBase() = default;
 
+namespace {
+
+template <int64_t PRIMITIVE_SIZE>
+absl::StatusOr<Literal> BroadcastHelper(const LiteralBase& src,
+                                        const Shape& src_shape,
+                                        const Shape& result_shape,
+                                        absl::Span<const int64_t> dimensions) {
+  for (int64_t i = 0, end = dimensions.size(); i < end; i++) {
+    TF_RET_CHECK(src_shape.dimensions(i) ==
+                 result_shape.dimensions(dimensions[i]));
+  }
+
+  TF_RET_CHECK(result_shape.element_type() == src_shape.element_type());
+  Literal result(result_shape);
+  if (src_shape.is_dynamic()) {
+    for (int64_t i = 0; i < dimensions.size(); ++i) {
+      if (src_shape.is_dynamic_dimension(i)) {
+        // Set any dynamic sizes in the new literal.
+        int64_t dynamic_size = src.GetDynamicSize(i);
+        result.SetDynamicSize(dimensions[i], dynamic_size);
+      }
+    }
+  }
+
+  // scratch_source_index is temporary storage space for the computed index into
+  // the input literal. We put it here to avoid allocating an std::vector in
+  // every iteration of ShapeUtil::ForEachIndex.
+  int src_shape_dims = src_shape.dimensions_size();
+  std::vector<int64_t> scratch_source_index(src_shape_dims);
+  // Make the span once outside the ForEachIndex... loop, pointing into
+  // scratch_source_index
+  absl::Span<int64_t> scratch_source_span(scratch_source_index);
+  int64_t* scratch_source_array = scratch_source_span.data();
+
+  const char* source_data = static_cast<const char*>(src.untyped_data());
+  char* dest_data = static_cast<char*>(result.untyped_data());
+
+  auto src_minor_to_major = LayoutUtil::MinorToMajor(src_shape);
+  auto result_minor_to_major = LayoutUtil::MinorToMajor(result_shape);
+
+  ShapeUtil::ForEachIndexNoStatus(
+      result_shape, [&](absl::Span<const int64_t> output_index) {
+        // Compute dest_index
+        int64_t dest_index = IndexUtil::MultidimensionalIndexToLinearIndex(
+            result_shape, result_minor_to_major, output_index);
+
+        // Compute source_index
+        int64_t source_index;
+        for (int64_t i = 0, end = dimensions.size(); i < end; ++i) {
+          scratch_source_array[i] = output_index[dimensions[i]];
+        }
+        if (src_shape_dims == 1) {
+          // Fast path for this case
+          source_index = scratch_source_array[0];
+          DCHECK_EQ(source_index,
+                    IndexUtil::MultidimensionalIndexToLinearIndex(
+                        src_shape, src_minor_to_major, scratch_source_span));
+        } else {
+          source_index = IndexUtil::MultidimensionalIndexToLinearIndex(
+              src_shape, src_minor_to_major, scratch_source_span);
+        }
+        // Move one element from source_index in source to dest_index in dest
+        memcpy(dest_data + PRIMITIVE_SIZE * dest_index,
+               source_data + PRIMITIVE_SIZE * source_index, PRIMITIVE_SIZE);
+        return true;
+      });
+
+  return std::move(result);
+}
+
+}  // namespace
+
+absl::StatusOr<Literal> LiteralBase::Broadcast(
+    const Shape& result_shape, absl::Span<const int64_t> dimensions) const {
+  const LiteralBase& src = *this;
+  const Shape& src_shape = shape();
+  if (!src_shape.IsArray()) {
+    return absl::InvalidArgumentError("Broadcast only supports arrays.");
+  }
+  const int64_t primitive_size =
+      ShapeUtil::ByteSizeOfPrimitiveType(src_shape.element_type());
+
+  switch (primitive_size) {
+    case 0:
+      return BroadcastHelper<0>(src, src_shape, result_shape, dimensions);
+    case 1:
+      return BroadcastHelper<1>(src, src_shape, result_shape, dimensions);
+    case 2:
+      return BroadcastHelper<2>(src, src_shape, result_shape, dimensions);
+    case 4:
+      return BroadcastHelper<4>(src, src_shape, result_shape, dimensions);
+    case 8:
+      return BroadcastHelper<8>(src, src_shape, result_shape, dimensions);
+    case 16:
+      return BroadcastHelper<16>(src, src_shape, result_shape, dimensions);
+    case 32:
+      return BroadcastHelper<32>(src, src_shape, result_shape, dimensions);
+    case 64:
+      return BroadcastHelper<64>(src, src_shape, result_shape, dimensions);
+    case 128:
+      return BroadcastHelper<128>(src, src_shape, result_shape, dimensions);
+    default:
+      LOG(FATAL) << "Unhandled primitive size " << primitive_size;
+      return absl::InvalidArgumentError("Unhandled primitive size");
+  }
+}
+
 absl::StatusOr<Literal> LiteralBase::Reshape(
     absl::Span<const int64_t> dimensions) const {
   if (!LayoutUtil::IsDenseArray(shape())) {
