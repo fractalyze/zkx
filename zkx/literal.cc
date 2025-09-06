@@ -1829,6 +1829,27 @@ void MutableLiteralBase::PopulateInplaceInternal(
   }
 }
 
+absl::Status MutableLiteralBase::PopulateInplace(
+    absl::FunctionRef<void(void*, absl::Span<const int64_t>)> populator) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  PopulateInplaceInternal(
+      [&](void* dest, absl::Span<const int64_t> indexes, int /*thread_id*/) {
+        return populator(dest, indexes);
+      },
+      /*parallel=*/false);
+  return absl::OkStatus();
+}
+
+absl::Status MutableLiteralBase::PopulateInplaceParallel(
+    absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  PopulateInplaceInternal(populator,
+                          /*parallel=*/element_count() > 32);
+  return absl::OkStatus();
+}
+
 absl::Status MutableLiteralBase::CopyFrom(const LiteralSlice& src_literal,
                                           const ShapeIndex& dest_shape_index,
                                           const ShapeIndex& src_shape_index,
