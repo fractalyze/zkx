@@ -859,6 +859,29 @@ class MutableLiteralBase : public LiteralBase {
   absl::Status Populate(
       absl::FunctionRef<NativeT(absl::Span<const int64_t>)> generator);
 
+  // A parallel version of Populate(). This can be used if the generator is
+  // thread-safe and the values for the shape's different elements are
+  // independent.
+  template <typename NativeT>
+  absl::Status PopulateParallel(
+      absl::FunctionRef<NativeT(absl::Span<const int64_t>, int)> generator);
+
+  // Similar to Populate() but takes a populator function that allows caller to
+  // specify how to write to the destination buffer rather than a generator that
+  // returns the values. This is useful when the value population simply does
+  // memcpy without compute and therefore can be written in a type agnostic way,
+  // so that we can avoid templatizing the method for better code size.
+  //
+  // This literal must have a dense layout.
+  absl::Status PopulateInplace(
+      absl::FunctionRef<void(void*, absl::Span<const int64_t>)> populator);
+
+  // A parallel version of PopulateInplace(). This can be used if the generator
+  // is thread-safe and the values for the shape's different elements are
+  // independent.
+  absl::Status PopulateInplaceParallel(
+      absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator);
+
   // Fills this literal with the given value.
   template <typename NativeT>
   void PopulateWithValue(NativeT value);
@@ -1268,6 +1291,15 @@ ABSL_ATTRIBUTE_NOINLINE absl::Status MutableLiteralBase::Populate(
         return generator(indexes);
       },
       /*parallel=*/false);
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE absl::Status MutableLiteralBase::PopulateParallel(
+    absl::FunctionRef<NativeT(absl::Span<const int64_t>, int)> generator) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  return PopulateInternal<NativeT>(generator,
+                                   /*parallel=*/data<NativeT>().size() > 32);
 }
 
 template <typename NativeT>
