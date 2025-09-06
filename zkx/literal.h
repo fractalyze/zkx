@@ -383,6 +383,12 @@ class LiteralBase {
   //       dynamic_size at {1,0} = 2
   Literal ToBoundedDynamic(const Shape& bounded_shape) const;
 
+  // Creates a new literal by reshaping this literal to have the given
+  // dimensions. The total number of elements must not change; The
+  // implementation currently only supports monotonic dim0-major layouts.
+  // This literal must be an array.
+  absl::StatusOr<Literal> Reshape(absl::Span<const int64_t> dimensions) const;
+
   // Returns true if the leaf arrays of the literal within the given shape index
   // are all determined.
   // See comments on ArrayValueState for detailed explanation.
