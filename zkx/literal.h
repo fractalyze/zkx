@@ -389,6 +389,15 @@ class LiteralBase {
   // This literal must be an array.
   absl::StatusOr<Literal> Reshape(absl::Span<const int64_t> dimensions) const;
 
+  // Creates a new literal by reordering the dimensions of this literal.
+  // The given `permutation` must be a permutation of the dimension numbers
+  // in the original literal, and it specifies the order of the new dimensions
+  // in the result literal (i.e., new_order[i] = old_order[permutation[i]]).
+  // For example, a transpose call on a literal of shape [3 x 8 x 4] and
+  // `permutation` = {2, 0, 1} returns a new literal of shape [4 x 3 x 8].
+  // This literal must be an array.
+  Literal Transpose(absl::Span<const int64_t> permutation) const;
+
   // Returns true if the leaf arrays of the literal within the given shape index
   // are all determined.
   // See comments on ArrayValueState for detailed explanation.

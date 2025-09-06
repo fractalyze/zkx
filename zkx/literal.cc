@@ -22,6 +22,7 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/mem.h"
 #include "xla/tsl/util/byte_swap_array.h"
+#include "zkx/permutation_util.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx {
@@ -182,6 +183,52 @@ absl::StatusOr<Literal> LiteralBase::Reshape(
         ShapeUtil::HumanString(output.shape())));
   }
   return std::move(output);
+}
+
+Literal LiteralBase::Transpose(absl::Span<const int64_t> permutation) const {
+  CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  CHECK(shape().rank() == permutation.size() && IsPermutation(permutation))
+      << "Given permutation is not a permutation of dimension numbers";
+  // To transpose the array, we just permute the dimensions and layout, and
+  // do a straight memory copy of the raw data set.
+  // This is considerably faster than iterating over every array element using
+  // the EachCell<>() and Set<>() APIs.
+  //
+  // NOTE(chokobole): Deduplicate XLA logic by delegating to
+  // ShapeUtil::PermuteDimensions(...) to compute the transposed shape *and*
+  // its layout. When the input shape has a layout, PermuteDimensions updates
+  // minor_to_major as `new = inv(P) ∘ old` and ensures the transpose is a
+  // bitcast—exactly what the inlined code below used to do.
+  //
+  // References (pinned to the same commit):
+  // - https://github.com/openxla/xla/blob/f281e568/xla/literal.cc#L1255-L1261
+  // clang-format off
+  // - https://github.com/openxla/xla/blob/f281e568/xla/shape_util.cc#L1307-L1313
+  // clang-format on
+  Shape owned_shape;
+  if (!shape().has_layout()) {
+    owned_shape = shape();
+    LayoutUtil::SetToDefaultLayout(&owned_shape);
+  }
+  const Shape& shape_ref = shape().has_layout() ? shape() : owned_shape;
+  Shape permuted_shape = ShapeUtil::PermuteDimensions(permutation, shape_ref);
+
+  Literal new_literal(permuted_shape);
+  if (shape().is_dynamic()) {
+    std::vector<int64_t> inverse_permutation = InversePermutation(permutation);
+    for (int64_t i = 0; i < shape().rank(); i++) {
+      if (shape().is_dynamic_dimension(i)) {
+        // Set the dynamic size of any dynamic dimension in the transposed
+        // literal.
+        new_literal.SetDynamicSize(inverse_permutation[i], GetDynamicSize(i));
+      }
+    }
+  }
+  DCHECK_EQ(ShapeUtil::ByteSizeOf(new_literal.shape()),
+            ShapeUtil::ByteSizeOf(shape()));
+  std::memcpy(new_literal.untyped_data(), untyped_data(), size_bytes());
+  return new_literal;
 }
 
 Literal LiteralBase::Clone() const {
