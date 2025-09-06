@@ -1020,6 +1020,63 @@ void LiteralBase::BuildPieceSubtree(const Shape& shape, Piece* piece) {
   }
 }
 
+template <typename NativeT>
+absl::Status MutableLiteralBase::CopySliceFromInternal(
+    const LiteralBase& src_literal, absl::Span<const int64_t> src_base,
+    absl::Span<const int64_t> dest_base, absl::Span<const int64_t> copy_size) {
+  auto linear_index = [](const Shape& shape,
+                         absl::Span<const int64_t> multi_index) {
+    return IndexUtil::MultidimensionalIndexToLinearIndex(shape, multi_index);
+  };
+
+  // `this->` is needed to workaround MSVC bug: #16882
+  NativeT* dest_data = this->data<NativeT>().data();
+  const NativeT* src_data = src_literal.data<NativeT>().data();
+  if (src_literal.shape().rank() == 0 || shape().rank() == 0) {
+    // If any of the two shapes are scalars, just assign the value once.
+    TF_RET_CHECK(copy_size.empty());
+    dest_data[linear_index(shape(), dest_base)] =
+        src_data[linear_index(src_literal.shape(), src_base)];
+  } else if (!ShapeUtil::IsZeroElementArray(shape()) &&
+             !ShapeUtil::IsZeroElementArray(src_literal.shape()) &&
+             absl::c_none_of(copy_size, [](auto d) { return d == 0; })) {
+    // Perform copy if none of src, dest and copy_size has dimensions with zero
+    // element, otherwise it's a no-op.
+    TF_RET_CHECK(src_base.size() == dest_base.size());
+    TF_RET_CHECK(src_base.size() == copy_size.size());
+
+    // Scan the source from minor, stepping in copy size blocks, then within
+    // the index enumeration functor, do a strided copy advancing source index
+    // by one (walking through the minor dimension), and destination index by
+    // proper stride size at the matching dimension.
+    DimensionVector src_indexes(src_base.size(), 0);
+    DimensionVector dest_indexes(dest_base.size(), 0);
+    StrideConfig stride_config(src_literal.shape(), shape(), copy_size);
+
+    auto copy_proc = [&](absl::Span<const int64_t> indexes) {
+      // Map from multi-dimensional index, to source index.
+      std::transform(indexes.begin(), indexes.end(), src_base.begin(),
+                     src_indexes.begin(), std::plus<int64_t>());
+      // Map from multi-dimensional index, to destination index.
+      std::transform(indexes.begin(), indexes.end(), dest_base.begin(),
+                     dest_indexes.begin(), std::plus<int64_t>());
+
+      int64_t src_index = linear_index(src_literal.shape(), src_indexes);
+      int64_t dest_index = linear_index(shape(), dest_indexes);
+
+      StridedCopy(dest_data + dest_index, stride_config.dest_stride,
+                  src_data + src_index, stride_config.source_stride,
+                  stride_config.minor_loop_size);
+      return true;
+    };
+
+    ShapeUtil::ForEachIndex(src_literal.shape(), stride_config.base,
+                            stride_config.dimensions, stride_config.step,
+                            copy_proc);
+  }
+  return absl::OkStatus();
+}
+
 // static
 absl::StatusOr<Literal> MutableLiteralBase::CreateFromProto(
     const LiteralProto& proto, bool prohibit_empty_literal) {
@@ -1842,6 +1899,25 @@ absl::Status Literal::MoveFrom(Literal&& src_literal,
   src_literal.root_piece_.set_subshape(src_literal.shape_.get());
 
   return absl::OkStatus();
+}
+
+absl::Status MutableLiteralBase::CopySliceFrom(
+    const LiteralSlice& src_literal, absl::Span<const int64_t> src_base,
+    absl::Span<const int64_t> dest_base, absl::Span<const int64_t> copy_size) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape())) << shape();
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(src_literal.shape()))
+      << src_literal.shape();
+  TF_RET_CHECK(ShapeUtil::SameElementType(src_literal.shape(), shape()));
+  TF_RET_CHECK(src_literal.shape().rank() == src_base.size());
+  TF_RET_CHECK(shape().rank() == dest_base.size());
+
+  return primitive_util::ArrayTypeSwitch<absl::Status>(
+      [&](auto primitive_type_constant) -> absl::Status {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        return CopySliceFromInternal<NativeT>(src_literal, src_base, dest_base,
+                                              copy_size);
+      },
+      shape().element_type());
 }
 
 void MutableLiteralBase::PopulateInplaceInternal(

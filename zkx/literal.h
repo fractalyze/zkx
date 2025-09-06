@@ -828,6 +828,21 @@ class MutableLiteralBase : public LiteralBase {
                         const ShapeIndex& src_shape_index = {},
                         bool only_dynamic_bound = false);
 
+  // Copies the values from src_literal, starting at src_base shape indexes,
+  // to this literal, starting at dest_base, where the copy size in each
+  // dimension is specified by copy_size.
+  // The src_literal and this literal must have the same primitive type,
+  // src_base+copy_size must fit the source literal dimensions, as well as
+  // dest_base+copy_size must fit the destination literal dimensions.
+  // Note: if either src_literal or this literal contains dimensions with zero
+  // element, then copy_size must be 0 in these dimensions while the
+  // corresponding base indices being 0.
+  // This literal and 'src_literal' must be arrays.
+  absl::Status CopySliceFrom(const LiteralSlice& src_literal,
+                             absl::Span<const int64_t> src_base,
+                             absl::Span<const int64_t> dest_base,
+                             absl::Span<const int64_t> copy_size);
+
   // Sets an element in the literal at the given index. The multi_index is
   // CHECKed against the dimension sizes.
   template <typename NativeT>
@@ -921,6 +936,14 @@ class MutableLiteralBase : public LiteralBase {
   }
 
   Piece& mutable_root_piece() { return const_cast<Piece&>(root_piece()); }
+
+  // Internal template helper for the Literal::CopySliceFrom(), matching its
+  // arguments one by one.
+  template <typename NativeT>
+  absl::Status CopySliceFromInternal(const LiteralBase& src_literal,
+                                     absl::Span<const int64_t> src_base,
+                                     absl::Span<const int64_t> dest_base,
+                                     absl::Span<const int64_t> copy_size);
 
   // The literal may or may not own the storage of the shape. Creating/copying a
   // shape can incur significant overhead which in many case we'd like to avoid,
