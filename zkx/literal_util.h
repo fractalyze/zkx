@@ -127,6 +127,9 @@ class LiteralUtil {
     return MakeTupleOwned(std::move(v));
   }
 
+  // Create a constant token literal. Token types have no value.
+  static Literal CreateToken();
+
   // Creates a new Literal object with its values having the primitive_type
   // type, and with dimensions defined by the dimensions parameter.
   // The content of the literal values is the default value of the primitive

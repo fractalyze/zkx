@@ -219,6 +219,11 @@ void PopulateWithRandomEcPointData(Literal* literal, std::minstd_rand0* engine,
 }  // namespace
 
 // static
+Literal LiteralUtil::CreateToken() {
+  return Literal(ShapeUtil::MakeTokenShape());
+}
+
+// static
 Literal LiteralUtil::Zero(PrimitiveType primitive_type) {
   return CreateScalar<ZeroProvider>(primitive_type);
 }
