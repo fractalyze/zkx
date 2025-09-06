@@ -920,6 +920,66 @@ std::vector<ShapeUtil::IndexedShape> ShapeUtil::GetLeafShapes(
 }
 
 // static
+Shape ShapeUtil::PermuteDimensions(absl::Span<const int64_t> permutation,
+                                   const Shape& shape) {
+  Shape new_shape = shape;
+  new_shape.clear_dimensions();
+  for (auto dim : Permute(shape.dimensions(), permutation)) {
+    new_shape.add_dimensions(dim);
+  }
+  auto inv_permutation = InversePermutation(permutation);
+  for (int64_t i = 0; i < shape.rank(); i++) {
+    new_shape.set_dynamic_dimension(inv_permutation[i],
+                                    shape.is_dynamic_dimension(i));
+  }
+
+  // If `shape` has a layout, by contract we choose a new layout such that the
+  // transpose defined by this permutation is a bitcast.
+  //
+  // Some formalism helps to understand the correct way to do this. We're going
+  // to do algebra in the group of permutations of the dimensions of `shape`.
+  //
+  // Since the order of `shape`'s dimensions is not permuted relative to itself,
+  // `shape`'s list of dimensions is isomorphic to the identity I.
+  //
+  // Let `shape`'s layout be L. A layout is a permutation which maps a
+  // minor-to-major physical dimension ordering to a shape's logical dimension
+  // ordering. Therefore the inverse of a layout maps from logical to physical
+  // dims, and so the physical ordering of I is simply L'.I = L', where L' is
+  // the inverse of L.
+  //
+  // Let the argument `permutation` be P. This is a permutation over `shape`'s
+  // dimensions, so our return value will be a shape with dims P.I = P. Our
+  // goal is to construct a layout permutation L* for this shape. The physical
+  // dimension ordering of this returned shape must be the same as that of the
+  // original shape, namely L'.
+  //
+  // Our returned shape has dims P and layout L*, so its in-memory ordering is
+  // L*'.P. Setting this equal to L' and solving for L*, we get:
+  //
+  //   L*'.P = L'    =>
+  //   L*'   = L'P'  =>
+  //   L*    = P.L
+  //
+  if (shape.has_layout()) {
+    CHECK(LayoutUtil::IsDenseArray(shape));
+    Layout* new_layout = new_shape.mutable_layout();
+    new_layout->clear_minor_to_major();
+    for (auto index : ComposePermutations(inv_permutation,
+                                          shape.layout().minor_to_major())) {
+      new_layout->add_minor_to_major(index);
+    }
+    // The permutation accepted by TransposeIsBitcast is the inverse of the
+    // permutation here.
+    CHECK(TransposeIsBitcast(shape, new_shape, permutation))
+        << "shape=" << HumanStringWithLayout(shape)
+        << ", new_shape=" << HumanStringWithLayout(new_shape)
+        << ", permutation={" << absl::StrJoin(permutation, ",") << "}";
+  }
+  return new_shape;
+}
+
+// static
 std::optional<ShapeUtil::ShapeEqualityDescriptor>
 ShapeUtil::InsertedOrDeleted1SizedDimensions(const Shape& shape_pre,
                                              const Shape& shape_post) {

@@ -553,6 +553,17 @@ class ShapeUtil {
     return ForEachMutableSubshapeWithStatusHelper(shape, fn, &index);
   }
 
+  // Permutes the dimensions by the given permutation, so
+  // return_value.dimensions[i] = argument.dimensions[permutation[i]].
+  //
+  // Postcondition: For any valid permutation,
+  //
+  //   !HasLayout(shape) ||
+  //   TransposeIsBitcast(shape, PermuteDimensions(permutation, shape),
+  //                      permutation).
+  static Shape PermuteDimensions(absl::Span<const int64_t> permutation,
+                                 const Shape& shape);
+
   // Describes how we can go from shape A to shape B by inserting degenerate
   // 1-sized dimensions in `added_dimensions` and removing degenerate 1-sized
   // dimensions from B in `removed_dimensions`.
