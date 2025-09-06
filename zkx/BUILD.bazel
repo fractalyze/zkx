@@ -162,6 +162,7 @@ zkx_cc_library(
         ":status_macros",
         ":util",
         "//xla/tsl/platform:mem",
+        "//xla/tsl/util:byte_swap_array",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/functional:function_ref",
         "@com_google_absl//absl/log:check",

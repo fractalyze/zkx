@@ -21,6 +21,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/mem.h"
+#include "xla/tsl/util/byte_swap_array.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx {
@@ -428,6 +429,150 @@ std::string LiteralBase::ToStringWithLayoutOneline() const {
   StringPrinter printer;
   PrintWithLayoutOneline(&printer);
   return std::move(printer).ToString();
+}
+
+namespace {
+
+template <typename NativeSrcT, typename NativeDestT>
+void ConvertBetweenNativeTypes(absl::Span<const NativeSrcT> src_data,
+                               void* dst_base) {
+  if constexpr (std::is_same_v<NativeSrcT, NativeDestT>) {
+    // TODO(chokobole): Implement this. Dependency: s1, s2, s4, u1, u2, u4
+    static_assert(std::is_same_v<NativeSrcT, uint8_t> ||
+                  std::is_same_v<NativeSrcT, int8_t>);
+    return;
+  } else {
+    static_assert(!std::is_same_v<NativeSrcT, NativeDestT>);
+
+    NativeDestT* dest_data = static_cast<NativeDestT*>(dst_base);
+    for (const NativeSrcT& src : src_data) {
+      *(dest_data++) = static_cast<NativeDestT>(src);
+    }
+  }
+}
+
+template <PrimitiveType kSrcType>
+absl::Status ConvertIfDestTypeMatches(const LiteralBase& src_literal,
+                                      MutableLiteralBase& dst_literal) {
+  DCHECK(dst_literal.shape().IsArray());
+  using NativeSrcT = primitive_util::NativeTypeOf<kSrcType>;
+  // Pass raw data Span/pointers to called template methods to avoid duplicating
+  // the Literal method calls to many time which hurts code size.
+  auto src_data = src_literal.data<NativeSrcT>();
+  void* dst_base = dst_literal.untyped_data();
+  DCHECK_EQ(src_data.size(), dst_literal.element_count());
+  return primitive_util::ArrayTypeSwitch<absl::Status>(
+      [&](auto primitive_type_constant) -> absl::Status {
+        using NativeDestT =
+            primitive_util::NativeTypeOf<primitive_type_constant>;
+        if constexpr (primitive_util::IsFieldType(primitive_type_constant) ||
+                      primitive_util::IsFieldType(kSrcType) ||
+                      primitive_util::IsEcPointType(primitive_type_constant) ||
+                      primitive_util::IsEcPointType(kSrcType)) {
+          // TODO(chokobole): Implement this. Field -> Non-Field, Non-Field ->
+          // Field, EcPoint -> Non-EcPoint and Non-EcPoint -> EcPoint
+          return absl::UnimplementedError("Undefined conversion");
+        } else if constexpr (kSrcType != primitive_type_constant) {
+          ConvertBetweenNativeTypes<NativeSrcT, NativeDestT>(src_data,
+                                                             dst_base);
+        }
+        return absl::OkStatus();
+      },
+      dst_literal.shape().element_type());
+}
+
+absl::StatusOr<Literal> ConvertSwitch(const LiteralBase& literal,
+                                      PrimitiveType primitive_dest_type) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(literal.shape()));
+  if (literal.shape().element_type() == primitive_dest_type) {
+    return literal.Clone();
+  }
+  // Source Array type requirement is ensured by IsDenseArray before.
+  if (!primitive_util::IsArrayType(primitive_dest_type) ||
+      !primitive_util::IsArrayType(literal.shape().element_type())) {
+    return absl::UnimplementedError(absl::StrFormat(
+        "%s from type %s to type %s is not implemented.", "Converting",
+        PrimitiveType_Name(literal.shape().element_type()),
+        PrimitiveType_Name(primitive_dest_type)));
+  }
+  // At this point, we know both src & dst are array types, while src is not
+  // complex type, so we can allocate the result literal here to avoid
+  // duplicating it N^2 times in the conversion implementation.
+  Literal result(
+      ShapeUtil::ChangeElementType(literal.shape(), primitive_dest_type));
+  TF_RETURN_IF_ERROR(primitive_util::ArrayTypeSwitch<absl::Status>(
+      [&](auto primitive_type_constant) -> absl::Status {
+        return ConvertIfDestTypeMatches<primitive_type_constant>(literal,
+                                                                 result);
+      },
+      literal.shape().element_type()));
+  return result;
+}
+
+}  // namespace
+
+absl::StatusOr<Literal> LiteralBase::Convert(
+    PrimitiveType primitive_dest_type) const {
+  return ConvertSwitch(*this, primitive_dest_type);
+}
+
+absl::StatusOr<Literal> LiteralBase::BitcastConvert(
+    const Shape& dest_shape) const {
+  if (ShapeUtil::ByteSizeOf(dest_shape) != ShapeUtil::ByteSizeOf(shape())) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Can not bitcast-convert from shape %s to a shape of different size %s",
+        shape().ToString(), dest_shape.ToString()));
+  }
+  if (dest_shape.IsTuple() || shape().IsTuple()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("bitcast-convert is not valid for tuple shapes %s->%s",
+                        shape().ToString(), dest_shape.ToString()));
+  }
+  if (shape().is_dynamic() || dest_shape.is_dynamic()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("bitcast-convert is not valid for dynamic shape %s->%s",
+                        shape().ToString(), dest_shape.ToString()));
+  }
+
+  Literal out(dest_shape);
+  memcpy(out.root_piece_.buffer(), root_piece().buffer(),
+         root_piece().size_bytes_dense());
+
+  // Perform the reshape on little endian encoding even on big endian machines.
+  if constexpr (!kLittleEndian) {
+    // Swap byte ordering as per the input data type.
+    size_t input_elem_size =
+        ShapeUtil::ByteSizeOfPrimitiveType(shape().element_type());
+    TF_RETURN_IF_ERROR(tsl::ByteSwapArray(
+        const_cast<char*>(out.root_piece().buffer()), input_elem_size,
+        out.root_piece().size_bytes_dense() / input_elem_size));
+    // Swap byte ordering as per the output data type.
+    size_t output_elem_size =
+        ShapeUtil::ByteSizeOfPrimitiveType(dest_shape.element_type());
+    TF_RETURN_IF_ERROR(tsl::ByteSwapArray(
+        const_cast<char*>(out.root_piece().buffer()), output_elem_size,
+        out.root_piece().size_bytes_dense() / output_elem_size));
+  }
+
+  return out;
+}
+
+absl::StatusOr<Literal> LiteralBase::ConvertToShape(
+    const Shape& dest_shape) const {
+  if (!dest_shape.IsTuple()) {
+    return Convert(dest_shape.element_type());
+  }
+  std::vector<Literal> elements;
+  const auto tuple_element_count = ShapeUtil::TupleElementCount(shape());
+  elements.reserve(tuple_element_count);
+  for (int i = 0; i < tuple_element_count; ++i) {
+    auto element = LiteralSlice(*this, {i});
+    TF_ASSIGN_OR_RETURN(
+        auto new_element,
+        element.ConvertToShape(ShapeUtil::GetSubshape(dest_shape, {i})));
+    elements.push_back(std::move(new_element));
+  }
+  return MutableLiteralBase::MoveIntoTuple(absl::MakeSpan(elements));
 }
 
 // static

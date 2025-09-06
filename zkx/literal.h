@@ -295,6 +295,19 @@ class LiteralBase {
     }
   };
 
+  // Converts this literal to the given shape. Returns an error if the
+  // conversion is not possible.
+  absl::StatusOr<Literal> ConvertToShape(const Shape& dest_shape) const;
+
+  // Converts this literal to another primitive type using a bitcast
+  // conversion. Returns an error if the conversion is not possible. This
+  // literal must be array-shaped.
+  absl::StatusOr<Literal> BitcastConvert(const Shape& dest_shape) const;
+
+  // Converts this literal to another primitive type. Returns an error if the
+  // conversion is not possible. This literal must be array-shaped.
+  absl::StatusOr<Literal> Convert(PrimitiveType primitive_dest_type) const;
+
   // Clones the underlying buffers into a new Literal.
   Literal Clone() const;
   std::unique_ptr<Literal> CloneToUnique() const;
