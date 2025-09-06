@@ -151,6 +151,39 @@ StrideConfig::StrideConfig(const Shape& source_shape, const Shape& dest_shape,
 
 LiteralBase::~LiteralBase() = default;
 
+absl::StatusOr<Literal> LiteralBase::Reshape(
+    absl::Span<const int64_t> dimensions) const {
+  if (!LayoutUtil::IsDenseArray(shape())) {
+    return absl::InvalidArgumentError(
+        "Reshape is only supported for dense arrays.");
+  }
+  if (shape().is_dynamic()) {
+    // TODO(b/243182930): We should consider supporting dynamic reshape.
+    return absl::UnimplementedError("Dynamic reshape is not implemented.");
+  }
+  Literal output;
+  if (!LayoutUtil::IsMonotonicWithDim0Major(shape().layout())) {
+    output = Relayout(LayoutUtil::GetDefaultLayoutForRank(shape().rank()));
+  } else {
+    output = Clone();
+  }
+  // Because the layout is monotonic, we can simply reuse the same sequence of
+  // values without changing their order.
+  *output.mutable_shape_do_not_use() =
+      ShapeUtil::MakeShape(shape().element_type(), dimensions);
+
+  int64_t elements_before = ShapeUtil::ElementsIn(shape());
+  int64_t elements_after = ShapeUtil::ElementsIn(output.shape());
+  if (elements_before != elements_after) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Shapes before and after Literal::Reshape have different numbers "
+        "of elements: %s vs %s.",
+        ShapeUtil::HumanString(shape()),
+        ShapeUtil::HumanString(output.shape())));
+  }
+  return std::move(output);
+}
+
 Literal LiteralBase::Clone() const {
   Literal result(shape());
   CHECK_OK(result.CopyFrom(*this));
