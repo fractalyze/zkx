@@ -389,6 +389,11 @@ class LiteralBase {
   // This literal must be an array.
   absl::StatusOr<Literal> Reshape(absl::Span<const int64_t> dimensions) const;
 
+  // Creates a new literal by broadcasting this literal with `dimensions` to
+  // yield a literal of shape `result_shape`.
+  absl::StatusOr<Literal> Broadcast(const Shape& result_shape,
+                                    absl::Span<const int64_t> dimensions) const;
+
   // Creates a new literal by reordering the dimensions of this literal.
   // The given `permutation` must be a permutation of the dimension numbers
   // in the original literal, and it specifies the order of the new dimensions
