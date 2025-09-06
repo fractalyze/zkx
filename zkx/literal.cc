@@ -1184,6 +1184,29 @@ absl::Status MutableLiteralBase::CopySliceFromInternal(
   return absl::OkStatus();
 }
 
+void MutableLiteralBase::CopyElementFrom(const LiteralSlice& src_literal,
+                                         absl::Span<const int64_t> src_index,
+                                         absl::Span<const int64_t> dest_index) {
+  DCHECK(LayoutUtil::IsDenseArray(shape()));
+  DCHECK_EQ(shape().element_type(), src_literal.shape().element_type());
+  const int64_t src_linear_index =
+      IndexUtil::MultidimensionalIndexToLinearIndex(src_literal.shape(),
+                                                    src_index);
+  const int64_t dest_linear_index =
+      IndexUtil::MultidimensionalIndexToLinearIndex(shape(), dest_index);
+  const int64_t primitive_size =
+      ShapeUtil::ByteSizeOfPrimitiveType(shape().element_type());
+
+  char* dest_address =
+      static_cast<char*>(untyped_data()) + dest_linear_index * primitive_size;
+  const char* source_address =
+      static_cast<const char*>(src_literal.untyped_data()) +
+      src_linear_index * primitive_size;
+  if (dest_address != source_address) {
+    memcpy(dest_address, source_address, primitive_size);
+  }
+}
+
 // static
 absl::StatusOr<Literal> MutableLiteralBase::CreateFromProto(
     const LiteralProto& proto, bool prohibit_empty_literal) {

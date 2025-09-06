@@ -848,6 +848,11 @@ class MutableLiteralBase : public LiteralBase {
                              absl::Span<const int64_t> dest_base,
                              absl::Span<const int64_t> copy_size);
 
+  // Copies one element from src_literal[src_index] to (*this)[dest_index].
+  void CopyElementFrom(const LiteralSlice& src_literal,
+                       absl::Span<const int64_t> src_index,
+                       absl::Span<const int64_t> dest_index);
+
   // Sets an element in the literal at the given index. The multi_index is
   // CHECKed against the dimension sizes.
   template <typename NativeT>
