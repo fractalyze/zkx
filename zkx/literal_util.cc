@@ -15,12 +15,16 @@ limitations under the License.
 
 #include "zkx/literal_util.h"
 
+#include <type_traits>
+
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 
 #include "zkx/base/containers/container_util.h"
 #include "zkx/math/base/big_int.h"
+#include "zkx/math/base/prime_field.h"
+#include "zkx/math/geometry/point_declarations.h"
 
 namespace zkx {
 namespace {
@@ -56,6 +60,50 @@ template <PrimitiveType kType>
 struct OneProvider {
   NativeT<kType> operator()() const { return static_cast<NativeT<kType>>(1); }
 };
+
+template <typename T>
+struct IsValidScalarType {
+  static constexpr bool value =
+      std::is_integral_v<T> || math::IsField<T> || math::IsEcPoint<T>;
+};
+
+template <PrimitiveType kType>
+struct FirstElementProvider {
+  NativeT<kType> operator()(const LiteralBase& literal) const {
+    return literal.GetFirstElement<NativeT<kType>>();
+  }
+};
+
+template <typename NativeT>
+std::enable_if_t<IsValidScalarType<NativeT>::value, NativeT>
+GetElementAtIndexImpl(const LiteralBase* literal,
+                      absl::Span<const int64_t> multi_index) {
+  return literal->Get<NativeT>(multi_index);
+}
+
+template <typename NativeT>
+std::enable_if_t<!IsValidScalarType<NativeT>::value, NativeT>
+GetElementAtIndexImpl(const LiteralBase* literal,
+                      absl::Span<const int64_t> multi_index) {
+  LOG(FATAL) << "Not a valid scalar element type.";
+}
+
+template <PrimitiveType kType>
+struct GetElementAtIndexProvider {
+  NativeT<kType> operator()(const LiteralBase* literal,
+                            absl::Span<const int64_t> multi_index) const {
+    DCHECK_EQ(literal->shape().element_type(), kType);
+    return GetElementAtIndexImpl<NativeT<kType>>(literal, multi_index);
+  }
+};
+
+template <PrimitiveType kType>
+void SetScalarAtIndexImpl(MutableLiteralBase& literal,
+                          absl::Span<const int64_t> multi_index,
+                          const LiteralBase& scalar) {
+  DCHECK_EQ(literal.shape().element_type(), kType);
+  literal.Set<NativeT<kType>>(multi_index, scalar.Get<NativeT<kType>>({}));
+}
 
 }  // namespace
 
@@ -108,6 +156,38 @@ Literal LiteralUtil::CreateFromDimensions(
     PrimitiveType primitive_type, absl::Span<const int64_t> dimensions) {
   return Literal::CreateFromShape(
       ShapeUtil::MakeShape(primitive_type, dimensions));
+}
+
+// static
+Literal LiteralUtil::GetFirstScalarLiteral(const LiteralSlice& literal) {
+  CHECK(literal.shape().IsArray());
+  CHECK_GT(ShapeUtil::ElementsIn(literal.shape()), 0);
+  return CreateScalar<FirstElementProvider>(literal.shape().element_type(),
+                                            literal);
+}
+
+// static
+Literal LiteralUtil::GetScalarLiteral(const LiteralBase& literal,
+                                      absl::Span<const int64_t> multi_index) {
+  return CreateScalar<GetElementAtIndexProvider>(literal.shape().element_type(),
+                                                 &literal, multi_index);
+}
+
+// static
+void LiteralUtil::SetScalarLiteral(MutableLiteralBase& literal,
+                                   absl::Span<const int64_t> multi_index,
+                                   const LiteralBase& scalar) {
+  primitive_util::PrimitiveTypeSwitch<void>(
+      [&](auto primitive_type_constant) -> void {
+        if constexpr (primitive_util::IsArrayType(primitive_type_constant)) {
+          SetScalarAtIndexImpl<primitive_type_constant>(literal, multi_index,
+                                                        scalar);
+          return;
+        }
+        LOG(FATAL) << "Unsupported element type: "
+                   << literal.shape().element_type();
+      },
+      literal.shape().element_type());
 }
 
 // static

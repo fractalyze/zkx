@@ -212,6 +212,8 @@ zkx_cc_library(
         ":shape_util",
         "//zkx/base/containers:container_util",
         "//zkx/math/base:big_int",
+        "//zkx/math/base:prime_field",
+        "//zkx/math/geometry:point_declarations",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
