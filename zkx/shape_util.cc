@@ -739,6 +739,21 @@ DimensionVector ShapeUtil::CreateDimensionVectorFromShape(const Shape& shape) {
 }
 
 // static
+int64_t ShapeUtil::GetDimension(const Shape& shape, int64_t dimension_number) {
+  return shape.dimensions(GetDimensionNumber(shape, dimension_number));
+}
+
+// static
+int64_t ShapeUtil::GetDimensionNumber(const Shape& shape,
+                                      int64_t dimension_number) {
+  if (dimension_number < 0) {
+    dimension_number += shape.rank();
+  }
+  CHECK_GE(dimension_number, 0);
+  return dimension_number;
+}
+
+// static
 int64_t ShapeUtil::ByteSizeOfPrimitiveType(PrimitiveType primitive_type) {
   return primitive_util::ByteWidth(primitive_type);
 }

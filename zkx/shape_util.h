@@ -265,6 +265,21 @@ class ShapeUtil {
     return IsScalar(shape) && shape.element_type() == element_type;
   }
 
+  // Extracts the size of the shape's dimension at dimension number
+  // GetDimensionNumber(dimension_number).
+  static int64_t GetDimension(const Shape& shape, int64_t dimension_number);
+
+  // Resolves a dimension number, supporting negative indexing.
+  //
+  // Negative indexing has similar semantics to Python. For an N-dimensional
+  // array, dimension -1 is equivalent to dimension N-1, -2 is equivalent to
+  // N-2, and so on.
+  //
+  // This function always returns a positive dimension number for any given
+  // dimension_number (which itself can be negative).
+  static int64_t GetDimensionNumber(const Shape& shape,
+                                    int64_t dimension_number);
+
   // Creates a `DimensionVector` by copying dimensions from a given shape.
   static DimensionVector CreateDimensionVectorFromShape(const Shape& shape);
 
