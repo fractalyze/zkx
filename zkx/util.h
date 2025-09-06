@@ -51,6 +51,17 @@ inline constexpr int InlineRank() { return 6; }
 using DimensionVector = absl::InlinedVector<int64_t, InlineRank()>;
 using DimLevelTypeVector = absl::InlinedVector<DimLevelType, InlineRank()>;
 
+// Performs a copy of count values from src to dest, using different strides for
+// source and destination. The source starting index is src_base, while the
+// destination one is dest_base.
+template <typename D, typename S>
+void StridedCopy(D* dest, int64_t dest_stride, const S* src, int64_t src_stride,
+                 int64_t count) {
+  for (int64_t i = 0; i < count; ++i) {
+    dest[i * dest_stride] = static_cast<D>(src[i * src_stride]);
+  }
+}
+
 // Adds some context information to the error message in a
 // absl::Status. This is useful as absl::Statuses are
 // propagated upwards.
