@@ -1775,6 +1775,28 @@ Literal LiteralBase::Relayout(const Shape& shape_with_layout) const {
   return result;
 }
 
+Literal LiteralBase::ToStatic() const {
+  // Materialize a static shape by fixing dynamic dims to runtime sizes and
+  // copying only valid data.
+  Shape new_shape = shape();
+  ShapeUtil::ForEachMutableSubshape(
+      &new_shape, [this](Shape* subshape, const ShapeIndex& index) {
+        if (!subshape->IsArray()) {
+          return;
+        }
+        for (int64_t i = 0; i < subshape->rank(); ++i) {
+          // GetDynamicSize has a 32-bit return type and may truncate static
+          // dimensions, so make sure to skip.
+          if (!subshape->is_dynamic_dimension(i)) continue;
+          subshape->set_dynamic_dimension(i, false);
+          subshape->set_dimensions(i, GetDynamicSize(i, index));
+        }
+      });
+  Literal result(new_shape);
+  CHECK_OK(result.CopyFrom(*this, {}, {}, /*only_dynamic_bound=*/true));
+  return result;
+}
+
 BorrowingLiteral::BorrowingLiteral(const char* src_buf_ptr, const Shape& shape)
     : shape_(std::make_unique<Shape>(shape)) {
   CHECK(shape_->IsArray());
