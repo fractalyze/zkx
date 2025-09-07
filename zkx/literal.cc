@@ -1797,6 +1797,24 @@ Literal LiteralBase::ToStatic() const {
   return result;
 }
 
+Literal LiteralBase::ToBoundedDynamic(const Shape& bounded_shape) const {
+  CHECK(bounded_shape.is_dynamic());
+  Literal result(bounded_shape);
+  ShapeUtil::ForEachSubshape(
+      shape(), [&](const Shape& subshape, const ShapeIndex& index) {
+        if (!subshape.IsArray()) {
+          return;
+        }
+        for (int64_t i = 0; i < subshape.rank(); ++i) {
+          if (!bounded_shape.is_dynamic_dimension(i)) continue;
+          result.SetDynamicSize(i, subshape.dimensions(i));
+        }
+      });
+  CHECK_OK(result.CopyFrom(*this, {}, {}, /*only_dynamic_bound=*/true));
+
+  return result;
+}
+
 BorrowingLiteral::BorrowingLiteral(const char* src_buf_ptr, const Shape& shape)
     : shape_(std::make_unique<Shape>(shape)) {
   CHECK(shape_->IsArray());
