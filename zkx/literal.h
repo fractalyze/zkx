@@ -341,6 +341,35 @@ class LiteralBase {
   //      returns = s32[3, 2]
   Literal ToStatic() const;
 
+  // Expand a static literal into a new one with a bounded dynamic literal. The
+  // static dimensions of the original literal becomes dynamic dimensions of the
+  // new literal, where the argument `bounded_shape` becomes the bounded shape
+  // of the new literal.
+  //
+  // Precondition: bounded_shape.is_dynamic()
+  //
+  // Examples:
+  //
+  //  1) Single array
+  //     this.shape = s32[5, 4]
+  //     bounded_shape = s32[<=8, 4] // dim 0 is dynamic (bound 8)
+  //     returns = s32[<=8, 4] with dynamic_size(0) = 5
+  //     // Copies the leading 5×4 region; the bound padding (up to 8×4) is
+  //     // unused.
+  //
+  //  2) Two dynamic dims
+  //     this.shape = s32[3, 5]
+  //     bounded_shape = s32[<=4, <=16]
+  //     returns = s32[<=4, <=16] with dynamic_size = {3, 5}
+  //
+  //  3) Nested tuples (indices shown as ShapeIndex)
+  //     this.shape = (s32[5], (s32[2], u64[]))
+  //     bounded_shape = (s32[<=8], (s32[<=4], u64[]))
+  //     returns = (s32[<=8], (s32[<=4], u64[]))
+  //       dynamic_size at {0}   = 5
+  //       dynamic_size at {1,0} = 2
+  Literal ToBoundedDynamic(const Shape& bounded_shape) const;
+
   // Returns true if the leaf arrays of the literal within the given shape index
   // are all determined.
   // See comments on ArrayValueState for detailed explanation.
