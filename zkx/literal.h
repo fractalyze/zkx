@@ -322,6 +322,25 @@ class LiteralBase {
   // than being limited to a single array within the shape.
   Literal Relayout(const Shape& shape_with_layout) const;
 
+  // Generate a new literal whose static sizes are equal to the previous
+  // literal's dynamic sizes.
+  //
+  // Examples:
+  //
+  //   1) Single array
+  //      this.shape = s32[<=8, 4] with dynamic_size(0) = 5
+  //      returns = s32[5, 4]
+
+  //   2) Nested tuples (indices shown as ShapeIndex)
+  //      this.shape = (s32[<=8], (s32[<=3], s64[]))
+  //      dynamic sizes: {0}: 5, {1,0}: 2
+  //      returns = (s32[5], (s32[2], s64[]))
+  //
+  //   3) No dynamic dims → no-op (same shape/content)
+  //      this.shape = s32[3, 2]
+  //      returns = s32[3, 2]
+  Literal ToStatic() const;
+
   // Returns true if the leaf arrays of the literal within the given shape index
   // are all determined.
   // See comments on ArrayValueState for detailed explanation.
