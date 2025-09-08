@@ -217,43 +217,43 @@ PlatformManagerImpl& Impl() {
 
 }  // namespace
 
-// satic
+// static
 absl::Status PlatformManager::RegisterPlatform(
     std::unique_ptr<Platform> platform) {
   return Impl().RegisterPlatform(std::move(platform));
 }
 
-// satic
+// static
 absl::StatusOr<Platform*> PlatformManager::PlatformWithName(
     std::string_view target) {
   return Impl().PlatformWithName(target);
 }
 
-// satic
+// static
 absl::StatusOr<Platform*> PlatformManager::PlatformWithId(
     const Platform::Id& id) {
   return Impl().PlatformWithId(id);
 }
 
-// satic
+// static
 absl::StatusOr<Platform*> PlatformManager::PlatformWithName(
     std::string_view target, bool initialize_platform) {
   return Impl().PlatformWithName(target, initialize_platform);
 }
 
-// satic
+// static
 absl::StatusOr<Platform*> PlatformManager::InitializePlatformWithId(
     const Platform::Id& id) {
   return Impl().InitializePlatformWithId(id);
 }
 
-// satic
+// static
 absl::StatusOr<std::vector<Platform*>> PlatformManager::PlatformsWithFilter(
     const std::function<bool(const Platform*)>& filter) {
   return PlatformsWithFilter(filter, /*initialize_platform=*/true);
 }
 
-// satic
+// static
 absl::StatusOr<std::vector<Platform*>> PlatformManager::PlatformsWithFilter(
     const std::function<bool(const Platform*)>& filter,
     bool initialize_platform) {
