@@ -23,6 +23,7 @@ limitations under the License.
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
@@ -135,8 +136,8 @@ class PreemptionNotifier {
  private:
   static std::unordered_map<std::string, PreemptionNotifierFactory>*
   GetPreemptionNotifierFactories() {
-    static auto* preemption_notifier_factories =
-        new std::unordered_map<std::string, PreemptionNotifierFactory>();
+    static auto* preemption_notifier_factories = absl::IgnoreLeak(
+        new std::unordered_map<std::string, PreemptionNotifierFactory>());
     return preemption_notifier_factories;
   }
 

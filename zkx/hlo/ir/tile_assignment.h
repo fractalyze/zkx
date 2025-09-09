@@ -27,6 +27,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/functional/function_ref.h"
 #include "absl/hash/hash.h"
 #include "absl/log/check.h"
@@ -287,7 +288,7 @@ class TileAssignment {
   void MaybeMaterializeFullArray() const;
 
   static const Array<int64_t>* ReplicatedArray() {
-    static auto* array = new Array<int64_t>({0});
+    static auto* array = absl::IgnoreLeak(new Array<int64_t>({0}));
     return array;
   }
 

@@ -23,6 +23,7 @@ limitations under the License.
 #include <utility>
 #include <vector>
 
+#include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -436,8 +437,8 @@ class NoOpAsyncThunk : public Thunk {
 
  private:
   static tsl::thread::ThreadPool* ThreadPool() {
-    static auto* thread_pool =
-        new tsl::thread::ThreadPool(tsl::Env::Default(), "no-op-thunk", 8);
+    static auto* thread_pool = absl::IgnoreLeak(
+        new tsl::thread::ThreadPool(tsl::Env::Default(), "no-op-thunk", 8));
     return thread_pool;
   }
 

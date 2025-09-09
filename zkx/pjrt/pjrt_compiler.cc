@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/synchronization/mutex.h"
 
@@ -28,8 +29,8 @@ namespace {
 ABSL_CONST_INIT absl::Mutex g_registry_mutex(absl::kConstInit);
 absl::flat_hash_map<std::string, std::unique_ptr<PjRtCompiler>>*
 CompilerRegistry() {
-  static auto* compiler_registry =
-      new absl::flat_hash_map<std::string, std::unique_ptr<PjRtCompiler>>();
+  static auto* compiler_registry = absl::IgnoreLeak(
+      new absl::flat_hash_map<std::string, std::unique_ptr<PjRtCompiler>>());
   return compiler_registry;
 }
 
