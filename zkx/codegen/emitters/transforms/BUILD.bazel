@@ -21,6 +21,20 @@ gentbl_cc_library(
 )
 
 zkx_cc_library(
+    name = "atomic_rmw_utils",
+    srcs = ["atomic_rmw_utils.cc"],
+    hdrs = ["atomic_rmw_utils.h"],
+    deps = [
+        "//zkx/codegen/emitters/ir:zkx",
+        "@com_google_absl//absl/log:check",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+    ],
+)
+
+zkx_cc_library(
     name = "convert_pure_call_ops",
     srcs = ["convert_pure_call_ops.cc"],
     deps = [
