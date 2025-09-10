@@ -44,4 +44,21 @@ def EraseDeadFunctionsPass : Pass<"zkx-erase-dead-functions", "mlir::ModuleOp"> 
   let constructor = "CreateEraseDeadFunctionsPass()";
 }
 
+def FlattenTensorsPass : Pass<"zkx-flatten-tensors", "mlir::ModuleOp"> {
+  let summary = "Flatten tensors.";
+  let description = [{
+    Linearizes all tensors loads and stores.
+  }];
+  let dependentDialects = [
+    "mlir::arith::ArithDialect",
+    "mlir::func::FuncDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect",
+    "mlir::vector::VectorDialect",
+    "zkx::ZkxDialect",
+    "zkx::gpu::ZkxGpuDialect",
+  ];
+  let constructor = "CreateFlattenTensorsPass()";
+}
+
 #endif  // ZKX_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD
