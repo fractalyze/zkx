@@ -1,0 +1,18 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "elemental_hlo_to_mlir",
+    srcs = ["elemental_hlo_to_mlir.cc"],
+    hdrs = ["elemental_hlo_to_mlir.h"],
+    deps = [
+        "//zkx/codegen/emitters/ir:zkx",
+        "//zkx/hlo/analysis:indexing_map",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+# TODO(chokobole): Add elemental_hlo_to_mlir_unittest.cc. Dependency: HloTestBase
