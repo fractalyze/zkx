@@ -107,4 +107,40 @@ def LowerToLLVMPass :
   let constructor = "CreateLowerToLLVMPass()";
 }
 
+def LowerZkxToScfPass :
+   Pass<"zkx-lower-zkx-to-scf", "mlir::func::FuncOp"> {
+  let summary = "Lowers zkx to SCF.";
+  let dependentDialects = [
+    "mlir::gpu::GPUDialect",
+    "mlir::LLVM::LLVMDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect",
+    "mlir::vector::VectorDialect",
+    "zkx::ZkxDialect",
+    "zkx::gpu::ZkxGpuDialect",
+  ];
+  let options = [
+    Option<"warp_size", "warp_size", "int64_t", /*default=*/"32", "Warp size.">,
+  ];
+  let constructor = "CreateLowerZkxToScfPass()";
+}
+
+def LowerZkxLoopsToScfPass : Pass<
+    "zkx-lower-zkx-loops-to-scf", "mlir::func::FuncOp"> {
+  let summary = "Lowers zkx.loop to SCF.";
+  let description = [{
+    This pass is separate from zkx-lower-zkx-to-scf because
+    zkx-lower-zkx-to-scf, inliner, peeling and zkx-lower-zkx-loops-to-scf
+    have to run in that order.
+  }];
+  let dependentDialects = [
+    "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect",
+    "zkx::ZkxDialect",
+    "zkx::gpu::ZkxGpuDialect",
+  ];
+
+  let constructor = "CreateLowerZkxLoopsToScfPass()";
+}
+
 #endif  // ZKX_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD
