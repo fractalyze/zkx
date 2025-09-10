@@ -33,4 +33,21 @@ def ConvertIndexTypePass : Pass<"zkx-gpu-convert-index-type", "mlir::ModuleOp"> 
   let constructor = "CreateConvertIndexTypePass()";
 }
 
+def VectorizeLoadsAndStoresPass :
+   Pass<"zkx-gpu-vectorize-loads-stores", "mlir::func::FuncOp"> {
+  let summary = "Vectorizes loads and stores.";
+  let description = [{
+    Rewrites tensor.extract and tensor.insert ops inside loops to their vector
+    equivalents (vector.transfer_read with vector.extract and vector.transfer_write
+    with vector.insert).
+  }];
+  let dependentDialects = [
+    "mlir::arith::ArithDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect",
+    "mlir::vector::VectorDialect",
+  ];
+  let constructor = "CreateVectorizeLoadsAndStoresPass()";
+}
+
 #endif  // ZKX_BACKENDS_GPU_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD_
