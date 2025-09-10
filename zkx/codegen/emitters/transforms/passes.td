@@ -175,4 +175,21 @@ def PropagateSliceIndicesPass :
   let constructor = "CreatePropagateSliceIndicesPass()";
 }
 
+def SimplifyAffinePass : Pass<"zkx-simplify-affine", "mlir::ModuleOp"> {
+  let summary = "Simplifies affine.apply using ZKX's range-aware simplifier.";
+  let description = [{
+      The standard affine canonicalizer cannot simplify all expressions, since
+      it is unaware of range information. This pass uses `zkx.range` attributes
+      on arguments and ops for simplification. It also lowers floordiv and mod
+      to simpler expressions than lower-affine. This pass only works for
+      expressions for which we can prove the LHS of mod and div is nonnegative.
+  }];
+  let dependentDialects = [
+    "mlir::affine::AffineDialect",
+    "mlir::arith::ArithDialect",
+    "zkx::ZkxDialect",
+  ];
+  let constructor = "CreateSimplifyAffinePass()";
+}
+
 #endif  // ZKX_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD

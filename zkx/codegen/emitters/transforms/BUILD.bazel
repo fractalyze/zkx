@@ -193,3 +193,23 @@ zkx_cc_library(
         "@llvm-project//mlir:Support",
     ],
 )
+
+zkx_cc_library(
+    name = "simplify_affine",
+    srcs = ["simplify_affine.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "//zkx/codegen/emitters/ir:zkx",
+        "//zkx/hlo/analysis:indexing_map",
+        "@com_google_absl//absl/base:core_headers",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
