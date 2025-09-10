@@ -146,3 +146,23 @@ zkx_cc_library(
         "@llvm-project//mlir:VectorToLLVM",
     ],
 )
+
+zkx_cc_library(
+    name = "lower_zkx_to_scf",
+    srcs = ["lower_zkx_to_scf.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "//zkx/backends/gpu/codegen/emitters/ir:zkx_gpu",
+        "//zkx/codegen/emitters:elemental_hlo_to_mlir",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:GPUDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:VectorDialect",
+    ],
+)
