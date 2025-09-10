@@ -1,0 +1,20 @@
+[codespell]
+skip =
+  MODULE.bazel.lock
+
+ignore-words-list =
+  afterall,
+  arithmetics,
+  creater,
+  crate,
+  coo,
+  elemt,
+  fo,
+  fpt,
+  kinf,
+  kno,
+  leat,
+  ot,
+  requester,
+  re-use,
+  re-used,
