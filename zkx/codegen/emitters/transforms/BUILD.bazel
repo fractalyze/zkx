@@ -33,3 +33,17 @@ zkx_cc_library(
         "@llvm-project//mlir:TransformUtils",
     ],
 )
+
+zkx_cc_library(
+    name = "erase_dead_functions",
+    srcs = ["erase_dead_functions.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:CallOpInterfaces",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)

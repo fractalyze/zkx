@@ -32,4 +32,16 @@ def ConvertPureCallOpsPass
   let constructor = "CreateConvertPureCallOpsPass()";
 }
 
+def EraseDeadFunctionsPass : Pass<"zkx-erase-dead-functions", "mlir::ModuleOp"> {
+  let summary = "Deletes unused functions";
+  let description = [{
+      Deletes functions that are not called.
+  }];
+  let dependentDialects = [
+    "mlir::func::FuncDialect",
+  ];
+
+  let constructor = "CreateEraseDeadFunctionsPass()";
+}
+
 #endif  // ZKX_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD
