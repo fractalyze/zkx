@@ -302,6 +302,71 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "cuda_executor",
+    srcs = ["cuda_executor.cc"],
+    hdrs = ["cuda_executor.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_command_buffer",
+        ":cuda_context",
+        ":cuda_event",
+        ":cuda_kernel",
+        ":cuda_platform_id",
+        ":cuda_status",
+        ":cuda_stream",
+        ":cuda_timer",
+        ":cuda_version_parser",
+        ":tma_util",
+        "//xla/tsl/cuda",
+        "//xla/tsl/cuda:cudart",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:fingerprint",
+        "//xla/tsl/platform:numa",
+        "//xla/tsl/platform:numbers",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor:activate_context",
+        "//zkx/stream_executor:command_buffer",
+        "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:event",
+        "//zkx/stream_executor:event_based_timer",
+        "//zkx/stream_executor:generic_memory_allocation",
+        "//zkx/stream_executor:generic_memory_allocator",
+        "//zkx/stream_executor:kernel",
+        "//zkx/stream_executor:kernel_spec",
+        "//zkx/stream_executor:launch_dim",
+        "//zkx/stream_executor:memory_allocation",
+        "//zkx/stream_executor:memory_allocator",
+        "//zkx/stream_executor:module_spec",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:semantic_version",
+        "//zkx/stream_executor:stream",
+        "//zkx/stream_executor/gpu:context",
+        "//zkx/stream_executor/gpu:gpu_executor",
+        "//zkx/stream_executor/gpu:read_numa_node",
+        "//zkx/stream_executor/gpu:scoped_activate_context",
+        "//zkx/stream_executor/gpu:tma_metadata",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/numeric:int128",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "cuda_kernel",
     srcs = ["cuda_kernel.cc"],
     hdrs = ["cuda_kernel.h"],
@@ -323,6 +388,35 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
+    name = "cuda_platform",
+    srcs = ["cuda_platform.cc"],
+    hdrs = ["cuda_platform.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_diagnostics",
+        ":cuda_executor",
+        ":cuda_platform_id",
+        ":cuda_status",
+        "//xla/tsl/platform:errors",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:executor_cache",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor/gpu:gpu_diagnostics",
+        "//zkx/stream_executor/platform:initialize",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@local_config_cuda//cuda:cuda_headers",
     ],
 )
@@ -675,6 +769,21 @@ zkx_cc_library(
     ],
 )
 
+# NOTE(chokobole): This test must be separated from `cuda_unittests` because
+# it causes `CudaPlatform` to cache the executor for the device, which makes
+# `FindExisting(0)` to return true, causing this test to fail.
+zkx_cc_unittest(
+    name = "cuda_platform_unittest",
+    srcs = if_cuda_is_configured(["cuda_platform_unittest.cc"]),
+    deps = if_cuda_is_configured([
+        ":cuda_platform",
+        "//xla/tsl/platform:statusor",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ]),
+)
+
 zkx_cc_unittest(
     name = "cuda_unittests",
     srcs = [
@@ -684,14 +793,6 @@ zkx_cc_unittest(
         "compilation_provider_options_unittest.cc",
         "composite_compilation_provider_unittest.cc",
         "cuda_compute_capability_unittest.cc",
-        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
-        # "cuda_event_unittest.cc",
-        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
-        # "cuda_kernel_unittest.cc",
-        # TODO(chokobole): Uncomment this. Dependency: CudaPlatform
-        # "cuda_stream_unittest.cc",
-        # TODO(chokobole): Uncomment this. Dependency: CudaExecutor
-        # "cuda_timer_unittest.cc",
         "cuda_version_parser_unittest.cc",
         "defer_relocatable_compilation_compilation_provider_unittest.cc",
         "nvjitlink_known_issues_unittest.cc",
@@ -699,6 +800,13 @@ zkx_cc_unittest(
         "ptx_compiler_unittest.cc",
         "subprocess_compilation_unittest.cc",
     ] + if_cuda_is_configured([
+        "cuda_diagnostics_unittest.cc",
+        "cuda_driver_unittest.cc",
+        "cuda_event_unittest.cc",
+        "cuda_executor_unittest.cc",
+        "cuda_kernel_unittest.cc",
+        "cuda_stream_unittest.cc",
+        "cuda_timer_unittest.cc",
         "tma_util_unittest.cc",
     ]),
     data = [
@@ -731,6 +839,25 @@ zkx_cc_unittest(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
     ] + if_cuda_is_configured([
+        ":cuda_diagnostics",
+        ":cuda_event",
+        ":cuda_executor",
+        ":cuda_kernel",
+        ":cuda_platform",
+        ":cuda_platform_id",
+        ":cuda_status",
+        ":cuda_stream",
+        ":cuda_timer",
         ":tma_util",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:kernel",
+        "//zkx/stream_executor:kernel_spec",
+        "//zkx/stream_executor:launch_dim",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor:typed_kernel_factory",
+        "//zkx/stream_executor/gpu:gpu_test_kernels",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
     ]),
 )

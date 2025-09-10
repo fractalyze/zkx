@@ -43,9 +43,6 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
-        args:
-          - --ignore-words-list=crate,fpt,leat,creater,elemt,coo,kno,fo,kinf,afterall,arithmetics,ot,re-use,re-used,requester
-          - --skip=MODULE.bazel.lock
 
   # Changes tabs to spaces
   - repo: https://github.com/Lucas-C/pre-commit-hooks
