@@ -183,6 +183,27 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "passes",
+    hdrs = ["passes.h"],
+    deps = [
+        ":convert_pure_call_ops",
+        ":erase_dead_functions",
+        ":flatten_tensors",
+        ":lower_tensors",
+        ":lower_to_llvm",
+        ":lower_zkx_to_scf",
+        ":merge_pointers_to_same_slice",
+        ":propagate_slice_indices",
+        ":simplify_affine",
+        ":simplify_arith",
+        ":unswitch_loops",
+        "//zkx/stream_executor:device_description",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "propagate_slice_indices",
     srcs = ["propagate_slice_indices.cc"],
     deps = [
