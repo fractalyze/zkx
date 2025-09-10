@@ -38,6 +38,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "peel_loops",
+    srcs = ["peel_loops.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "//zkx/backends/gpu/codegen/emitters/ir:zkx_gpu",
+        "//zkx/hlo/analysis:indexing_map",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+zkx_cc_library(
     name = "vectorize_loads_stores",
     srcs = ["vectorize_loads_stores.cc"],
     deps = [

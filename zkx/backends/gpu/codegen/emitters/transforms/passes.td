@@ -50,4 +50,19 @@ def VectorizeLoadsAndStoresPass :
   let constructor = "CreateVectorizeLoadsAndStoresPass()";
 }
 
+def PeelLoopsPass : Pass<"zkx-gpu-peel-loops", "mlir::func::FuncOp"> {
+  let summary = "Peels zkx_gpu.loop.";
+  let description = [{
+      Attempts to split each loop dimension [0, NUM_ITERATIONS)
+      as [0, NUM_ITERATIONS - 1) and [NUM_ITERATIONS - 1, NUM_ITERATIONS)
+      if it removes a constraint.
+  }];
+  let dependentDialects = [
+    "mlir::func::FuncDialect",
+    "zkx::ZkxDialect",
+    "zkx::gpu::ZkxGpuDialect",
+  ];
+  let constructor = "CreatePeelLoopsPass()";
+}
+
 #endif  // ZKX_BACKENDS_GPU_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD_
