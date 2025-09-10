@@ -156,4 +156,23 @@ def MergePointersToSameSlicePass :
   let constructor = "CreateMergePointersToSameSlicePass()";
 }
 
+def PropagateSliceIndicesPass :
+   Pass<"zkx-propagate-slice-indices", "mlir::ModuleOp"> {
+  let summary = "Propagates slice indices from the entry function to all callees.";
+  let description = [{
+      Propagates zkx.slice_index attributes from the function with the zkx.entry
+      attribute to all other functions.
+
+      Note: This pass assumes that all functions share the same argument prefix
+      as the entry function, and that tensor arguments are not interleaved with
+      non-tensor arguments. If function signatures differ in this respect,
+      attribute propagation may be incorrect. For more robust propagation,
+      tracing arguments through call chains would be required.
+  }];
+  let dependentDialects = [
+    "mlir::func::FuncDialect"
+  ];
+  let constructor = "CreatePropagateSliceIndicesPass()";
+}
+
 #endif  // ZKX_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD
