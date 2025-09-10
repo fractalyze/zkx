@@ -61,4 +61,30 @@ def FlattenTensorsPass : Pass<"zkx-flatten-tensors", "mlir::ModuleOp"> {
   let constructor = "CreateFlattenTensorsPass()";
 }
 
+def LowerTensorsPass : Pass<"zkx-lower-tensors", "mlir::ModuleOp"> {
+  let summary = "Lowers tensors to llvm pointers and loads/stores.";
+  let description = [{
+      Lowers tensors to LLVM. We cannot use the memref lowerings because they
+      are not compatible with ZKX's ABI.
+  }];
+  let dependentDialects = [
+    "mlir::arith::ArithDialect",
+    "mlir::func::FuncDialect",
+    "mlir::gpu::GPUDialect",
+    "mlir::LLVM::LLVMDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect",
+    "mlir::vector::VectorDialect",
+    "zkx::ZkxDialect",
+    "zkx::gpu::ZkxGpuDialect",
+  ];
+  let options = [
+    Option<"gpu_device_info_", "gpu_device_info", "std::string", /*default=*/"",
+           "Serialized stream_executor::GPUDeviceInfo proto.">,
+    Option<"target_type_", "target_type", "std::string", /*default=*/"\"gpu\"",
+           "Whether the pass targets a 'cpu' or 'gpu'. If 'cpu', gpu_device_info_ must be empty.">,
+  ];
+  let constructor = "CreateLowerTensorsPass()";
+}
+
 #endif  // ZKX_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD
