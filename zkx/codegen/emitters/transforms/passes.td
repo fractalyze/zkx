@@ -143,4 +143,17 @@ def LowerZkxLoopsToScfPass : Pass<
   let constructor = "CreateLowerZkxLoopsToScfPass()";
 }
 
+def MergePointersToSameSlicePass :
+   Pass<"zkx-merge-pointers", "mlir::ModuleOp"> {
+  let summary = "Merges pointers that share slices.";
+  let description = [{
+      When a function has multiple pointer arguments with the same slice index,
+      merges them.
+  }];
+  let dependentDialects = [
+    "mlir::func::FuncDialect",
+  ];
+  let constructor = "CreateMergePointersToSameSlicePass()";
+}
+
 #endif  // ZKX_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD
