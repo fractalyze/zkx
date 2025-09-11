@@ -65,4 +65,21 @@ def PeelLoopsPass : Pass<"zkx-gpu-peel-loops", "mlir::func::FuncOp"> {
   let constructor = "CreatePeelLoopsPass()";
 }
 
+def OptimizeLoopsPass :
+   Pass<"zkx-gpu-optimize-loops", "mlir::func::FuncOp"> {
+  let summary = "Unrolls and pipelines loops.";
+  let description = [{
+    Unrolls loops with a small trip count. Pipelines loops with a large trip
+    count.
+  }];
+  let dependentDialects = [
+    "mlir::arith::ArithDialect",
+    "mlir::scf::SCFDialect",
+    "mlir::tensor::TensorDialect",
+    "mlir::vector::VectorDialect",
+    "zkx::ZkxDialect",
+  ];
+  let constructor = "CreateOptimizeLoopsPass()";
+}
+
 #endif  // ZKX_BACKENDS_GPU_CODEGEN_EMITTERS_TRANSFORMS_PASSES_TD_
