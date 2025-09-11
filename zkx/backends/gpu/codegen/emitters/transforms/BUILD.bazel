@@ -62,6 +62,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "passes",
+    hdrs = ["passes.h"],
+    deps = [
+        ":convert_index_type",
+        ":optimize_loops",
+        ":passes_inc_gen",
+        ":peel_loops",
+        ":vectorize_loads_stores",
+    ],
+)
+
+zkx_cc_library(
     name = "peel_loops",
     srcs = ["peel_loops.cc"],
     deps = [
