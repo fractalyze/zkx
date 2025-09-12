@@ -136,6 +136,7 @@ zkx_cc_library(
         "//zkx:zkx_data_cc_proto",
         "//zkx/backends/cpu/collectives:cpu_collectives",
         "//zkx/core/collectives:communicator",
+        "//zkx/math/base:field",
         "//zkx/service:collective_ops_utils",
         "//zkx/service:rendezvous",
         "//zkx/stream_executor:device_memory",

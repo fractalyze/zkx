@@ -34,6 +34,7 @@ limitations under the License.
 
 #include "xla/tsl/lib/math/math_util.h"
 #include "zkx/base/logging.h"
+#include "zkx/math/base/field.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fr.h"
 #include "zkx/math/elliptic_curves/bn/bn254/g1.h"
 #include "zkx/math/elliptic_curves/bn/bn254/g2.h"
@@ -619,7 +620,7 @@ inline void UnpackIntN(PrimitiveType input_type, absl::Span<const char> input,
 
 template <typename NativeT>
 std::string NativeTypeToString(NativeT value) {
-  if constexpr (math::IsPrimeField<NativeT> || math::IsEcPoint<NativeT>) {
+  if constexpr (math::IsField<NativeT> || math::IsEcPoint<NativeT>) {
     return value.ToString();
   } else {
     return absl::StrCat(value);

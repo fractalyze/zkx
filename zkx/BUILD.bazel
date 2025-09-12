@@ -280,6 +280,7 @@ zkx_cc_library(
         ":zkx_data_cc_proto",
         "//xla/tsl/lib/math:math_util",
         "//zkx/base:logging",
+        "//zkx/math/base:field",
         "//zkx/math/elliptic_curves/bn/bn254:fr",
         "//zkx/math/elliptic_curves/bn/bn254:g1",
         "//zkx/math/elliptic_curves/bn/bn254:g2",
