@@ -83,9 +83,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "field",
+    hdrs = ["field.h"],
+)
+
+zkx_cc_library(
     name = "finite_field",
     hdrs = ["finite_field.h"],
     deps = [
+        ":field",
         ":finite_field_traits",
         "//zkx/base/types:always_false",
         "//zkx/math/base/square_root_algorithms",
