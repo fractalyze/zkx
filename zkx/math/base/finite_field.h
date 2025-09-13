@@ -1,7 +1,10 @@
 #ifndef ZKX_MATH_BASE_FINITE_FIELD_H_
 #define ZKX_MATH_BASE_FINITE_FIELD_H_
 
+#include <type_traits>
+
 #include "zkx/base/types/always_false.h"
+#include "zkx/math/base/field.h"
 #include "zkx/math/base/finite_field_traits.h"
 #include "zkx/math/base/square_root_algorithms/shanks.h"
 #include "zkx/math/base/square_root_algorithms/square_root_algorithm9.h"
@@ -55,6 +58,11 @@ class FiniteField {
   constexpr static uint64_t ConstexprPow(uint64_t base, size_t exp) {
     return exp == 0 ? 1 : base * ConstexprPow(base, exp - 1);
   }
+};
+
+template <typename T>
+struct IsFieldImpl<T, std::enable_if_t<std::is_base_of_v<FiniteField<T>, T>>> {
+  constexpr static bool value = true;
 };
 
 }  // namespace zkx::math

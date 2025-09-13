@@ -21,6 +21,8 @@ limitations under the License.
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/mem.h"
+#include "xla/tsl/util/byte_swap_array.h"
+#include "zkx/permutation_util.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx {
@@ -149,6 +151,192 @@ StrideConfig::StrideConfig(const Shape& source_shape, const Shape& dest_shape,
 }  // namespace
 
 LiteralBase::~LiteralBase() = default;
+
+namespace {
+
+template <int64_t PRIMITIVE_SIZE>
+absl::StatusOr<Literal> BroadcastHelper(const LiteralBase& src,
+                                        const Shape& src_shape,
+                                        const Shape& result_shape,
+                                        absl::Span<const int64_t> dimensions) {
+  for (int64_t i = 0, end = dimensions.size(); i < end; i++) {
+    TF_RET_CHECK(src_shape.dimensions(i) ==
+                 result_shape.dimensions(dimensions[i]));
+  }
+
+  TF_RET_CHECK(result_shape.element_type() == src_shape.element_type());
+  Literal result(result_shape);
+  if (src_shape.is_dynamic()) {
+    for (int64_t i = 0; i < dimensions.size(); ++i) {
+      if (src_shape.is_dynamic_dimension(i)) {
+        // Set any dynamic sizes in the new literal.
+        int64_t dynamic_size = src.GetDynamicSize(i);
+        result.SetDynamicSize(dimensions[i], dynamic_size);
+      }
+    }
+  }
+
+  // scratch_source_index is temporary storage space for the computed index into
+  // the input literal. We put it here to avoid allocating an std::vector in
+  // every iteration of ShapeUtil::ForEachIndex.
+  int src_shape_dims = src_shape.dimensions_size();
+  std::vector<int64_t> scratch_source_index(src_shape_dims);
+  // Make the span once outside the ForEachIndex... loop, pointing into
+  // scratch_source_index
+  absl::Span<int64_t> scratch_source_span(scratch_source_index);
+  int64_t* scratch_source_array = scratch_source_span.data();
+
+  const char* source_data = static_cast<const char*>(src.untyped_data());
+  char* dest_data = static_cast<char*>(result.untyped_data());
+
+  auto src_minor_to_major = LayoutUtil::MinorToMajor(src_shape);
+  auto result_minor_to_major = LayoutUtil::MinorToMajor(result_shape);
+
+  ShapeUtil::ForEachIndexNoStatus(
+      result_shape, [&](absl::Span<const int64_t> output_index) {
+        // Compute dest_index
+        int64_t dest_index = IndexUtil::MultidimensionalIndexToLinearIndex(
+            result_shape, result_minor_to_major, output_index);
+
+        // Compute source_index
+        int64_t source_index;
+        for (int64_t i = 0, end = dimensions.size(); i < end; ++i) {
+          scratch_source_array[i] = output_index[dimensions[i]];
+        }
+        if (src_shape_dims == 1) {
+          // Fast path for this case
+          source_index = scratch_source_array[0];
+          DCHECK_EQ(source_index,
+                    IndexUtil::MultidimensionalIndexToLinearIndex(
+                        src_shape, src_minor_to_major, scratch_source_span));
+        } else {
+          source_index = IndexUtil::MultidimensionalIndexToLinearIndex(
+              src_shape, src_minor_to_major, scratch_source_span);
+        }
+        // Move one element from source_index in source to dest_index in dest
+        memcpy(dest_data + PRIMITIVE_SIZE * dest_index,
+               source_data + PRIMITIVE_SIZE * source_index, PRIMITIVE_SIZE);
+        return true;
+      });
+
+  return std::move(result);
+}
+
+}  // namespace
+
+absl::StatusOr<Literal> LiteralBase::Broadcast(
+    const Shape& result_shape, absl::Span<const int64_t> dimensions) const {
+  const LiteralBase& src = *this;
+  const Shape& src_shape = shape();
+  if (!src_shape.IsArray()) {
+    return absl::InvalidArgumentError("Broadcast only supports arrays.");
+  }
+  const int64_t primitive_size =
+      ShapeUtil::ByteSizeOfPrimitiveType(src_shape.element_type());
+
+  switch (primitive_size) {
+    case 0:
+      return BroadcastHelper<0>(src, src_shape, result_shape, dimensions);
+    case 1:
+      return BroadcastHelper<1>(src, src_shape, result_shape, dimensions);
+    case 2:
+      return BroadcastHelper<2>(src, src_shape, result_shape, dimensions);
+    case 4:
+      return BroadcastHelper<4>(src, src_shape, result_shape, dimensions);
+    case 8:
+      return BroadcastHelper<8>(src, src_shape, result_shape, dimensions);
+    case 16:
+      return BroadcastHelper<16>(src, src_shape, result_shape, dimensions);
+    case 32:
+      return BroadcastHelper<32>(src, src_shape, result_shape, dimensions);
+    case 64:
+      return BroadcastHelper<64>(src, src_shape, result_shape, dimensions);
+    case 128:
+      return BroadcastHelper<128>(src, src_shape, result_shape, dimensions);
+    default:
+      LOG(FATAL) << "Unhandled primitive size " << primitive_size;
+      return absl::InvalidArgumentError("Unhandled primitive size");
+  }
+}
+
+absl::StatusOr<Literal> LiteralBase::Reshape(
+    absl::Span<const int64_t> dimensions) const {
+  if (!LayoutUtil::IsDenseArray(shape())) {
+    return absl::InvalidArgumentError(
+        "Reshape is only supported for dense arrays.");
+  }
+  if (shape().is_dynamic()) {
+    // TODO(b/243182930): We should consider supporting dynamic reshape.
+    return absl::UnimplementedError("Dynamic reshape is not implemented.");
+  }
+  Literal output;
+  if (!LayoutUtil::IsMonotonicWithDim0Major(shape().layout())) {
+    output = Relayout(LayoutUtil::GetDefaultLayoutForRank(shape().rank()));
+  } else {
+    output = Clone();
+  }
+  // Because the layout is monotonic, we can simply reuse the same sequence of
+  // values without changing their order.
+  *output.mutable_shape_do_not_use() =
+      ShapeUtil::MakeShape(shape().element_type(), dimensions);
+
+  int64_t elements_before = ShapeUtil::ElementsIn(shape());
+  int64_t elements_after = ShapeUtil::ElementsIn(output.shape());
+  if (elements_before != elements_after) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Shapes before and after Literal::Reshape have different numbers "
+        "of elements: %s vs %s.",
+        ShapeUtil::HumanString(shape()),
+        ShapeUtil::HumanString(output.shape())));
+  }
+  return std::move(output);
+}
+
+Literal LiteralBase::Transpose(absl::Span<const int64_t> permutation) const {
+  CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  CHECK(shape().rank() == permutation.size() && IsPermutation(permutation))
+      << "Given permutation is not a permutation of dimension numbers";
+  // To transpose the array, we just permute the dimensions and layout, and
+  // do a straight memory copy of the raw data set.
+  // This is considerably faster than iterating over every array element using
+  // the EachCell<>() and Set<>() APIs.
+  //
+  // NOTE(chokobole): Deduplicate XLA logic by delegating to
+  // ShapeUtil::PermuteDimensions(...) to compute the transposed shape *and*
+  // its layout. When the input shape has a layout, PermuteDimensions updates
+  // minor_to_major as `new = inv(P) ∘ old` and ensures the transpose is a
+  // bitcast—exactly what the inlined code below used to do.
+  //
+  // References (pinned to the same commit):
+  // - https://github.com/openxla/xla/blob/f281e568/xla/literal.cc#L1255-L1261
+  // clang-format off
+  // - https://github.com/openxla/xla/blob/f281e568/xla/shape_util.cc#L1307-L1313
+  // clang-format on
+  Shape owned_shape;
+  if (!shape().has_layout()) {
+    owned_shape = shape();
+    LayoutUtil::SetToDefaultLayout(&owned_shape);
+  }
+  const Shape& shape_ref = shape().has_layout() ? shape() : owned_shape;
+  Shape permuted_shape = ShapeUtil::PermuteDimensions(permutation, shape_ref);
+
+  Literal new_literal(permuted_shape);
+  if (shape().is_dynamic()) {
+    std::vector<int64_t> inverse_permutation = InversePermutation(permutation);
+    for (int64_t i = 0; i < shape().rank(); i++) {
+      if (shape().is_dynamic_dimension(i)) {
+        // Set the dynamic size of any dynamic dimension in the transposed
+        // literal.
+        new_literal.SetDynamicSize(inverse_permutation[i], GetDynamicSize(i));
+      }
+    }
+  }
+  DCHECK_EQ(ShapeUtil::ByteSizeOf(new_literal.shape()),
+            ShapeUtil::ByteSizeOf(shape()));
+  std::memcpy(new_literal.untyped_data(), untyped_data(), size_bytes());
+  return new_literal;
+}
 
 Literal LiteralBase::Clone() const {
   Literal result(shape());
@@ -428,6 +616,150 @@ std::string LiteralBase::ToStringWithLayoutOneline() const {
   StringPrinter printer;
   PrintWithLayoutOneline(&printer);
   return std::move(printer).ToString();
+}
+
+namespace {
+
+template <typename NativeSrcT, typename NativeDestT>
+void ConvertBetweenNativeTypes(absl::Span<const NativeSrcT> src_data,
+                               void* dst_base) {
+  if constexpr (std::is_same_v<NativeSrcT, NativeDestT>) {
+    // TODO(chokobole): Implement this. Dependency: s1, s2, s4, u1, u2, u4
+    static_assert(std::is_same_v<NativeSrcT, uint8_t> ||
+                  std::is_same_v<NativeSrcT, int8_t>);
+    return;
+  } else {
+    static_assert(!std::is_same_v<NativeSrcT, NativeDestT>);
+
+    NativeDestT* dest_data = static_cast<NativeDestT*>(dst_base);
+    for (const NativeSrcT& src : src_data) {
+      *(dest_data++) = static_cast<NativeDestT>(src);
+    }
+  }
+}
+
+template <PrimitiveType kSrcType>
+absl::Status ConvertIfDestTypeMatches(const LiteralBase& src_literal,
+                                      MutableLiteralBase& dst_literal) {
+  DCHECK(dst_literal.shape().IsArray());
+  using NativeSrcT = primitive_util::NativeTypeOf<kSrcType>;
+  // Pass raw data Span/pointers to called template methods to avoid duplicating
+  // the Literal method calls to many time which hurts code size.
+  auto src_data = src_literal.data<NativeSrcT>();
+  void* dst_base = dst_literal.untyped_data();
+  DCHECK_EQ(src_data.size(), dst_literal.element_count());
+  return primitive_util::ArrayTypeSwitch<absl::Status>(
+      [&](auto primitive_type_constant) -> absl::Status {
+        using NativeDestT =
+            primitive_util::NativeTypeOf<primitive_type_constant>;
+        if constexpr (primitive_util::IsFieldType(primitive_type_constant) ||
+                      primitive_util::IsFieldType(kSrcType) ||
+                      primitive_util::IsEcPointType(primitive_type_constant) ||
+                      primitive_util::IsEcPointType(kSrcType)) {
+          // TODO(chokobole): Implement this. Field -> Non-Field, Non-Field ->
+          // Field, EcPoint -> Non-EcPoint and Non-EcPoint -> EcPoint
+          return absl::UnimplementedError("Undefined conversion");
+        } else if constexpr (kSrcType != primitive_type_constant) {
+          ConvertBetweenNativeTypes<NativeSrcT, NativeDestT>(src_data,
+                                                             dst_base);
+        }
+        return absl::OkStatus();
+      },
+      dst_literal.shape().element_type());
+}
+
+absl::StatusOr<Literal> ConvertSwitch(const LiteralBase& literal,
+                                      PrimitiveType primitive_dest_type) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(literal.shape()));
+  if (literal.shape().element_type() == primitive_dest_type) {
+    return literal.Clone();
+  }
+  // Source Array type requirement is ensured by IsDenseArray before.
+  if (!primitive_util::IsArrayType(primitive_dest_type) ||
+      !primitive_util::IsArrayType(literal.shape().element_type())) {
+    return absl::UnimplementedError(absl::StrFormat(
+        "%s from type %s to type %s is not implemented.", "Converting",
+        PrimitiveType_Name(literal.shape().element_type()),
+        PrimitiveType_Name(primitive_dest_type)));
+  }
+  // At this point, we know both src & dst are array types, while src is not
+  // complex type, so we can allocate the result literal here to avoid
+  // duplicating it N^2 times in the conversion implementation.
+  Literal result(
+      ShapeUtil::ChangeElementType(literal.shape(), primitive_dest_type));
+  TF_RETURN_IF_ERROR(primitive_util::ArrayTypeSwitch<absl::Status>(
+      [&](auto primitive_type_constant) -> absl::Status {
+        return ConvertIfDestTypeMatches<primitive_type_constant>(literal,
+                                                                 result);
+      },
+      literal.shape().element_type()));
+  return result;
+}
+
+}  // namespace
+
+absl::StatusOr<Literal> LiteralBase::Convert(
+    PrimitiveType primitive_dest_type) const {
+  return ConvertSwitch(*this, primitive_dest_type);
+}
+
+absl::StatusOr<Literal> LiteralBase::BitcastConvert(
+    const Shape& dest_shape) const {
+  if (ShapeUtil::ByteSizeOf(dest_shape) != ShapeUtil::ByteSizeOf(shape())) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Can not bitcast-convert from shape %s to a shape of different size %s",
+        shape().ToString(), dest_shape.ToString()));
+  }
+  if (dest_shape.IsTuple() || shape().IsTuple()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("bitcast-convert is not valid for tuple shapes %s->%s",
+                        shape().ToString(), dest_shape.ToString()));
+  }
+  if (shape().is_dynamic() || dest_shape.is_dynamic()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("bitcast-convert is not valid for dynamic shape %s->%s",
+                        shape().ToString(), dest_shape.ToString()));
+  }
+
+  Literal out(dest_shape);
+  memcpy(out.root_piece_.buffer(), root_piece().buffer(),
+         root_piece().size_bytes_dense());
+
+  // Perform the reshape on little endian encoding even on big endian machines.
+  if constexpr (!kLittleEndian) {
+    // Swap byte ordering as per the input data type.
+    size_t input_elem_size =
+        ShapeUtil::ByteSizeOfPrimitiveType(shape().element_type());
+    TF_RETURN_IF_ERROR(tsl::ByteSwapArray(
+        const_cast<char*>(out.root_piece().buffer()), input_elem_size,
+        out.root_piece().size_bytes_dense() / input_elem_size));
+    // Swap byte ordering as per the output data type.
+    size_t output_elem_size =
+        ShapeUtil::ByteSizeOfPrimitiveType(dest_shape.element_type());
+    TF_RETURN_IF_ERROR(tsl::ByteSwapArray(
+        const_cast<char*>(out.root_piece().buffer()), output_elem_size,
+        out.root_piece().size_bytes_dense() / output_elem_size));
+  }
+
+  return out;
+}
+
+absl::StatusOr<Literal> LiteralBase::ConvertToShape(
+    const Shape& dest_shape) const {
+  if (!dest_shape.IsTuple()) {
+    return Convert(dest_shape.element_type());
+  }
+  std::vector<Literal> elements;
+  const auto tuple_element_count = ShapeUtil::TupleElementCount(shape());
+  elements.reserve(tuple_element_count);
+  for (int i = 0; i < tuple_element_count; ++i) {
+    auto element = LiteralSlice(*this, {i});
+    TF_ASSIGN_OR_RETURN(
+        auto new_element,
+        element.ConvertToShape(ShapeUtil::GetSubshape(dest_shape, {i})));
+    elements.push_back(std::move(new_element));
+  }
+  return MutableLiteralBase::MoveIntoTuple(absl::MakeSpan(elements));
 }
 
 // static
@@ -792,6 +1124,86 @@ void LiteralBase::BuildPieceSubtree(const Shape& shape, Piece* piece) {
     }
 
     piece->emplace_back(std::move(child_piece));
+  }
+}
+
+template <typename NativeT>
+absl::Status MutableLiteralBase::CopySliceFromInternal(
+    const LiteralBase& src_literal, absl::Span<const int64_t> src_base,
+    absl::Span<const int64_t> dest_base, absl::Span<const int64_t> copy_size) {
+  auto linear_index = [](const Shape& shape,
+                         absl::Span<const int64_t> multi_index) {
+    return IndexUtil::MultidimensionalIndexToLinearIndex(shape, multi_index);
+  };
+
+  // `this->` is needed to workaround MSVC bug: #16882
+  NativeT* dest_data = this->data<NativeT>().data();
+  const NativeT* src_data = src_literal.data<NativeT>().data();
+  if (src_literal.shape().rank() == 0 || shape().rank() == 0) {
+    // If any of the two shapes are scalars, just assign the value once.
+    TF_RET_CHECK(copy_size.empty());
+    dest_data[linear_index(shape(), dest_base)] =
+        src_data[linear_index(src_literal.shape(), src_base)];
+  } else if (!ShapeUtil::IsZeroElementArray(shape()) &&
+             !ShapeUtil::IsZeroElementArray(src_literal.shape()) &&
+             absl::c_none_of(copy_size, [](auto d) { return d == 0; })) {
+    // Perform copy if none of src, dest and copy_size has dimensions with zero
+    // element, otherwise it's a no-op.
+    TF_RET_CHECK(src_base.size() == dest_base.size());
+    TF_RET_CHECK(src_base.size() == copy_size.size());
+
+    // Scan the source from minor, stepping in copy size blocks, then within
+    // the index enumeration functor, do a strided copy advancing source index
+    // by one (walking through the minor dimension), and destination index by
+    // proper stride size at the matching dimension.
+    DimensionVector src_indexes(src_base.size(), 0);
+    DimensionVector dest_indexes(dest_base.size(), 0);
+    StrideConfig stride_config(src_literal.shape(), shape(), copy_size);
+
+    auto copy_proc = [&](absl::Span<const int64_t> indexes) {
+      // Map from multi-dimensional index, to source index.
+      std::transform(indexes.begin(), indexes.end(), src_base.begin(),
+                     src_indexes.begin(), std::plus<int64_t>());
+      // Map from multi-dimensional index, to destination index.
+      std::transform(indexes.begin(), indexes.end(), dest_base.begin(),
+                     dest_indexes.begin(), std::plus<int64_t>());
+
+      int64_t src_index = linear_index(src_literal.shape(), src_indexes);
+      int64_t dest_index = linear_index(shape(), dest_indexes);
+
+      StridedCopy(dest_data + dest_index, stride_config.dest_stride,
+                  src_data + src_index, stride_config.source_stride,
+                  stride_config.minor_loop_size);
+      return true;
+    };
+
+    ShapeUtil::ForEachIndex(src_literal.shape(), stride_config.base,
+                            stride_config.dimensions, stride_config.step,
+                            copy_proc);
+  }
+  return absl::OkStatus();
+}
+
+void MutableLiteralBase::CopyElementFrom(const LiteralSlice& src_literal,
+                                         absl::Span<const int64_t> src_index,
+                                         absl::Span<const int64_t> dest_index) {
+  DCHECK(LayoutUtil::IsDenseArray(shape()));
+  DCHECK_EQ(shape().element_type(), src_literal.shape().element_type());
+  const int64_t src_linear_index =
+      IndexUtil::MultidimensionalIndexToLinearIndex(src_literal.shape(),
+                                                    src_index);
+  const int64_t dest_linear_index =
+      IndexUtil::MultidimensionalIndexToLinearIndex(shape(), dest_index);
+  const int64_t primitive_size =
+      ShapeUtil::ByteSizeOfPrimitiveType(shape().element_type());
+
+  char* dest_address =
+      static_cast<char*>(untyped_data()) + dest_linear_index * primitive_size;
+  const char* source_address =
+      static_cast<const char*>(src_literal.untyped_data()) +
+      src_linear_index * primitive_size;
+  if (dest_address != source_address) {
+    memcpy(dest_address, source_address, primitive_size);
   }
 }
 
@@ -1619,6 +2031,25 @@ absl::Status Literal::MoveFrom(Literal&& src_literal,
   return absl::OkStatus();
 }
 
+absl::Status MutableLiteralBase::CopySliceFrom(
+    const LiteralSlice& src_literal, absl::Span<const int64_t> src_base,
+    absl::Span<const int64_t> dest_base, absl::Span<const int64_t> copy_size) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape())) << shape();
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(src_literal.shape()))
+      << src_literal.shape();
+  TF_RET_CHECK(ShapeUtil::SameElementType(src_literal.shape(), shape()));
+  TF_RET_CHECK(src_literal.shape().rank() == src_base.size());
+  TF_RET_CHECK(shape().rank() == dest_base.size());
+
+  return primitive_util::ArrayTypeSwitch<absl::Status>(
+      [&](auto primitive_type_constant) -> absl::Status {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        return CopySliceFromInternal<NativeT>(src_literal, src_base, dest_base,
+                                              copy_size);
+      },
+      shape().element_type());
+}
+
 void MutableLiteralBase::PopulateInplaceInternal(
     absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator,
     bool parallel) {
@@ -1682,6 +2113,27 @@ void MutableLiteralBase::PopulateInplaceInternal(
     // For scalars.
     populator(dest_base, {}, /*thread_id=*/-1);
   }
+}
+
+absl::Status MutableLiteralBase::PopulateInplace(
+    absl::FunctionRef<void(void*, absl::Span<const int64_t>)> populator) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  PopulateInplaceInternal(
+      [&](void* dest, absl::Span<const int64_t> indexes, int /*thread_id*/) {
+        return populator(dest, indexes);
+      },
+      /*parallel=*/false);
+  return absl::OkStatus();
+}
+
+absl::Status MutableLiteralBase::PopulateInplaceParallel(
+    absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  PopulateInplaceInternal(populator,
+                          /*parallel=*/element_count() > 32);
+  return absl::OkStatus();
 }
 
 absl::Status MutableLiteralBase::CopyFrom(const LiteralSlice& src_literal,
@@ -1772,6 +2224,46 @@ Literal LiteralBase::Relayout(const Shape& shape_with_layout) const {
                                    /*src_shape_index=*/index));
         }
       });
+  return result;
+}
+
+Literal LiteralBase::ToStatic() const {
+  // Materialize a static shape by fixing dynamic dims to runtime sizes and
+  // copying only valid data.
+  Shape new_shape = shape();
+  ShapeUtil::ForEachMutableSubshape(
+      &new_shape, [this](Shape* subshape, const ShapeIndex& index) {
+        if (!subshape->IsArray()) {
+          return;
+        }
+        for (int64_t i = 0; i < subshape->rank(); ++i) {
+          // GetDynamicSize has a 32-bit return type and may truncate static
+          // dimensions, so make sure to skip.
+          if (!subshape->is_dynamic_dimension(i)) continue;
+          subshape->set_dynamic_dimension(i, false);
+          subshape->set_dimensions(i, GetDynamicSize(i, index));
+        }
+      });
+  Literal result(new_shape);
+  CHECK_OK(result.CopyFrom(*this, {}, {}, /*only_dynamic_bound=*/true));
+  return result;
+}
+
+Literal LiteralBase::ToBoundedDynamic(const Shape& bounded_shape) const {
+  CHECK(bounded_shape.is_dynamic());
+  Literal result(bounded_shape);
+  ShapeUtil::ForEachSubshape(
+      shape(), [&](const Shape& subshape, const ShapeIndex& index) {
+        if (!subshape.IsArray()) {
+          return;
+        }
+        for (int64_t i = 0; i < subshape.rank(); ++i) {
+          if (!bounded_shape.is_dynamic_dimension(i)) continue;
+          result.SetDynamicSize(i, subshape.dimensions(i));
+        }
+      });
+  CHECK_OK(result.CopyFrom(*this, {}, {}, /*only_dynamic_bound=*/true));
+
   return result;
 }
 

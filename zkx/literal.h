@@ -295,6 +295,19 @@ class LiteralBase {
     }
   };
 
+  // Converts this literal to the given shape. Returns an error if the
+  // conversion is not possible.
+  absl::StatusOr<Literal> ConvertToShape(const Shape& dest_shape) const;
+
+  // Converts this literal to another primitive type using a bitcast
+  // conversion. Returns an error if the conversion is not possible. This
+  // literal must be array-shaped.
+  absl::StatusOr<Literal> BitcastConvert(const Shape& dest_shape) const;
+
+  // Converts this literal to another primitive type. Returns an error if the
+  // conversion is not possible. This literal must be array-shaped.
+  absl::StatusOr<Literal> Convert(PrimitiveType primitive_dest_type) const;
+
   // Clones the underlying buffers into a new Literal.
   Literal Clone() const;
   std::unique_ptr<Literal> CloneToUnique() const;
@@ -321,6 +334,74 @@ class LiteralBase {
   // An overload of Relayout which changes the layout of the entire shape rather
   // than being limited to a single array within the shape.
   Literal Relayout(const Shape& shape_with_layout) const;
+
+  // Generate a new literal whose static sizes are equal to the previous
+  // literal's dynamic sizes.
+  //
+  // Examples:
+  //
+  //   1) Single array
+  //      this.shape = s32[<=8, 4] with dynamic_size(0) = 5
+  //      returns = s32[5, 4]
+
+  //   2) Nested tuples (indices shown as ShapeIndex)
+  //      this.shape = (s32[<=8], (s32[<=3], s64[]))
+  //      dynamic sizes: {0}: 5, {1,0}: 2
+  //      returns = (s32[5], (s32[2], s64[]))
+  //
+  //   3) No dynamic dims → no-op (same shape/content)
+  //      this.shape = s32[3, 2]
+  //      returns = s32[3, 2]
+  Literal ToStatic() const;
+
+  // Expand a static literal into a new one with a bounded dynamic literal. The
+  // static dimensions of the original literal becomes dynamic dimensions of the
+  // new literal, where the argument `bounded_shape` becomes the bounded shape
+  // of the new literal.
+  //
+  // Precondition: bounded_shape.is_dynamic()
+  //
+  // Examples:
+  //
+  //  1) Single array
+  //     this.shape = s32[5, 4]
+  //     bounded_shape = s32[<=8, 4] // dim 0 is dynamic (bound 8)
+  //     returns = s32[<=8, 4] with dynamic_size(0) = 5
+  //     // Copies the leading 5×4 region; the bound padding (up to 8×4) is
+  //     // unused.
+  //
+  //  2) Two dynamic dims
+  //     this.shape = s32[3, 5]
+  //     bounded_shape = s32[<=4, <=16]
+  //     returns = s32[<=4, <=16] with dynamic_size = {3, 5}
+  //
+  //  3) Nested tuples (indices shown as ShapeIndex)
+  //     this.shape = (s32[5], (s32[2], u64[]))
+  //     bounded_shape = (s32[<=8], (s32[<=4], u64[]))
+  //     returns = (s32[<=8], (s32[<=4], u64[]))
+  //       dynamic_size at {0}   = 5
+  //       dynamic_size at {1,0} = 2
+  Literal ToBoundedDynamic(const Shape& bounded_shape) const;
+
+  // Creates a new literal by reshaping this literal to have the given
+  // dimensions. The total number of elements must not change; The
+  // implementation currently only supports monotonic dim0-major layouts.
+  // This literal must be an array.
+  absl::StatusOr<Literal> Reshape(absl::Span<const int64_t> dimensions) const;
+
+  // Creates a new literal by broadcasting this literal with `dimensions` to
+  // yield a literal of shape `result_shape`.
+  absl::StatusOr<Literal> Broadcast(const Shape& result_shape,
+                                    absl::Span<const int64_t> dimensions) const;
+
+  // Creates a new literal by reordering the dimensions of this literal.
+  // The given `permutation` must be a permutation of the dimension numbers
+  // in the original literal, and it specifies the order of the new dimensions
+  // in the result literal (i.e., new_order[i] = old_order[permutation[i]]).
+  // For example, a transpose call on a literal of shape [3 x 8 x 4] and
+  // `permutation` = {2, 0, 1} returns a new literal of shape [4 x 3 x 8].
+  // This literal must be an array.
+  Literal Transpose(absl::Span<const int64_t> permutation) const;
 
   // Returns true if the leaf arrays of the literal within the given shape index
   // are all determined.
@@ -752,6 +833,26 @@ class MutableLiteralBase : public LiteralBase {
                         const ShapeIndex& src_shape_index = {},
                         bool only_dynamic_bound = false);
 
+  // Copies the values from src_literal, starting at src_base shape indexes,
+  // to this literal, starting at dest_base, where the copy size in each
+  // dimension is specified by copy_size.
+  // The src_literal and this literal must have the same primitive type,
+  // src_base+copy_size must fit the source literal dimensions, as well as
+  // dest_base+copy_size must fit the destination literal dimensions.
+  // Note: if either src_literal or this literal contains dimensions with zero
+  // element, then copy_size must be 0 in these dimensions while the
+  // corresponding base indices being 0.
+  // This literal and 'src_literal' must be arrays.
+  absl::Status CopySliceFrom(const LiteralSlice& src_literal,
+                             absl::Span<const int64_t> src_base,
+                             absl::Span<const int64_t> dest_base,
+                             absl::Span<const int64_t> copy_size);
+
+  // Copies one element from src_literal[src_index] to (*this)[dest_index].
+  void CopyElementFrom(const LiteralSlice& src_literal,
+                       absl::Span<const int64_t> src_index,
+                       absl::Span<const int64_t> dest_index);
+
   // Sets an element in the literal at the given index. The multi_index is
   // CHECKed against the dimension sizes.
   template <typename NativeT>
@@ -798,6 +899,29 @@ class MutableLiteralBase : public LiteralBase {
   absl::Status Populate(
       absl::FunctionRef<NativeT(absl::Span<const int64_t>)> generator);
 
+  // A parallel version of Populate(). This can be used if the generator is
+  // thread-safe and the values for the shape's different elements are
+  // independent.
+  template <typename NativeT>
+  absl::Status PopulateParallel(
+      absl::FunctionRef<NativeT(absl::Span<const int64_t>, int)> generator);
+
+  // Similar to Populate() but takes a populator function that allows caller to
+  // specify how to write to the destination buffer rather than a generator that
+  // returns the values. This is useful when the value population simply does
+  // memcpy without compute and therefore can be written in a type agnostic way,
+  // so that we can avoid templatizing the method for better code size.
+  //
+  // This literal must have a dense layout.
+  absl::Status PopulateInplace(
+      absl::FunctionRef<void(void*, absl::Span<const int64_t>)> populator);
+
+  // A parallel version of PopulateInplace(). This can be used if the generator
+  // is thread-safe and the values for the shape's different elements are
+  // independent.
+  absl::Status PopulateInplaceParallel(
+      absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator);
+
   // Fills this literal with the given value.
   template <typename NativeT>
   void PopulateWithValue(NativeT value);
@@ -822,6 +946,14 @@ class MutableLiteralBase : public LiteralBase {
   }
 
   Piece& mutable_root_piece() { return const_cast<Piece&>(root_piece()); }
+
+  // Internal template helper for the Literal::CopySliceFrom(), matching its
+  // arguments one by one.
+  template <typename NativeT>
+  absl::Status CopySliceFromInternal(const LiteralBase& src_literal,
+                                     absl::Span<const int64_t> src_base,
+                                     absl::Span<const int64_t> dest_base,
+                                     absl::Span<const int64_t> copy_size);
 
   // The literal may or may not own the storage of the shape. Creating/copying a
   // shape can incur significant overhead which in many case we'd like to avoid,
@@ -1207,6 +1339,15 @@ ABSL_ATTRIBUTE_NOINLINE absl::Status MutableLiteralBase::Populate(
         return generator(indexes);
       },
       /*parallel=*/false);
+}
+
+template <typename NativeT>
+ABSL_ATTRIBUTE_NOINLINE absl::Status MutableLiteralBase::PopulateParallel(
+    absl::FunctionRef<NativeT(absl::Span<const int64_t>, int)> generator) {
+  TF_RET_CHECK(LayoutUtil::IsDenseArray(shape()))
+      << __func__ << " is only supported for dense arrays: " << shape();
+  return PopulateInternal<NativeT>(generator,
+                                   /*parallel=*/data<NativeT>().size() > 32);
 }
 
 template <typename NativeT>

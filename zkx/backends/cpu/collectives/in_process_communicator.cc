@@ -27,6 +27,7 @@ limitations under the License.
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
 #include "zkx/base/logging.h"
+#include "zkx/math/base/field.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/service/rendezvous.h"
@@ -41,7 +42,7 @@ bool ByRank(const Participant* a, const Participant* b) {
 
 template <typename T>
 T GetInitialValue(ReductionKind reduction_kind) {
-  if constexpr (math::IsPrimeField<T>) {
+  if constexpr (math::IsField<T>) {
     switch (reduction_kind) {
       case ReductionKind::kSum:
         return T::Zero();

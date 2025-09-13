@@ -31,6 +31,16 @@ namespace zkx {
 
 class LiteralUtil {
  public:
+  // Returns a literal scalar representing the first element.
+  static Literal GetFirstScalarLiteral(const LiteralSlice& literal);
+  // Returns a literal scalar representing the element at `multi_index`.
+  static Literal GetScalarLiteral(const LiteralBase& literal,
+                                  absl::Span<const int64_t> multi_index);
+  // Sets the value of the element at `multi_index` with a scalar literal.
+  static void SetScalarLiteral(MutableLiteralBase& literal,
+                               absl::Span<const int64_t> multi_index,
+                               const LiteralBase& scalar);
+
   // Creates a new literal of a given rank. To minimize ambiguity (for users
   // and the compiler) these CreateR[0-2] methods should explicitly specify the
   // native type. For example:
@@ -126,6 +136,9 @@ class LiteralUtil {
              std::make_move_iterator(arr.end()));
     return MakeTupleOwned(std::move(v));
   }
+
+  // Create a constant token literal. Token types have no value.
+  static Literal CreateToken();
 
   // Creates a new Literal object with its values having the primitive_type
   // type, and with dimensions defined by the dimensions parameter.
