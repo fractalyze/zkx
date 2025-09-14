@@ -7,9 +7,13 @@ zkx_cc_binary(
     # set linkopts in such a way that dynamic libraries are found, which are
     # symlinked from the lit_lib directory.
     linkopts = ["-Wl,-rpath,$$ORIGIN/../lit_lib"],
-    visibility = ["//zkx/codegen/emitters/transforms/tests:__subpackages__"],
+    visibility = [
+        "//zkx/backends/gpu/codegen/emitters/transforms/tests:__subpackages__",
+        "//zkx/codegen/emitters/transforms/tests:__subpackages__",
+    ],
     deps = [
         "//zkx/backends/gpu/codegen/emitters/ir:zkx_gpu",
+        "//zkx/backends/gpu/codegen/emitters/transforms:passes",
         "//zkx/codegen/emitters/ir:zkx",
         "//zkx/codegen/emitters/transforms:passes",
         "@llvm-project//llvm:Support",
