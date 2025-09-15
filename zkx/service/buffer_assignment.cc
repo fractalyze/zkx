@@ -484,7 +484,7 @@ bool BufferAssignment::SharesSliceAtIndex(
 bool BufferAssignment::HaveDisjointSlices(const HloInstruction* hlo_a,
                                           const HloInstruction* hlo_b) const {
   using SliceSet = absl::flat_hash_set<BufferAllocation::Slice>;
-  // Gets the slices all of instr's subshapes.  If any subshape doesn't have an
+  // Gets the slices all of instr's subshapes. If any subshape doesn't have an
   // assigned slice, returns the empty set.
   auto collect_slices = [&](const HloInstruction* instr) -> SliceSet {
     SliceSet slices;
@@ -1537,7 +1537,7 @@ absl::Status BufferAssigner::AssignSingleHloBuffer(
         // the buffer re-use cases above.
         //
         // Entry parameters and thread local buffers were already handled
-        // earlier in this loop iteration.  See
+        // earlier in this loop iteration. See
         // BufferAllocation::IsPreallocatedTempBuffer for the definition of
         // temp buffers.
         (*buffers_to_assign_sequentially)[computation].insert(hlo_value);
@@ -1771,7 +1771,7 @@ absl::Status BufferAssigner::AssignBuffersWithSequentialOrdering(
     GlobalDecreasingSizeBestFitHeap<HloValue>::BufferIntervalCompare
         heap_buffer_interval_compare,
     std::optional<BufferAssignment::BufferIsolationOptions> isolation_options) {
-  // Run the sequence of instructions through the heap simulator.  The
+  // Run the sequence of instructions through the heap simulator. The
   // heuristic that seems to give the best results is lazy-best-fit, with all
   // runs of alloc / free calls sorted in decreasing size order.
   const HloOrdering& hlo_ordering = assignment->hlo_ordering();

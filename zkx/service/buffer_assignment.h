@@ -107,7 +107,7 @@ class BufferAllocation {
 
   // Whether this allocation holds a LogicalBuffer from a parameter of the entry
   // computation. These buffers have lifetimes which may be longer than the
-  // XLA computation.
+  // ZKX computation.
   bool is_entry_computation_parameter() const {
     return is_entry_computation_parameter_;
   }
@@ -116,7 +116,7 @@ class BufferAllocation {
     return is_parameter_aliased_with_output_;
   }
 
-  // Whether this allocation holds a constant.  On the CPU and GPU backends
+  // Whether this allocation holds a constant. On the CPU and GPU backends
   // constant allocations are not allocated dynamically, instead we resolve
   // references to these buffer allocations to a global in the readonly section
   // of the binary.
@@ -342,7 +342,7 @@ class BufferAllocation {
 
   // Whether the allocation contains a LogicalBuffer which may be live-out of
   // the entry computation. Note that this flag is conservatively computed by
-  // TuplePointsToAnalysis.  That is, an allocation marked `maybe_live_out_`
+  // TuplePointsToAnalysis. That is, an allocation marked `maybe_live_out_`
   // might not actually escape.
   bool maybe_live_out_ = false;
 
@@ -511,7 +511,7 @@ class BufferAssignment {
   // report_total_fragmentation is true.
   std::string StatsString(bool report_total_fragmentation = false) const;
 
-  // Statistics for the assignment.  Values initialized to -1 are not always
+  // Statistics for the assignment. Values initialized to -1 are not always
   // collected; fragmentation is only collected for instructions that have a
   // sequential total ordering.
   struct Stats {
