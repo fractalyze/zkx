@@ -15,8 +15,6 @@ limitations under the License.
 
 #include "zkx/service/buffer_assignment.h"
 
-#include <queue>
-
 #include "absl/algorithm/container.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
