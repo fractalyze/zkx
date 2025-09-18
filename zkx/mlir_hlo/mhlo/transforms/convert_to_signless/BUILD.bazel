@@ -1,0 +1,18 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//zkx/mlir_hlo/mhlo/transforms:__pkg__"])
+
+zkx_cc_library(
+    name = "convert_to_signless_pass",
+    srcs = ["convert_to_signless_pass.cc"],
+    deps = [
+        "//zkx/mlir_hlo/mhlo/transforms:passes_inc_gen",
+        "//zkx/mlir_hlo/mhlo/utils:type_conversion",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
