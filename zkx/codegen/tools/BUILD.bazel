@@ -16,6 +16,7 @@ zkx_cc_binary(
         "//zkx/backends/gpu/codegen/emitters/transforms:passes",
         "//zkx/codegen/emitters/ir:zkx",
         "//zkx/codegen/emitters/transforms:passes",
+        "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
