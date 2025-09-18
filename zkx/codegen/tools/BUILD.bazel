@@ -2,6 +2,7 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_binary")
 
 zkx_cc_binary(
     name = "emitters_opt",
+    testonly = True,
     srcs = ["emitters_opt.cc"],
     # We want to use this tool for lit tests. Due to hermetic cuda, we need to
     # set linkopts in such a way that dynamic libraries are found, which are
@@ -12,11 +13,13 @@ zkx_cc_binary(
         "//zkx/codegen/emitters/transforms/tests:__subpackages__",
     ],
     deps = [
+        "//zkx/backends/gpu/codegen/emitters:emitter_base",
         "//zkx/backends/gpu/codegen/emitters/ir:zkx_gpu",
         "//zkx/backends/gpu/codegen/emitters/transforms:passes",
         "//zkx/codegen/emitters/ir:zkx",
         "//zkx/codegen/emitters/transforms:passes",
         "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
+        "//zkx/service/gpu:gpu_device_info_for_tests",
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:AffineDialect",
         "@llvm-project//mlir:ArithDialect",
