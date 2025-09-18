@@ -21,6 +21,7 @@ limitations under the License.
 #include "absl/algorithm/container.h"
 #include "absl/strings/match.h"
 
+#include "zkx/backends/gpu/codegen/emitters/loop.h"
 #include "zkx/layout_util.h"
 
 namespace zkx::gpu {
@@ -97,9 +98,7 @@ std::unique_ptr<FusionInterface> GetFusionEmitter(
       if (auto copy_fusion = fusion_info.GetCopyFusion()) {
         return *std::move(copy_fusion);
       }
-      // TODO(chokobole): Implement this. Dependency: LoopFusion
-      // return std::make_unique<LoopFusion>(analysis);
-      return nullptr;
+      return std::make_unique<LoopFusion>(analysis);
     }
     case HloFusionAnalysis::EmitterFusionKind::kReduction:
       // TODO(chokobole): Implement this. Dependency: CreateReductionFusion

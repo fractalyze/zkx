@@ -23,8 +23,8 @@ limitations under the License.
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 
-#include "zkx/backends/gpu/codegen/emitters/ir/zkx_gpu_ops.h"
 #include "zkx/codegen/emitters/elemental_hlo_to_mlir.h"
+#include "zkx/codegen/emitters/ir/zkx_ops.h"
 #include "zkx/hlo/analysis/indexing_analysis.h"
 #include "zkx/hlo/ir/hlo_computation.h"
 #include "zkx/hlo/ir/hlo_instruction.h"
@@ -66,7 +66,7 @@ std::optional<IndexingMap> LoopFusion::ComputeThreadIdToInputIndexing(
       &analysis_.fusion_root(root_index).instruction();
   HloInstructionIndexing output_to_input_indexing =
       ComputeOutputToInputIndexing(fusion_root, /*output_id=*/0, ctx);
-  IndexingMapSet output_to_input_indexing_set =
+  const IndexingMapSet& output_to_input_indexing_set =
       output_to_input_indexing.indexing_maps[hero_operand_index];
   // Since we are computing the indexing for a non-fusion op, there is only one
   // indexing map per operand.
