@@ -18,10 +18,19 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include "zkx/service/gpu/hlo_fusion_analysis.h"
+#include "zkx/service/gpu/launch_dimensions.h"
+
 namespace zkx::gpu {
 
 // Returns the max loop unroll factor.
 inline constexpr int64_t MaxUnrollFactor() { return 4; }
+
+LaunchDimensionsConfig ComputeLoopFusionConfig(
+    const HloFusionAnalysis& analysis);
+
+LaunchDimensionsConfig ComputeLoopFusionConfig(
+    const HloFusionAnalysis& analysis, const Shape& shape);
 
 }  // namespace zkx::gpu
 
