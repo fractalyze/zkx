@@ -21,6 +21,20 @@ gentbl_cc_library(
 )
 
 zkx_cc_library(
+    name = "atomic_rmw_utils",
+    srcs = ["atomic_rmw_utils.cc"],
+    hdrs = ["atomic_rmw_utils.h"],
+    deps = [
+        "//zkx/codegen/emitters/ir:zkx",
+        "@com_google_absl//absl/log:check",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+    ],
+)
+
+zkx_cc_library(
     name = "convert_pure_call_ops",
     srcs = ["convert_pure_call_ops.cc"],
     deps = [
@@ -68,5 +82,67 @@ zkx_cc_library(
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:TransformUtils",
         "@llvm-project//mlir:VectorDialect",
+    ],
+)
+
+zkx_cc_library(
+    name = "lower_tensors",
+    srcs = ["lower_tensors.cc"],
+    deps = [
+        ":atomic_rmw_utils",
+        ":passes_inc_gen",
+        "//zkx:util",
+        "//zkx/backends/gpu/codegen/emitters/ir:zkx_gpu",
+        "//zkx/codegen:device_spec",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@com_google_protobuf//:protobuf",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DataLayoutInterfaces",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:GPUDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMCommonConversion",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
+        "@llvm-project//mlir:VectorDialect",
+        "@llvm-project//mlir:VectorTransforms",
+    ],
+)
+
+zkx_cc_library(
+    name = "lower_to_llvm",
+    srcs = ["lower_to_llvm.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "//zkx/codegen:device_spec",
+        "@com_google_absl//absl/strings",
+        "@com_google_protobuf//:protobuf",
+        "@llvm-project//mlir:AMDGPUUtils",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:ArithToLLVM",
+        "@llvm-project//mlir:ArithTransforms",
+        "@llvm-project//mlir:ControlFlowToLLVM",
+        "@llvm-project//mlir:DataLayoutInterfaces",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:GPUToNVVMTransforms",
+        "@llvm-project//mlir:GPUToROCDLTransforms",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMCommonConversion",
+        "@llvm-project//mlir:MathDialect",
+        "@llvm-project//mlir:MathToLLVM",
+        "@llvm-project//mlir:NVVMDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:ROCDLDialect",
+        "@llvm-project//mlir:Transforms",
+        "@llvm-project//mlir:VectorToLLVM",
     ],
 )
