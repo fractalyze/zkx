@@ -35,6 +35,7 @@ limitations under the License.
 #include "zkx/backends/gpu/codegen/emitters/transforms/passes.h"
 #include "zkx/codegen/emitters/ir/zkx_ops.h"
 #include "zkx/codegen/emitters/transforms/passes.h"
+#include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h"
 
 int main(int argc, char** argv) {
   mlir::DialectRegistry registry;
@@ -47,8 +48,7 @@ int main(int argc, char** argv) {
       mlir::gpu::GPUDialect,
       mlir::LLVM::LLVMDialect,
       mlir::math::MathDialect,
-      // TODO(chokobole): Uncomment this. Dependency: mlir::mhlo::MhloDialect
-      // mlir::mhlo::MhloDialect,
+      mlir::mhlo::MhloDialect,
       mlir::NVVM::NVVMDialect,
       mlir::scf::SCFDialect,
       mlir::tensor::TensorDialect,
