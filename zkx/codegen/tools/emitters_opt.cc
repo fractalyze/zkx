@@ -31,11 +31,13 @@ limitations under the License.
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 #include "mlir/Transforms/Passes.h"
 
+#include "zkx/backends/gpu/codegen/emitters/emitter_base.h"
 #include "zkx/backends/gpu/codegen/emitters/ir/zkx_gpu_ops.h"
 #include "zkx/backends/gpu/codegen/emitters/transforms/passes.h"
 #include "zkx/codegen/emitters/ir/zkx_ops.h"
 #include "zkx/codegen/emitters/transforms/passes.h"
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h"
+#include "zkx/service/gpu/gpu_device_info_for_tests.h"
 
 int main(int argc, char** argv) {
   mlir::DialectRegistry registry;
@@ -70,38 +72,32 @@ int main(int argc, char** argv) {
   // TODO(chokobole): Uncomment this. Dependency: zkx::cpu::registerZkxCpuTransformsPasses
   // clang-format on
   // zkx::cpu::registerZkxCpuTransformsPasses();
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: zkx::gpu::AddZkxGpuOpsOptimizationPasses
-  // clang-format on
-  //   mlir::registerPassPipeline(
-  //       "zkx-gpu-test-optimize",
-  //       "Test pipeline of passes up to inlining. No vectorization, also does
-  //       not " "lower zkx_gpu. Intended to simplify IR in tests.",
-  //       [=](mlir::OpPassManager& pm, llvm::StringRef options,
-  //           llvm::function_ref<mlir::LogicalResult(const llvm::Twine&)>
-  //               errorHandler) {
-  //         if (!options.empty()) return mlir::failure();
+  mlir::registerPassPipeline(
+      "zkx-gpu-test-optimize",
+      "Test pipeline of passes up to inlining. No vectorization, also does not "
+      "lower zkx_gpu.Intended to simplify IR in tests.",
+      [=](mlir::OpPassManager& pm, llvm::StringRef options,
+          llvm::function_ref<mlir::LogicalResult(const llvm::Twine&)>
+              errorHandler) {
+        if (!options.empty()) return mlir::failure();
 
-  //         zkx::gpu::AddZkxGpuOpsOptimizationPasses(pm);
-  //         return mlir::success();
-  //       },
-  //       [](llvm::function_ref<void(const mlir::detail::PassOptions&)>) {});
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: zkx::gpu::AddLoopTransformationPasses
-  // clang-format on
-  //   mlir::registerPassPipeline(
-  //       "zkx-gpu-test-transform-loops",
-  //       "Test pipeline for vectorization. Should run after "
-  //       "zkx-gpu-test-to-inline.",
-  //       [=](mlir::OpPassManager& pm, llvm::StringRef options,
-  //           llvm::function_ref<mlir::LogicalResult(const llvm::Twine&)>
-  //               errorHandler) {
-  //         if (!options.empty()) return mlir::failure();
-  //         zkx::gpu::AddLoopTransformationPasses(
-  //             pm, zkx::gpu::TestGpuDeviceInfo::RTXA6000DeviceInfo());
-  //         return mlir::success();
-  //       },
-  //       [](llvm::function_ref<void(const mlir::detail::PassOptions&)>) {});
+        zkx::gpu::AddZkxGpuOpsOptimizationPasses(pm);
+        return mlir::success();
+      },
+      [](llvm::function_ref<void(const mlir::detail::PassOptions&)>) {});
+  mlir::registerPassPipeline(
+      "zkx-gpu-test-transform-loops",
+      "Test pipeline for vectorization. Should run after "
+      "zkx-gpu-test-to-inline.",
+      [=](mlir::OpPassManager& pm, llvm::StringRef options,
+          llvm::function_ref<mlir::LogicalResult(const llvm::Twine&)>
+              errorHandler) {
+        if (!options.empty()) return mlir::failure();
+        zkx::gpu::AddLoopTransformationPasses(
+            pm, zkx::gpu::TestGpuDeviceInfo::RTXA6000DeviceInfo());
+        return mlir::success();
+      },
+      [](llvm::function_ref<void(const mlir::detail::PassOptions&)>) {});
 
   return mlir::failed(
       MlirOptMain(argc, argv, "ZKX Emitters Pass Driver\n", registry));
