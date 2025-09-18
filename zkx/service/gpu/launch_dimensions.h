@@ -18,7 +18,6 @@ limitations under the License.
 
 #include <stdint.h>
 
-#include <ostream>
 #include <string>
 
 #include "absl/strings/str_cat.h"
