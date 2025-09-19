@@ -2416,6 +2416,13 @@ absl::Status HloInstruction::ReplaceAllUsesWithDifferentShape(
   return absl::OkStatus();
 }
 
+bool HloInstruction::IsEffectiveBitcast() const {
+  return opcode_ == HloOpcode::kBitcast ||
+         (opcode_ == HloOpcode::kTranspose &&
+          ShapeUtil::TransposeIsBitcast(operand(0)->shape(), shape(),
+                                        dimensions()));
+}
+
 HloComputation* HloInstruction::to_apply() const {
   if (has_to_apply()) {
     CHECK_EQ(called_computations().size(), 1)
