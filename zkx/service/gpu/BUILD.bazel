@@ -44,6 +44,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "buffer_sharing",
+    srcs = ["buffer_sharing.cc"],
+    hdrs = ["buffer_sharing.h"],
+    deps = [
+        ":hlo_fusion_analysis",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "execution_stream_assignment",
     srcs = ["execution_stream_assignment.cc"],
     hdrs = ["execution_stream_assignment.h"],
