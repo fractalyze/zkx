@@ -49,6 +49,15 @@ message DebugOptions {
     LIB_NV_JIT_LINK_MODE_ENABLED = 2;
   }
 
+  // Enables strict PGLE checking. If an FDO profile is specified and latency
+  // hiding scheduler encounters missing instructions in the profile
+  // compilation will halt or warn depending on the value of this option.
+  enum PGLEStrictnessLevel {
+    PGLE_STRICTNESS_LEVEL_OFF = 0;
+    PGLE_STRICTNESS_LEVEL_WARN = 1;
+    PGLE_STRICTNESS_LEVEL_ERROR = 2;
+  }
+
   // When true, ZKX:CPU uses HLO module scheduler that is optimized for
   // extracting concurrency at the cost of extra memory: we extend the live
   // ranges of temporaries to allow ZKX runtime to schedule independent
@@ -159,6 +168,8 @@ message DebugOptions {
   // Timeout in seconds before terminating jobs that are stuck in a NCCL
   // Rendezvous. Negative value disables the timeout and will not terminate.
   int64 zkx_gpu_nccl_termination_timeout_seconds = 163;
+
+  PGLEStrictnessLevel zkx_gpu_pgle_accuracy_checker = 341;
 
   // If true, ZKX runtime will retain exclusive ownership of the GPU when
   // running a module, so there are no multi-thread conflicts on the GPU. This
