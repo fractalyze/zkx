@@ -21,6 +21,9 @@ namespace zkx {
 // ZKX frontend attribute for stream annotation.
 extern const char kZkxStreamAnnotationAttr[];
 
+// ZKX frontend attribute for specifying the scheduling group id annotations.
+extern const char kZkxSchedulingGroupIdAttr[];
+
 }  // namespace zkx
 
 #endif  // ZKX_SIDE_EFFECT_UTIL_H_
