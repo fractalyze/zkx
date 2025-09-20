@@ -556,6 +556,23 @@ message HloModuleProtoWithConfig {
   HloModuleConfigProto config = 2;
 }
 
+// A trace estimated by the Latency Hiding Scheduler.
+message ScheduleProto {
+  message Instruction {
+    // Instruction id (matches the id in HloInstructionProto).
+    int64 id = 1;
+
+    // Start and end timestamps in cycles.
+    double start_timestamp_cycles = 2;
+    double end_timestamp_cycles = 3;
+  }
+  repeated Instruction instructions = 1;
+  // Computation id (matches the id in HloComputationProto).
+  int64 computation_id = 2;
+  HloModuleProto hlo_module = 3;
+  int64 cycles_per_microsecond = 4;
+}
+
 // Message that captures sharding configuration of an HLO op.
 message NodeShardingConfigProto {
   OpSharding sharding = 1;                     // For non-tuples.
