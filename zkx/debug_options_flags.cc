@@ -78,6 +78,9 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
 
   opts.set_zkx_syntax_sugar_async_ops(false);
 
+  opts.set_zkx_gpu_pgle_accuracy_checker(
+      DebugOptions::PGLE_STRICTNESS_LEVEL_WARN);
+
   opts.set_zkx_gpu_executable_warn_stuck_timeout_seconds(10);
   opts.set_zkx_gpu_executable_terminate_timeout_seconds(30);
   opts.set_zkx_pjrt_allow_auto_layout_in_hlo(false);
@@ -161,6 +164,18 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
             debug_options->mutable_zkx_backend_extra_options();
         parse_zkx_backend_extra_options(extra_options_map,
                                         comma_separated_values);
+        return true;
+      };
+
+  // Custom "sub-parser" lambda for zkx_gpu_pgle_accuracy_checker.
+  auto setter_for_zkx_gpu_pgle_accuracy_checker =
+      [debug_options](const std::string& value) {
+        DebugOptions::PGLEStrictnessLevel strictness_level;
+        if (!DebugOptions::PGLEStrictnessLevel_Parse(value,
+                                                     &strictness_level)) {
+          return false;
+        }
+        debug_options->set_zkx_gpu_pgle_accuracy_checker(strictness_level);
         return true;
       };
 
@@ -458,6 +473,14 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       debug_options->zkx_gpu_nccl_p2p_max_nchannels(),
       "Specify the maximum number of channels(SMs) NCCL will use "
       "for p2p operations. Default is 0 which is to let NCCL decide."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_pgle_accuracy_checker", setter_for_zkx_gpu_pgle_accuracy_checker,
+      DebugOptions::PGLEStrictnessLevel_Name(
+          debug_options->zkx_gpu_pgle_accuracy_checker()),
+      "If an FDO profile is specified and latency hiding scheduler encounters "
+      "missing instructions in the profile, then the compilation will halt "
+      "(ERROR), or a warning will be emitted (WARN), or the checker is "
+      "disabled (OFF)"));
 
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_executable_warn_stuck_timeout",
