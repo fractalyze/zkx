@@ -146,3 +146,120 @@ zkx_cc_library(
         "@llvm-project//mlir:VectorToLLVM",
     ],
 )
+
+zkx_cc_library(
+    name = "lower_zkx_to_scf",
+    srcs = ["lower_zkx_to_scf.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "//zkx/backends/gpu/codegen/emitters/ir:zkx_gpu",
+        "//zkx/codegen/emitters:elemental_hlo_to_mlir",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:GPUDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:VectorDialect",
+    ],
+)
+
+zkx_cc_library(
+    name = "merge_pointers_to_same_slice",
+    srcs = ["merge_pointers_to_same_slice.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
+    name = "passes",
+    hdrs = ["passes.h"],
+    deps = [
+        ":convert_pure_call_ops",
+        ":erase_dead_functions",
+        ":flatten_tensors",
+        ":lower_tensors",
+        ":lower_to_llvm",
+        ":lower_zkx_to_scf",
+        ":merge_pointers_to_same_slice",
+        ":propagate_slice_indices",
+        ":simplify_affine",
+        ":simplify_arith",
+        ":unswitch_loops",
+        "//zkx/stream_executor:device_description",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
+    name = "propagate_slice_indices",
+    srcs = ["propagate_slice_indices.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
+    name = "simplify_affine",
+    srcs = ["simplify_affine.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "//zkx/codegen/emitters/ir:zkx",
+        "//zkx/hlo/analysis:indexing_map",
+        "@com_google_absl//absl/base:core_headers",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:AffineUtils",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+zkx_cc_library(
+    name = "simplify_arith",
+    srcs = ["simplify_arith.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "//zkx/codegen/emitters/ir:zkx",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:GPUDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+    ],
+)
+
+zkx_cc_library(
+    name = "unswitch_loops",
+    srcs = ["unswitch_loops.cc"],
+    deps = [
+        ":passes_inc_gen",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
