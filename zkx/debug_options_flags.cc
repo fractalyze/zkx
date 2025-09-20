@@ -64,6 +64,7 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_gpu_temp_buffer_use_separate_color(false);
   opts.set_zkx_gpu_require_exclusive_lock(false);
 
+  opts.set_zkx_dump_latency_hiding_schedule(false);
   opts.set_zkx_gpu_enable_highest_priority_async_stream(true);
 
   opts.set_zkx_gpu_enable_llvm_module_compilation_parallelism(false);
@@ -563,6 +564,11 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "Maximum number of ranks associated with a root rank to initialize a "
       "NCCL communicator via ncclCommInitRankScalable. "
       "A value of zero will lead to a single root."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_dump_latency_hiding_schedule",
+      bool_setter_for(&DebugOptions::set_zkx_dump_latency_hiding_schedule),
+      debug_options->zkx_dump_latency_hiding_schedule(),
+      "Dump the schedule from the latency-hiding scheduler."));
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_enable_highest_priority_async_stream",
       bool_setter_for(
