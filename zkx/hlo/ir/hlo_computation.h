@@ -722,6 +722,13 @@ class HloComputation {
     SetInstruction(collective_call_instruction, InstructionType::kCollective);
   }
 
+  // Returns if this computation is a body computation of a while.
+  [[deprecated(
+      "This is broken. Use CallGraph::GetComputationCallers() instead")]]
+  bool IsWhileBodyComputation() const {
+    return instruction_type() == InstructionType::kWhile;
+  }
+
   // Returns if this computation is an async computation.
   bool IsAsyncComputation() const { return async_start_ != nullptr; }
 
