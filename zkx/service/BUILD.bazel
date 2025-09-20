@@ -746,6 +746,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "profile_guided_latency_estimator",
+    srcs = ["profile_guided_latency_estimator.cc"],
+    hdrs = ["profile_guided_latency_estimator.h"],
+    deps = [
+        ":latency_hiding_scheduler",
+        "//xla/tsl/profiler/protobuf:profiled_instructions_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/utils:hlo_query",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "rendezvous",
     srcs = ["rendezvous.cc"],
     hdrs = ["rendezvous.h"],
@@ -924,6 +941,8 @@ zkx_cc_unittest(
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
         # "pattern_matcher_unittest.cc",
         "phi_graph_unittest.cc",
+        # TODO(chokobole): Add unittest. Dependency: HloTestBase
+        # "profile_guided_latency_estimator_unittest.cc",
         "rendezvous_unittest.cc",
         "shape_inference_unittest.cc",
         "sharding_config_unittest.cc",
