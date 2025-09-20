@@ -307,6 +307,8 @@ message DebugOptions {
   // reached.
   int32 zkx_multiheap_size_constraint_per_heap = 142;
 
+  bool zkx_dump_latency_hiding_schedule = 182;
+
   // If true, large constants will be printed out when dumping HLOs.
   bool zkx_dump_large_constants = 290;
 
