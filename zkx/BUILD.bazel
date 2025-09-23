@@ -175,6 +175,13 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "frontend_attributes",
+    srcs = ["frontend_attributes.cc"],
+    hdrs = ["frontend_attributes.h"],
+    deps = ["//zkx/hlo/ir:hlo"],
+)
+
+zkx_cc_library(
     name = "iterator_util",
     hdrs = ["iterator_util.h"],
     deps = ["//xla/tsl/lib/gtl:iterator_range"],
