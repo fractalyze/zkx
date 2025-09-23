@@ -1,11 +1,11 @@
 diff --git a/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel b/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel
-index f41a3560e371..4e20383dd4f8 100644
+index b618c74c19da..c6d8d11e60f1 100644
 --- a/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel
 +++ b/utils/bazel/llvm-project-overlay/llvm/BUILD.bazel
-@@ -35,6 +35,14 @@ exports_files([
+@@ -35,6 +35,20 @@ exports_files([
      "utils/lldbDataFormatters.py",
  ])
- 
+
 +config_setting(
 +    name = "macos_arm64",
 +    values = {
@@ -14,14 +14,20 @@ index f41a3560e371..4e20383dd4f8 100644
 +    },
 +)
 +
++py_library(
++    name = "lit_lib",
++    testonly = True,
++    srcs = ["utils/lit/lit.py"] + glob(["utils/lit/lit/**/*.py"]),
++)
++
  # It may be tempting to add compiler flags here, but that should be avoided.
  # The necessary warnings and other compile flags should be provided by the
  # toolchain or the `.bazelrc` file. This is just a workaround until we have a
 diff --git a/utils/bazel/llvm-project-overlay/llvm/config.bzl b/utils/bazel/llvm-project-overlay/llvm/config.bzl
-index fa616bcb9a8c..506537ea88ab 100644
+index ba9db05c651a..ae98abce1b3d 100644
 --- a/utils/bazel/llvm-project-overlay/llvm/config.bzl
 +++ b/utils/bazel/llvm-project-overlay/llvm/config.bzl
-@@ -98,7 +98,7 @@ builtin_thread_pointer = select({
+@@ -101,7 +101,7 @@ builtin_thread_pointer = select({
  # TODO: We should split out host vs. target here.
  llvm_config_defines = os_defines + builtin_thread_pointer + select({
      "@bazel_tools//src/conditions:windows": native_arch_defines("X86", "x86_64-pc-win32"),

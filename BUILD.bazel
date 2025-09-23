@@ -4,6 +4,8 @@ load("//bazel:zkx.bzl", "VERSION_MAJOR", "VERSION_MINOR", "VERSION_PATCH", "VERS
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["requirements_lock_3_11.txt"])
+
 bool_flag(
     name = "has_exception",
     build_setting_default = False,
