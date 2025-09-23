@@ -192,6 +192,11 @@ struct RendezvousKey {
   int64_t op_id;
 };
 
+// When a Send or Recv is annotated with frontend attribute
+// _zkx_send_recv_pipeline="1", asynchronous stream kP2P1 is used to execute the
+// Send or Recv. For all other cases, asynchronous stream kP2P0 is used.
+constexpr char kSendRecvPipelineAttr[] = "_zkx_send_recv_pipeline";
+
 }  // namespace zkx
 
 #endif  // ZKX_SERVICE_COLLECTIVE_OPS_UTILS_H_
