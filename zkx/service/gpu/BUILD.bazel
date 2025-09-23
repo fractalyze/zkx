@@ -175,6 +175,25 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_latency_hiding_scheduler",
+    srcs = ["gpu_latency_hiding_scheduler.cc"],
+    hdrs = ["gpu_latency_hiding_scheduler.h"],
+    deps = [
+        ":backend_configs_cc_proto",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/utils:hlo_query",
+        "//zkx/service:collective_ops_utils",
+        "//zkx/service:latency_hiding_scheduler",
+        "//zkx/service:profile_guided_latency_estimator",
+        "//zkx/service/gpu/transforms/collectives:collective_ops_utils",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
     name = "gpu_memory_space_assignment",
     hdrs = ["gpu_memory_space_assignment.h"],
     deps = [
@@ -401,6 +420,7 @@ zkx_cc_library(
 
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add execution_stream_assignment_unittest.cc. Dependency: HloTestBase
+# TODO(chokobole): Add gpu_latency_hiding_scheduler_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add hlo_fusion_analysis_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add ir_emission_utils_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add stream_executor_util_unittest.cc. Dependency: PickBestResult
