@@ -36,6 +36,12 @@ import "zkx/zkx_data.proto";
 
 option cc_enable_arenas = true;
 
+enum CustomCallSchedule {
+  SCHEDULE_NONE = 0;
+  SCHEDULE_LATEST = 1;
+  SCHEDULE_EARLIEST = 2;
+}
+
 // Serialization of HloInstruction.
 // Next ID: 92
 message HloInstructionProto {
