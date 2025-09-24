@@ -32,6 +32,7 @@ limitations under the License.
 #include "mlir/Transforms/Passes.h"
 
 #include "zkx/backends/gpu/codegen/emitters/ir/zkx_gpu_ops.h"
+#include "zkx/backends/gpu/codegen/emitters/transforms/passes.h"
 #include "zkx/codegen/emitters/ir/zkx_ops.h"
 #include "zkx/codegen/emitters/transforms/passes.h"
 
@@ -64,10 +65,7 @@ int main(int argc, char** argv) {
   mlir::registerCSEPass();
   mlir::registerInliner();
   zkx::emitters::registerTransformsPasses();
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: zkx::gpu::registerGpuFusionTransformsPasses
-  // clang-format on
-  // zkx::gpu::registerGpuFusionTransformsPasses();
+  zkx::gpu::registerGpuFusionTransformsPasses();
   // clang-format off
   // TODO(chokobole): Uncomment this. Dependency: zkx::cpu::registerZkxCpuTransformsPasses
   // clang-format on

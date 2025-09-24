@@ -48,6 +48,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_fusible",
+    hdrs = ["gpu_fusible.h"],
+)
+
+zkx_cc_library(
     name = "hlo_fusion_analysis",
     srcs = ["hlo_fusion_analysis.cc"],
     hdrs = ["hlo_fusion_analysis.h"],

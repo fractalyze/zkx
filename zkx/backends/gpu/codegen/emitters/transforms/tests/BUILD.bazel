@@ -1,0 +1,11 @@
+load("//zkx:lit.bzl", "lit_test_suite")
+
+lit_test_suite(
+    name = "tests",
+    srcs = glob(["*.mlir"]),
+    cfg = "//zkx:lit.cfg.py",
+    tools = [
+        "//zkx/codegen/tools:emitters_opt",
+        "@llvm-project//llvm:FileCheck",
+    ],
+)
