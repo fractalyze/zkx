@@ -617,6 +617,27 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "legalize_scheduling_annotations",
+    srcs = ["legalize_scheduling_annotations.cc"],
+    hdrs = ["legalize_scheduling_annotations.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx:side_effect_util",
+        "//zkx:util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:ptr_vec",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "llvm_compiler",
     srcs = ["llvm_compiler.cc"],
     hdrs = ["llvm_compiler.h"],
