@@ -1,0 +1,40 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "async_collective_creator",
+    srcs = ["async_collective_creator.cc"],
+    hdrs = ["async_collective_creator.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:frontend_attributes",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "//zkx/service:shape_inference",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "collectives_unittests",
+    srcs = ["async_collective_creator_unittest.cc"],
+    deps = [
+        ":async_collective_creator",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:side_effect_util",
+        "//zkx/base:logging",
+        "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/hlo/testlib:pattern_matcher_gmock",
+        "//zkx/service:pattern_matcher",
+    ],
+)
