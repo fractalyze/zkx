@@ -15,3 +15,20 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
     ],
 )
+
+zkx_cc_library(
+    name = "hlo_pass_pipeline",
+    srcs = ["hlo_pass_pipeline.cc"],
+    hdrs = ["hlo_pass_pipeline.h"],
+    deps = [
+        ":hlo_pass_interface",
+        "//xla/tsl/platform:errors",
+        "//zkx:status_macros",
+        "//zkx/base:logging",
+        "//zkx/service:compilation_stats",
+        "//zkx/service:dump",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+    ],
+)
