@@ -140,6 +140,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "compilation_stats",
+    srcs = ["compilation_stats.cc"],
+    hdrs = ["compilation_stats.h"],
+    deps = [
+        "//xla/tsl/platform:env",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
     name = "computation_layout",
     srcs = ["computation_layout.cc"],
     hdrs = ["computation_layout.h"],
