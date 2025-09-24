@@ -13,13 +13,37 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "schedule_postprocessing",
+    srcs = ["schedule_postprocessing.cc"],
+    hdrs = ["schedule_postprocessing.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_opcode",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "//zkx/hlo/utils:hlo_query",
+        "//zkx/service/gpu:backend_configs_cc_proto",
+        "//zkx/service/gpu/transforms/collectives:collective_ops_utils",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)
+
 zkx_cc_unittest(
     name = "transforms_unittests",
-    srcs = ["pgle_accuracy_checker_unittest.cc"],
+    srcs = [
+        "pgle_accuracy_checker_unittest.cc",
+        "schedule_postprocessing_unittest.cc",
+    ],
     deps = [
         ":pgle_accuracy_checker",
+        ":schedule_postprocessing",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/parser:hlo_parser",
         "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
         "//zkx/service:latency_hiding_scheduler",
         "//zkx/service:profile_guided_latency_estimator",
