@@ -1270,8 +1270,7 @@ void HloConstantInstruction::PrintOperandsWithCanonicalNameMap(
       if (auto num_constants =
               absl::c_accumulate(shape().dimensions(), 1, std::multiplies<>());
           num_constants <= 500'000) {
-        // TODO(chokobole): Uncomment this. Dependency: PrintWithoutShapeOneline
-        // literal_->PrintWithoutShapeOneline(printer);
+        literal_->PrintWithoutShapeOneline(printer);
         return;
       }
     }
@@ -1285,8 +1284,7 @@ void HloConstantInstruction::PrintOperandsWithCanonicalNameMap(
        options.print_large_constants())) {
     // Literal::ToString emits multidimensional arrays over multiple
     // lines. Compact this into one line by stripping out white space.
-    // TODO(chokobole): Uncomment this. Dependency: PrintWithoutShapeOneline
-    // literal_->PrintWithoutShapeOneline(printer);
+    literal_->PrintWithoutShapeOneline(printer);
   } else {
     // Do not show large constants or tuples.
     printer->Append("{...}");
