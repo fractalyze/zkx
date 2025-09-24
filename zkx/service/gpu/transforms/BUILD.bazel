@@ -1,0 +1,29 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "pgle_accuracy_checker",
+    srcs = ["pgle_accuracy_checker.cc"],
+    hdrs = ["pgle_accuracy_checker.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "//zkx/service:profile_guided_latency_estimator",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "transforms_unittests",
+    srcs = ["pgle_accuracy_checker_unittest.cc"],
+    deps = [
+        ":pgle_accuracy_checker",
+        "//xla/tsl/platform:status_matchers",
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/service:latency_hiding_scheduler",
+        "//zkx/service:profile_guided_latency_estimator",
+        "//zkx/service/gpu:gpu_latency_hiding_scheduler",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
