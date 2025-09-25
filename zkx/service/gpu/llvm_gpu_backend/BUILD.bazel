@@ -1,0 +1,19 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "utils",
+    srcs = ["utils.cc"],
+    hdrs = ["utils.h"],
+    deps = ["@com_google_absl//absl/strings"],
+)
+
+zkx_cc_unittest(
+    name = "llvm_gpu_backend_unittests",
+    srcs = ["utils_unittest.cc"],
+    deps = [
+        ":utils",
+        "@com_google_absl//absl/strings",
+    ],
+)
