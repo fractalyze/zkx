@@ -3,6 +3,16 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "nvptx_utils",
+    srcs = ["nvptx_utils.cc"],
+    hdrs = ["nvptx_utils.h"],
+    deps = [
+        "//xla/tsl/platform:cuda_root_path",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "utils",
     srcs = ["utils.cc"],
     hdrs = ["utils.h"],
@@ -11,8 +21,12 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "llvm_gpu_backend_unittests",
-    srcs = ["utils_unittest.cc"],
+    srcs = [
+        "nvptx_utils_unittest.cc",
+        "utils_unittest.cc",
+    ],
     deps = [
+        ":nvptx_utils",
         ":utils",
         "@com_google_absl//absl/strings",
     ],
