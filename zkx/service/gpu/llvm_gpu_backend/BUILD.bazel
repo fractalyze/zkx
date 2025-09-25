@@ -3,6 +3,35 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "gpu_backend_lib",
+    srcs = ["gpu_backend_lib.cc"],
+    hdrs = ["gpu_backend_lib.h"],
+    deps = [
+        ":load_ir_module",
+        ":utils",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
+        "//zkx:zkx_cc_proto",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:str_format",
+        "@llvm-project//llvm:Analysis",
+        "@llvm-project//llvm:CodeGen",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:IPO",
+        "@llvm-project//llvm:Linker",
+        "@llvm-project//llvm:MC",
+        "@llvm-project//llvm:Passes",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:Target",
+        "@llvm-project//llvm:TargetParser",
+    ],
+)
+
+zkx_cc_library(
     name = "nvptx_libdevice_path",
     srcs = ["default/nvptx_libdevice_path.cc"],
     hdrs = ["nvptx_libdevice_path.h"],
