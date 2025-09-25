@@ -149,10 +149,9 @@ class HloModuleConfig {
   }
 
   // Returns whether to enable HLO-level profiling.
-  // TODO(chokobole): Uncomment this. Dependency: DebugOptions::xla_hlo_profile
-  // bool hlo_profiling_enabled() const {
-  //   return debug_options_.xla_hlo_profile();
-  // }
+  bool hlo_profiling_enabled() const {
+    return debug_options_.zkx_hlo_profile();
+  }
 
   // clang-format off
   // TODO(chokobole): Uncomment this. Dependency: DebugOptions::xla_cpu_enable_xprof_traceme
