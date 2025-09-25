@@ -3,6 +3,18 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "load_ir_module",
+    srcs = ["default/load_ir_module.cc"],
+    hdrs = ["load_ir_module.h"],
+    deps = [
+        "@com_google_absl//absl/log",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:IRReader",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "nvptx_utils",
     srcs = ["nvptx_utils.cc"],
     hdrs = ["nvptx_utils.h"],
@@ -22,12 +34,17 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "llvm_gpu_backend_unittests",
     srcs = [
+        "load_ir_module_unittest.cc",
         "nvptx_utils_unittest.cc",
         "utils_unittest.cc",
     ],
+    data = ["tests_data/saxpy.ll"],
     deps = [
+        ":load_ir_module",
         ":nvptx_utils",
         ":utils",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:test_util",
         "@com_google_absl//absl/strings",
     ],
 )
