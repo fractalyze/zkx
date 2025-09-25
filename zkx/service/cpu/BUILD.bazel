@@ -104,6 +104,7 @@ zkx_cc_library(
     srcs = ["cpu_executable.cc"],
     hdrs = ["cpu_executable.h"],
     deps = [
+        ":cpu_runtime",
         ":executable_cc_proto",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
@@ -119,7 +120,6 @@ zkx_cc_library(
         "//zkx/service:executable",
         "//zkx/service:maybe_owning_device_memory",
         "//zkx/service:zkx_debug_info_manager",
-        "//zkx/service/cpu:cpu_runtime",
         "//zkx/stream_executor:device_memory",
         "//zkx/stream_executor:device_memory_allocator",
         "//zkx/stream_executor/host:host_stream",
