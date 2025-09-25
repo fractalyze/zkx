@@ -3,6 +3,23 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "nvptx_libdevice_path",
+    srcs = ["default/nvptx_libdevice_path.cc"],
+    hdrs = ["nvptx_libdevice_path.h"],
+    deps = [
+        ":nvptx_utils",
+        "//xla/tsl/platform:cuda_root_path",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:path",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "load_ir_module",
     srcs = ["default/load_ir_module.cc"],
     hdrs = ["load_ir_module.h"],
