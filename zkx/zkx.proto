@@ -214,6 +214,9 @@ message DebugOptions {
   // If enabled, uses the libnvjitlink library for PTX compilation and linking
   LibNvJitLinkMode zkx_gpu_libnvjitlink_mode = 343;
 
+  // Paths to files with LLVM code.
+  repeated string zkx_gpu_llvm_ir_file = 150;
+
   int32 zkx_gpu_memory_limit_slop_factor = 260;
 
   // Specify the maximum number of channels(SMs) NCCL
@@ -237,6 +240,9 @@ message DebugOptions {
   PGLEStrictnessLevel zkx_gpu_pgle_accuracy_checker = 341;
 
   string zkx_gpu_pgle_profile_file_or_directory_path = 210;
+
+  // Paths to files with ptx code.
+  repeated string zkx_gpu_ptx_file = 127;
 
   // If true, ZKX runtime will retain exclusive ownership of the GPU when
   // running a module, so there are no multi-thread conflicts on the GPU. This

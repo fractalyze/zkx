@@ -172,6 +172,19 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
   auto setter_for_zkx_enable_hlo_passes_only = make_repeated_string_setter(
       &DebugOptions::add_zkx_enable_hlo_passes_only);
 
+  // Custom "sub-parser" lambda for zkx_gpu_ptx_file.
+  auto setter_for_zkx_gpu_ptx_file = [debug_options](const std::string& value) {
+    debug_options->add_zkx_gpu_ptx_file(value);
+    return true;
+  };
+
+  // Custom "sub-parser" lambda for zkx_gpu_llvm_ir_file.
+  auto setter_for_zkx_gpu_llvm_ir_file =
+      [debug_options](const std::string& value) {
+        debug_options->add_zkx_gpu_llvm_ir_file(value);
+        return true;
+      };
+
   // Custom "sub-parser" lambda for zkx_backend_extra_options.
   auto setter_for_zkx_backend_extra_options =
       [debug_options](std::string comma_separated_values) {
@@ -301,6 +314,20 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "zkx_gpu_cuda_data_dir", debug_options->mutable_zkx_gpu_cuda_data_dir(),
       "If non-empty, specifies a local directory containing ptxas and nvvm "
       "libdevice files; otherwise we use those from runfile directories."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_ptx_file", setter_for_zkx_gpu_ptx_file, "",
+      "If non-empty, specifies a file containing ptx to use. The filename "
+      "prefix must have the same pattern as PTX dumped by ZKX. This allows to "
+      "match one specific module. General workflow. Get the generated module "
+      "ptx from ZKX, modify it, then pass it back via this option."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_llvm_ir_file", setter_for_zkx_gpu_llvm_ir_file, "",
+      "If non-empty, specifies a file containing textual LLVM IR to use. The "
+      "filename prefix must have the same pattern as LLVM dumped by ZKX "
+      "(i.e. module_0001.ir-no-opt.ll -> module_0001.MY_NEW_FILE.ll). This "
+      "allows to match one specific module. General workflow. Get the not "
+      "optimized LLVM IR from ZKX, modify it, then pass it back via this "
+      "option."));
   flag_list->push_back(tsl::Flag(
       "zkx_hlo_profile", bool_setter_for(&DebugOptions::set_zkx_hlo_profile),
       debug_options->zkx_hlo_profile(),
