@@ -260,6 +260,40 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_transfer_manager",
+    srcs = ["gpu_transfer_manager.cc"],
+    hdrs = ["gpu_transfer_manager.h"],
+    deps = [
+        ":infeed_manager",
+        ":outfeed_manager",
+        ":target_constants",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:numbers",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx/service:compiler",
+        "//zkx/service:generic_transfer_manager",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:event",
+        "//zkx/stream_executor:memory_allocation",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor/cuda:cuda_platform_id",
+        "//zkx/stream_executor/rocm:rocm_platform_id",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@llvm-project//llvm:Core",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_fusion_analysis",
     srcs = ["hlo_fusion_analysis.cc"],
     hdrs = ["hlo_fusion_analysis.h"],
