@@ -205,6 +205,10 @@ message DebugOptions {
   // a deterministic implementation.
   bool zkx_gpu_exclude_nondeterministic_ops = 297;
 
+  // Overrides normal multi-threaded compilation setting to use this many
+  // threads. Setting to 0 (the default value) means no enforcement.
+  int32 zkx_gpu_force_compilation_parallelism = 147;
+
   string zkx_gpu_kernel_cache_file = 306;
 
   // If enabled, uses the libnvjitlink library for PTX compilation and linking
@@ -240,6 +244,11 @@ message DebugOptions {
   // e.g., command buffer updates to ensure correctness when running in
   // multi-thread mode.
   bool zkx_gpu_require_exclusive_lock = 347;
+
+  // Description of the target platform in GpuTargetConfigProto format; if
+  // provided, deviceless compilation is assumed, and the current device is
+  // ignored.
+  string zkx_gpu_target_config_filename = 261;
 
   // If enabled, uses a separate memory space color for a temp buffer,
   // and uses a separate memory allocator to allocate it.
@@ -279,6 +288,9 @@ message DebugOptions {
   // Numerical optimization level for the ZKX compiler backend; the specific
   // interpretation of this value is left to the backends.
   int32 zkx_backend_optimization_level = 31;
+
+  // Embed the compiler IR as a string in the executable.
+  bool zkx_embed_ir_in_executable = 33;
 
   // If true, in LLVM-based backends, emit !invariant.load metadata in
   // the generated IR.
@@ -369,6 +381,10 @@ message DebugOptions {
   // Enable HLO dumping. If this is disabled, no HLO modules will be dumped.
   bool zkx_enable_dumping = 253;
 
+  // Whether to force inline before llvm module split to get a more balanced
+  // splits for parallel compilation.
+  bool zkx_llvm_force_inline_before_split = 300;
+
   // Disable dumping metadata in HLO dumps.
   bool zkx_dump_disable_metadata = 153;
 
@@ -382,6 +398,9 @@ message DebugOptions {
   int32 zkx_multiheap_size_constraint_per_heap = 142;
 
   bool zkx_dump_latency_hiding_schedule = 182;
+
+  // Maximum number of buffers to print when debugging buffer assignment.
+  int64 zkx_debug_buffer_assignment_show_max = 251;
 
   // If true, large constants will be printed out when dumping HLOs.
   bool zkx_dump_large_constants = 290;
