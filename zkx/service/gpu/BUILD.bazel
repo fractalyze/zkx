@@ -470,6 +470,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "target_constants",
+    hdrs = ["target_constants.h"],
+)
+
+zkx_cc_library(
     name = "target_util",
     srcs = ["target_util.cc"],
     hdrs = ["target_util.h"],
