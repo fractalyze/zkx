@@ -32,6 +32,40 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "nvptx_backend",
+    srcs = ["nvptx_backend.cc"],
+    hdrs = ["nvptx_backend.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":gpu_backend_lib",
+        ":nvptx_libdevice_path",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//zkx:zkx_cc_proto",
+        "//zkx/service/llvm_ir:llvm_command_line_options",
+        "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:semantic_version",
+        "//zkx/stream_executor/cuda:ptx_compiler_helpers",
+        "//zkx/stream_executor/cuda:subprocess_compilation",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@llvm-project//llvm:Analysis",
+        "@llvm-project//llvm:CodeGen",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:MC",
+        "@llvm-project//llvm:NVPTXCodeGen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:Target",
+        "@local_config_cuda//cuda:cuda_headers",
+    ],
+)
+
+zkx_cc_library(
     name = "nvptx_libdevice_path",
     srcs = ["default/nvptx_libdevice_path.cc"],
     hdrs = ["nvptx_libdevice_path.h"],
@@ -81,12 +115,14 @@ zkx_cc_unittest(
     name = "llvm_gpu_backend_unittests",
     srcs = [
         "load_ir_module_unittest.cc",
+        "nvptx_backend_unittest.cc",
         "nvptx_utils_unittest.cc",
         "utils_unittest.cc",
     ],
     data = ["tests_data/saxpy.ll"],
     deps = [
         ":load_ir_module",
+        ":nvptx_backend",
         ":nvptx_utils",
         ":utils",
         "//xla/tsl/platform:path",
