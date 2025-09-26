@@ -485,6 +485,16 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "xfeed_queue",
+    hdrs = ["xfeed_queue.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add execution_stream_assignment_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add gpu_latency_hiding_scheduler_unittest.cc. Dependency: HloTestBase.
