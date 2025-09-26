@@ -283,6 +283,27 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "infeed_manager",
+    srcs = ["infeed_manager.cc"],
+    hdrs = ["infeed_manager.h"],
+    deps = [
+        ":xfeed_queue",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory_handle",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "ir_emission_utils",
     srcs = ["ir_emission_utils.cc"],
     hdrs = ["ir_emission_utils.h"],
