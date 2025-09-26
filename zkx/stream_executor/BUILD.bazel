@@ -291,6 +291,15 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "scoped_module_handle",
+    hdrs = ["scoped_module_handle.h"],
+    deps = [
+        ":module_spec",
+        ":stream_executor",
+    ],
+)
+
+zkx_cc_library(
     name = "semantic_version",
     srcs = ["semantic_version.cc"],
     hdrs = ["semantic_version.h"],
@@ -399,6 +408,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "trace_command_buffer_factory",
+    srcs = ["trace_command_buffer_factory.cc"],
+    hdrs = ["trace_command_buffer_factory.h"],
+    deps = [
+        ":command_buffer",
+        ":stream",
+        ":stream_executor",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "typed_kernel_factory",
     hdrs = ["typed_kernel_factory.h"],
     deps = [
@@ -421,6 +444,7 @@ zkx_cc_unittest(
         "generic_memory_allocation_unittest.cc",
         "generic_memory_allocator_unittest.cc",
         "kernel_unittest.cc",
+        "scoped_module_handle_unittest.cc",
         "semantic_version_unittest.cc",
         "stream_unittest.cc",
     ],
@@ -435,6 +459,7 @@ zkx_cc_unittest(
         ":kernel_spec",
         ":mock_stream_executor",
         ":platform_manager",
+        ":scoped_module_handle",
         ":semantic_version",
         ":typed_kernel_factory",
         "//xla/tsl/platform:statusor",

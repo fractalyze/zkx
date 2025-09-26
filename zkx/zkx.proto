@@ -69,6 +69,13 @@ message DebugOptions {
   // value is `256` (AVX2 on x86 platforms).
   int32 zkx_cpu_prefer_vector_width = 308;
 
+  // Do not lock collective cliques for each ZKX:GPU execution, and instead
+  // use per-process cliques that are never unlocked. This disables deadlock
+  // prevention mechanism in ZKX:GPU and should be used at your own risk. If
+  // collective operations from concurrent executions are not correctly ordered
+  // it may lead to deadlocks, crashes or will produce garbage.
+  bool zkx_gpu_collectives_use_persistent_cliques = 354;
+
   // Path to directory with cuda/ptx tools and libraries.
   string zkx_gpu_cuda_data_dir = 61;
 
@@ -90,8 +97,16 @@ message DebugOptions {
   // Whether to dump llvm ir when compiling to ptx.
   bool zkx_gpu_dump_llvmir = 155;
 
+  // Timeout to terminate on stuck rendezvous.
+  int32 zkx_gpu_executable_terminate_timeout_seconds = 328;
+
+  // Timeout to issue a warning on stuck rendezvous.
+  int32 zkx_gpu_executable_warn_stuck_timeout_seconds = 327;
+
   // Dump FDO profiles in a binary format to a separate file.
   bool zkx_gpu_experimental_dump_fdo_profiles = 338;
+
+  bool zkx_gpu_enable_highest_priority_async_stream = 216;
 
   // If enabled, uses the libnvptxcompiler library to compile PTX to cuBIN.
   bool zkx_gpu_enable_libnvptxcompiler = 269;
@@ -100,8 +115,29 @@ message DebugOptions {
   // threads. Setting to 0 (the default value) means no enforcement.
   bool zkx_gpu_enable_llvm_module_compilation_parallelism = 268;
 
+  // Enable NCCL communicator splitting.
+  bool zkx_gpu_enable_nccl_comm_splitting = 272;
+
   // If enabled, uses the libnvjitlink library for PTX compilation and linking
   LibNvJitLinkMode zkx_gpu_libnvjitlink_mode = 343;
+
+  // Specify the maximum number of channels(SMs) NCCL
+  // will use for collective operations.
+  int64 zkx_gpu_nccl_collective_max_nchannels = 273;
+
+  // Set number of ranks per root rank for NCCL init.
+  int64 zkx_gpu_nccl_init_max_rank_per_root_ratio = 277;
+
+  // Specify the maximum number of channels(SMs) NCCL
+  // will use for p2p operations.
+  int64 zkx_gpu_nccl_p2p_max_nchannels = 274;
+
+  // If true, NCCL errors will terminate the process.
+  bool zkx_gpu_nccl_terminate_on_error = 301;
+
+  // Timeout in seconds before terminating jobs that are stuck in a NCCL
+  // Rendezvous. Negative value disables the timeout and will not terminate.
+  int64 zkx_gpu_nccl_termination_timeout_seconds = 163;
 
   // If true, ZKX runtime will retain exclusive ownership of the GPU when
   // running a module, so there are no multi-thread conflicts on the GPU. This

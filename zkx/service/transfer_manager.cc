@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "absl/base/const_init.h"
 #include "absl/cleanup/cleanup.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/strings/str_format.h"
 #include "absl/synchronization/notification.h"
 
@@ -39,8 +40,8 @@ absl::Mutex TransferManager::platform_transfer_manager_mutex_(absl::kConstInit);
 // static
 absl::flat_hash_map<se::Platform::Id, TransferManager::State>*
 TransferManager::GetPlatformTransferManagers() {
-  static auto* r =
-      new absl::flat_hash_map<se::Platform::Id, TransferManager::State>;
+  static auto* r = absl::IgnoreLeak(
+      new absl::flat_hash_map<se::Platform::Id, TransferManager::State>);
   return r;
 }
 

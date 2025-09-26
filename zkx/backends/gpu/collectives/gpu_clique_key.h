@@ -108,14 +108,14 @@ class GpuCliqueKey : public CliqueKey {
   // which cliques can be reused from the cache or must be split in order to
   // prevent a deadlock situation.
   //
-  // For example, imagine we have a communicator with devices = [0,1] and
+  // For example, imagine we have a communicator with devices = [0, 1] and
   // groups = [0, 1] Later on, we may want to create communicators [0, 1] and
-  // [2, 3] by splitting [0, 1, 2, 3] If ranks 0 and 1 reuse the existing
+  // [2, 3] by splitting [0, 1, 2, 3]. If ranks 0 and 1 reuse the existing
   // [0, 1] clique but ranks 2 and 3 initiate a split, there will be a deadlock
   // since ranks 2, 3 and will be waiting forever for 0, 1 to join the split.
   //
   // Having the participating groups as part of the cache key will prevent such
-  // situations
+  // situations.
   std::vector<std::vector<GlobalDeviceId>> participant_groups_;
 
   GlobalDeviceId root_device_;

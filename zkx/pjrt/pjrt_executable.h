@@ -40,6 +40,7 @@ limitations under the License.
 #include "zkx/pjrt/pjrt_common.h"
 #include "zkx/pjrt/pjrt_layout.h"
 #include "zkx/service/buffer_assignment.h"
+#include "zkx/service/compiler.h"
 #include "zkx/service/hlo_cost_analysis.h"
 #include "zkx/shape.h"
 
@@ -100,8 +101,7 @@ struct CompileOptions {
       std::vector<std::pair<std::string, OptionOverride>>;
   EnvironmentOptionOverrides env_option_overrides;
 
-  // TODO(chokobole): Uncomment this. Dependency: TargetConfig
-  // std::optional<Compiler::TargetConfig> target_config;
+  std::optional<Compiler::TargetConfig> target_config;
 
   // Applies env_option_overrides to executable_build_options.debug_options().
   absl::Status ApplyAllOptionOverrides();

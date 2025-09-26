@@ -26,6 +26,7 @@ limitations under the License.
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/debugging/leak_check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
@@ -305,8 +306,8 @@ class CoordinationServiceInterface {
 
   static std::unordered_map<std::string, CoordinationServiceFactory>*
   GetCoordinationServiceFactories() {
-    static auto* coordination_service_factories =
-        new std::unordered_map<std::string, CoordinationServiceFactory>();
+    static auto* coordination_service_factories = absl::IgnoreLeak(
+        new std::unordered_map<std::string, CoordinationServiceFactory>());
     return coordination_service_factories;
   }
 };

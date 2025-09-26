@@ -19,10 +19,12 @@ limitations under the License.
 #include <stdint.h>
 
 #include <optional>
-#include <string>
+#include <string_view>
+#include <variant>
+#include <vector>
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/types/span.h"
 
 #include "zkx/hlo/ir/hlo_instruction.h"
 #include "zkx/hlo/utils/hlo_traversal.h"
@@ -30,9 +32,6 @@ limitations under the License.
 #include "zkx/stream_executor/device_description.h"
 
 namespace zkx::gpu {
-
-// <HLO computation fingerprint, serialized compiled object>.
-using BinaryMap = absl::flat_hash_map<std::string, std::string>;
 
 // If a dimensions is smaller than this, untiled transposition may be more
 // efficient.
@@ -113,6 +112,35 @@ std::optional<TransposeDescription> GetDescriptionForTiledTransposeEmitter(
 
 // Checks if the instruction is elementwise.
 bool IsIntermediate(const HloInstruction* instr, int allowed_operand_count = 1);
+
+// This class stores either a non-owning reference or owns data that represents
+// a dense array in ZKX format. It is used for intermediate storage during IR
+// constant emission.
+class DenseDataIntermediate {
+ public:
+  // Creates an instance of DenseDataIntermediate that owns the provided vector.
+  static DenseDataIntermediate Own(std::vector<uint8_t> owned) {
+    DenseDataIntermediate di;
+    di.data_ = std::move(owned);
+    return di;
+  }
+
+  // Creates an instance of DenseDataIntermediate that aliases the input.
+  static DenseDataIntermediate Alias(absl::Span<const uint8_t> aliased) {
+    DenseDataIntermediate di;
+    di.data_ = aliased;
+    return di;
+  }
+
+  // Returns a reference to the data this object represents.
+  absl::Span<const uint8_t> span() const {
+    return data_.index() == 0 ? absl::Span<const uint8_t>(std::get<0>(data_))
+                              : std::get<1>(data_);
+  }
+
+ private:
+  std::variant<std::vector<uint8_t>, absl::Span<const uint8_t>> data_;
+};
 
 }  // namespace zkx::gpu
 
