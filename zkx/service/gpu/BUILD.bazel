@@ -417,6 +417,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "outfeed_manager",
+    srcs = ["outfeed_manager.cc"],
+    hdrs = ["outfeed_manager.h"],
+    deps = [
+        ":xfeed_queue",
+        "//zkx:literal",
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx/stream_executor",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
     name = "ptx_compile_options_from_debug_options",
     srcs = ["ptx_compile_options_from_debug_options.cc"],
     hdrs = ["ptx_compile_options_from_debug_options.h"],
