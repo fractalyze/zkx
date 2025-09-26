@@ -19,6 +19,7 @@ limitations under the License.
 #include <ostream>
 #include <string>
 
+#include "zkx/stream_executor/namespace_alias.h"  // IWYU pragma: keep
 #include "zkx/zkx.pb.h"
 
 namespace stream_executor::cuda {

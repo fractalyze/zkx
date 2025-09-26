@@ -19,6 +19,8 @@ limitations under the License.
 #include "absl/hash/hash.h"  // IWYU pragma: keep
 #include "absl/strings/str_format.h"
 
+#include "zkx/stream_executor/namespace_alias.h"  // IWYU pragma: keep
+
 namespace stream_executor::cuda {
 
 // Collects all compilation options that are used by the CompilationProvider

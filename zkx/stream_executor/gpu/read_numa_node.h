@@ -19,6 +19,8 @@ limitations under the License.
 #include <optional>
 #include <string_view>
 
+#include "zkx/stream_executor/namespace_alias.h"  // IWYU pragma: keep
+
 namespace stream_executor::gpu {
 
 // Attempts to read the NUMA node corresponding to the GPU device's PCI bus out

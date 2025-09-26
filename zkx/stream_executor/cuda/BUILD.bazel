@@ -139,6 +139,7 @@ zkx_cc_library(
     name = "compilation_options",
     hdrs = ["compilation_options.h"],
     deps = [
+        "//zkx/stream_executor:namespace_alias",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/strings:str_format",
     ],
@@ -161,6 +162,7 @@ zkx_cc_library(
     hdrs = ["compilation_provider_options.h"],
     deps = [
         "//zkx:zkx_cc_proto",
+        "//zkx/stream_executor:namespace_alias",
         "@com_google_absl//absl/strings:str_format",
     ],
 )
@@ -437,6 +439,7 @@ zkx_cc_library(
         "gpu",
     ],
     deps = [
+        "//zkx/stream_executor:namespace_alias",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/status",
         "@local_config_cuda//cuda:cuda_headers",

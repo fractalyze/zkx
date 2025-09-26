@@ -209,6 +209,7 @@ zkx_cc_library(
     hdrs = ["read_numa_node.h"],
     deps = [
         "//xla/tsl/platform:numa",
+        "//zkx/stream_executor:namespace_alias",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
