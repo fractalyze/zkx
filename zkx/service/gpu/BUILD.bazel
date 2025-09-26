@@ -396,6 +396,16 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ptx_compile_options_from_debug_options",
+    srcs = ["ptx_compile_options_from_debug_options.cc"],
+    hdrs = ["ptx_compile_options_from_debug_options.h"],
+    deps = [
+        "//zkx:zkx_cc_proto",
+        "//zkx/stream_executor/cuda:compilation_options",
+    ],
+)
+
+zkx_cc_library(
     name = "reduction_utils",
     srcs = ["reduction_utils.cc"],
     hdrs = ["reduction_utils.h"],
@@ -483,12 +493,14 @@ zkx_cc_unittest(
         "flag_utils_unittest.cc",
         "kernel_reuse_cache_unittest.cc",
         "matmul_indexing_utils_unittest.cc",
+        "ptx_compile_options_from_debug_options_unittest.cc",
     ],
     deps = [
         ":executable_cc_proto",
         ":flag_utils",
         ":kernel_reuse_cache",
         ":matmul_indexing_utils",
+        ":ptx_compile_options_from_debug_options",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:status_matchers",

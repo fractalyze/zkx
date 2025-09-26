@@ -33,6 +33,8 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_llvm_disable_expensive_passes(false);
   opts.set_zkx_backend_optimization_level(3);
   opts.set_zkx_gpu_cuda_data_dir("./cuda_sdk_lib");
+  opts.set_zkx_gpu_generate_debug_info(false);
+  opts.set_zkx_gpu_generate_line_info(false);
 
   opts.set_zkx_dump_hlo_as_html(false);
   opts.set_zkx_dump_fusion_visualization(false);
@@ -79,6 +81,8 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
 
   opts.set_zkx_llvm_force_inline_before_split(true);
 
+  opts.set_zkx_gpu_filter_kernels_spilling_registers_on_autotuning(true);
+  opts.set_zkx_gpu_fail_ptx_compilation_on_register_spilling(false);
   opts.set_zkx_gpu_target_config_filename("");
 
   opts.set_zkx_gpu_enable_llvm_module_compilation_parallelism(false);
@@ -373,6 +377,21 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "help run tests on the host that run models in parallel across multiple "
       "devices."));
   flag_list->push_back(tsl::Flag(
+      "zkx_gpu_disable_gpuasm_optimizations",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_disable_gpuasm_optimizations),
+      debug_options->zkx_gpu_disable_gpuasm_optimizations(),
+      "In ZKX:GPU run ptxas in -O0 (default is -O3)."));
+  flag_list->push_back(
+      tsl::Flag("zkx_gpu_generate_debug_info",
+                bool_setter_for(&DebugOptions::set_zkx_gpu_generate_debug_info),
+                debug_options->zkx_gpu_generate_debug_info(),
+                "Generate debug info for codegened CUDA kernels."));
+  flag_list->push_back(
+      tsl::Flag("zkx_gpu_generate_line_info",
+                bool_setter_for(&DebugOptions::set_zkx_gpu_generate_line_info),
+                debug_options->zkx_gpu_generate_line_info(),
+                "Generate line info for codegened CUDA kernels."));
+  flag_list->push_back(tsl::Flag(
       "zkx_dump_to", string_setter_for(&DebugOptions::set_zkx_dump_to),
       debug_options->zkx_dump_to(),
       "Directory into which debugging data is written. If not specified but "
@@ -564,6 +583,19 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "Enables more accurate latency approximation of collectives. Used in "
       "`ApproximateLatencyEstimator` scheduler."));
 
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_filter_kernels_spilling_registers_on_autotuning",
+      bool_setter_for(
+          &DebugOptions::
+              set_zkx_gpu_filter_kernels_spilling_registers_on_autotuning),
+      debug_options->zkx_gpu_filter_kernels_spilling_registers_on_autotuning(),
+      "Filter out kernels that spill registers during autotuning"));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_fail_ptx_compilation_on_register_spilling",
+      bool_setter_for(
+          &DebugOptions::set_zkx_gpu_fail_ptx_compilation_on_register_spilling),
+      debug_options->zkx_gpu_fail_ptx_compilation_on_register_spilling(),
+      "Fails the PTX compilation if a kernel spills registers."));
   flag_list->push_back(tsl::Flag(
       "zkx_debug_buffer_assignment_show_max",
       int64_setter_for(&DebugOptions::set_zkx_debug_buffer_assignment_show_max),
