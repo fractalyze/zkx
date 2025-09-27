@@ -199,11 +199,20 @@ mlir::RankedTensorType ShapeToMlirTensorType(const Shape& shape,
   }
 }
 
-std::vector<mlir::Type> ShapeToMlirTensorTypes(const Shape& shape,
+llvm::SmallVector<mlir::Type> ShapeToMlirTypes(const Shape& shape,
                                                mlir::MLIRContext* context) {
-  std::vector<mlir::Type> types;
-  for (int i = 0; i < shape.tuple_shapes_size(); ++i) {
-    types.push_back(ShapeToMlirTensorType(shape.tuple_shapes(i), context));
+  llvm::SmallVector<mlir::Type> types;
+  types.reserve(shape.IsTuple() ? shape.tuple_shapes_size() : 1);
+  if (shape.IsTuple()) {
+    for (const Shape& tuple_shape : shape.tuple_shapes()) {
+      if (tuple_shape.IsTuple()) {
+        types.append(ShapeToMlirTypes(tuple_shape, context));
+      } else {
+        types.push_back(ShapeToMlirTensorType(tuple_shape, context));
+      }
+    }
+  } else {
+    types.push_back(ShapeToMlirTensorType(shape, context));
   }
   return types;
 }
