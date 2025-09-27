@@ -96,6 +96,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_collectives_plugin",
+    deps = [":gpu_collectives_stub"],
+)
+
+zkx_cc_library(
     name = "gpu_collectives_stub",
     srcs = ["gpu_collectives_stub.cc"],
     hdrs = ["gpu_collectives_stub.h"],
