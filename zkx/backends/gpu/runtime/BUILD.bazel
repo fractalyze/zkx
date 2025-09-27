@@ -75,6 +75,7 @@ zkx_cc_library(
         "//zkx/backends/gpu/collectives:gpu_clique_key",
         "//zkx/backends/gpu/collectives:gpu_cliques",
         "//zkx/backends/gpu/collectives:gpu_collectives",
+        "//zkx/backends/gpu/collectives:gpu_collectives_plugin",
         "//zkx/core/collectives:communicator",
         "//zkx/core/collectives:rank_id",
         "//zkx/hlo/ir:hlo",
