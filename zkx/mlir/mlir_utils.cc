@@ -45,26 +45,21 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
       // Tokens do not have a physical representation, but the compiler needs
       // some placeholder type, so use int8_t*.
       return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
-    case BN254_SCALAR:
-      return GetMlirPrimeFieldType<math::bn254::Fr>(context, use_montgomery);
-    case BN254_G1_AFFINE:
-      return GetMlirAffinePointType<math::bn254::G1AffinePoint>(context,
-                                                                use_montgomery);
-    case BN254_G1_JACOBIAN:
-      return GetMlirJacobianPointType<math::bn254::G1JacobianPoint>(
-          context, use_montgomery);
-    case BN254_G1_XYZZ:
-      return GetMlirPointXyzzType<math::bn254::G1PointXyzz>(context,
-                                                            use_montgomery);
-    case BN254_G2_AFFINE:
-      return GetMlirAffinePointType<math::bn254::G2AffinePoint>(context,
-                                                                use_montgomery);
-    case BN254_G2_JACOBIAN:
-      return GetMlirJacobianPointType<math::bn254::G2JacobianPoint>(
-          context, use_montgomery);
-    case BN254_G2_XYZZ:
-      return GetMlirPointXyzzType<math::bn254::G2PointXyzz>(context,
-                                                            use_montgomery);
+#define MONTABLE_CASE(enum, cpp_type, type)                        \
+  case enum:                                                       \
+    return GetMlir##type##Type<cpp_type>(context, use_montgomery); \
+  case enum##_STD:                                                 \
+    return GetMlir##type##Type<cpp_type##Std>(context, false);
+      MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr, PrimeField)
+      MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint, AffinePoint)
+      MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint,
+                    JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz, PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint, AffinePoint)
+      MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint,
+                    JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz, PointXyzz)
+#undef MONTABLE_CASE
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }

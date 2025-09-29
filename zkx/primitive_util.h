@@ -142,40 +142,25 @@ constexpr PrimitiveType NativeToPrimitiveType<int64_t>() {
   return S64;
 }
 
-template <>
-constexpr PrimitiveType NativeToPrimitiveType<math::bn254::Fr>() {
-  return BN254_SCALAR;
-}
+#define MONTABLE_CONVERSION(enum, cpp_type)                        \
+  template <>                                                      \
+  constexpr PrimitiveType NativeToPrimitiveType<cpp_type>() {      \
+    return enum;                                                   \
+  }                                                                \
+  template <>                                                      \
+  constexpr PrimitiveType NativeToPrimitiveType<cpp_type##Std>() { \
+    return enum##_STD;                                             \
+  }
 
-template <>
-constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G1AffinePoint>() {
-  return BN254_G1_AFFINE;
-}
+MONTABLE_CONVERSION(BN254_SCALAR, math::bn254::Fr)
+MONTABLE_CONVERSION(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
+MONTABLE_CONVERSION(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
+MONTABLE_CONVERSION(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
+MONTABLE_CONVERSION(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
+MONTABLE_CONVERSION(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
+MONTABLE_CONVERSION(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
 
-template <>
-constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G1JacobianPoint>() {
-  return BN254_G1_JACOBIAN;
-}
-
-template <>
-constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G1PointXyzz>() {
-  return BN254_G1_XYZZ;
-}
-
-template <>
-constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G2AffinePoint>() {
-  return BN254_G2_AFFINE;
-}
-
-template <>
-constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G2JacobianPoint>() {
-  return BN254_G2_JACOBIAN;
-}
-
-template <>
-constexpr PrimitiveType NativeToPrimitiveType<math::bn254::G2PointXyzz>() {
-  return BN254_G2_XYZZ;
-}
+#undef MONTABLE_CONVERSION
 
 // Returns the native type (eg, uint32_t) corresponding to the given template
 // parameter ZKX primitive type (eg, U32).
@@ -279,40 +264,25 @@ struct PrimitiveTypeToNative<TOKEN> {
   using type = void;
 };
 
-template <>
-struct PrimitiveTypeToNative<BN254_SCALAR> {
-  using type = math::bn254::Fr;
-};
+#define MONTABLE_CONVERSION(enum_type, cpp_type)  \
+  template <>                                     \
+  struct PrimitiveTypeToNative<enum_type> {       \
+    using type = cpp_type;                        \
+  };                                              \
+  template <>                                     \
+  struct PrimitiveTypeToNative<enum_type##_STD> { \
+    using type = cpp_type##Std;                   \
+  }
 
-template <>
-struct PrimitiveTypeToNative<BN254_G1_AFFINE> {
-  using type = math::bn254::G1AffinePoint;
-};
+MONTABLE_CONVERSION(BN254_SCALAR, math::bn254::Fr);
+MONTABLE_CONVERSION(BN254_G1_AFFINE, math::bn254::G1AffinePoint);
+MONTABLE_CONVERSION(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint);
+MONTABLE_CONVERSION(BN254_G1_XYZZ, math::bn254::G1PointXyzz);
+MONTABLE_CONVERSION(BN254_G2_AFFINE, math::bn254::G2AffinePoint);
+MONTABLE_CONVERSION(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint);
+MONTABLE_CONVERSION(BN254_G2_XYZZ, math::bn254::G2PointXyzz);
 
-template <>
-struct PrimitiveTypeToNative<BN254_G1_JACOBIAN> {
-  using type = math::bn254::G1JacobianPoint;
-};
-
-template <>
-struct PrimitiveTypeToNative<BN254_G1_XYZZ> {
-  using type = math::bn254::G1PointXyzz;
-};
-
-template <>
-struct PrimitiveTypeToNative<BN254_G2_AFFINE> {
-  using type = math::bn254::G2AffinePoint;
-};
-
-template <>
-struct PrimitiveTypeToNative<BN254_G2_JACOBIAN> {
-  using type = math::bn254::G2JacobianPoint;
-};
-
-template <>
-struct PrimitiveTypeToNative<BN254_G2_XYZZ> {
-  using type = math::bn254::G2PointXyzz;
-};
+#undef MONTABLE_CONVERSION
 
 template <PrimitiveType kType>
 using NativeTypeOf = typename PrimitiveTypeToNative<kType>::type;
@@ -346,12 +316,17 @@ constexpr bool Is8BitIntegralType(PrimitiveType type) {
   return type == S8 || type == U8;
 }
 
-constexpr bool IsFieldType(PrimitiveType type) { return type == BN254_SCALAR; }
+constexpr bool IsFieldType(PrimitiveType type) {
+  return type == BN254_SCALAR || type == BN254_SCALAR_STD;
+}
 
 constexpr bool IsEcPointType(PrimitiveType type) {
-  return type == BN254_G1_AFFINE || type == BN254_G1_JACOBIAN ||
-         type == BN254_G1_XYZZ || type == BN254_G2_AFFINE ||
-         type == BN254_G2_JACOBIAN || type == BN254_G2_XYZZ;
+  return type == BN254_G1_AFFINE || type == BN254_G1_AFFINE_STD ||
+         type == BN254_G1_JACOBIAN || type == BN254_G1_JACOBIAN_STD ||
+         type == BN254_G1_XYZZ || type == BN254_G1_XYZZ_STD ||
+         type == BN254_G2_AFFINE || type == BN254_G2_AFFINE_STD ||
+         type == BN254_G2_JACOBIAN || type == BN254_G2_JACOBIAN_STD ||
+         type == BN254_G2_XYZZ || type == BN254_G2_XYZZ_STD;
 }
 
 template <typename R, typename F>
@@ -397,9 +372,15 @@ template <typename R, typename F>
 constexpr R FieldTypeSwitch(F&& f, PrimitiveType type) {
   if (ABSL_PREDICT_TRUE(IsFieldType(type))) {
     switch (type) {
-      case BN254_SCALAR:
-        return std::forward<F>(f)(
-            PrimitiveTypeConstant<PrimitiveType::BN254_SCALAR>());
+#define MONTABLE_CASE(enum, cpp_type)                                        \
+  case enum:                                                                 \
+    return std::forward<F>(f)(PrimitiveTypeConstant<PrimitiveType::enum>()); \
+  case enum##_STD:                                                           \
+    return std::forward<F>(f)(                                               \
+        PrimitiveTypeConstant<PrimitiveType::enum##_STD>());
+
+      MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
+#undef MONTABLE_CASE
       default:
         ABSL_UNREACHABLE();
     }
@@ -411,24 +392,20 @@ template <typename R, typename F>
 constexpr R EcPointTypeSwitch(F&& f, PrimitiveType type) {
   if (ABSL_PREDICT_TRUE(IsEcPointType(type))) {
     switch (type) {
-      case BN254_G1_AFFINE:
-        return std::forward<F>(f)(
-            PrimitiveTypeConstant<PrimitiveType::BN254_G1_AFFINE>());
-      case BN254_G1_JACOBIAN:
-        return std::forward<F>(f)(
-            PrimitiveTypeConstant<PrimitiveType::BN254_G1_JACOBIAN>());
-      case BN254_G1_XYZZ:
-        return std::forward<F>(f)(
-            PrimitiveTypeConstant<PrimitiveType::BN254_G1_XYZZ>());
-      case BN254_G2_AFFINE:
-        return std::forward<F>(f)(
-            PrimitiveTypeConstant<PrimitiveType::BN254_G2_AFFINE>());
-      case BN254_G2_JACOBIAN:
-        return std::forward<F>(f)(
-            PrimitiveTypeConstant<PrimitiveType::BN254_G2_JACOBIAN>());
-      case BN254_G2_XYZZ:
-        return std::forward<F>(f)(
-            PrimitiveTypeConstant<PrimitiveType::BN254_G2_XYZZ>());
+#define MONTABLE_CASE(enum, cpp_type)                                        \
+  case enum:                                                                 \
+    return std::forward<F>(f)(PrimitiveTypeConstant<PrimitiveType::enum>()); \
+  case enum##_STD:                                                           \
+    return std::forward<F>(f)(                                               \
+        PrimitiveTypeConstant<PrimitiveType::enum##_STD>());
+
+      MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
+      MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
+      MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
+#undef MONTABLE_CASE
       default:
         ABSL_UNREACHABLE();
     }

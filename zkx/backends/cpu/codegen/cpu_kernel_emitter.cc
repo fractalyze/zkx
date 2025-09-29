@@ -104,24 +104,20 @@ absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,
                                             const Shape& shape) {
   bool use_montgomery = shape.layout().is_montgomery_form();
   switch (shape.element_type()) {
-    case BN254_G1_AFFINE:
-      return mlir_utils::CreateMlirEcPointConstant(
-          b, math::bn254::G1AffinePoint::Zero(), use_montgomery);
-    case BN254_G1_JACOBIAN:
-      return mlir_utils::CreateMlirEcPointConstant(
-          b, math::bn254::G1JacobianPoint::Zero(), use_montgomery);
-    case BN254_G1_XYZZ:
-      return mlir_utils::CreateMlirEcPointConstant(
-          b, math::bn254::G1PointXyzz::Zero(), use_montgomery);
-    case BN254_G2_AFFINE:
-      return mlir_utils::CreateMlirEcPointConstant(
-          b, math::bn254::G2AffinePoint::Zero(), use_montgomery);
-    case BN254_G2_JACOBIAN:
-      return mlir_utils::CreateMlirEcPointConstant(
-          b, math::bn254::G2JacobianPoint::Zero(), use_montgomery);
-    case BN254_G2_XYZZ:
-      return mlir_utils::CreateMlirEcPointConstant(
-          b, math::bn254::G2PointXyzz::Zero(), use_montgomery);
+#define MONTABLE_CASE(enum, cpp_type)                                      \
+  case enum:                                                               \
+    return mlir_utils::CreateMlirEcPointConstant(b, cpp_type::Zero(),      \
+                                                 use_montgomery);          \
+  case enum##_STD:                                                         \
+    return mlir_utils::CreateMlirEcPointConstant(b, cpp_type##Std::Zero(), \
+                                                 false);
+    MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
+    MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
+    MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
+    MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
+    MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
+    MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
+#undef MONTABLE_CASE
     default:
       return absl::InvalidArgumentError(absl::StrFormat(
           "Invalid primitive type: %s",
@@ -881,14 +877,17 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   }
 
   PrimitiveType operand_type = instr->operand(0)->shape().element_type();
+  absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> root;
   mlir::zkir::field::RootOfUnityAttr root_attr;
   switch (operand_type) {
     case BN254_SCALAR: {
-      absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> root =
-          GetRootOfUnityAttr<math::bn254::Fr>(value.getContext(),
-                                              instr->fft_length());
-      if (!root.ok()) return root.status();
-      root_attr = root.value();
+      root = GetRootOfUnityAttr<math::bn254::Fr>(value.getContext(),
+                                                 instr->fft_length());
+      break;
+    }
+    case BN254_SCALAR_STD: {
+      root = GetRootOfUnityAttr<math::bn254::FrStd>(value.getContext(),
+                                                    instr->fft_length());
       break;
     }
     default:
@@ -896,6 +895,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
           "Invalid primitive type: %s",
           primitive_util::LowercasePrimitiveTypeName(operand_type)));
   }
+  if (!root.ok()) return root.status();
+  root_attr = root.value();
   pass_flag_.enable_tensor_ext_to_tensor = true;
 
   auto alloc_tensor = b.create<mlir::bufferization::AllocTensorOp>(

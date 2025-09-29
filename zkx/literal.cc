@@ -1554,46 +1554,29 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
     case TOKEN:
       // Nothing to do but assign the shape which is done above.
       return;
-    case BN254_SCALAR:
-      *proto->mutable_bn254_scalars() = std::string(
-          reinterpret_cast<const char*>(data<math::bn254::Fr>().data()),
-          size_bytes_dense());
-      break;
-    case BN254_G1_AFFINE:
-      *proto->mutable_bn254_g1_affines() =
-          std::string(reinterpret_cast<const char*>(
-                          data<math::bn254::G1AffinePoint>().data()),
-                      size_bytes_dense());
-      break;
-    case BN254_G1_JACOBIAN:
-      *proto->mutable_bn254_g1_jacobians() =
-          std::string(reinterpret_cast<const char*>(
-                          data<math::bn254::G1JacobianPoint>().data()),
-                      size_bytes_dense());
-      break;
-    case BN254_G1_XYZZ:
-      *proto->mutable_bn254_g1_xyzzs() =
-          std::string(reinterpret_cast<const char*>(
-                          data<math::bn254::G1PointXyzz>().data()),
-                      size_bytes_dense());
-      break;
-    case BN254_G2_AFFINE:
-      *proto->mutable_bn254_g2_affines() =
-          std::string(reinterpret_cast<const char*>(
-                          data<math::bn254::G2AffinePoint>().data()),
-                      size_bytes_dense());
-      break;
-    case BN254_G2_JACOBIAN:
-      *proto->mutable_bn254_g2_jacobians() =
-          std::string(reinterpret_cast<const char*>(
-                          data<math::bn254::G2JacobianPoint>().data()),
-                      size_bytes_dense());
-      break;
-    case BN254_G2_XYZZ:
-      *proto->mutable_bn254_g2_xyzzs() =
-          std::string(reinterpret_cast<const char*>(
-                          data<math::bn254::G2PointXyzz>().data()),
-                      size_bytes_dense());
+#define MONTABLE_CASE(enum, member_name, cpp_type)                          \
+  case enum:                                                                \
+    *proto->mutable_##member_name() =                                       \
+        std::string(reinterpret_cast<const char*>(data<cpp_type>().data()), \
+                    size_bytes_dense());                                    \
+    break;                                                                  \
+  case enum##_STD:                                                          \
+    *proto->mutable_##member_name##_std() = std::string(                    \
+        reinterpret_cast<const char*>(data<cpp_type##Std>().data()),        \
+        size_bytes_dense());                                                \
+    break;
+      MONTABLE_CASE(BN254_SCALAR, bn254_scalars, math::bn254::Fr)
+      MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
+                    math::bn254::G1AffinePoint)
+      MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,
+                    math::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs, math::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affines,
+                    math::bn254::G2AffinePoint)
+      MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobians,
+                    math::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs, math::bn254::G2PointXyzz)
+#undef MONTABLE_CASE
     default:
       // TODO(b/111551621): Support serializing more PrimitiveTypes.
       LOG(FATAL) << "Unhandled primitive type "
@@ -1737,61 +1720,31 @@ absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
       return absl::InvalidArgumentError(
           absl::StrFormat("Should not be called on tuple shapes: %s",
                           ShapeUtil::HumanString(subshape())));
-    case BN254_SCALAR: {
-      const std::string& s(proto.bn254_scalars());
-      TF_RET_CHECK(data<math::bn254::Fr>().size() * sizeof(math::bn254::Fr) ==
-                   s.size());
-      memcpy(untyped_data(), s.data(), s.size());
-      break;
-    }
-    case BN254_G1_AFFINE: {
-      const std::string& s(proto.bn254_g1_affines());
-      TF_RET_CHECK(data<math::bn254::G1AffinePoint>().size() *
-                       sizeof(math::bn254::G1AffinePoint) ==
-                   s.size());
-      memcpy(untyped_data(), s.data(), s.size());
-      break;
-    }
-    case BN254_G1_JACOBIAN: {
-      const std::string& s(proto.bn254_g1_jacobians());
-      TF_RET_CHECK(data<math::bn254::G1JacobianPoint>().size() *
-                       sizeof(math::bn254::G1JacobianPoint) ==
-                   s.size());
-      memcpy(untyped_data(), s.data(), s.size());
-      break;
-    }
-    case BN254_G1_XYZZ: {
-      const std::string& s(proto.bn254_g1_xyzzs());
-      TF_RET_CHECK(data<math::bn254::G1PointXyzz>().size() *
-                       sizeof(math::bn254::G1PointXyzz) ==
-                   s.size());
-      memcpy(untyped_data(), s.data(), s.size());
-      break;
-    }
-    case BN254_G2_AFFINE: {
-      const std::string& s(proto.bn254_g2_affines());
-      TF_RET_CHECK(data<math::bn254::G2AffinePoint>().size() *
-                       sizeof(math::bn254::G2AffinePoint) ==
-                   s.size());
-      memcpy(untyped_data(), s.data(), s.size());
-      break;
-    }
-    case BN254_G2_JACOBIAN: {
-      const std::string& s(proto.bn254_g2_jacobians());
-      TF_RET_CHECK(data<math::bn254::G2JacobianPoint>().size() *
-                       sizeof(math::bn254::G2JacobianPoint) ==
-                   s.size());
-      memcpy(untyped_data(), s.data(), s.size());
-      break;
-    }
-    case BN254_G2_XYZZ: {
-      const std::string& s(proto.bn254_g2_xyzzs());
-      TF_RET_CHECK(data<math::bn254::G2PointXyzz>().size() *
-                       sizeof(math::bn254::G2PointXyzz) ==
-                   s.size());
-      memcpy(untyped_data(), s.data(), s.size());
-      break;
-    }
+#define MONTABLE_CASE(enum, member_name, cpp_type)                             \
+  case enum: {                                                                 \
+    const std::string& s(proto.member_name());                                 \
+    TF_RET_CHECK(data<cpp_type>().size() * sizeof(cpp_type) == s.size());      \
+    memcpy(untyped_data(), s.data(), s.size());                                \
+    break;                                                                     \
+  }                                                                            \
+  case enum##_STD: {                                                           \
+    const std::string& s(proto.member_name##_std());                           \
+    TF_RET_CHECK(data<cpp_type>().size() * sizeof(cpp_type##Std) == s.size()); \
+    memcpy(untyped_data(), s.data(), s.size());                                \
+    break;                                                                     \
+  }
+      MONTABLE_CASE(BN254_SCALAR, bn254_scalars, math::bn254::Fr)
+      MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
+                    math::bn254::G1AffinePoint)
+      MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,
+                    math::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs, math::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affines,
+                    math::bn254::G2AffinePoint)
+      MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobians,
+                    math::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs, math::bn254::G2PointXyzz)
+#undef MONTABLE_CASE
     default:
       return absl::InvalidArgumentError(
           absl::StrFormat("Is called on unsupported shape: %s",

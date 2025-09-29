@@ -88,7 +88,9 @@ void EcPointSum(T* a, const T* b, size_t n) {
       new ReductionFunction<Type>(SUM, &EcPointSum<Type>)
 
 ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G1AffinePoint);
+ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G1AffinePointStd);
 ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G2AffinePoint);
+ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G2AffinePointStd);
 
 #undef ADD_EC_REDUCTION_FUNCTION
 
@@ -239,34 +241,23 @@ absl::Status GlooCommunicator::AllReduce(se::DeviceMemoryBase send_buffer,
       TF_RETURN_IF_ERROR(SetAllReduceOptions<uint64_t>(
           reduction_kind, send_buffer, recv_buffer, count, options));
       break;
-    case BN254_SCALAR:
-      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::Fr>(
-          reduction_kind, send_buffer, recv_buffer, count, options));
-      break;
-    case BN254_G1_AFFINE:
-      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G1AffinePoint>(
-          reduction_kind, send_buffer, recv_buffer, count, options));
-      break;
-    case BN254_G1_JACOBIAN:
-      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G1JacobianPoint>(
-          reduction_kind, send_buffer, recv_buffer, count, options));
-      break;
-    case BN254_G1_XYZZ:
-      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G1PointXyzz>(
-          reduction_kind, send_buffer, recv_buffer, count, options));
-      break;
-    case BN254_G2_AFFINE:
-      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G2AffinePoint>(
-          reduction_kind, send_buffer, recv_buffer, count, options));
-      break;
-    case BN254_G2_JACOBIAN:
-      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G2JacobianPoint>(
-          reduction_kind, send_buffer, recv_buffer, count, options));
-      break;
-    case BN254_G2_XYZZ:
-      TF_RETURN_IF_ERROR(SetAllReduceOptions<math::bn254::G2PointXyzz>(
-          reduction_kind, send_buffer, recv_buffer, count, options));
-      break;
+#define MONTABLE_CASE(enum, cpp_type)                               \
+  case enum:                                                        \
+    TF_RETURN_IF_ERROR(SetAllReduceOptions<cpp_type>(               \
+        reduction_kind, send_buffer, recv_buffer, count, options)); \
+    break;                                                          \
+  case enum##_STD:                                                  \
+    TF_RETURN_IF_ERROR(SetAllReduceOptions<cpp_type##Std>(          \
+        reduction_kind, send_buffer, recv_buffer, count, options)); \
+    break;
+      MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
+      MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
+      MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
+      MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
+#undef MONTABLE_CASE
     default:
       return absl::InvalidArgumentError("Unknown datatype in allreduce");
   }
@@ -456,34 +447,23 @@ absl::Status GlooCommunicator::ReduceScatter(se::DeviceMemoryBase send_buffer,
       TF_RETURN_IF_ERROR(ReduceScatterHelper<uint64_t>(context_, reduction_kind,
                                                        temp.get(), count));
       break;
-    case BN254_SCALAR:
-      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::Fr>(
-          context_, reduction_kind, temp.get(), count));
-      break;
-    case BN254_G1_AFFINE:
-      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G1AffinePoint>(
-          context_, reduction_kind, temp.get(), count));
-      break;
-    case BN254_G1_JACOBIAN:
-      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G1JacobianPoint>(
-          context_, reduction_kind, temp.get(), count));
-      break;
-    case BN254_G1_XYZZ:
-      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G1PointXyzz>(
-          context_, reduction_kind, temp.get(), count));
-      break;
-    case BN254_G2_AFFINE:
-      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G2AffinePoint>(
-          context_, reduction_kind, temp.get(), count));
-      break;
-    case BN254_G2_JACOBIAN:
-      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G2JacobianPoint>(
-          context_, reduction_kind, temp.get(), count));
-      break;
-    case BN254_G2_XYZZ:
-      TF_RETURN_IF_ERROR(ReduceScatterHelper<math::bn254::G2PointXyzz>(
-          context_, reduction_kind, temp.get(), count));
-      break;
+#define MONTABLE_CASE(enum, cpp_type)                                          \
+  case enum:                                                                   \
+    TF_RETURN_IF_ERROR(ReduceScatterHelper<cpp_type>(context_, reduction_kind, \
+                                                     temp.get(), count));      \
+    break;                                                                     \
+  case enum##_STD:                                                             \
+    TF_RETURN_IF_ERROR(ReduceScatterHelper<cpp_type##Std>(                     \
+        context_, reduction_kind, temp.get(), count));                         \
+    break;
+      MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
+      MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
+      MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
+      MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
+#undef MONTABLE_CASE
     default:
       return absl::InvalidArgumentError("Unknown datatype in reduce-scatter");
   }

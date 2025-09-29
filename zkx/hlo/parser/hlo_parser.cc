@@ -3582,66 +3582,37 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
         if (primitive_util::IsEcPointType(shape.element_type())) {
           LocTy loc = lexer_.GetLoc();
           switch (shape.element_type()) {
-            case BN254_G1_AFFINE: {
-              math::bn254::G1AffinePoint value;
-              if (!ParseG1Affine(shape.element_type(), &value)) {
-                return false;
-              }
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G1_JACOBIAN: {
-              math::bn254::G1JacobianPoint value;
-              if (!ParseG1Jacobian(shape.element_type(), &value)) {
-                return false;
-              }
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G1_XYZZ: {
-              math::bn254::G1PointXyzz value;
-              if (!ParseG1Xyzz(shape.element_type(), &value)) {
-                return false;
-              }
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G2_AFFINE: {
-              math::bn254::G2AffinePoint value;
-              if (!ParseG2Affine(shape.element_type(), &value)) {
-                return false;
-              }
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G2_JACOBIAN: {
-              math::bn254::G2JacobianPoint value;
-              if (!ParseG2Jacobian(shape.element_type(), &value)) {
-                return false;
-              }
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G2_XYZZ: {
-              math::bn254::G2PointXyzz value;
-              if (!ParseG2Xyzz(shape.element_type(), &value)) {
-                return false;
-              }
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
+#define MONTABLE_CASE(enum, cpp_type, kind)                        \
+  case enum: {                                                     \
+    cpp_type value;                                                \
+    if (!Parse##kind(shape.element_type(), &value)) {              \
+      return false;                                                \
+    }                                                              \
+    if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
+      return false;                                                \
+    }                                                              \
+    break;                                                         \
+  }                                                                \
+  case enum##_STD: {                                               \
+    cpp_type##Std value;                                           \
+    if (!Parse##kind(shape.element_type(), &value)) {              \
+      return false;                                                \
+    }                                                              \
+    if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
+      return false;                                                \
+    }                                                              \
+    break;                                                         \
+  }
+
+            MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint, G1Affine)
+            MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint,
+                          G1Jacobian)
+            MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz, G1Xyzz)
+            MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint, G2Affine)
+            MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint,
+                          G2Jacobian)
+            MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz, G2Xyzz)
+#undef MONTABLE_CASE
             default:
               return TokenError(
                   absl::StrCat("unsupported ec point type ",
@@ -3690,16 +3661,30 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
         if (primitive_util::IsFieldType(shape.element_type())) {
           LocTy loc = lexer_.GetLoc();
           switch (shape.element_type()) {
-            case BN254_SCALAR: {
-              math::bn254::Fr value;
-              if (!ParsePrimeField(shape.element_type(), &value)) {
-                return false;
-              }
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
+#define MONTABLE_CASE(enum, cpp_type)                              \
+  case enum: {                                                     \
+    cpp_type value;                                                \
+    if (!ParsePrimeField(shape.element_type(), &value)) {          \
+      return false;                                                \
+    }                                                              \
+    if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
+      return false;                                                \
+    }                                                              \
+    break;                                                         \
+  }                                                                \
+  case enum##_STD: {                                               \
+    cpp_type##Std value;                                           \
+    if (!ParsePrimeField(shape.element_type(), &value)) {          \
+      return false;                                                \
+    }                                                              \
+    if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
+      return false;                                                \
+    }                                                              \
+    break;                                                         \
+  }
+
+            MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
+#undef MONTABLE_CASE
             default:
               return TokenError(
                   absl::StrCat("unsupported prime field type ",
@@ -3709,72 +3694,43 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
         } else if (primitive_util::IsEcPointType(shape.element_type())) {
           LocTy loc = lexer_.GetLoc();
           switch (shape.element_type()) {
-            case BN254_G1_AFFINE: {
-              math::bn254::Fr scalar;
-              if (!ParsePrimeField(shape.element_type(), &scalar)) {
-                return false;
-              }
-              math::bn254::G1AffinePoint value(scalar);
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G1_JACOBIAN: {
-              math::bn254::Fr scalar;
-              if (!ParsePrimeField(shape.element_type(), &scalar)) {
-                return false;
-              }
-              math::bn254::G1JacobianPoint value(scalar);
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G1_XYZZ: {
-              math::bn254::Fr scalar;
-              if (!ParsePrimeField(shape.element_type(), &scalar)) {
-                return false;
-              }
-              math::bn254::G1PointXyzz value(scalar);
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G2_AFFINE: {
-              math::bn254::Fr scalar;
-              if (!ParsePrimeField(shape.element_type(), &scalar)) {
-                return false;
-              }
-              math::bn254::G2AffinePoint value(scalar);
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G2_JACOBIAN: {
-              math::bn254::Fr scalar;
-              if (!ParsePrimeField(shape.element_type(), &scalar)) {
-                return false;
-              }
-              math::bn254::G2JacobianPoint value(scalar);
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
-            case BN254_G2_XYZZ: {
-              math::bn254::Fr scalar;
-              if (!ParsePrimeField(shape.element_type(), &scalar)) {
-                return false;
-              }
-              math::bn254::G2PointXyzz value(scalar);
-              if (!SetValueInLiteral(loc, value, linear_index++, literal)) {
-                return false;
-              }
-              break;
-            }
+#define MONTABLE_CASE(enum, scalar_cpp_type, cpp_type)             \
+  case enum: {                                                     \
+    scalar_cpp_type scalar;                                        \
+    if (!ParsePrimeField(shape.element_type(), &scalar)) {         \
+      return false;                                                \
+    }                                                              \
+    cpp_type value(scalar);                                        \
+    if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
+      return false;                                                \
+    }                                                              \
+    break;                                                         \
+  }                                                                \
+  case enum##_STD: {                                               \
+    scalar_cpp_type##Std scalar;                                   \
+    if (!ParsePrimeField(shape.element_type(), &scalar)) {         \
+      return false;                                                \
+    }                                                              \
+    cpp_type##Std value(scalar);                                   \
+    if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
+      return false;                                                \
+    }                                                              \
+    break;                                                         \
+  }
+
+            MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::Fr,
+                          math::bn254::G1AffinePoint)
+            MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::Fr,
+                          math::bn254::G1JacobianPoint)
+            MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::Fr,
+                          math::bn254::G1PointXyzz)
+            MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::Fr,
+                          math::bn254::G2AffinePoint)
+            MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::Fr,
+                          math::bn254::G2JacobianPoint)
+            MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::Fr,
+                          math::bn254::G2PointXyzz)
+#undef MONTABLE_CASE
             default:
               return TokenError(
                   absl::StrCat("unsupported ec point type ",
