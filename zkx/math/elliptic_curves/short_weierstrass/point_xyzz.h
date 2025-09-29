@@ -33,6 +33,7 @@ class PointXyzz<_Curve,
   using AffinePoint = math::AffinePoint<Curve>;
   using JacobianPoint = math::JacobianPoint<Curve>;
 
+  constexpr static bool kUseMontgomery = Curve::kUseMontgomery;
   constexpr static size_t kBitWidth = BaseField::kBitWidth * 4;
 
   constexpr PointXyzz()
@@ -175,7 +176,7 @@ class PointXyzz<_Curve,
   constexpr PointXyzz operator-() const { return {x_, -y_, zz_, zzz_}; }
 
   constexpr PointXyzz operator*(const ScalarField& v) const {
-    if constexpr (ScalarField::kUseMontgomery) {
+    if constexpr (kUseMontgomery) {
       return ScalarMul(*this, v.MontReduce().value());
     } else {
       return ScalarMul(*this, v.value());

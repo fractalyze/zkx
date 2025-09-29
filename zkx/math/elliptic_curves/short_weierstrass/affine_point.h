@@ -31,6 +31,7 @@ class AffinePoint<
   using JacobianPoint = math::JacobianPoint<Curve>;
   using PointXyzz = math::PointXyzz<Curve>;
 
+  constexpr static bool kUseMontgomery = Curve::kUseMontgomery;
   constexpr static size_t kBitWidth = BaseField::kBitWidth * 2;
 
   constexpr AffinePoint() : AffinePoint(BaseField::Zero(), BaseField::Zero()) {}
@@ -102,7 +103,7 @@ class AffinePoint<
   constexpr AffinePoint operator-() const { return {x_, -y_}; }
 
   constexpr JacobianPoint operator*(const ScalarField& v) const {
-    if constexpr (ScalarField::kUseMontgomery) {
+    if constexpr (kUseMontgomery) {
       return ScalarMul(ToJacobian(), v.MontReduce().value());
     } else {
       return ScalarMul(ToJacobian(), v.value());

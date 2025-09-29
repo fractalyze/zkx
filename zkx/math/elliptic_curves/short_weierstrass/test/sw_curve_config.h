@@ -10,11 +10,10 @@
 
 namespace zkx::math::test {
 
-struct PrimeFieldConfig {
+struct PrimeFieldBaseConfig {
  public:
   constexpr static size_t kModulusBits = 4;
   constexpr static BigInt<1> kModulus = 7;
-  constexpr static BigInt<1> kOne = 2;
 
   constexpr static BigInt<1> kRSquared = UINT64_C(4);
   constexpr static uint64_t kNPrime = UINT64_C(10540996613548315209);
@@ -24,15 +23,21 @@ struct PrimeFieldConfig {
   constexpr static BigInt<1> kTrace = 3;
 
   constexpr static bool kHasTwoAdicRootOfUnity = true;
-  constexpr static BigInt<1> kTwoAdicRootOfUnity = 3;
-
   constexpr static bool kHasLargeSubgroupRootOfUnity = false;
+};
+
+struct PrimeFieldConfig : public PrimeFieldBaseConfig {
+  constexpr static bool kUseMontgomery = true;
+
+  constexpr static BigInt<1> kOne = 2;
+
+  constexpr static BigInt<1> kTwoAdicRootOfUnity = 3;
 };
 
 using Fq = PrimeField<PrimeFieldConfig>;
 using Fr = PrimeField<PrimeFieldConfig>;
 
-struct Fq2Config {
+struct Fq2BaseConfig {
   using BaseField = Fq;
   using BasePrimeField = Fq;
 
@@ -40,10 +45,14 @@ struct Fq2Config {
   constexpr static BaseField kNonResidue = -1;
 };
 
+struct Fq2Config : public Fq2BaseConfig {
+  constexpr static bool kUseMontgomery = true;
+};
+
 using Fq2 = ExtensionField<Fq2Config>;
 
 template <typename _BaseField, typename _ScalarField>
-class SwCurveConfig {
+class SwCurveBaseConfig {
  public:
   using BaseField = _BaseField;
   using ScalarField = _ScalarField;
@@ -54,7 +63,12 @@ class SwCurveConfig {
   constexpr static BaseField kY = 5;
 };
 
-using G1Curve = SwCurve<SwCurveConfig<Fq, Fr>>;
+class SwCurveConfig : public SwCurveBaseConfig<Fq, Fr> {
+ public:
+  constexpr static bool kUseMontgomery = true;
+};
+
+using G1Curve = SwCurve<SwCurveConfig>;
 using AffinePoint = zkx::math::AffinePoint<G1Curve>;
 using JacobianPoint = zkx::math::JacobianPoint<G1Curve>;
 using PointXyzz = zkx::math::PointXyzz<G1Curve>;

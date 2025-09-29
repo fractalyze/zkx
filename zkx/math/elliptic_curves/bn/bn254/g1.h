@@ -10,15 +10,21 @@
 
 namespace zkx::math::bn254 {
 
-class G1SwCurveConfig {
+template <typename BaseField>
+class G1SwCurveBaseConfig {
  public:
+  constexpr static BaseField kA = 0;
+  constexpr static BaseField kB = 3;
+  constexpr static BaseField kX = 1;
+  constexpr static BaseField kY = 2;
+};
+
+class G1SwCurveConfig : public G1SwCurveBaseConfig<Fq> {
+ public:
+  constexpr static bool kUseMontgomery = true;
+
   using BaseField = Fq;
   using ScalarField = Fr;
-
-  constexpr static Fq kA = 0;
-  constexpr static Fq kB = 3;
-  constexpr static Fq kX = 1;
-  constexpr static Fq kY = 2;
 };
 
 using G1Curve = SwCurve<G1SwCurveConfig>;

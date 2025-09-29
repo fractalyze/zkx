@@ -30,6 +30,7 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
   using BaseField = typename Config::BaseField;
   using BasePrimeField = typename Config::BasePrimeField;
 
+  constexpr static bool kUseMontgomery = Config::kUseMontgomery;
   constexpr static uint32_t N = Config::kDegreeOverBaseField;
   constexpr static size_t kBitWidth = N * BaseField::kBitWidth;
   constexpr static size_t kByteWidth = N * BaseField::kByteWidth;

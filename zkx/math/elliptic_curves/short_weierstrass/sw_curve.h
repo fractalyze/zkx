@@ -23,6 +23,7 @@ class SwCurve {
   using JacobianPoint = zkx::math::JacobianPoint<SwCurve<Config>>;
   using PointXyzz = zkx::math::PointXyzz<SwCurve<Config>>;
 
+  constexpr static bool kUseMontgomery = Config::kUseMontgomery;
   constexpr static CurveType kType = CurveType::kShortWeierstrass;
 
   // Attempts to construct an affine point given an x-coordinate.
