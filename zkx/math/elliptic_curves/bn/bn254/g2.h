@@ -52,6 +52,14 @@ class G2SwCurveBaseConfig {
                                    }};
 };
 
+class G2SwCurveStdConfig : public G2SwCurveBaseConfig<Fq2Std> {
+ public:
+  constexpr static bool kUseMontgomery = false;
+
+  using BaseField = Fq2Std;
+  using ScalarField = FrStd;
+};
+
 class G2SwCurveConfig : public G2SwCurveBaseConfig<Fq2> {
  public:
   constexpr static bool kUseMontgomery = true;
@@ -61,9 +69,13 @@ class G2SwCurveConfig : public G2SwCurveBaseConfig<Fq2> {
 };
 
 using G2Curve = SwCurve<G2SwCurveConfig>;
+using G2CurveStd = SwCurve<G2SwCurveStdConfig>;
 using G2AffinePoint = zkx::math::AffinePoint<G2Curve>;
+using G2AffinePointStd = zkx::math::AffinePoint<G2CurveStd>;
 using G2JacobianPoint = zkx::math::JacobianPoint<G2Curve>;
+using G2JacobianPointStd = zkx::math::JacobianPoint<G2CurveStd>;
 using G2PointXyzz = zkx::math::PointXyzz<G2Curve>;
+using G2PointXyzzStd = zkx::math::PointXyzz<G2CurveStd>;
 
 }  // namespace zkx::math::bn254
 

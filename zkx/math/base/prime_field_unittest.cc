@@ -12,20 +12,28 @@
 namespace zkx::math {
 namespace bn254 {
 
-TEST(PrimeFieldTest, Operations) {
-  Fr a = *Fr::FromHexString(
+template <typename T>
+class FrTypedTest : public testing::Test {};
+
+using FrTypes = testing::Types<Fr, FrStd>;
+TYPED_TEST_SUITE(FrTypedTest, FrTypes);
+
+TYPED_TEST(FrTypedTest, Operations) {
+  using F = TypeParam;
+
+  F a = *F::FromHexString(
       "0xb94db59332f8a619901d39188315c421beafb516eb8a3ab56ceed7df960ede2");
-  Fr b = *Fr::FromHexString(
+  F b = *F::FromHexString(
       "0xecec51689891ef3f7ff39040036fd0e282687d392abe8f011589f1c755500a2");
   // clang-format off
   EXPECT_TRUE(b > a);
   EXPECT_TRUE(a != b);
-  EXPECT_EQ(a + b, *Fr::FromHexString("0x1a63a06fbcb8a95591010c95886859504411832501648c9b68278c9a6eb5ee84"));
-  EXPECT_EQ(a.Double(), *Fr::FromHexString("0x1729b6b2665f14c33203a7231062b88437d5f6a2dd714756ad9ddafbf2c1dbc4"));
-  EXPECT_EQ(a - b, *Fr::FromHexString("0x2d2a64b58ad80b975952e044097bb7911bf85bc655c62b4c895843f5740bed41"));
-  EXPECT_EQ(a * b, *Fr::FromHexString("0x30593207bceeeba352060f9f1a3ae9d2214f428a90ad235867aabd7a10640d44"));
-  EXPECT_EQ(a.Square(), *Fr::FromHexString("0x2e3797fa80f1e71d9b23f1a6a2572f6aa2de416a1b31ceca88ef28944fd292a"));
-  EXPECT_EQ(a.Pow(30), *Fr::FromHexString("0xa5c969115bc5da7d6bfe244ec24b7e244d454561569de7acf0980633533fcca"));
+  EXPECT_EQ(a + b, *F::FromHexString("0x1a63a06fbcb8a95591010c95886859504411832501648c9b68278c9a6eb5ee84"));
+  EXPECT_EQ(a.Double(), *F::FromHexString("0x1729b6b2665f14c33203a7231062b88437d5f6a2dd714756ad9ddafbf2c1dbc4"));
+  EXPECT_EQ(a - b, *F::FromHexString("0x2d2a64b58ad80b975952e044097bb7911bf85bc655c62b4c895843f5740bed41"));
+  EXPECT_EQ(a * b, *F::FromHexString("0x30593207bceeeba352060f9f1a3ae9d2214f428a90ad235867aabd7a10640d44"));
+  EXPECT_EQ(a.Square(), *F::FromHexString("0x2e3797fa80f1e71d9b23f1a6a2572f6aa2de416a1b31ceca88ef28944fd292a"));
+  EXPECT_EQ(a.Pow(30), *F::FromHexString("0xa5c969115bc5da7d6bfe244ec24b7e244d454561569de7acf0980633533fcca"));
   // clang-format on
 }
 

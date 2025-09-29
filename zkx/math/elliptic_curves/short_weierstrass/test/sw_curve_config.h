@@ -26,6 +26,14 @@ struct PrimeFieldBaseConfig {
   constexpr static bool kHasLargeSubgroupRootOfUnity = false;
 };
 
+struct PrimeFieldStdConfig : public PrimeFieldBaseConfig {
+  constexpr static bool kUseMontgomery = false;
+
+  constexpr static BigInt<1> kOne = 1;
+
+  constexpr static BigInt<1> kTwoAdicRootOfUnity = 5;
+};
+
 struct PrimeFieldConfig : public PrimeFieldBaseConfig {
   constexpr static bool kUseMontgomery = true;
 
@@ -35,7 +43,9 @@ struct PrimeFieldConfig : public PrimeFieldBaseConfig {
 };
 
 using Fq = PrimeField<PrimeFieldConfig>;
+using FqStd = PrimeField<PrimeFieldStdConfig>;
 using Fr = PrimeField<PrimeFieldConfig>;
+using FrStd = PrimeField<PrimeFieldStdConfig>;
 
 struct Fq2BaseConfig {
   using BaseField = Fq;
@@ -45,11 +55,16 @@ struct Fq2BaseConfig {
   constexpr static BaseField kNonResidue = -1;
 };
 
+struct Fq2StdConfig : public Fq2BaseConfig {
+  constexpr static bool kUseMontgomery = false;
+};
+
 struct Fq2Config : public Fq2BaseConfig {
   constexpr static bool kUseMontgomery = true;
 };
 
 using Fq2 = ExtensionField<Fq2Config>;
+using Fq2Std = ExtensionField<Fq2StdConfig>;
 
 template <typename _BaseField, typename _ScalarField>
 class SwCurveBaseConfig {
@@ -63,15 +78,24 @@ class SwCurveBaseConfig {
   constexpr static BaseField kY = 5;
 };
 
+class SwCurveStdConfig : public SwCurveBaseConfig<FqStd, FrStd> {
+ public:
+  constexpr static bool kUseMontgomery = false;
+};
+
 class SwCurveConfig : public SwCurveBaseConfig<Fq, Fr> {
  public:
   constexpr static bool kUseMontgomery = true;
 };
 
 using G1Curve = SwCurve<SwCurveConfig>;
+using G1CurveStd = SwCurve<SwCurveStdConfig>;
 using AffinePoint = zkx::math::AffinePoint<G1Curve>;
+using AffinePointStd = zkx::math::AffinePoint<G1CurveStd>;
 using JacobianPoint = zkx::math::JacobianPoint<G1Curve>;
+using JacobianPointStd = zkx::math::JacobianPoint<G1CurveStd>;
 using PointXyzz = zkx::math::PointXyzz<G1Curve>;
+using PointXyzzStd = zkx::math::PointXyzz<G1CurveStd>;
 
 }  // namespace zkx::math::test
 

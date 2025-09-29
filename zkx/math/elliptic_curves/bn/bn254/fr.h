@@ -36,6 +36,26 @@ struct FrBaseConfig {
   constexpr static bool kHasTwoAdicRootOfUnity = true;
   constexpr static bool kHasLargeSubgroupRootOfUnity = true;
 };
+
+struct FrStdConfig : public FrBaseConfig {
+  constexpr static bool kUseMontgomery = false;
+
+  constexpr static BigInt<4> kOne = 1;
+
+  constexpr static BigInt<4> kTwoAdicRootOfUnity = {
+      UINT64_C(11229192882073836016),
+      UINT64_C(4624371214017703636),
+      UINT64_C(63235024940837564),
+      UINT64_C(3043318377369730693),
+  };
+
+  constexpr static BigInt<4> kLargeSubgroupRootOfUnity = {
+      UINT64_C(10639863269868064110),
+      UINT64_C(6020083959115413713),
+      UINT64_C(15196548748307230377),
+      UINT64_C(1274670453483637722),
+  };
+};
 struct FrConfig : public FrBaseConfig {
   constexpr static bool kUseMontgomery = true;
 
@@ -62,6 +82,7 @@ struct FrConfig : public FrBaseConfig {
 };
 
 using Fr = PrimeField<FrConfig>;
+using FrStd = PrimeField<FrStdConfig>;
 
 }  // namespace zkx::math::bn254
 

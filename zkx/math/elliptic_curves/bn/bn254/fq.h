@@ -35,6 +35,19 @@ struct FqBaseConfig {
   constexpr static bool kHasLargeSubgroupRootOfUnity = false;
 };
 
+struct FqStdConfig : public FqBaseConfig {
+  constexpr static bool kUseMontgomery = false;
+
+  constexpr static BigInt<4> kOne = 1;
+
+  constexpr static BigInt<4> kTwoAdicRootOfUnity = {
+      UINT64_C(4332616871279656262),
+      UINT64_C(10917124144477883021),
+      UINT64_C(13281191951274694749),
+      UINT64_C(3486998266802970665),
+  };
+};
+
 struct FqConfig : public FqBaseConfig {
   constexpr static bool kUseMontgomery = true;
 
@@ -54,6 +67,7 @@ struct FqConfig : public FqBaseConfig {
 };
 
 using Fq = PrimeField<FqConfig>;
+using FqStd = PrimeField<FqStdConfig>;
 
 }  // namespace zkx::math::bn254
 
