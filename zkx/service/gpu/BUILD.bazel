@@ -194,24 +194,6 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
-    name = "reduction_utils",
-    srcs = ["reduction_utils.cc"],
-    hdrs = ["reduction_utils.h"],
-    deps = [
-        ":ir_emission_utils",
-        "//zkx:shape_util",
-        "//zkx:util",
-        "//zkx/hlo/ir:hlo",
-        "//zkx/stream_executor:device_description",
-        "@com_google_absl//absl/algorithm:container",
-        "@com_google_absl//absl/container:inlined_vector",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/types:span",
-    ],
-)
-
-zkx_cc_library(
     name = "ir_emitter_context",
     srcs = ["ir_emitter_context.cc"],
     hdrs = ["ir_emitter_context.h"],
@@ -300,6 +282,24 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
         "@com_google_protobuf//:protobuf_lite",
+    ],
+)
+
+zkx_cc_library(
+    name = "reduction_utils",
+    srcs = ["reduction_utils.cc"],
+    hdrs = ["reduction_utils.h"],
+    deps = [
+        ":ir_emission_utils",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
