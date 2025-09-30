@@ -56,9 +56,12 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_enable_dumping(true);
 
   opts.set_zkx_gpu_nccl_termination_timeout_seconds(-1);
+  opts.set_zkx_gpu_enable_shared_constants(true);
+  opts.set_zkx_gpu_enable_nccl_user_buffers(false);
   opts.set_zkx_gpu_enable_nccl_comm_splitting(true);
   opts.set_zkx_gpu_nccl_init_max_rank_per_root_ratio(0);
 
+  opts.set_zkx_gpu_temp_buffer_use_separate_color(false);
   opts.set_zkx_gpu_require_exclusive_lock(false);
 
   opts.set_zkx_gpu_enable_highest_priority_async_stream(true);
@@ -405,6 +408,17 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "--zkx_gpu_force_compilation_parallelism flag and the thread pool "
       "supplied to GpuCompiler."));
 
+  flag_list->push_back(
+      tsl::Flag("zkx_gpu_deterministic_ops",
+                bool_setter_for(&DebugOptions::set_zkx_gpu_deterministic_ops),
+                debug_options->zkx_gpu_deterministic_ops(),
+                "Guarantees run-to-run determinism on GPU."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_exclude_nondeterministic_ops",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_exclude_nondeterministic_ops),
+      debug_options->zkx_gpu_exclude_nondeterministic_ops(),
+      "Excludes non-deterministic ops from compiled executables."));
+
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_enable_libnvptxcompiler",
       [debug_options](bool enabled) {
@@ -504,6 +518,26 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
           &DebugOptions::set_zkx_gpu_nccl_termination_timeout_seconds),
       debug_options->zkx_gpu_nccl_termination_timeout_seconds(),
       "Timeout in seconds before terminating jobs stuck in NCCL Rendezvous."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_enable_shared_constants",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_enable_shared_constants),
+      debug_options->zkx_gpu_enable_shared_constants(),
+      "Enable constant sharing between GPU executables"));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_enable_nccl_user_buffers",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_enable_nccl_user_buffers),
+      debug_options->zkx_gpu_enable_nccl_user_buffers(),
+      "Enables NCCL User Buffer Registration. collective_memory_size in the "
+      "allocator config must also be set to a non-zero value that is large "
+      "enough to meet peak collective memory usage."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_temp_buffer_use_separate_color",
+      bool_setter_for(
+          &DebugOptions::set_zkx_gpu_temp_buffer_use_separate_color),
+      debug_options->zkx_gpu_temp_buffer_use_separate_color(),
+      "Enables temp User Buffer Registration. Enabling this flag will cause a "
+      "separate cuda async memory allocator to allocate a temp buffer to the "
+      "fixed address on every iteration"));
 
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_require_exclusive_lock",
@@ -567,6 +601,14 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
                 bool_setter_for(&DebugOptions::set_zkx_syntax_sugar_async_ops),
                 debug_options->zkx_syntax_sugar_async_ops(),
                 "Enable syntax sugar for async ops in HLO dumps."));
+  flag_list->push_back(
+      tsl::Flag("zkx_gpu_kernel_cache_file",
+                string_setter_for(&DebugOptions::set_zkx_gpu_kernel_cache_file),
+                debug_options->zkx_gpu_kernel_cache_file(),
+                "Path to a file to cache compiled kernels. Cached kernels get "
+                "reused in further compilations; not yet cached kernels are "
+                "compiled as usual and get appended to the cache file whenever "
+                "possible."));
 }
 
 // Allocates flag_values and flag_objects; this function must not be called more

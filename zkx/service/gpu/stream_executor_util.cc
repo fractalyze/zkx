@@ -90,4 +90,9 @@ absl::Status ExecuteKernelOnStream(se::Kernel& kernel,
                        cluster_dim, stream, *kernel_args);
 }
 
+bool RequireDeterminism(const HloModuleConfig& config) {
+  return config.debug_options().zkx_gpu_deterministic_ops() ||
+         config.debug_options().zkx_gpu_exclude_nondeterministic_ops();
+}
+
 }  // namespace zkx::gpu

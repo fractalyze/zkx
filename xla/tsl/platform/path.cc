@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "absl/base/const_init.h"
 #include "absl/log/log.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/synchronization/mutex.h"
 
@@ -340,6 +341,40 @@ bool GetTestUndeclaredOutputsDir(std::string* dir) {
     *dir = outputs_dir;
   }
   return true;
+}
+
+namespace {
+
+// This is private to the file, because it's possibly too limited to be useful
+// externally.
+bool StartsWithSegment(std::string_view path, std::string_view segment) {
+  return absl::StartsWith(path, segment) &&
+         (path.size() == segment.size() ||
+          path.at(segment.size()) == internal::kPathSep[0]);
+}
+
+}  // namespace
+
+bool ResolveTestPrefixes(std::string_view path, std::string& resolved_path) {
+  constexpr std::string_view kTestWorkspaceSegment = "TEST_WORKSPACE";
+  constexpr std::string_view kOutputDirSegment = "TEST_UNDECLARED_OUTPUTS_DIR";
+
+  if (StartsWithSegment(path, kTestWorkspaceSegment)) {
+    if (!GetTestWorkspaceDir(&resolved_path)) {
+      return false;
+    }
+    resolved_path += path.substr(kTestWorkspaceSegment.size());
+    return true;
+  } else if (StartsWithSegment(path, kOutputDirSegment)) {
+    if (!GetTestUndeclaredOutputsDir(&resolved_path)) {
+      return false;
+    }
+    resolved_path += path.substr(kOutputDirSegment.size());
+    return true;
+  } else {
+    resolved_path = path;
+    return true;
+  }
 }
 
 [[maybe_unused]] std::string& AppendDotExeIfWindows(std::string& path) {

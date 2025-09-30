@@ -22,6 +22,7 @@ limitations under the License.
 #include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/primitive_util.h"
 #include "zkx/shape_util.h"
+#include "zkx/util.h"
 
 namespace zkx::gpu {
 
@@ -29,6 +30,12 @@ bool IsSliceWithUnitStrides(const HloInstruction* instr) {
   auto slice = DynCast<HloSliceInstruction>(instr);
   return slice && absl::c_all_of(slice->slice_strides(),
                                  [](int64_t stride) { return stride == 1; });
+}
+
+absl::StatusOr<BufferAllocation::Slice> GetAllocationSlice(
+    const BufferAssignment& buffer_assignment, const HloInstruction* instr,
+    const ShapeIndex& index) {
+  return buffer_assignment.GetUniqueSlice(instr, index);
 }
 
 std::optional<TransposeDescription> GetDescriptionForTiledTransposeEmitter(
@@ -183,6 +190,31 @@ const HloInstruction& FindNonTrivialHero(const HloInstruction& instr) {
   auto fusion_adaptor = HloFusionAdaptor::ForComputation(instr.parent());
   HloInstructionAdaptor instr_adaptor(instr, fusion_adaptor.get());
   return FindNonTrivialHero(instr_adaptor).instruction();
+}
+
+absl::StatusOr<DenseDataIntermediate> LiteralToZkxFormat(
+    const Literal& literal) {
+  PrimitiveType element_type = literal.shape().element_type();
+  if (!primitive_util::IsArrayType(element_type)) {
+    return absl::InternalError("Unsupported type in LiteralToZkxFormat");
+  }
+
+  int64_t byte_size = literal.size_bytes();
+  if (primitive_util::IsSubByteNonPredType(element_type)) {
+    auto bit_width = primitive_util::BitWidth(element_type);
+    std::vector<uint8_t> output(CeilOfRatio<int64_t>(byte_size, 8 / bit_width));
+    absl::Span<char> output_span =
+        absl::MakeSpan(reinterpret_cast<char*>(output.data()), output.size());
+    PackIntN(
+        bit_width,
+        absl::MakeSpan(reinterpret_cast<const char*>(literal.untyped_data()),
+                       byte_size),
+        output_span);
+    return DenseDataIntermediate::Own(std::move(output));
+  }
+
+  return DenseDataIntermediate::Alias(absl::MakeSpan(
+      reinterpret_cast<const uint8_t*>(literal.untyped_data()), byte_size));
 }
 
 }  // namespace zkx::gpu

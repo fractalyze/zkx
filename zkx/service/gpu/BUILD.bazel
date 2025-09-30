@@ -14,6 +14,20 @@ cc_proto_library(
     deps = [":backend_configs_proto"],
 )
 
+proto_library(
+    name = "executable_proto",
+    srcs = ["executable.proto"],
+    deps = [
+        "//zkx:zkx_proto",
+        "//zkx/service:hlo_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "executable_cc_proto",
+    deps = [":executable_proto"],
+)
+
 zkx_cc_library(
     name = "buffer_allocations",
     srcs = ["buffer_allocations.cc"],
@@ -26,6 +40,21 @@ zkx_cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "execution_stream_assignment",
+    srcs = ["execution_stream_assignment.cc"],
+    hdrs = ["execution_stream_assignment.h"],
+    deps = [
+        "//zkx:side_effect_util",
+        "//zkx/backends/gpu/runtime:thunk",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:call_graph",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -107,6 +136,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_memory_space_assignment",
+    hdrs = ["gpu_memory_space_assignment.h"],
+    deps = [
+        "//zkx/hlo/analysis:hlo_alias_analysis",
+        "//zkx/hlo/analysis:hlo_ordering",
+        "//zkx/hlo/ir:hlo_opcode",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:hlo_buffer",
+        "//zkx/service:hlo_value",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_fusion_analysis",
     srcs = ["hlo_fusion_analysis.cc"],
     hdrs = ["hlo_fusion_analysis.h"],
@@ -134,33 +177,41 @@ zkx_cc_library(
     srcs = ["ir_emission_utils.cc"],
     hdrs = ["ir_emission_utils.h"],
     deps = [
+        "//zkx:literal",
         "//zkx:primitive_util",
         "//zkx:shape_util",
+        "//zkx:util",
         "//zkx/hlo/ir:hlo",
         "//zkx/hlo/utils:hlo_traversal",
+        "//zkx/service:buffer_assignment",
         "//zkx/stream_executor:device_description",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
     ],
 )
 
 zkx_cc_library(
-    name = "reduction_utils",
-    srcs = ["reduction_utils.cc"],
-    hdrs = ["reduction_utils.h"],
+    name = "ir_emitter_context",
+    srcs = ["ir_emitter_context.cc"],
+    hdrs = ["ir_emitter_context.h"],
     deps = [
+        ":execution_stream_assignment",
+        ":gpu_constants",
+        ":gpu_executable",
         ":ir_emission_utils",
-        "//zkx:shape_util",
-        "//zkx:util",
+        ":kernel_reuse_cache",
         "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:name_uniquer",
         "//zkx/stream_executor:device_description",
         "@com_google_absl//absl/algorithm:container",
-        "@com_google_absl//absl/container:inlined_vector",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TargetParser",
+        "@llvm-project//mlir:IR",
     ],
 )
 
@@ -179,6 +230,31 @@ zkx_cc_library(
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "kernel_reuse_cache",
+    srcs = ["kernel_reuse_cache.cc"],
+    hdrs = ["kernel_reuse_cache.h"],
+    deps = [
+        ":executable_cc_proto",
+        ":kernel_arguments",
+        ":launch_dimensions",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:status_macros",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/stream_executor:launch_dim",
+        "//zkx/stream_executor/gpu:tma_metadata",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -206,6 +282,24 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
         "@com_google_protobuf//:protobuf_lite",
+    ],
+)
+
+zkx_cc_library(
+    name = "reduction_utils",
+    srcs = ["reduction_utils.cc"],
+    hdrs = ["reduction_utils.h"],
+    deps = [
+        ":ir_emission_utils",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
@@ -241,6 +335,7 @@ zkx_cc_library(
     hdrs = ["stream_executor_util.h"],
     deps = [
         "//xla/tsl/platform:statusor",
+        "//zkx/service:hlo_module_config",
         "//zkx/service/gpu:launch_dimensions",
         "//zkx/stream_executor",
         "//zkx/stream_executor:device_memory",
@@ -255,17 +350,27 @@ zkx_cc_library(
 )
 
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
+# TODO(chokobole): Add execution_stream_assignment_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add hlo_fusion_analysis_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add ir_emission_utils_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add stream_executor_util_unittest.cc. Dependency: PickBestResult
 # TODO(chokobole): Add reduction_utils_unittest.cc. Dependency: HloTestBase.
 zkx_cc_unittest(
     name = "gpu_unittests",
-    srcs = ["matmul_indexing_utils_unittest.cc"],
+    srcs = [
+        "kernel_reuse_cache_unittest.cc",
+        "matmul_indexing_utils_unittest.cc",
+    ],
     deps = [
+        ":executable_cc_proto",
+        ":kernel_reuse_cache",
         ":matmul_indexing_utils",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx/hlo/parser:hlo_parser",
+        "@com_google_absl//absl/log:check",
+        "@com_google_googletest//:gtest",
     ],
 )

@@ -17,6 +17,7 @@ syntax = "proto3";
 
 package stream_executor;
 
+import "zkx/autotune_results.proto";
 import "zkx/stream_executor/cuda/cuda_compute_capability.proto";
 
 message RocmComputeCapabilityProto {
@@ -56,8 +57,7 @@ message GpuTargetConfigProto {
   // TODO(b/248362914): Autotuning results should be separate from
   // GpuTargetConfig because autotuning can be updated regularly separate from
   // the target.
-  // TODO(chokobole): Uncomment this. Dependency: AutotuneResults
-  // zkx.AutotuneResults autotune_results = 6;
+  zkx.AutotuneResults autotune_results = 6;
 
   string device_description_str = 7;
 }
