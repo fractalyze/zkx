@@ -34,12 +34,23 @@ TEST(PrimeFieldTest, Operations) {
   EXPECT_EQ(a * b, *Fr::FromHexString("0x30593207bceeeba352060f9f1a3ae9d2214f428a90ad235867aabd7a10640d44"));
   EXPECT_EQ(a.Square(), *Fr::FromHexString("0x2e3797fa80f1e71d9b23f1a6a2572f6aa2de416a1b31ceca88ef28944fd292a"));
   EXPECT_EQ(a.Pow(30), *Fr::FromHexString("0xa5c969115bc5da7d6bfe244ec24b7e244d454561569de7acf0980633533fcca"));
-  TF_ASSERT_OK_AND_ASSIGN(Fr a_inverse, a.Inverse());
-  EXPECT_TRUE((a * a_inverse).IsOne());
-  Fr x = a.Square();
-  TF_ASSERT_OK_AND_ASSIGN(Fr sqrt, x.SquareRoot());
-  EXPECT_EQ(sqrt.Square(), x);
   // clang-format on
+}
+
+TEST(PrimeFieldTest, SquareRoot) {
+  Fr a = Fr::Random();
+  Fr a2 = a.Square();
+  TF_ASSERT_OK_AND_ASSIGN(Fr sqrt, a2.SquareRoot());
+  EXPECT_TRUE(a == sqrt || a == -sqrt);
+}
+
+TEST(PrimeFieldTest, Inverse) {
+  Fr a = Fr::Random();
+  while (a.IsZero()) {
+    a = Fr::Random();
+  }
+  TF_ASSERT_OK_AND_ASSIGN(Fr a_inv, a.Inverse());
+  EXPECT_TRUE((a * a_inv).IsOne());
 }
 
 TEST(PrimeFieldTest, Serde) {

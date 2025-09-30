@@ -55,13 +55,23 @@ TEST(ExtensionFieldTest, Operations) {
       *Fq::FromHexString(
           "0x283abe3026369b6da48074048233145a1c88dce48308e952c948eff8e8f0bc51"),
   }));
-  EXPECT_EQ(a.Square(), a * a);
+  // clang-format on
+}
+
+TEST(ExtensionFieldTest, SquareRoot) {
+  Fq2 a = Fq2::Random();
+  Fq2 a2 = a.Square();
+  TF_ASSERT_OK_AND_ASSIGN(Fq2 sqrt, a2.SquareRoot());
+  EXPECT_TRUE(a == sqrt || a == -sqrt);
+}
+
+TEST(ExtensionFieldTest, Inverse) {
+  Fq2 a = Fq2::Random();
+  while (a.IsZero()) {
+    a = Fq2::Random();
+  }
   TF_ASSERT_OK_AND_ASSIGN(Fq2 a_inverse, a.Inverse());
   EXPECT_TRUE((a * a_inverse).IsOne());
-  Fq2 x = a.Square();
-  TF_ASSERT_OK_AND_ASSIGN(Fq2 sqrt, x.SquareRoot());
-  EXPECT_EQ(sqrt.Square(), x);
-  // clang-format on
 }
 
 TEST(ExtensionFieldTest, MontReduce) {
