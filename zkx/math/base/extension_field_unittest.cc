@@ -5,17 +5,8 @@
 #include "zkx/base/buffer/vector_buffer.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fq2.h"
 
-namespace zkx::math::bn254 {
-
-TEST(ExtensionFieldTest, Zero) {
-  EXPECT_TRUE(Fq2::Zero().IsZero());
-  EXPECT_FALSE(Fq2::One().IsZero());
-}
-
-TEST(ExtensionFieldTest, One) {
-  EXPECT_TRUE(Fq2::One().IsOne());
-  EXPECT_FALSE(Fq2::Zero().IsOne());
-}
+namespace zkx::math {
+namespace bn254 {
 
 TEST(ExtensionFieldTest, Operations) {
   Fq2 a = {
@@ -58,31 +49,62 @@ TEST(ExtensionFieldTest, Operations) {
   // clang-format on
 }
 
-TEST(ExtensionFieldTest, SquareRoot) {
-  Fq2 a = Fq2::Random();
-  Fq2 a2 = a.Square();
-  TF_ASSERT_OK_AND_ASSIGN(Fq2 sqrt, a2.SquareRoot());
+}  // namespace bn254
+
+template <typename T>
+class ExtensionFieldTypedTest : public testing::Test {};
+
+using ExtensionFieldTypes = testing::Types<bn254::Fq2>;
+TYPED_TEST_SUITE(ExtensionFieldTypedTest, ExtensionFieldTypes);
+
+TYPED_TEST(ExtensionFieldTypedTest, Zero) {
+  using ExtF = TypeParam;
+
+  EXPECT_TRUE(ExtF::Zero().IsZero());
+  EXPECT_FALSE(ExtF::One().IsZero());
+}
+
+TYPED_TEST(ExtensionFieldTypedTest, One) {
+  using ExtF = TypeParam;
+
+  EXPECT_TRUE(ExtF::One().IsOne());
+  EXPECT_FALSE(ExtF::Zero().IsOne());
+}
+
+TYPED_TEST(ExtensionFieldTypedTest, SquareRoot) {
+  using ExtF = TypeParam;
+
+  ExtF a = ExtF::Random();
+  ExtF a2 = a.Square();
+  TF_ASSERT_OK_AND_ASSIGN(ExtF sqrt, a2.SquareRoot());
   EXPECT_TRUE(a == sqrt || a == -sqrt);
 }
 
-TEST(ExtensionFieldTest, Inverse) {
-  Fq2 a = Fq2::Random();
+TYPED_TEST(ExtensionFieldTypedTest, Inverse) {
+  using ExtF = TypeParam;
+
+  ExtF a = ExtF::Random();
   while (a.IsZero()) {
-    a = Fq2::Random();
+    a = ExtF::Random();
   }
-  TF_ASSERT_OK_AND_ASSIGN(Fq2 a_inverse, a.Inverse());
+  TF_ASSERT_OK_AND_ASSIGN(ExtF a_inverse, a.Inverse());
   EXPECT_TRUE((a * a_inverse).IsOne());
 }
 
-TEST(ExtensionFieldTest, MontReduce) {
-  Fq2 a = {Fq(1), Fq(2)};
-  Fq2 reduced = a.MontReduce();
+TYPED_TEST(ExtensionFieldTypedTest, MontReduce) {
+  using ExtF = TypeParam;
+  using BaseF = typename ExtF::BaseField;
 
-  EXPECT_EQ(reduced[0], Fq(1).MontReduce());
-  EXPECT_EQ(reduced[1], Fq(2).MontReduce());
+  ExtF a = {BaseF(1), BaseF(2)};
+  ExtF reduced = a.MontReduce();
+
+  EXPECT_EQ(reduced[0], BaseF(1).MontReduce());
+  EXPECT_EQ(reduced[1], BaseF(2).MontReduce());
 }
-TEST(ExtensionFieldTest, Serde) {
-  Fq2 expected = Fq2::Random();
+TYPED_TEST(ExtensionFieldTypedTest, Serde) {
+  using ExtF = TypeParam;
+
+  ExtF expected = ExtF::Random();
 
   base::Uint8VectorBuffer write_buf;
   TF_ASSERT_OK(write_buf.Grow(base::EstimateSize(expected)));
@@ -91,19 +113,22 @@ TEST(ExtensionFieldTest, Serde) {
 
   write_buf.set_buffer_offset(0);
 
-  Fq2 value;
+  ExtF value;
   TF_ASSERT_OK(write_buf.Read(&value));
   EXPECT_EQ(expected, value);
 }
 
-TEST(ExtensionFieldTest, JsonSerde) {
+TYPED_TEST(ExtensionFieldTypedTest, JsonSerde) {
+  using ExtF = TypeParam;
+
   rapidjson::Document doc;
 
-  Fq2 expected = Fq2::Random();
+  ExtF expected = ExtF::Random();
   rapidjson::Value json_value =
-      base::JsonSerde<Fq2>::From(expected, doc.GetAllocator());
-  TF_ASSERT_OK_AND_ASSIGN(Fq2 value, base::JsonSerde<Fq2>::To(json_value, ""));
+      base::JsonSerde<ExtF>::From(expected, doc.GetAllocator());
+  TF_ASSERT_OK_AND_ASSIGN(ExtF value,
+                          base::JsonSerde<ExtF>::To(json_value, ""));
   EXPECT_EQ(expected, value);
 }
 
-}  // namespace zkx::math::bn254
+}  // namespace zkx::math

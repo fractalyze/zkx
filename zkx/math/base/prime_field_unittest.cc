@@ -6,19 +6,11 @@
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/auto_reset.h"
 #include "zkx/base/buffer/vector_buffer.h"
+#include "zkx/math/elliptic_curves/bn/bn254/fq.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fr.h"
 
-namespace zkx::math::bn254 {
-
-TEST(PrimeFieldTest, Zero) {
-  EXPECT_TRUE(Fr::Zero().IsZero());
-  EXPECT_FALSE(Fr::One().IsZero());
-}
-
-TEST(PrimeFieldTest, One) {
-  EXPECT_TRUE(Fr::One().IsOne());
-  EXPECT_FALSE(Fr::Zero().IsOne());
-}
+namespace zkx::math {
+namespace bn254 {
 
 TEST(PrimeFieldTest, Operations) {
   Fr a = *Fr::FromHexString(
@@ -37,30 +29,57 @@ TEST(PrimeFieldTest, Operations) {
   // clang-format on
 }
 
-TEST(PrimeFieldTest, SquareRoot) {
-  Fr a = Fr::Random();
-  Fr a2 = a.Square();
-  TF_ASSERT_OK_AND_ASSIGN(Fr sqrt, a2.SquareRoot());
+}  // namespace bn254
+
+template <typename T>
+class PrimeFieldTypedTest : public testing::Test {};
+
+using PrimeFieldTypes = testing::Types<bn254::Fq, bn254::Fr>;
+TYPED_TEST_SUITE(PrimeFieldTypedTest, PrimeFieldTypes);
+
+TYPED_TEST(PrimeFieldTypedTest, Zero) {
+  using F = TypeParam;
+  EXPECT_TRUE(F::Zero().IsZero());
+  EXPECT_FALSE(F::One().IsZero());
+}
+
+TYPED_TEST(PrimeFieldTypedTest, One) {
+  using F = TypeParam;
+
+  EXPECT_TRUE(F::One().IsOne());
+  EXPECT_FALSE(F::Zero().IsOne());
+}
+
+TYPED_TEST(PrimeFieldTypedTest, SquareRoot) {
+  using F = TypeParam;
+
+  F a = F::Random();
+  F a2 = a.Square();
+  TF_ASSERT_OK_AND_ASSIGN(F sqrt, a2.SquareRoot());
   EXPECT_TRUE(a == sqrt || a == -sqrt);
 }
 
-TEST(PrimeFieldTest, Inverse) {
-  Fr a = Fr::Random();
+TYPED_TEST(PrimeFieldTypedTest, Inverse) {
+  using F = TypeParam;
+
+  F a = F::Random();
   while (a.IsZero()) {
-    a = Fr::Random();
+    a = F::Random();
   }
-  TF_ASSERT_OK_AND_ASSIGN(Fr a_inv, a.Inverse());
+  TF_ASSERT_OK_AND_ASSIGN(F a_inv, a.Inverse());
   EXPECT_TRUE((a * a_inv).IsOne());
 }
 
-TEST(PrimeFieldTest, Serde) {
-  Fr expected = Fr::Random();
+TYPED_TEST(PrimeFieldTypedTest, Serde) {
+  using F = TypeParam;
+
+  F expected = F::Random();
 
   for (size_t i = 0; i < 2; ++i) {
     bool s_is_in_montgomery = i == 0;
     SCOPED_TRACE(
         absl::Substitute("s_is_in_montgomery: $0", s_is_in_montgomery));
-    base::AutoReset<bool> auto_reset(&base::Serde<Fr>::s_is_in_montgomery,
+    base::AutoReset<bool> auto_reset(&base::Serde<F>::s_is_in_montgomery,
                                      s_is_in_montgomery);
     base::Uint8VectorBuffer write_buf;
     TF_ASSERT_OK(write_buf.Grow(base::EstimateSize(expected)));
@@ -69,27 +88,29 @@ TEST(PrimeFieldTest, Serde) {
 
     write_buf.set_buffer_offset(0);
 
-    Fr value;
+    F value;
     TF_ASSERT_OK(write_buf.Read(&value));
     EXPECT_EQ(expected, value);
   }
 }
 
-TEST(PrimeFieldTest, JsonSerde) {
+TYPED_TEST(PrimeFieldTypedTest, JsonSerde) {
+  using F = TypeParam;
+
   rapidjson::Document doc;
 
-  Fr expected = Fr::Random();
+  F expected = F::Random();
   for (size_t i = 0; i < 2; ++i) {
     bool s_is_in_montgomery = i == 0;
     SCOPED_TRACE(
         absl::Substitute("s_is_in_montgomery: $0", s_is_in_montgomery));
-    base::AutoReset<bool> auto_reset(&base::JsonSerde<Fr>::s_is_in_montgomery,
+    base::AutoReset<bool> auto_reset(&base::JsonSerde<F>::s_is_in_montgomery,
                                      s_is_in_montgomery);
     rapidjson::Value json_value =
-        base::JsonSerde<Fr>::From(expected, doc.GetAllocator());
-    TF_ASSERT_OK_AND_ASSIGN(Fr value, base::JsonSerde<Fr>::To(json_value, ""));
+        base::JsonSerde<F>::From(expected, doc.GetAllocator());
+    TF_ASSERT_OK_AND_ASSIGN(F value, base::JsonSerde<F>::To(json_value, ""));
     EXPECT_EQ(expected, value);
   }
 }
 
-}  // namespace zkx::math::bn254
+}  // namespace zkx::math
