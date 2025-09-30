@@ -38,6 +38,8 @@ class CpuKernelEmitter final : public KernelEmitter {
     bool enable_tensor_ext_to_tensor = false;
     bool enable_elliptic_curve_to_field = false;
     bool enable_field_to_arith = false;
+    bool enable_elliptic_curve_to_llvm = false;
+    bool enable_ext_field_to_llvm = false;
     bool enable_lower_affine = false;
     bool enable_elementwise_to_linalg = false;
     bool enable_linalg_to_parallel_loops = false;
