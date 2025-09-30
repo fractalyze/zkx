@@ -37,4 +37,11 @@ TYPED_TEST(GroupScalarBinaryTest, ScalarMul) {
   this->RunAndVerify();
 }
 
+TYPED_TEST_SUITE(GroupR2TensorUnaryTest, GroupTypes);
+
+TYPED_TEST(GroupR2TensorUnaryTest, Negate) {
+  this->SetUpNegate();
+  this->RunAndVerify();
+}
+
 }  // namespace zkx::cpu
