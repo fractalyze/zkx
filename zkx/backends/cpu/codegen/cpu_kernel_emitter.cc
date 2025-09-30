@@ -191,26 +191,34 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
         mlir::SparseParallelizationStrategy::kDenseOuterLoop));
   }
 
+  auto maybe_add_elementwise_to_linalg =
+      [](mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) -> void {
+    if (flag.enable_elementwise_to_linalg) {
+      VLOG(2) << "add pass: -convert-elementwise-to-linalg "
+                 "-linalg-fuse-elementwise-ops";
+      flag.enable_linalg_to_parallel_loops = true;
+      pm.addNestedPass<mlir::func::FuncOp>(
+          mlir::createConvertElementwiseToLinalgPass());
+      pm.addNestedPass<mlir::func::FuncOp>(
+          mlir::createLinalgElementwiseOpFusionPass());
+    }
+  };
+
   if (flag.enable_poly_to_field) {
     VLOG(2) << "add pass: -poly-to-field";
     flag.enable_field_to_arith = true;
     pm.addPass(mlir::zkir::poly::createPolyToField());
   }
+
+  maybe_add_elementwise_to_linalg(pm, flag);
+
   if (flag.enable_elliptic_curve_to_field) {
     VLOG(2) << "add pass: -elliptic-curve-to-field";
     flag.enable_field_to_arith = true;
     pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
   }
 
-  if (flag.enable_elementwise_to_linalg) {
-    VLOG(2) << "add pass: -convert-elementwise-to-linalg "
-               "-linalg-fuse-elementwise-ops";
-    flag.enable_linalg_to_parallel_loops = true;
-    pm.addNestedPass<mlir::func::FuncOp>(
-        mlir::createConvertElementwiseToLinalgPass());
-    pm.addNestedPass<mlir::func::FuncOp>(
-        mlir::createLinalgElementwiseOpFusionPass());
-  }
+  maybe_add_elementwise_to_linalg(pm, flag);
 
   if (flag.enable_field_to_arith) {
     VLOG(2) << "add pass: -field-to-mod-arith -mod-arith-to-arith";

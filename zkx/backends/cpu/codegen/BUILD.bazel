@@ -171,8 +171,10 @@ zkx_cc_library(
     hdrs = ["group_test.h"],
     deps = [
         ":cpu_kernel_emitter_test",
+        "//zkx:array2d",
         "//zkx:literal_util",
         "//zkx:primitive_util",
+        "//zkx/base/containers:container_util",
     ],
 )
 
