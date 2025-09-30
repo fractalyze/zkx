@@ -214,7 +214,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
     DCHECK_LT(i, N);
     return value_[i];
   }
-  constexpr const uint64_t operator[](size_t i) const {
+  constexpr const uint64_t& operator[](size_t i) const {
     DCHECK_LT(i, N);
     return value_[i];
   }
