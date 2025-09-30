@@ -181,8 +181,7 @@ class Layout {
                   absl::Span<const SplitConfig> split_configs = {},
                   std::unique_ptr<Shape> physical_shape = nullptr,
                   int64_t dynamic_shape_metadata_prefix_bytes = 0,
-                  int64_t num_nonzeros = 0,
-                  std::optional<bool> is_montgomery_form = std::nullopt);
+                  int64_t num_nonzeros = 0);
 
   Layout& operator=(const Layout& other);
   Layout& operator=(Layout&& other);
@@ -258,11 +257,6 @@ class Layout {
       return *this;
     }
 
-    Equal& IgnoreIsMontgomeryForm() {
-      ignore_is_montgomery_form_ = true;
-      return *this;
-    }
-
     Equal& MinorToMajorOnly() {
       return IgnoreTiles()
           .IgnoreIndexPrimitiveType()
@@ -271,8 +265,7 @@ class Layout {
           .IgnorePhysicalShape()
           .IgnoreElementSize()
           .IgnoreTailPaddingAlignmentInElements()
-          .IgnoreNumNonZeros()
-          .IgnoreIsMontgomeryForm();
+          .IgnoreNumNonZeros();
     }
 
    private:
@@ -285,7 +278,6 @@ class Layout {
     bool ignore_split_configs_ = false;
     bool ignore_physical_shape_ = false;
     bool ignore_num_nonzeros_ = false;
-    bool ignore_is_montgomery_form_ = false;
   };
 
   bool operator==(const Layout& other) const;
@@ -461,18 +453,6 @@ class Layout {
   int64_t num_nonzeros() const { return num_nonzeros_; }
   void set_num_nonzeros(int64_t num_nonzeros) { num_nonzeros_ = num_nonzeros; }
 
-  bool has_is_montgomery_form() const {
-    return is_montgomery_form_.has_value();
-  }
-  bool is_montgomery_form() const {
-    CHECK(has_is_montgomery_form());
-    return *is_montgomery_form_;
-  }
-  void set_is_montgomery_form(bool is_montgomery_form) {
-    is_montgomery_form_ = is_montgomery_form;
-  }
-  void clear_is_montgomery_form();
-
   void Swap(Layout* other) { std::swap(*this, *other); }
 
   void Clear() { *this = Layout(); }
@@ -483,7 +463,7 @@ class Layout {
                       l.element_size_in_bits_, l.index_primitive_type_,
                       l.pointer_primitive_type_, l.memory_space_,
                       l.split_configs_, l.tail_padding_alignment_in_elements_,
-                      l.num_nonzeros_, l.is_montgomery_form_);
+                      l.num_nonzeros_);
   }
 
  private:
@@ -553,9 +533,6 @@ class Layout {
 
   // The number of non-zero elements in the sparse tensor.
   int64_t num_nonzeros_ = 0;
-
-  // Whether the elements are in Montgomery form.
-  std::optional<bool> is_montgomery_form_;
 };
 
 std::ostream& operator<<(std::ostream& out, const Tile& Tile);

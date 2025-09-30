@@ -320,6 +320,20 @@ constexpr bool IsFieldType(PrimitiveType type) {
   return type == BN254_SCALAR || type == BN254_SCALAR_STD;
 }
 
+constexpr bool IsMontgomeryForm(PrimitiveType type) {
+  return type == BN254_SCALAR || type == BN254_G1_AFFINE ||
+         type == BN254_G1_JACOBIAN || type == BN254_G1_XYZZ ||
+         type == BN254_G2_AFFINE || type == BN254_G2_JACOBIAN ||
+         type == BN254_G2_XYZZ;
+}
+
+constexpr bool IsStandardForm(PrimitiveType type) {
+  return type == BN254_SCALAR_STD || type == BN254_G1_AFFINE_STD ||
+         type == BN254_G1_JACOBIAN_STD || type == BN254_G1_XYZZ_STD ||
+         type == BN254_G2_AFFINE_STD || type == BN254_G2_JACOBIAN_STD ||
+         type == BN254_G2_XYZZ_STD;
+}
+
 constexpr bool IsEcPointType(PrimitiveType type) {
   return type == BN254_G1_AFFINE || type == BN254_G1_AFFINE_STD ||
          type == BN254_G1_JACOBIAN || type == BN254_G1_JACOBIAN_STD ||

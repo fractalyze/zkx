@@ -102,15 +102,12 @@ absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> GetRootOfUnityAttr(
 
 absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,
                                             const Shape& shape) {
-  bool use_montgomery = shape.layout().is_montgomery_form();
   switch (shape.element_type()) {
-#define MONTABLE_CASE(enum, cpp_type)                                      \
-  case enum:                                                               \
-    return mlir_utils::CreateMlirEcPointConstant(b, cpp_type::Zero(),      \
-                                                 use_montgomery);          \
-  case enum##_STD:                                                         \
-    return mlir_utils::CreateMlirEcPointConstant(b, cpp_type##Std::Zero(), \
-                                                 false);
+#define MONTABLE_CASE(enum, cpp_type)                                  \
+  case enum:                                                           \
+    return mlir_utils::CreateMlirEcPointConstant(b, cpp_type::Zero()); \
+  case enum##_STD:                                                     \
+    return mlir_utils::CreateMlirEcPointConstant(b, cpp_type##Std::Zero());
     MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
     MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
     MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
@@ -416,9 +413,6 @@ mlir::Value CpuKernelEmitter::EmitCSROperand(EmitterLocOpBuilder& b,
   Shape col_indices_shape = ShapeUtil::MakeShape(U32, {num_nonzeros});
   Shape values_array_shape =
       ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros});
-  // TODO(chokobole): This is added to set `is_montgomery_form` to true, but
-  // this might not reflect the actual layout of the values array.
-  LayoutUtil::SetToDefaultLayout(&values_array_shape);
 
   auto row_ptrs_memref = b.create<mlir::memref::ViewOp>(
       mlir_utils::ShapeToMlirMemRefType(row_ptrs_shape, mlir_context_),
@@ -470,9 +464,6 @@ mlir::Value CpuKernelEmitter::EmitCSCOperand(EmitterLocOpBuilder& b,
   Shape row_indices_shape = ShapeUtil::MakeShape(U32, {num_nonzeros});
   Shape values_array_shape =
       ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros});
-  // TODO(chokobole): This is added to set `is_montgomery_form` to true, but
-  // this might not reflect the actual layout of the values array.
-  LayoutUtil::SetToDefaultLayout(&values_array_shape);
 
   auto col_ptrs_memref = b.create<mlir::memref::ViewOp>(
       mlir_utils::ShapeToMlirMemRefType(col_ptrs_shape, mlir_context_),
@@ -528,9 +519,6 @@ mlir::Value CpuKernelEmitter::EmitCOOOperand(EmitterLocOpBuilder& b,
   Shape indices_shape = ShapeUtil::MakeShape(U32, {num_nonzeros, 2});
   Shape values_array_shape =
       ShapeUtil::MakeShape(shape.element_type(), {num_nonzeros});
-  // TODO(chokobole): This is added to set `is_montgomery_form` to true, but
-  // this might not reflect the actual layout of the values array.
-  LayoutUtil::SetToDefaultLayout(&values_array_shape);
 
   auto indices_memref = b.create<mlir::memref::ViewOp>(
       mlir_utils::ShapeToMlirMemRefType(indices_shape, mlir_context_),
@@ -697,14 +685,17 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   switch (instr->opcode()) {
     case HloOpcode::kConvert: {
-      const Layout& from = instr->operand(0)->shape().layout();
-      const Layout& to = instr->shape().layout();
-      if (from.is_montgomery_form() && to.is_montgomery_form()) {
+      PrimitiveType from = instr->operand(0)->shape().element_type();
+      PrimitiveType to = instr->shape().element_type();
+      if (primitive_util::IsMontgomeryForm(from) &&
+          primitive_util::IsMontgomeryForm(to)) {
         return value;
-      } else if (from.is_montgomery_form() && !to.is_montgomery_form()) {
+      } else if (primitive_util::IsMontgomeryForm(from) &&
+                 !primitive_util::IsMontgomeryForm(to)) {
         return b.create<mlir::zkir::field::FromMontOp>(
             mlir::zkir::field::getStandardFormType(value.getType()), value);
-      } else if (!from.is_montgomery_form() && to.is_montgomery_form()) {
+      } else if (!primitive_util::IsMontgomeryForm(from) &&
+                 primitive_util::IsMontgomeryForm(to)) {
         return b.create<mlir::zkir::field::ToMontOp>(
             mlir::zkir::field::getMontgomeryFormType(value.getType()), value);
       } else {
@@ -732,10 +723,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointUnaryOp(
         return value;
       }
       return b.create<mlir::zkir::elliptic_curve::ConvertPointTypeOp>(
-          mlir_utils::PrimitiveTypeToMlirType(
-              to, b.getContext(),
-              instr->operand(0)->shape().layout().is_montgomery_form()),
-          value);
+          mlir_utils::PrimitiveTypeToMlirType(to, b.getContext()), value);
     }
     case HloOpcode::kNegate:
       return b.create<mlir::zkir::elliptic_curve::NegateOp>(value);
@@ -826,8 +814,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     mlir::Value rhs_value) {
   const Shape& shape = instr->shape();
   mlir::Type ret_type =
-      mlir_utils::PrimitiveTypeToMlirType(shape.element_type(), b.getContext(),
-                                          shape.layout().is_montgomery_form());
+      mlir_utils::PrimitiveTypeToMlirType(shape.element_type(), b.getContext());
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
@@ -934,9 +921,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     int32_t window_bits = instr->window_bits();
 
     const Shape& shape = instr->shape();
-    auto result_type = mlir_utils::PrimitiveTypeToMlirType(
-        shape.element_type(), b.getContext(),
-        shape.layout().is_montgomery_form());
+    auto result_type = mlir_utils::PrimitiveTypeToMlirType(shape.element_type(),
+                                                           b.getContext());
     if (num_scalar_mul < num_threads) {
       int32_t degree = static_cast<int32_t>(
           base::Log2Ceiling(static_cast<uint64_t>(num_scalar_mul)));

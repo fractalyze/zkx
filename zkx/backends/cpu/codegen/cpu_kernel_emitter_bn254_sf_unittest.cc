@@ -9,10 +9,10 @@ namespace zkx::cpu {
 
 TEST_F(CpuKernelEmitterTest, FieldScalarConvert) {
   const std::string kHloText = R"(
-ENTRY %f (x: bn254.sf[]) -> bn254.sf[]{:MONT(false)} {
+ENTRY %f (x: bn254.sf[]) -> bn254.sf_std[] {
   %x = bn254.sf[] parameter(0)
 
-  ROOT %ret = bn254.sf[]{:MONT(false)} convert(%x)
+  ROOT %ret = bn254.sf_std[] convert(%x)
 }
 )";
 
@@ -24,8 +24,10 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf[]{:MONT(false)} {
   literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
   TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
+  math::bn254::FrStd x_std(x.MontReduce().value());
+
   EXPECT_EQ(ret_literal,
-            LiteralUtil::CreateR0<math::bn254::Fr>(x.MontReduce()));
+            LiteralUtil::CreateR0<math::bn254::FrStd>(x_std));
 }
 
 TEST_F(CpuKernelEmitterTest, FieldScalarNegate) {

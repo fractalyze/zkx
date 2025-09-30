@@ -4910,7 +4910,6 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
   int64_t dynamic_shape_metadata_prefix_bytes = 0;
   int64_t tail_padding_alignment_in_elements = 1;
   int64_t num_nonzeros = 0;
-  std::optional<bool> is_montgomery_form;
 
   auto parse_and_add_item = [&]() {
     int64_t i;
@@ -5013,12 +5012,6 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
         lexer_.Lex();
         ParseLayoutIntAttribute(&num_nonzeros, "number of non zero elements");
       }
-
-      if (lexer_.GetKind() == TokKind::kIdent && lexer_.GetStrVal() == "MONT") {
-        lexer_.Lex();
-        is_montgomery_form.emplace();
-        ParseLayoutBoolAttribute(&*is_montgomery_form, "montgomery form");
-      }
     }
   }
   if (!ParseToken(TokKind::kRbrace,
@@ -5036,7 +5029,7 @@ bool HloParserImpl::ParseLayout(Layout* layout) {
       tail_padding_alignment_in_elements, index_primitive_type,
       pointer_primitive_type, element_size_in_bits, memory_space, split_configs,
       std::move(physical_shape), dynamic_shape_metadata_prefix_bytes,
-      num_nonzeros, is_montgomery_form);
+      num_nonzeros);
   return true;
 }
 
@@ -5101,15 +5094,6 @@ bool HloParserImpl::ParseShape(Shape* result,
     Layout layout;
     if (!ParseLayout(&layout)) {
       return false;
-    }
-    if (primitive_type == BN254_SCALAR || primitive_type == BN254_G1_AFFINE ||
-        primitive_type == BN254_G1_JACOBIAN ||
-        primitive_type == BN254_G1_XYZZ || primitive_type == BN254_G2_AFFINE ||
-        primitive_type == BN254_G2_JACOBIAN ||
-        primitive_type == BN254_G2_XYZZ) {
-      if (!layout.has_is_montgomery_form()) {
-        layout.set_is_montgomery_form(true);
-      }
     }
     if (layout.dim_level_types_size() != 0 &&
         layout.dim_level_types_size() != result->rank()) {
