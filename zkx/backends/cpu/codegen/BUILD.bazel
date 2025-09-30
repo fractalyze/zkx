@@ -127,6 +127,24 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "field_test",
+    testonly = True,
+    hdrs = ["field_test.h"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:status",
+        "//zkx:array2d",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base/containers:container_util",
+        "//zkx/math/base:batch_inverse",
+        "//zkx/math/base:sparse_matrix",
+        "//zkx/math/poly:root_of_unity",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
     name = "ir_compiler",
     srcs = ["ir_compiler.cc"],
     hdrs = ["ir_compiler.h"],
@@ -242,6 +260,7 @@ zkx_cc_library(
     hdrs = ["cpu_kernel_emitter_test.h"],
     deps = [
         ":cpu_kernel_emitter",
+        "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx:literal",
         "//zkx/hlo/parser:hlo_parser",
@@ -276,16 +295,9 @@ zkx_cc_unittest(
 )
 
 zkx_cc_unittest(
-    name = "cpu_kernel_emitter_bn254_sf_unittest",
-    srcs = ["cpu_kernel_emitter_bn254_sf_unittest.cc"],
-    deps = [
-        ":cpu_kernel_emitter_test",
-        "//xla/tsl/platform:status",
-        "//xla/tsl/platform:status_matchers",
-        "//zkx:literal_util",
-        "//zkx/math/base:sparse_matrix",
-        "//zkx/math/poly:root_of_unity",
-    ],
+    name = "cpu_kernel_emitter_field_unittest",
+    srcs = ["cpu_kernel_emitter_field_unittest.cc"],
+    deps = [":field_test"],
 )
 
 zkx_cc_unittest(
