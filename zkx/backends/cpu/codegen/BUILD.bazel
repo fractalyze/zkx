@@ -251,6 +251,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "msm_test",
+    testonly = True,
+    hdrs = ["msm_test.h"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:cpu_info",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base/containers:container_util",
+    ],
+)
+
+zkx_cc_library(
     name = "object_loader",
     srcs = ["object_loader.cc"],
     hdrs = ["object_loader.h"],
@@ -326,27 +339,15 @@ zkx_cc_unittest(
 )
 
 zkx_cc_unittest(
-    name = "cpu_kernel_emitter_bn254_g1_msm_unittest",
+    name = "cpu_kernel_emitter_g1_msm_unittest",
     timeout = "moderate",
-    srcs = ["cpu_kernel_emitter_bn254_g1_msm_unittest.cc"],
-    deps = [
-        ":cpu_kernel_emitter_test",
-        "//xla/tsl/platform:cpu_info",
-        "//xla/tsl/platform:status",
-        "//zkx:literal_util",
-        "//zkx/base/containers:container_util",
-    ],
+    srcs = ["cpu_kernel_emitter_g1_msm_unittest.cc"],
+    deps = [":msm_test"],
 )
 
 zkx_cc_unittest(
-    name = "cpu_kernel_emitter_bn254_g2_msm_unittest",
+    name = "cpu_kernel_emitter_g2_msm_unittest",
     timeout = "long",
-    srcs = ["cpu_kernel_emitter_bn254_g2_msm_unittest.cc"],
-    deps = [
-        ":cpu_kernel_emitter_test",
-        "//xla/tsl/platform:cpu_info",
-        "//xla/tsl/platform:status",
-        "//zkx:literal_util",
-        "//zkx/base/containers:container_util",
-    ],
+    srcs = ["cpu_kernel_emitter_g2_msm_unittest.cc"],
+    deps = [":msm_test"],
 )
