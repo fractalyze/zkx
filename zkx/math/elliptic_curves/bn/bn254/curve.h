@@ -10,12 +10,16 @@ class CurveStd {
  public:
   using G1Curve = bn254::G1CurveStd;
   using G2Curve = bn254::G2CurveStd;
+
+  using StdConfig = CurveStd;
 };
 
 class Curve {
  public:
   using G1Curve = bn254::G1Curve;
   using G2Curve = bn254::G2Curve;
+
+  using StdCurve = CurveStd;
 };
 
 }  // namespace zkx::math::bn254

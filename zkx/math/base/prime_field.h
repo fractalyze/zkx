@@ -38,6 +38,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   constexpr static size_t kByteWidth = BigInt<N>::kByteWidth;
 
   using Config = _Config;
+  using StdType = PrimeField<typename Config::StdConfig>;
 
   constexpr PrimeField() = default;
   template <typename T, std::enable_if_t<std::is_signed_v<T>>* = nullptr>
@@ -259,7 +260,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
 
   constexpr bool operator<(const PrimeField& other) const {
     if constexpr (kUseMontgomery) {
-      return MontReduce().value() < other.MontReduce().value();
+      return MontReduce() < other.MontReduce();
     } else {
       return value_ < other.value_;
     }
@@ -267,7 +268,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
 
   constexpr bool operator>(const PrimeField& other) const {
     if constexpr (kUseMontgomery) {
-      return MontReduce().value() > other.MontReduce().value();
+      return MontReduce() > other.MontReduce();
     } else {
       return value_ > other.value_;
     }
@@ -275,7 +276,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
 
   constexpr bool operator<=(const PrimeField& other) const {
     if constexpr (kUseMontgomery) {
-      return MontReduce().value() <= other.MontReduce().value();
+      return MontReduce() <= other.MontReduce();
     } else {
       return value_ <= other.value_;
     }
@@ -283,13 +284,15 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
 
   constexpr bool operator>=(const PrimeField& other) const {
     if constexpr (kUseMontgomery) {
-      return MontReduce().value() >= other.MontReduce().value();
+      return MontReduce() >= other.MontReduce();
     } else {
       return value_ >= other.value_;
     }
   }
 
-  PrimeField MontReduce() const {
+  template <typename Config2 = Config,
+            std::enable_if_t<Config2::kUseMontgomery>* = nullptr>
+  StdType MontReduce() const {
     BigInt<N> ret = value_;
     for (size_t i = 0; i < N; ++i) {
       uint64_t k = ret[i] * Config::kNPrime;
@@ -302,19 +305,19 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
       }
       ret[i] = result.hi;
     }
-    return PrimeField::FromUnchecked(ret);
+    return StdType::FromUnchecked(ret);
   }
 
   std::string ToString() const {
     if constexpr (kUseMontgomery) {
-      return MontReduce().value().ToString();
+      return MontReduce().ToString();
     } else {
       return value_.ToString();
     }
   }
   std::string ToHexString(bool pad_zero = false) const {
     if constexpr (kUseMontgomery) {
-      return MontReduce().value().ToHexString(pad_zero);
+      return MontReduce().ToHexString(pad_zero);
     } else {
       return value_.ToHexString(pad_zero);
     }

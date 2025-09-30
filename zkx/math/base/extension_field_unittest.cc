@@ -102,10 +102,11 @@ TYPED_TEST(ExtensionFieldTypedTest, Inverse) {
 
 TYPED_TEST(ExtensionFieldTypedTest, MontReduce) {
   using ExtF = TypeParam;
+  using ExtFStd = typename ExtF::StdType;
   using BaseF = typename ExtF::BaseField;
 
   ExtF a = {BaseF(1), BaseF(2)};
-  ExtF reduced = a.MontReduce();
+  ExtFStd reduced = a.MontReduce();
 
   EXPECT_EQ(reduced[0], BaseF(1).MontReduce());
   EXPECT_EQ(reduced[1], BaseF(2).MontReduce());

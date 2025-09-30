@@ -13,6 +13,7 @@
 #include "zkx/base/logging.h"
 #include "zkx/math/base/finite_field_traits.h"
 #include "zkx/math/base/scalar_mul.h"
+#include "zkx/math/elliptic_curves/short_weierstrass/sw_curve.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
@@ -27,6 +28,7 @@ class AffinePoint<
   using Curve = _Curve;
   using BaseField = typename Curve::BaseField;
   using ScalarField = typename Curve::ScalarField;
+  using StdType = AffinePoint<SwCurve<typename Curve::Config::StdConfig>>;
 
   using JacobianPoint = math::JacobianPoint<Curve>;
   using PointXyzz = math::PointXyzz<Curve>;
@@ -120,7 +122,9 @@ class AffinePoint<
     return {x_, y_, BaseField::One(), BaseField::One()};
   }
 
-  constexpr AffinePoint MontReduce() const {
+  template <typename Curve2 = Curve,
+            std::enable_if_t<Curve2::kUseMontgomery>* = nullptr>
+  constexpr StdType MontReduce() const {
     return {x_.MontReduce(), y_.MontReduce()};
   }
 

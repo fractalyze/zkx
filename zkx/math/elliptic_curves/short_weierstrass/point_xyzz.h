@@ -15,6 +15,7 @@
 #include "zkx/base/template_util.h"
 #include "zkx/math/base/batch_inverse.h"
 #include "zkx/math/base/scalar_mul.h"
+#include "zkx/math/elliptic_curves/short_weierstrass/sw_curve.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
@@ -29,6 +30,7 @@ class PointXyzz<_Curve,
   using Curve = _Curve;
   using BaseField = typename Curve::BaseField;
   using ScalarField = typename Curve::ScalarField;
+  using StdType = PointXyzz<SwCurve<typename Curve::Config::StdConfig>>;
 
   using AffinePoint = math::AffinePoint<Curve>;
   using JacobianPoint = math::JacobianPoint<Curve>;
@@ -216,7 +218,9 @@ class PointXyzz<_Curve,
     }
   }
 
-  constexpr PointXyzz MontReduce() const {
+  template <typename Curve2 = Curve,
+            std::enable_if_t<Curve2::kUseMontgomery>* = nullptr>
+  constexpr StdType MontReduce() const {
     return {x_.MontReduce(), y_.MontReduce(), zz_.MontReduce(),
             zzz_.MontReduce()};
   }

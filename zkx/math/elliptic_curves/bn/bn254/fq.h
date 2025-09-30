@@ -38,6 +38,8 @@ struct FqBaseConfig {
 struct FqStdConfig : public FqBaseConfig {
   constexpr static bool kUseMontgomery = false;
 
+  using StdConfig = FqStdConfig;
+
   constexpr static BigInt<4> kOne = 1;
 
   constexpr static BigInt<4> kTwoAdicRootOfUnity = {
@@ -50,6 +52,8 @@ struct FqStdConfig : public FqBaseConfig {
 
 struct FqConfig : public FqBaseConfig {
   constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = FqStdConfig;
 
   constexpr static BigInt<4> kOne = {
       UINT64_C(15230403791020821917),

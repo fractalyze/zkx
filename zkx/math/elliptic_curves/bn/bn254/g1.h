@@ -23,6 +23,8 @@ class G1SwCurveStdConfig : public G1SwCurveBaseConfig<FqStd> {
  public:
   constexpr static bool kUseMontgomery = false;
 
+  using StdConfig = G1SwCurveStdConfig;
+
   using BaseField = FqStd;
   using ScalarField = FrStd;
 };
@@ -30,6 +32,8 @@ class G1SwCurveStdConfig : public G1SwCurveBaseConfig<FqStd> {
 class G1SwCurveConfig : public G1SwCurveBaseConfig<Fq> {
  public:
   constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = G1SwCurveStdConfig;
 
   using BaseField = Fq;
   using ScalarField = Fr;

@@ -29,6 +29,7 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
   using Config = _Config;
   using BaseField = typename Config::BaseField;
   using BasePrimeField = typename Config::BasePrimeField;
+  using StdType = ExtensionField<typename Config::StdConfig>;
 
   constexpr static bool kUseMontgomery = Config::kUseMontgomery;
   constexpr static uint32_t N = Config::kDegreeOverBaseField;
@@ -230,8 +231,10 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
     return !operator==(other);
   }
 
-  ExtensionField MontReduce() const {
-    ExtensionField ret;
+  template <typename Config2 = Config,
+            std::enable_if_t<Config2::kUseMontgomery>* = nullptr>
+  StdType MontReduce() const {
+    StdType ret;
     for (size_t i = 0; i < std::size(values_); ++i) {
       ret[i] = values_[i].MontReduce();
     }

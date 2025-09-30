@@ -24,10 +24,8 @@ ENTRY %f (x: bn254.sf[]) -> bn254.sf_std[] {
   literals.push_back(LiteralUtil::CreateR0<math::bn254::Fr>(x));
   TF_ASSERT_OK_AND_ASSIGN(Literal ret_literal, Run(absl::MakeSpan(literals)));
 
-  math::bn254::FrStd x_std(x.MontReduce().value());
-
   EXPECT_EQ(ret_literal,
-            LiteralUtil::CreateR0<math::bn254::FrStd>(x_std));
+            LiteralUtil::CreateR0<math::bn254::FrStd>(x.MontReduce()));
 }
 
 TEST_F(CpuKernelEmitterTest, FieldScalarNegate) {

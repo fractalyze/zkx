@@ -19,6 +19,8 @@ class Fq2StdConfig : public Fq2BaseConfig<FqStd> {
  public:
   constexpr static bool kUseMontgomery = false;
 
+  using StdConfig = Fq2StdConfig;
+
   using BaseField = FqStd;
   using BasePrimeField = FqStd;
 };

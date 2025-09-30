@@ -56,6 +56,8 @@ class G2SwCurveStdConfig : public G2SwCurveBaseConfig<Fq2Std> {
  public:
   constexpr static bool kUseMontgomery = false;
 
+  using StdConfig = G2SwCurveStdConfig;
+
   using BaseField = Fq2Std;
   using ScalarField = FrStd;
 };
@@ -63,6 +65,8 @@ class G2SwCurveStdConfig : public G2SwCurveBaseConfig<Fq2Std> {
 class G2SwCurveConfig : public G2SwCurveBaseConfig<Fq2> {
  public:
   constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = G2SwCurveStdConfig;
 
   using BaseField = Fq2;
   using ScalarField = Fr;

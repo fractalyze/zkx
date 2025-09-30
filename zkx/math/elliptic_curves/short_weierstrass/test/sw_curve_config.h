@@ -29,6 +29,8 @@ struct PrimeFieldBaseConfig {
 struct PrimeFieldStdConfig : public PrimeFieldBaseConfig {
   constexpr static bool kUseMontgomery = false;
 
+  using StdConfig = PrimeFieldStdConfig;
+
   constexpr static BigInt<1> kOne = 1;
 
   constexpr static BigInt<1> kTwoAdicRootOfUnity = 5;
@@ -36,6 +38,8 @@ struct PrimeFieldStdConfig : public PrimeFieldBaseConfig {
 
 struct PrimeFieldConfig : public PrimeFieldBaseConfig {
   constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = PrimeFieldStdConfig;
 
   constexpr static BigInt<1> kOne = 2;
 
@@ -57,10 +61,14 @@ struct Fq2BaseConfig {
 
 struct Fq2StdConfig : public Fq2BaseConfig {
   constexpr static bool kUseMontgomery = false;
+
+  using StdConfig = Fq2StdConfig;
 };
 
 struct Fq2Config : public Fq2BaseConfig {
   constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = Fq2StdConfig;
 };
 
 using Fq2 = ExtensionField<Fq2Config>;
@@ -81,11 +89,15 @@ class SwCurveBaseConfig {
 class SwCurveStdConfig : public SwCurveBaseConfig<FqStd, FrStd> {
  public:
   constexpr static bool kUseMontgomery = false;
+
+  using StdConfig = SwCurveStdConfig;
 };
 
 class SwCurveConfig : public SwCurveBaseConfig<Fq, Fr> {
  public:
   constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = SwCurveStdConfig;
 };
 
 using G1Curve = SwCurve<SwCurveConfig>;

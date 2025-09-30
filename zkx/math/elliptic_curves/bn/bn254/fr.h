@@ -40,6 +40,8 @@ struct FrBaseConfig {
 struct FrStdConfig : public FrBaseConfig {
   constexpr static bool kUseMontgomery = false;
 
+  using StdConfig = FrStdConfig;
+
   constexpr static BigInt<4> kOne = 1;
 
   constexpr static BigInt<4> kTwoAdicRootOfUnity = {
@@ -58,6 +60,8 @@ struct FrStdConfig : public FrBaseConfig {
 };
 struct FrConfig : public FrBaseConfig {
   constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = FrStdConfig;
 
   constexpr static BigInt<4> kOne = {
       UINT64_C(12436184717236109307),

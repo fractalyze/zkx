@@ -138,7 +138,7 @@ TEST(PointXyzzTest, BatchToAffine) {
 
 TEST(PointXyzzTest, MontReduce) {
   PointXyzz p(3, 2, 1, 1);
-  PointXyzz reduced = p.MontReduce();
+  PointXyzz::StdType reduced = p.MontReduce();
 
   EXPECT_EQ(reduced.x(), Fq(3).MontReduce());
   EXPECT_EQ(reduced.y(), Fq(2).MontReduce());
