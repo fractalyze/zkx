@@ -811,7 +811,25 @@ bool LiteralBase::Piece::EqualElements(const LiteralBase::Piece& other) const {
       }
       return true;
     }
-    return memcmp(buffer(), other.buffer(), size_bytes_dense()) == 0;
+    if (primitive_util::IsEcPointType(subshape().element_type()) &&
+        subshape().element_type() != BN254_G1_AFFINE &&
+        subshape().element_type() != BN254_G1_AFFINE_STD &&
+        subshape().element_type() != BN254_G2_AFFINE &&
+        subshape().element_type() != BN254_G2_AFFINE_STD) {
+      // NOTE(chokobole): Non-affine elliptic-curve points must not be compared
+      // byte-wise. Use the native type’s equality instead to avoid false
+      // mismatches.
+      std::vector<int64_t> multi_index;
+      return primitive_util::EcPointTypeSwitch<bool>(
+          [&](auto primitive_type_constant) -> bool {
+            using NativeT =
+                primitive_util::NativeTypeOf<primitive_type_constant>;
+            return EqualElementsInternal<NativeT>(other, &multi_index);
+          },
+          subshape().element_type());
+    } else {
+      return memcmp(buffer(), other.buffer(), size_bytes_dense()) == 0;
+    }
   }
 
   std::vector<int64_t> multi_index;
