@@ -394,6 +394,35 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ir_emitter_unnested",
+    srcs = ["ir_emitter_unnested.cc"],
+    hdrs = ["ir_emitter_unnested.h"],
+    deps = [
+        ":hlo_fusion_analysis",
+        ":ir_emission_utils",
+        ":ir_emitter",
+        ":ir_emitter_context",
+        ":stream_executor_util",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx/backends/gpu/codegen:fusion_emitter",
+        "//zkx/backends/gpu/codegen:fusions",
+        "//zkx/backends/gpu/runtime:copy_thunk",
+        "//zkx/backends/gpu/runtime:sequential_thunk",
+        "//zkx/backends/gpu/runtime:thunk",
+        "//zkx/backends/gpu/runtime:wait_for_streams_thunk",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "kernel_arguments",
     srcs = ["kernel_arguments.cc"],
     hdrs = ["kernel_arguments.h"],
