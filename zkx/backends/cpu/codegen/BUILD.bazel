@@ -179,6 +179,21 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "int_test",
+    testonly = True,
+    hdrs = ["int_test.h"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//zkx:array2d",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base:random",
+        "//zkx/base/containers:container_util",
+        "@com_google_absl//absl/base",
+    ],
+)
+
+zkx_cc_library(
     name = "ir_compiler",
     srcs = ["ir_compiler.cc"],
     hdrs = ["ir_compiler.h"],
@@ -352,4 +367,10 @@ zkx_cc_unittest(
     timeout = "long",
     srcs = ["cpu_kernel_emitter_g2_msm_unittest.cc"],
     deps = [":msm_test"],
+)
+
+zkx_cc_unittest(
+    name = "cpu_kernel_emitter_int_unittest",
+    srcs = ["cpu_kernel_emitter_int_unittest.cc"],
+    deps = [":int_test"],
 )
