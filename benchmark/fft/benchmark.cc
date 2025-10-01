@@ -17,7 +17,7 @@ std::string GenerateHlo(Field field, bool inverse, uint32_t degree) {
   size_t size = size_t{1} << degree;
   return absl::Substitute(
       R"(
-       ENTRY %f (x: $2[$0]) -> $2[$0] {
+       ENTRY %main {
          %x = $2[$0] parameter(0)
 
          ROOT %ret = $2[$0] fft(%x), fft_type=$1, fft_length=$0

@@ -18,7 +18,7 @@ std::string GenerateHlo(Curve curve, uint32_t degree) {
   size_t size = size_t{1} << degree;
   return absl::Substitute(
       R"(
-     ENTRY %f (x: $1[$0], y: $2_affine[$0]) -> $2_affine[] {
+     ENTRY %main {
        %x = $1[$0] parameter(0)
        %y = $2_affine[$0] parameter(1)
 
