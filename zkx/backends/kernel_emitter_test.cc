@@ -1,4 +1,4 @@
-#include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
+#include "zkx/backends/kernel_emitter_test.h"
 
 #include "absl/types/span.h"
 #include "gmock/gmock.h"
@@ -8,12 +8,12 @@
 #include "zkx/hlo/parser/hlo_parser.h"
 #include "zkx/service/platform_util.h"
 
-namespace zkx::cpu {
+namespace zkx {
 
-CpuKernelEmitterTest::CpuKernelEmitterTest()
-    : runner_(PlatformUtil::GetPlatform("cpu").value()) {}
+KernelEmitterTest::KernelEmitterTest(std::string_view platform_name)
+    : runner_(PlatformUtil::GetPlatform(platform_name).value()) {}
 
-void CpuKernelEmitterTest::RunAndVerify() {
+void KernelEmitterTest::RunAndVerify() {
   TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
                           ParseAndReturnUnverifiedModule(hlo_text_));
 
@@ -33,8 +33,8 @@ void CpuKernelEmitterTest::RunAndVerify() {
   Verify(ret_literal);
 }
 
-void CpuKernelEmitterTest::Verify(const Literal& ret_literal) const {
+void KernelEmitterTest::Verify(const Literal& ret_literal) const {
   EXPECT_EQ(ret_literal, expected_literal_);
 }
 
-}  // namespace zkx::cpu
+}  // namespace zkx
