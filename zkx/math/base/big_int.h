@@ -11,9 +11,9 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/casts.h"
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
-#include "absl/numeric/bits.h"
 #include "absl/status/statusor.h"
 
 #include "xla/tsl/platform/errors.h"

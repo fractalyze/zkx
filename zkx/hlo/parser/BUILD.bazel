@@ -11,6 +11,7 @@ zkx_cc_library(
         "//zkx:util",
         "//zkx:zkx_data_cc_proto",
         "//zkx/base:logging",
+        "@com_google_absl//absl/base",
         "@com_google_absl//absl/strings",
         "@com_googlesource_code_re2//:re2",
     ],
