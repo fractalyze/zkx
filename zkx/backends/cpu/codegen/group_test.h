@@ -190,6 +190,70 @@ class GroupR2TensorUnaryTest : public CpuKernelEmitterTest {
   std::vector<std::vector<AffinePoint>> expected_;
 };
 
+template <typename AffinePoint>
+class GroupR2TensorBinaryTest : public CpuKernelEmitterTest {
+ public:
+  constexpr static int64_t M = 2;
+  constexpr static int64_t N = 3;
+
+  using JacobianPoint = typename AffinePoint::JacobianPoint;
+
+  void SetUp() override {
+    CpuKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<AffinePoint>());
+    ret_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<JacobianPoint>());
+    x_ = base::CreateVector(M, []() {
+      return base::CreateVector(N, []() { return AffinePoint::Random(); });
+    });
+    y_ = base::CreateVector(M, []() {
+      return base::CreateVector(N, []() { return AffinePoint::Random(); });
+    });
+    Array2D<AffinePoint> x_array(M, N);
+    Array2D<AffinePoint> y_array(M, N);
+    for (int64_t i = 0; i < M; ++i) {
+      for (int64_t j = 0; j < N; ++j) {
+        x_array({i, j}) = x_[i][j];
+        y_array({i, j}) = y_[i][j];
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR2FromArray2D(x_array));
+    literals_.push_back(LiteralUtil::CreateR2FromArray2D(y_array));
+  }
+
+ protected:
+  void Verify(const Literal& ret_literal) const override {
+    for (int64_t i = 0; i < M; ++i) {
+      for (int64_t j = 0; j < N; ++j) {
+        EXPECT_EQ(ret_literal.Get<JacobianPoint>({i, j}), expected_[i][j]);
+      }
+    }
+  }
+
+  void SetUpAdd() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$2, $3] parameter(0)
+        %y = $0[$2, $3] parameter(1)
+
+        ROOT %ret = $1[$2, $3] add(%x, %y)
+      }
+    )",
+                                 x_typename_, ret_typename_, M, N);
+    expected_ = base::CreateVector(M, [this](size_t i) {
+      return base::CreateVector(
+          N, [this, i](size_t j) { return x_[i][j] + y_[i][j]; });
+    });
+  }
+
+ private:
+  std::string_view ret_typename_;
+  std::vector<std::vector<AffinePoint>> x_;
+  std::vector<std::vector<AffinePoint>> y_;
+  std::vector<std::vector<JacobianPoint>> expected_;
+};
+
 }  // namespace zkx::cpu
 
 #endif  // ZKX_BACKENDS_CPU_CODEGEN_GROUP_TEST_H_

@@ -838,8 +838,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
   const Shape& shape = instr->shape();
-  mlir::Type ret_type =
-      mlir_utils::PrimitiveTypeToMlirType(shape.element_type(), b.getContext());
+  mlir::Type ret_type;
+  if (ShapeUtil::IsScalar(shape)) {
+    ret_type = mlir_utils::PrimitiveTypeToMlirType(shape.element_type(),
+                                                   b.getContext());
+  } else {
+    ret_type = mlir_utils::ShapeToMlirTensorType(shape, b.getContext());
+  }
+
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
