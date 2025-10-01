@@ -359,6 +359,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ir_emitter",
+    srcs = ["ir_emitter.cc"],
+    hdrs = ["ir_emitter.h"],
+    deps = [
+        ":ir_emitter_context",
+        "//zkx/hlo/ir:dfs_hlo_visitor_with_default",
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/log",
+        "@llvm-project//llvm:Core",
+    ],
+)
+
+zkx_cc_library(
     name = "ir_emitter_context",
     srcs = ["ir_emitter_context.cc"],
     hdrs = ["ir_emitter_context.h"],
