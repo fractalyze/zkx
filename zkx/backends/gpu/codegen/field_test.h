@@ -1,0 +1,300 @@
+#ifndef ZKX_BACKENDS_GPU_CODEGEN_FIELD_TEST_H_
+#define ZKX_BACKENDS_GPU_CODEGEN_FIELD_TEST_H_
+
+#include "absl/strings/substitute.h"
+
+#include "zkx/array2d.h"
+#include "zkx/backends/gpu/codegen/cuda_kernel_emitter_test.h"
+#include "zkx/base/containers/container_util.h"
+#include "zkx/literal_util.h"
+#include "zkx/primitive_util.h"
+
+namespace zkx::gpu {
+
+template <typename F>
+class FieldScalarUnaryTest : public CudaKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CudaKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<F>());
+    x_ = F::Random();
+    literals_.push_back(LiteralUtil::CreateR0<F>(x_));
+  }
+
+ protected:
+  void SetUpConvert() {
+    using FStd = typename F::StdType;
+
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0_std[] convert(%x)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0_std[] fusion(%x), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<FStd>(x_.MontReduce());
+  }
+
+  void SetUpNegate() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] negate(%x)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] fusion(%x), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(-x_);
+  }
+
+ private:
+  F x_;
+};
+
+template <typename F>
+class FieldScalarBinaryTest : public CudaKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CudaKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<F>());
+    x_ = F::Random();
+    y_ = F::Random();
+    literals_.push_back(LiteralUtil::CreateR0<F>(x_));
+    literals_.push_back(LiteralUtil::CreateR0<F>(y_));
+  }
+
+ protected:
+  void SetUpAdd() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] add(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_ + y_);
+  }
+
+  void SetUpSub() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] subtract(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_ - y_);
+  }
+
+  void SetUpMul() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] multiply(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_ * y_);
+  }
+
+  void SetUpDiv() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] divide(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    if (y_.IsZero()) {
+      expected_literal_ = LiteralUtil::CreateR0<F>(0);
+    } else {
+      expected_literal_ = LiteralUtil::CreateR0<F>(*(x_ / y_));
+    }
+  }
+
+  void SetUpPow() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = u32[] parameter(1)
+
+        ROOT %ret = $0[] power(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = u32[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+
+    auto y = base::Uniform<uint32_t>();
+    literals_[1] = LiteralUtil::CreateR0<uint32_t>(y);
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_.Pow(y));
+  }
+
+ private:
+  F x_;
+  F y_;
+};
+
+template <typename F>
+class FieldR2TensorBinaryTest : public CudaKernelEmitterTest {
+ public:
+  constexpr static int64_t M = 2;
+  constexpr static int64_t N = 3;
+
+  void SetUp() override {
+    CudaKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<F>());
+    x_ = base::CreateVector(M, []() {
+      return base::CreateVector(N, []() { return F::Random(); });
+    });
+    y_ = base::CreateVector(M, []() {
+      return base::CreateVector(N, []() { return F::Random(); });
+    });
+    Array2D<F> x_array(M, N);
+    Array2D<F> y_array(M, N);
+    for (int64_t i = 0; i < M; ++i) {
+      for (int64_t j = 0; j < N; ++j) {
+        x_array({i, j}) = x_[i][j];
+        y_array({i, j}) = y_[i][j];
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR2FromArray2D(x_array));
+    literals_.push_back(LiteralUtil::CreateR2FromArray2D(y_array));
+  }
+
+ protected:
+  void Verify(const Literal& ret_literal) const override {
+    for (int64_t i = 0; i < M; ++i) {
+      for (int64_t j = 0; j < N; ++j) {
+        EXPECT_EQ(ret_literal.Get<F>({i, j}), expected_[i][j]);
+      }
+    }
+  }
+
+  void SetUpAdd() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[$1, $2] parameter(0)
+        %y = $0[$1, $2] parameter(1)
+
+        ROOT %ret = $0[$1, $2] add(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[$1, $2] parameter(0)
+        %y = $0[$1, $2] parameter(1)
+
+        ROOT %ret = $0[$1, $2] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_, M, N);
+
+    expected_ = base::CreateVector(M, [this](size_t i) {
+      return base::CreateVector(
+          N, [this, i](size_t j) { return x_[i][j] + y_[i][j]; });
+    });
+  }
+
+ private:
+  std::vector<std::vector<F>> x_;
+  std::vector<std::vector<F>> y_;
+  std::vector<std::vector<F>> expected_;
+};
+
+template <typename F>
+class FieldTest : public CudaKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CudaKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<F>());
+  }
+
+ protected:
+  void SetUpSlice() {
+    constexpr static int64_t N = 6;
+    constexpr static int64_t S = 2;
+    constexpr static int64_t E = 5;
+
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[$1] parameter(0)
+
+        ROOT %ret = $0[$2] slice(%x), slice={[$3:$4]}
+      }
+
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+
+        ROOT %ret = $0[$2] fusion(%x), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_, N, E - S, S, E);
+
+    auto x = base::CreateVector(N, []() { return F::Random(); });
+    literals_.push_back(LiteralUtil::CreateR1<F>(x));
+    expected_literal_ = LiteralUtil::CreateR1<F>(
+        base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
+  }
+};
+
+}  // namespace zkx::gpu
+
+#endif  // ZKX_BACKENDS_GPU_CODEGEN_FIELD_TEST_H_

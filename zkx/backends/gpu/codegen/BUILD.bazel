@@ -1,6 +1,40 @@
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "cuda_kernel_emitter_test",
+    testonly = True,
+    hdrs = ["cuda_kernel_emitter_test.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        "//zkx/backends:kernel_emitter_test",
+        "//zkx/service/gpu:gpu_transfer_manager",
+        "//zkx/service/gpu:nvptx_compiler_registerer",
+        "//zkx/stream_executor/cuda:cuda_platform",
+    ],
+)
+
+zkx_cc_library(
+    name = "field_test",
+    testonly = True,
+    hdrs = ["field_test.h"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_kernel_emitter_test",
+        "//zkx:array2d",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base/containers:container_util",
+        "@com_google_absl//absl/strings",
+    ],
+)
 
 zkx_cc_library(
     name = "fusion_emitter",
@@ -40,4 +74,14 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
+)
+
+zkx_cc_unittest(
+    name = "cuda_kernel_emitter_field_unittest",
+    srcs = ["cuda_kernel_emitter_field_unittest.cc"],
+    tags = [
+        "cuda-only",
+        "gpu",
+    ],
+    deps = [":field_test"],
 )
