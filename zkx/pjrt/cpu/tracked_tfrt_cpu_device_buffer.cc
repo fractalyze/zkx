@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <atomic>
 
+#include "absl/base/casts.h"
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
 
