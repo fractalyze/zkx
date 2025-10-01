@@ -2,6 +2,7 @@
 #define ZKX_MLIR_MLIR_UTILS_H_
 
 #include "llvm/ADT/SmallVector.h"
+#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
@@ -19,6 +20,8 @@
 #include "zkx/zkx_data.pb.h"
 
 namespace zkx::mlir_utils {
+
+void PopulateTypeConverterWithZkir(mlir::LLVMTypeConverter& converter);
 
 template <typename T>
 mlir::zkir::mod_arith::ModArithType GetMlirModArithType(

@@ -42,6 +42,7 @@ limitations under the License.
 #include "mlir/Transforms/DialectConversion.h"
 
 #include "zkx/codegen/device_spec.h"
+#include "zkx/mlir/mlir_utils.h"
 #include "zkx/stream_executor/device_description.h"
 
 namespace zkx::emitters {
@@ -74,6 +75,7 @@ class LowerToLLVMPass : public impl::LowerToLLVMPassBase<LowerToLLVMPass> {
                                        mlir::DataLayout(getOperation()));
     mlir::LLVMTypeConverter type_converter(getOperation().getContext(),
                                            llvm_opts);
+    mlir_utils::PopulateTypeConverterWithZkir(type_converter);
     mlir::LLVMConversionTarget target(*getOperation().getContext());
 
     // Populate patterns.

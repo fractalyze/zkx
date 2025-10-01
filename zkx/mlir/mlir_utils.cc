@@ -6,6 +6,8 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
+#include "zkir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
 #include "zkx/layout_util.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fr.h"
 #include "zkx/math/elliptic_curves/bn/bn254/g1.h"
@@ -13,6 +15,12 @@
 #include "zkx/primitive_util.h"
 
 namespace zkx::mlir_utils {
+
+void PopulateTypeConverterWithZkir(mlir::LLVMTypeConverter& converter) {
+  mlir::zkir::field::populateExtFieldToLLVMTypeConversion(converter);
+  mlir::zkir::elliptic_curve::populateEllipticCurveToLLVMTypeConversion(
+      converter);
+}
 
 mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
                                    mlir::MLIRContext* context) {
