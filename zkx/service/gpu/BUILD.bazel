@@ -128,6 +128,58 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_compiler",
+    srcs = ["gpu_compiler.cc"],
+    hdrs = ["gpu_compiler.h"],
+    deps = [
+        ":buffer_sharing",
+        ":compile_module_to_llvm_ir",
+        ":execution_stream_assignment",
+        ":gpu_executable",
+        ":gpu_hlo_schedule",
+        ":gpu_latency_hiding_scheduler",
+        ":ir_emitter_context",
+        ":ir_emitter_unnested",
+        ":kernel_reuse_cache",
+        "//xla/tsl/platform:casts",
+        "//xla/tsl/platform:cpu_info",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:statusor",
+        "//zkx:maybe_owning",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:zkx_cc_proto",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:logging",
+        "//zkx/hlo/analysis:hlo_dataflow_analysis",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_module_group",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:dump",
+        "//zkx/service:llvm_compiler",
+        "//zkx/service:slow_operation_alarm",
+        "//zkx/service/llvm_ir:llvm_command_line_options",
+        "//zkx/service/llvm_ir:llvm_util",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_protobuf//:protobuf",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TransformUtils",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+zkx_cc_library(
     name = "gpu_constants",
     hdrs = ["gpu_constants.h"],
 )
@@ -652,6 +704,7 @@ zkx_cc_library(
 
 # TODO(chokobole): Add backend_configs_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add execution_stream_assignment_unittest.cc. Dependency: HloTestBase
+# TODO(chokobole): Add gpu_compiler_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add gpu_latency_hiding_scheduler_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add hlo_fusion_analysis_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add ir_emission_utils_unittest.cc. Dependency: HloTestBase.
