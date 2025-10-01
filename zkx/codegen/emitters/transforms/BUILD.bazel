@@ -94,6 +94,7 @@ zkx_cc_library(
         "//zkx:util",
         "//zkx/backends/gpu/codegen/emitters/ir:zkx_gpu",
         "//zkx/codegen:device_spec",
+        "//zkx/mlir:mlir_utils",
         "//zkx/stream_executor:device_description",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/log:check",
@@ -124,6 +125,7 @@ zkx_cc_library(
     deps = [
         ":passes_inc_gen",
         "//zkx/codegen:device_spec",
+        "//zkx/mlir:mlir_utils",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
         "@llvm-project//mlir:AMDGPUUtils",

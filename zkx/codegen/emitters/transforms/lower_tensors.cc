@@ -65,6 +65,7 @@ limitations under the License.
 #include "zkx/backends/gpu/codegen/emitters/ir/zkx_gpu_ops.h"
 #include "zkx/codegen/device_spec.h"
 #include "zkx/codegen/emitters/transforms/atomic_rmw_utils.h"
+#include "zkx/mlir/mlir_utils.h"
 #include "zkx/stream_executor/device_description.h"
 #include "zkx/util.h"
 
@@ -313,6 +314,7 @@ ml::GEPOp CreateGep(TypedValue<mlir::RankedTensorType> tensor,
   auto tensor_ptr =
       b.create<UnrealizedConversionCastOp>(ptr, tensor).getResult(0);
   mlir::LLVMTypeConverter converter(b.getContext());
+  mlir_utils::PopulateTypeConverterWithZkir(converter);
   Type llvm_element_type = converter.convertType(element_type);
   auto gep =
       b.create<ml::GEPOp>(ptr, llvm_element_type, tensor_ptr, linear_index);
@@ -405,6 +407,7 @@ struct RewriteTransferRead : OpRewritePattern<vector::TransferReadOp> {
     ml::GEPOp gep = CreateGep(source, linear_index, b);
 
     mlir::LLVMTypeConverter converter(b.getContext());
+    mlir_utils::PopulateTypeConverterWithZkir(converter);
     Type llvm_vector_type = converter.convertType(vector_type);
     auto loaded = b.create<ml::LoadOp>(llvm_vector_type, gep).getResult();
 
@@ -493,6 +496,7 @@ struct RewriteTensorInsert : OpRewritePattern<tensor::InsertOp> {
     } else {
       ml::GEPOp gep = CreateGep(tensor_dest, linear_index, b);
       mlir::LLVMTypeConverter converter(getContext());
+      mlir_utils::PopulateTypeConverterWithZkir(converter);
       Type llvm_type = converter.convertType(scalar_value.getType());
       scalar_value =
           b.create<UnrealizedConversionCastOp>(llvm_type, scalar_value)
@@ -537,6 +541,7 @@ struct RewriteTransferWrite : OpRewritePattern<vector::TransferWriteOp> {
     ml::GEPOp gep = CreateGep(tensor_dest, linear_index, b);
 
     mlir::LLVMTypeConverter converter(getContext());
+    mlir_utils::PopulateTypeConverterWithZkir(converter);
     Type llvm_type = converter.convertType(vector_value.getType());
     vector_value = b.create<UnrealizedConversionCastOp>(llvm_type, vector_value)
                        .getResult(0);
@@ -605,6 +610,7 @@ ml::GlobalOp CreateGlobalOp(mlir::Attribute value,
   int64_t num_elements = shaped_ty.getNumElements();
   // Needed to support complex element type.
   mlir::LLVMTypeConverter converter(b.getContext());
+  mlir_utils::PopulateTypeConverterWithZkir(converter);
   Type llvm_element_type = converter.convertType(element_type);
   if (element_type.isInteger(4)) {
     num_elements = CeilOfRatio<int64_t>(num_elements, 2);
