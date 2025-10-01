@@ -1,0 +1,48 @@
+#include <stdint.h>
+
+#include "zkx/backends/gpu/codegen/int_test.h"
+
+namespace zkx::gpu {
+
+// TODO(chokobole): Add tests for convert and negate.
+
+using IntTypes = testing::Types<int32_t, uint32_t>;
+TYPED_TEST_SUITE(IntScalarBinaryTest, IntTypes);
+
+TYPED_TEST(IntScalarBinaryTest, Add) {
+  this->SetUpAdd();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, Sub) {
+  this->SetUpSub();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, Mul) {
+  this->SetUpMul();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, Div) {
+  this->SetUpDiv();
+  this->RunAndVerify();
+}
+
+// TODO(chokobole): Add tests for power.
+
+TYPED_TEST_SUITE(IntR2TensorBinaryTest, IntTypes);
+
+TYPED_TEST(IntR2TensorBinaryTest, Add) {
+  this->SetUpAdd();
+  this->RunAndVerify();
+}
+
+TYPED_TEST_SUITE(IntTest, IntTypes);
+
+TYPED_TEST(IntTest, Slice) {
+  this->SetUpSlice();
+  this->RunAndVerify();
+}
+
+}  // namespace zkx::gpu
