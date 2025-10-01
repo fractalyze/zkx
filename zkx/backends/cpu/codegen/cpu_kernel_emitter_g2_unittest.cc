@@ -44,4 +44,11 @@ TYPED_TEST(GroupR2TensorUnaryTest, Negate) {
   this->RunAndVerify();
 }
 
+TYPED_TEST_SUITE(GroupR2TensorBinaryTest, GroupTypes);
+
+TYPED_TEST(GroupR2TensorBinaryTest, Add) {
+  this->SetUpAdd();
+  this->RunAndVerify();
+}
+
 }  // namespace zkx::cpu
