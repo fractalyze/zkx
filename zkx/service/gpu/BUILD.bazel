@@ -587,6 +587,50 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "nvptx_compiler",
+    srcs = ["nvptx_compiler.cc"],
+    hdrs = ["nvptx_compiler.h"],
+    deps = [
+        ":buffer_sharing",
+        ":gpu_compiler",
+        ":ptx_compile_options_from_debug_options",
+        ":target_constants",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/service:dump",
+        "//zkx/service/gpu/llvm_gpu_backend:nvptx_backend",
+        "//zkx/stream_executor/cuda:assemble_compilation_provider",
+        "//zkx/stream_executor/cuda:compilation_provider",
+        "//zkx/stream_executor/cuda:compilation_provider_options",
+        "//zkx/stream_executor/cuda:cuda_diagnostics",
+        "//zkx/stream_executor/cuda:cuda_platform_id",
+        "//zkx/stream_executor/cuda:subprocess_compilation",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:IRReader",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_library(
+    name = "nvptx_compiler_registerer",
+    srcs = ["nvptx_compiler_registerer.cc"],
+    deps = [
+        ":nvptx_compiler",
+        "//zkx/service:compiler",
+        "//zkx/stream_executor/cuda:cuda_platform_id",
+    ],
+)
+
+zkx_cc_library(
     name = "outfeed_manager",
     srcs = ["outfeed_manager.cc"],
     hdrs = ["outfeed_manager.h"],
@@ -708,6 +752,7 @@ zkx_cc_library(
 # TODO(chokobole): Add gpu_latency_hiding_scheduler_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add hlo_fusion_analysis_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add ir_emission_utils_unittest.cc. Dependency: HloTestBase.
+# TODO(chokobole): Add nvptx_compiler_unittest.cc. Dependency: HloTestBase.
 # TODO(chokobole): Add stream_executor_util_unittest.cc. Dependency: PickBestResult
 # TODO(chokobole): Add reduction_utils_unittest.cc. Dependency: HloTestBase.
 zkx_cc_unittest(
