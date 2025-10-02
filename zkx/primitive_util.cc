@@ -40,18 +40,32 @@ class PrimitiveTypeNameGenerator {
         lowercase_name_[idx] = "opaque";
       } else if (t == BN254_SCALAR) {
         lowercase_name_[idx] = "bn254.sf";
+      } else if (t == BN254_SCALAR_STD) {
+        lowercase_name_[idx] = "bn254.sf_std";
       } else if (t == BN254_G1_AFFINE) {
         lowercase_name_[idx] = "bn254.g1_affine";
+      } else if (t == BN254_G1_AFFINE_STD) {
+        lowercase_name_[idx] = "bn254.g1_affine_std";
       } else if (t == BN254_G1_JACOBIAN) {
         lowercase_name_[idx] = "bn254.g1_jacobian";
+      } else if (t == BN254_G1_JACOBIAN_STD) {
+        lowercase_name_[idx] = "bn254.g1_jacobian_std";
       } else if (t == BN254_G1_XYZZ) {
         lowercase_name_[idx] = "bn254.g1_xyzz";
+      } else if (t == BN254_G1_XYZZ_STD) {
+        lowercase_name_[idx] = "bn254.g1_xyzz_std";
       } else if (t == BN254_G2_AFFINE) {
         lowercase_name_[idx] = "bn254.g2_affine";
+      } else if (t == BN254_G2_AFFINE_STD) {
+        lowercase_name_[idx] = "bn254.g2_affine_std";
       } else if (t == BN254_G2_JACOBIAN) {
         lowercase_name_[idx] = "bn254.g2_jacobian";
+      } else if (t == BN254_G2_JACOBIAN_STD) {
+        lowercase_name_[idx] = "bn254.g2_jacobian_std";
       } else if (t == BN254_G2_XYZZ) {
         lowercase_name_[idx] = "bn254.g2_xyzz";
+      } else if (t == BN254_G2_XYZZ_STD) {
+        lowercase_name_[idx] = "bn254.g2_xyzz_std";
       } else if (PrimitiveType_IsValid(t)) {
         lowercase_name_[idx] = absl::AsciiStrToLower(PrimitiveType_Name(t));
       }

@@ -15,6 +15,7 @@
 #include "zkx/base/template_util.h"
 #include "zkx/math/base/batch_inverse.h"
 #include "zkx/math/base/scalar_mul.h"
+#include "zkx/math/elliptic_curves/short_weierstrass/sw_curve.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
@@ -29,10 +30,12 @@ class JacobianPoint<
   using Curve = _Curve;
   using BaseField = typename Curve::BaseField;
   using ScalarField = typename Curve::ScalarField;
+  using StdType = JacobianPoint<SwCurve<typename Curve::Config::StdConfig>>;
 
   using AffinePoint = math::AffinePoint<Curve>;
   using PointXyzz = math::PointXyzz<Curve>;
 
+  constexpr static bool kUseMontgomery = Curve::kUseMontgomery;
   constexpr static size_t kBitWidth = BaseField::kBitWidth * 3;
 
   constexpr JacobianPoint()
@@ -173,7 +176,7 @@ class JacobianPoint<
   constexpr JacobianPoint operator-() const { return {x_, -y_, z_}; }
 
   constexpr JacobianPoint operator*(const ScalarField& v) const {
-    if constexpr (ScalarField::kUseMontgomery) {
+    if constexpr (kUseMontgomery) {
       return ScalarMul(*this, v.MontReduce().value());
     } else {
       return ScalarMul(*this, v.value());
@@ -207,7 +210,9 @@ class JacobianPoint<
     return {x_, y_, zz, zz * z_};
   }
 
-  constexpr JacobianPoint MontReduce() const {
+  template <typename Curve2 = Curve,
+            std::enable_if_t<Curve2::kUseMontgomery>* = nullptr>
+  constexpr StdType MontReduce() const {
     return {x_.MontReduce(), y_.MontReduce(), z_.MontReduce()};
   }
 

@@ -13,6 +13,7 @@
 #include "zkx/base/logging.h"
 #include "zkx/math/base/finite_field_traits.h"
 #include "zkx/math/base/scalar_mul.h"
+#include "zkx/math/elliptic_curves/short_weierstrass/sw_curve.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
@@ -27,10 +28,12 @@ class AffinePoint<
   using Curve = _Curve;
   using BaseField = typename Curve::BaseField;
   using ScalarField = typename Curve::ScalarField;
+  using StdType = AffinePoint<SwCurve<typename Curve::Config::StdConfig>>;
 
   using JacobianPoint = math::JacobianPoint<Curve>;
   using PointXyzz = math::PointXyzz<Curve>;
 
+  constexpr static bool kUseMontgomery = Curve::kUseMontgomery;
   constexpr static size_t kBitWidth = BaseField::kBitWidth * 2;
 
   constexpr AffinePoint() : AffinePoint(BaseField::Zero(), BaseField::Zero()) {}
@@ -102,7 +105,7 @@ class AffinePoint<
   constexpr AffinePoint operator-() const { return {x_, -y_}; }
 
   constexpr JacobianPoint operator*(const ScalarField& v) const {
-    if constexpr (ScalarField::kUseMontgomery) {
+    if constexpr (kUseMontgomery) {
       return ScalarMul(ToJacobian(), v.MontReduce().value());
     } else {
       return ScalarMul(ToJacobian(), v.value());
@@ -119,7 +122,9 @@ class AffinePoint<
     return {x_, y_, BaseField::One(), BaseField::One()};
   }
 
-  constexpr AffinePoint MontReduce() const {
+  template <typename Curve2 = Curve,
+            std::enable_if_t<Curve2::kUseMontgomery>* = nullptr>
+  constexpr StdType MontReduce() const {
     return {x_.MontReduce(), y_.MontReduce()};
   }
 

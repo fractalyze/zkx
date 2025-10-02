@@ -48,7 +48,7 @@ class CInt {
   // must have no more than B * L - 1 bits to ensure that the result and
   // arguments specify the same number
   template <size_t N>
-  constexpr static CInt Load(const BigInt<N> &input, bool sign) {
+  constexpr static CInt Load(const BigInt<N>& input, bool sign) {
     CInt result;
     Convert<64, B>(input.limbs(), N, result.data, L);
     return sign ? -result : result;
@@ -75,7 +75,7 @@ class CInt {
   // more than 64 * N bits to ensure that the result represents the current
   // number
   template <size_t N>
-  constexpr bool Save(BigInt<N> &output) const {
+  constexpr bool Save(BigInt<N>& output) const {
     bool sign = IsNegative();
     Convert<B, 64>((sign ? -*this : *this).data, L, output.limbs(), N);
     return sign;
@@ -100,7 +100,7 @@ class CInt {
     return result;
   }
 
-  constexpr bool operator==(const CInt &other) const {
+  constexpr bool operator==(const CInt& other) const {
     for (size_t i = 0; i < L; i++) {
       if (data[i] != other.data[i]) {
         return false;
@@ -109,11 +109,11 @@ class CInt {
     return true;
   }
 
-  constexpr bool operator!=(const CInt &other) const {
+  constexpr bool operator!=(const CInt& other) const {
     return !(*this == other);
   }
 
-  constexpr CInt operator+(const CInt &other) const {
+  constexpr CInt operator+(const CInt& other) const {
     CInt result;
     uint64_t carry = 0;
     for (size_t i = 0; i < L; i++) {
@@ -124,7 +124,7 @@ class CInt {
     return result;
   }
 
-  constexpr CInt operator-(const CInt &other) const {
+  constexpr CInt operator-(const CInt& other) const {
     // For the two's complement code the additive negation is the result of
     // adding 1 to the bitwise inverted argument's representation. Thus, for
     // any encoded integers x and y we have x - y = x + !y + 1, where "!" is the
@@ -155,7 +155,7 @@ class CInt {
     return result;
   }
 
-  constexpr CInt operator*(const CInt &other) const {
+  constexpr CInt operator*(const CInt& other) const {
     CInt result;
     for (size_t i = 0; i < L; i++) {
       uint64_t carry = 0;
@@ -209,8 +209,8 @@ class CInt {
   // unsigned integer stored at the address "input" as an array of "isize" I-bit
   // chunks. The ordering of the chunks in these arrays is little-endian
   template <size_t I, size_t O>
-  constexpr static void Convert(const uint64_t *input, const size_t isize,
-                                uint64_t *output, const size_t osize) {
+  constexpr static void Convert(const uint64_t* input, const size_t isize,
+                                uint64_t* output, const size_t osize) {
     size_t bits = 0;
     size_t total = std::min(isize * I, osize * O);
     for (size_t i = 0; i < osize; i++) {
@@ -256,7 +256,7 @@ template <size_t L>
 class BYInverter {
  public:
   // Creates an inverter for specified modulus and adjusting parameter
-  constexpr BYInverter(const BigInt<L> &modulus, const BigInt<L> &adjuster)
+  constexpr BYInverter(const BigInt<L>& modulus, const BigInt<L>& adjuster)
       : modulus(LCInt::Load(modulus, false)),
         adjuster(LCInt::Load(adjuster, false)),
         inverse62(Invert62(modulus[0])) {}
@@ -265,7 +265,7 @@ class BYInverter {
   // second argument, the adjusted modular multiplicative inverse of the input
   // number, if it is invertible for the modulus of the invertor (i.e. coprime
   // with it). Otherwise, "false" is returned
-  bool Invert(const BigInt<L> &input, BigInt<L> &output) const {
+  bool Invert(const BigInt<L>& input, BigInt<L>& output) const {
     int64_t delta = 1;
     LCInt f = modulus;
     LCInt g = LCInt::Load(input, false);
@@ -319,7 +319,7 @@ class BYInverter {
   // of delta, f and g. The initial values of f and g are specified partially:
   // only the least significant chunks of their LCInt representations are the
   // arguments
-  static void Jump(uint64_t f, uint64_t g, int64_t &delta, int64_t t[2][2]) {
+  static void Jump(uint64_t f, uint64_t g, int64_t& delta, int64_t t[2][2]) {
     t[0][0] = t[1][1] = 1;
     t[0][1] = t[1][0] = 0;
     int64_t steps = 62;
@@ -375,7 +375,7 @@ class BYInverter {
   // form this operation can be described using the formula:
   // "(f, g)' := matrix * (f, g)' / 2⁶²",
   // where "'" is the transpose operator and ":=" denotes assignment
-  static void FG(LCInt &f, LCInt &g, const int64_t t[2][2]) {
+  static void FG(LCInt& f, LCInt& g, const int64_t t[2][2]) {
     LCInt x = (f * t[0][0] + g * t[0][1]).Shift();
     LCInt y = (f * t[1][0] + g * t[1][1]).Shift();
     f = x;
@@ -388,7 +388,7 @@ class BYInverter {
   // (mod M)", where M is the modulus the inverter was created for and "'"
   // stands for the transpose operator. Both the initial and new values of d and
   // e lie in (-2 * M, M)
-  void DE(LCInt &d, LCInt &e, const int64_t (&t)[2][2]) const {
+  void DE(LCInt& d, LCInt& e, const int64_t (&t)[2][2]) const {
     int64_t md = t[0][0] * d.IsNegative() + t[0][1] * e.IsNegative();
     int64_t me = t[1][0] * d.IsNegative() + t[1][1] * e.IsNegative();
     {
@@ -407,7 +407,7 @@ class BYInverter {
   // Returns either "value (mod M)" or "-value (mod M)", where M is the modulus
   // the inverter was created for, depending on "negate", which determines the
   // presence of "-" in the used formula. The input integer lies in (-2 * M, M)
-  LCInt Norm(const LCInt &value, const bool negate) const {
+  LCInt Norm(const LCInt& value, const bool negate) const {
     LCInt result = value.IsNegative() ? value + modulus : value;
     if (negate) {
       result = -result;

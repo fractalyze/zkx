@@ -6,6 +6,7 @@ zkx_cc_library(
     name = "affine_point",
     hdrs = ["affine_point.h"],
     deps = [
+        ":sw_curve",
         "//xla/tsl/platform:errors",
         "//zkx/base:logging",
         "//zkx/base/buffer:serde",
@@ -26,6 +27,7 @@ zkx_cc_library(
         "jacobian_point_impl.h",
     ],
     deps = [
+        ":sw_curve",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
         "//zkx/base:template_util",
@@ -48,6 +50,7 @@ zkx_cc_library(
         "point_xyzz_impl.h",
     ],
     deps = [
+        ":sw_curve",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
         "//zkx/base:template_util",

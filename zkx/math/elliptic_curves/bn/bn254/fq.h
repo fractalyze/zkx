@@ -5,19 +5,13 @@
 
 namespace zkx::math::bn254 {
 
-struct FqConfig {
+struct FqBaseConfig {
   constexpr static size_t kModulusBits = 254;
   constexpr static BigInt<4> kModulus = {
       UINT64_C(4332616871279656263),
       UINT64_C(10917124144477883021),
       UINT64_C(13281191951274694749),
       UINT64_C(3486998266802970665),
-  };
-  constexpr static BigInt<4> kOne = {
-      UINT64_C(15230403791020821917),
-      UINT64_C(754611498739239741),
-      UINT64_C(7381016538464732716),
-      UINT64_C(1011752739694698287),
   };
 
   constexpr static BigInt<4> kRSquared = {
@@ -38,17 +32,46 @@ struct FqConfig {
   };
 
   constexpr static bool kHasTwoAdicRootOfUnity = true;
+  constexpr static bool kHasLargeSubgroupRootOfUnity = false;
+};
+
+struct FqStdConfig : public FqBaseConfig {
+  constexpr static bool kUseMontgomery = false;
+
+  using StdConfig = FqStdConfig;
+
+  constexpr static BigInt<4> kOne = 1;
+
+  constexpr static BigInt<4> kTwoAdicRootOfUnity = {
+      UINT64_C(4332616871279656262),
+      UINT64_C(10917124144477883021),
+      UINT64_C(13281191951274694749),
+      UINT64_C(3486998266802970665),
+  };
+};
+
+struct FqConfig : public FqBaseConfig {
+  constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = FqStdConfig;
+
+  constexpr static BigInt<4> kOne = {
+      UINT64_C(15230403791020821917),
+      UINT64_C(754611498739239741),
+      UINT64_C(7381016538464732716),
+      UINT64_C(1011752739694698287),
+  };
+
   constexpr static BigInt<4> kTwoAdicRootOfUnity = {
       UINT64_C(7548957153968385962),
       UINT64_C(10162512645738643279),
       UINT64_C(5900175412809962033),
       UINT64_C(2475245527108272378),
   };
-
-  constexpr static bool kHasLargeSubgroupRootOfUnity = false;
 };
 
 using Fq = PrimeField<FqConfig>;
+using FqStd = PrimeField<FqStdConfig>;
 
 }  // namespace zkx::math::bn254
 

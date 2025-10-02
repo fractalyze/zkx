@@ -144,7 +144,7 @@ TEST(JacobianPointTest, BatchToAffine) {
 
 TEST(JacobianPointTest, MontReduce) {
   JacobianPoint p(3, 2, 1);
-  JacobianPoint reduced = p.MontReduce();
+  JacobianPoint::StdType reduced = p.MontReduce();
 
   EXPECT_EQ(reduced.x(), Fq(3).MontReduce());
   EXPECT_EQ(reduced.y(), Fq(2).MontReduce());

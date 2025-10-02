@@ -24,11 +24,12 @@
 namespace zkx {
 namespace math {
 
-// This implements PrimeField on Montgomery domain.
+// If Config::kUseMontgomery is true, the operations are performed on montgomery
+// domain. Otherwise, the operations are performed on standard domain.
 template <typename _Config>
 class PrimeField : public FiniteField<PrimeField<_Config>> {
  public:
-  constexpr static bool kUseMontgomery = true;
+  constexpr static bool kUseMontgomery = _Config::kUseMontgomery;
   constexpr static bool kUseBigModulus = true;
   constexpr static size_t kModulusBits = _Config::kModulusBits;
   constexpr static size_t kLimbNums = (kModulusBits + 63) / 64;
@@ -37,9 +38,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   constexpr static size_t kByteWidth = BigInt<N>::kByteWidth;
 
   using Config = _Config;
-
-  constexpr static BYInverter<N> s_inverter_ =
-      BYInverter<N>(Config::kModulus, Config::kRSquared);
+  using StdType = PrimeField<typename Config::StdConfig>;
 
   constexpr PrimeField() = default;
   template <typename T, std::enable_if_t<std::is_signed_v<T>>* = nullptr>
@@ -57,7 +56,9 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
       : PrimeField(BigInt<N>(values)) {}
   constexpr explicit PrimeField(const BigInt<N>& value) : value_(value) {
     DCHECK_LT(value_, Config::kModulus);
-    operator*=(PrimeField::FromUnchecked(Config::kRSquared));
+    if constexpr (kUseMontgomery) {
+      operator*=(PrimeField::FromUnchecked(Config::kRSquared));
+    }
   }
 
   constexpr static uint32_t ExtensionDegree() { return 1; }
@@ -108,7 +109,11 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   // This is equivalent to checking if value_ > ((Config::kModulus - 1) / 2).
   constexpr bool LexicographicallyLargest() const {
     constexpr BigInt<N> kHalfModulus = (Config::kModulus - 1) >> 1;
-    return MontReduce().value() > kHalfModulus;
+    if constexpr (kUseMontgomery) {
+      return MontReduce().value() > kHalfModulus;
+    } else {
+      return value_ > kHalfModulus;
+    }
   }
 
   constexpr PrimeField operator+(const PrimeField& other) const {
@@ -164,33 +169,49 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
 
   constexpr PrimeField operator*(const PrimeField& other) const {
     PrimeField ret;
-    if constexpr (CanUseNoCarryMulOptimization()) {
-      FastMul(*this, other, ret);
+    if constexpr (kUseMontgomery) {
+      if constexpr (CanUseNoCarryMulOptimization()) {
+        FastMontMul(*this, other, ret);
+      } else {
+        SlowMontMul(*this, other, ret);
+      }
     } else {
-      SlowMul(*this, other, ret);
+      VerySlowMul(*this, other, ret);
     }
     return ret;
   }
 
   constexpr PrimeField& operator*=(const PrimeField& other) {
-    if constexpr (CanUseNoCarryMulOptimization()) {
-      FastMul(*this, other, *this);
+    if constexpr (kUseMontgomery) {
+      if constexpr (CanUseNoCarryMulOptimization()) {
+        FastMontMul(*this, other, *this);
+      } else {
+        SlowMontMul(*this, other, *this);
+      }
     } else {
-      SlowMul(*this, other, *this);
+      VerySlowMul(*this, other, *this);
     }
     return *this;
   }
 
   constexpr PrimeField Square() const {
     PrimeField ret;
-    FastSquare(*this, ret);
+    if constexpr (kUseMontgomery) {
+      FastMontSquare(*this, ret);
+    } else {
+      VerySlowMul(*this, *this, ret);
+    }
     return ret;
   }
 
   template <typename T>
   constexpr PrimeField Pow(const T& exponent) const {
     if constexpr (std::is_same_v<T, PrimeField>) {
-      return math::Pow(*this, exponent.MontReduce().value());
+      if constexpr (kUseMontgomery) {
+        return math::Pow(*this, exponent.MontReduce().value());
+      } else {
+        return math::Pow(*this, exponent.value());
+      }
     } else {
       return math::Pow(*this, BigInt<N>(exponent));
     }
@@ -204,8 +225,18 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
 
   constexpr absl::StatusOr<PrimeField> Inverse() const {
     PrimeField ret;
-    if (!s_inverter_.Invert(value_, ret.value_)) {
-      return absl::InvalidArgumentError("division by zero");
+    if constexpr (kUseMontgomery) {
+      constexpr BYInverter<N> inverter =
+          BYInverter<N>(Config::kModulus, Config::kRSquared);
+      if (!inverter.Invert(value_, ret.value_)) {
+        return absl::InvalidArgumentError("division by zero");
+      }
+    } else {
+      constexpr BYInverter<N> inverter =
+          BYInverter<N>(Config::kModulus, Config::kOne);
+      if (!inverter.Invert(value_, ret.value_)) {
+        return absl::InvalidArgumentError("division by zero");
+      }
     }
     return ret;
   }
@@ -214,7 +245,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
     DCHECK_LT(i, N);
     return value_[i];
   }
-  constexpr const uint64_t operator[](size_t i) const {
+  constexpr const uint64_t& operator[](size_t i) const {
     DCHECK_LT(i, N);
     return value_[i];
   }
@@ -228,22 +259,40 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   }
 
   constexpr bool operator<(const PrimeField& other) const {
-    return MontReduce().value() < other.MontReduce().value();
+    if constexpr (kUseMontgomery) {
+      return MontReduce() < other.MontReduce();
+    } else {
+      return value_ < other.value_;
+    }
   }
 
   constexpr bool operator>(const PrimeField& other) const {
-    return MontReduce().value() > other.MontReduce().value();
+    if constexpr (kUseMontgomery) {
+      return MontReduce() > other.MontReduce();
+    } else {
+      return value_ > other.value_;
+    }
   }
 
   constexpr bool operator<=(const PrimeField& other) const {
-    return MontReduce().value() <= other.MontReduce().value();
+    if constexpr (kUseMontgomery) {
+      return MontReduce() <= other.MontReduce();
+    } else {
+      return value_ <= other.value_;
+    }
   }
 
   constexpr bool operator>=(const PrimeField& other) const {
-    return MontReduce().value() >= other.MontReduce().value();
+    if constexpr (kUseMontgomery) {
+      return MontReduce() >= other.MontReduce();
+    } else {
+      return value_ >= other.value_;
+    }
   }
 
-  PrimeField MontReduce() const {
+  template <typename Config2 = Config,
+            std::enable_if_t<Config2::kUseMontgomery>* = nullptr>
+  StdType MontReduce() const {
     BigInt<N> ret = value_;
     for (size_t i = 0; i < N; ++i) {
       uint64_t k = ret[i] * Config::kNPrime;
@@ -256,12 +305,22 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
       }
       ret[i] = result.hi;
     }
-    return PrimeField::FromUnchecked(ret);
+    return StdType::FromUnchecked(ret);
   }
 
-  std::string ToString() const { return MontReduce().value().ToString(); }
+  std::string ToString() const {
+    if constexpr (kUseMontgomery) {
+      return MontReduce().ToString();
+    } else {
+      return value_.ToString();
+    }
+  }
   std::string ToHexString(bool pad_zero = false) const {
-    return MontReduce().value().ToHexString(pad_zero);
+    if constexpr (kUseMontgomery) {
+      return MontReduce().ToHexString(pad_zero);
+    } else {
+      return value_.ToHexString(pad_zero);
+    }
   }
 
  private:
@@ -305,8 +364,8 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
     }
   }
 
-  constexpr static void FastMul(const PrimeField& a, const PrimeField& b,
-                                PrimeField& c) {
+  constexpr static void FastMontMul(const PrimeField& a, const PrimeField& b,
+                                    PrimeField& c) {
     BigInt<N> ret;
     for (size_t i = 0; i < N; ++i) {
       internal::MulResult<uint64_t> result;
@@ -330,8 +389,8 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
     c.value_ = ret;
   }
 
-  constexpr static void SlowMul(const PrimeField& a, const PrimeField& b,
-                                PrimeField& c) {
+  constexpr static void SlowMontMul(const PrimeField& a, const PrimeField& b,
+                                    PrimeField& c) {
     internal::MulResult<BigInt<N>> mul_result =
         BigInt<N>::Mul(a.value_, b.value_);
     BigInt<2 * N> mul;
@@ -340,7 +399,19 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
     MontMulReduce(mul, c.value_);
   }
 
-  constexpr static void FastSquare(const PrimeField& a, PrimeField& b) {
+  constexpr static void VerySlowMul(const PrimeField& a, const PrimeField& b,
+                                    PrimeField& c) {
+    BigInt<2 * N> mul;
+    auto value = BigInt<N>::Mul(a.value_, b.value_);
+    memcpy(&mul[0], &value.lo[0], sizeof(uint64_t) * N);
+    memcpy(&mul[N], &value.hi[0], sizeof(uint64_t) * N);
+    BigInt<2 * N> modulus = BigInt<2 * N>::Zero();
+    memcpy(&modulus[0], &Config::kModulus[0], sizeof(uint64_t) * N);
+    BigInt<2 * N> mul_mod = *(mul % modulus);
+    memcpy(&c.value_[0], &mul_mod[0], sizeof(uint64_t) * N);
+  }
+
+  constexpr static void FastMontSquare(const PrimeField& a, PrimeField& b) {
     BigInt<2 * N> ret;
     internal::MulResult<uint64_t> mul_result;
     for (size_t i = 0; i < N - 1; ++i) {

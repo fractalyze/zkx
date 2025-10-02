@@ -15,8 +15,7 @@
 namespace zkx::mlir_utils {
 
 mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
-                                   mlir::MLIRContext* context,
-                                   bool use_montgomery) {
+                                   mlir::MLIRContext* context) {
   switch (element_type) {
     case PRED:
     case S1:
@@ -45,34 +44,39 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
       // Tokens do not have a physical representation, but the compiler needs
       // some placeholder type, so use int8_t*.
       return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
-    case BN254_SCALAR:
-      return GetMlirPrimeFieldType<math::bn254::Fr>(context, use_montgomery);
-    case BN254_G1_AFFINE:
-      return GetMlirAffinePointType<math::bn254::G1AffinePoint>(context,
-                                                                use_montgomery);
-    case BN254_G1_JACOBIAN:
-      return GetMlirJacobianPointType<math::bn254::G1JacobianPoint>(
-          context, use_montgomery);
-    case BN254_G1_XYZZ:
-      return GetMlirPointXyzzType<math::bn254::G1PointXyzz>(context,
-                                                            use_montgomery);
-    case BN254_G2_AFFINE:
-      return GetMlirAffinePointType<math::bn254::G2AffinePoint>(context,
-                                                                use_montgomery);
-    case BN254_G2_JACOBIAN:
-      return GetMlirJacobianPointType<math::bn254::G2JacobianPoint>(
-          context, use_montgomery);
-    case BN254_G2_XYZZ:
-      return GetMlirPointXyzzType<math::bn254::G2PointXyzz>(context,
-                                                            use_montgomery);
+#define MONTABLE_PRIME_FIELD_CASE(enum, cpp_type, type)  \
+  case enum:                                             \
+    return GetMlir##type##Type<cpp_type>(context, true); \
+  case enum##_STD:                                       \
+    return GetMlir##type##Type<cpp_type##Std>(context, false);
+      MONTABLE_PRIME_FIELD_CASE(BN254_SCALAR, math::bn254::Fr, PrimeField)
+#undef MONTABLE_PRIME_FIELD_CASE
+
+#define MONTABLE_NON_PRIME_FIELD_CASE(enum, cpp_type, type) \
+  case enum:                                                \
+    return GetMlir##type##Type<cpp_type>(context);          \
+  case enum##_STD:                                          \
+    return GetMlir##type##Type<cpp_type##Std>(context);
+      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint,
+                                    AffinePoint)
+      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G1_JACOBIAN,
+                                    math::bn254::G1JacobianPoint, JacobianPoint)
+      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz,
+                                    PointXyzz)
+      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint,
+                                    AffinePoint)
+      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G2_JACOBIAN,
+                                    math::bn254::G2JacobianPoint, JacobianPoint)
+      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz,
+                                    PointXyzz)
+#undef MONTABLE_NON_PRIME_FIELD_CASE
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }
 }
 
 mlir::Type PrimitiveTypeToMlirTypeWithSign(PrimitiveType element_type,
-                                           mlir::MLIRContext* context,
-                                           bool use_montgomery) {
+                                           mlir::MLIRContext* context) {
   if (element_type == PRED) {
     return mlir::IntegerType::get(context, 1);
   } else if (primitive_util::IsIntegralType(element_type)) {
@@ -86,7 +90,7 @@ mlir::Type PrimitiveTypeToMlirTypeWithSign(PrimitiveType element_type,
   }
   // Delegate to the other function for non-integer and signed integer
   // types.
-  return PrimitiveTypeToMlirType(element_type, context, use_montgomery);
+  return PrimitiveTypeToMlirType(element_type, context);
 }
 
 mlir::MemRefType ShapeToMlirMemRefType(const Shape& shape,
@@ -95,9 +99,8 @@ mlir::MemRefType ShapeToMlirMemRefType(const Shape& shape,
   CHECK(shape.is_static())
       << "ShapeToMlirMemRefType only supports static shapes.";
   const Layout& layout = shape.layout();
-  mlir::Type element_type = PrimitiveTypeToMlirType(
-      shape.element_type(), context,
-      layout.has_is_montgomery_form() && layout.is_montgomery_form());
+  mlir::Type element_type =
+      PrimitiveTypeToMlirType(shape.element_type(), context);
   // TODO(chokobole): Take `major_to_minor` into account.
   auto dimensions_span = shape.dimensions();
   llvm::ArrayRef<int64_t> dimensions(dimensions_span.data(),
@@ -137,9 +140,8 @@ mlir::RankedTensorType ShapeToMlirTensorType(const Shape& shape,
                                              mlir::MLIRContext* context) {
   CHECK(shape.IsArray());
   const Layout& layout = shape.layout();
-  mlir::Type element_type = PrimitiveTypeToMlirType(
-      shape.element_type(), context,
-      layout.has_is_montgomery_form() && layout.is_montgomery_form());
+  mlir::Type element_type =
+      PrimitiveTypeToMlirType(shape.element_type(), context);
 
   auto dimensions_span = shape.dimensions();
   llvm::ArrayRef<int64_t> dimensions(dimensions_span.data(),

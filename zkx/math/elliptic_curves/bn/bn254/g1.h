@@ -10,21 +10,43 @@
 
 namespace zkx::math::bn254 {
 
-class G1SwCurveConfig {
+template <typename BaseField>
+class G1SwCurveBaseConfig {
  public:
+  constexpr static BaseField kA = 0;
+  constexpr static BaseField kB = 3;
+  constexpr static BaseField kX = 1;
+  constexpr static BaseField kY = 2;
+};
+
+class G1SwCurveStdConfig : public G1SwCurveBaseConfig<FqStd> {
+ public:
+  constexpr static bool kUseMontgomery = false;
+
+  using StdConfig = G1SwCurveStdConfig;
+
+  using BaseField = FqStd;
+  using ScalarField = FrStd;
+};
+
+class G1SwCurveConfig : public G1SwCurveBaseConfig<Fq> {
+ public:
+  constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = G1SwCurveStdConfig;
+
   using BaseField = Fq;
   using ScalarField = Fr;
-
-  constexpr static Fq kA = 0;
-  constexpr static Fq kB = 3;
-  constexpr static Fq kX = 1;
-  constexpr static Fq kY = 2;
 };
 
 using G1Curve = SwCurve<G1SwCurveConfig>;
+using G1CurveStd = SwCurve<G1SwCurveStdConfig>;
 using G1AffinePoint = zkx::math::AffinePoint<G1Curve>;
+using G1AffinePointStd = zkx::math::AffinePoint<G1CurveStd>;
 using G1JacobianPoint = zkx::math::JacobianPoint<G1Curve>;
+using G1JacobianPointStd = zkx::math::JacobianPoint<G1CurveStd>;
 using G1PointXyzz = zkx::math::PointXyzz<G1Curve>;
+using G1PointXyzzStd = zkx::math::PointXyzz<G1CurveStd>;
 
 }  // namespace zkx::math::bn254
 

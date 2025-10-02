@@ -8,16 +8,35 @@
 
 namespace zkx::math::bn254 {
 
-class Fq2Config {
+template <typename BaseField>
+class Fq2BaseConfig {
  public:
-  using BaseField = Fq;
-  using BasePrimeField = Fq;
-
   constexpr static uint32_t kDegreeOverBaseField = 2;
   constexpr static BaseField kNonResidue = -1;
 };
 
+class Fq2StdConfig : public Fq2BaseConfig<FqStd> {
+ public:
+  constexpr static bool kUseMontgomery = false;
+
+  using StdConfig = Fq2StdConfig;
+
+  using BaseField = FqStd;
+  using BasePrimeField = FqStd;
+};
+
+class Fq2Config : public Fq2BaseConfig<Fq> {
+ public:
+  constexpr static bool kUseMontgomery = true;
+
+  using StdConfig = Fq2StdConfig;
+
+  using BaseField = Fq;
+  using BasePrimeField = Fq;
+};
+
 using Fq2 = ExtensionField<Fq2Config>;
+using Fq2Std = ExtensionField<Fq2StdConfig>;
 
 }  // namespace zkx::math::bn254
 
