@@ -254,6 +254,37 @@ class GroupR2TensorBinaryTest : public CpuKernelEmitterTest {
   std::vector<std::vector<JacobianPoint>> expected_;
 };
 
+template <typename AffinePoint>
+class GroupTest : public CpuKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CpuKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<AffinePoint>());
+  }
+
+ protected:
+  void SetUpSlice() {
+    constexpr static int64_t N = 6;
+    constexpr static int64_t S = 2;
+    constexpr static int64_t E = 5;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+
+        ROOT %ret = $0[$2] slice(%x), slice={[$3:$4]}
+      }
+    )",
+                                 x_typename_, N, E - S, S, E);
+
+    auto x = base::CreateVector(N, []() { return AffinePoint::Random(); });
+    literals_.push_back(LiteralUtil::CreateR1<AffinePoint>(x));
+    expected_literal_ = LiteralUtil::CreateR1<AffinePoint>(
+        base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
+  }
+};
+
 }  // namespace zkx::cpu
 
 #endif  // ZKX_BACKENDS_CPU_CODEGEN_GROUP_TEST_H_
