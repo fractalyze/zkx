@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "absl/log/check.h"
+#include "absl/strings/substitute.h"
 
 #include "xla/tsl/platform/status.h"
 #include "zkx/array2d.h"

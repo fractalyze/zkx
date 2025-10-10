@@ -3,6 +3,8 @@
 
 #include <string_view>
 
+#include "absl/strings/substitute.h"
+
 #include "zkx/array2d.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/base/containers/container_util.h"
