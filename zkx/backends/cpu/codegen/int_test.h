@@ -82,7 +82,15 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
       }
     )",
                                  x_typename_);
-    while (y_ == 0) {
+
+    // Re-sample divisor `y_` until it is safe to divide:
+    //  - Disallow zero to avoid division-by-zero.
+    //  - For signed T, also disallow the INT_MIN / -1 pattern:
+    //      If x_ == std::numeric_limits<T>::min() and y_ == -1,
+    //      then x_ / y_ triggers undefined behavior on two's-complement
+    //      because -min(T) is not representable.
+    while (y_ == 0 || (std::is_signed_v<T> && y_ == -1 &&
+                       x_ == std::numeric_limits<T>::min())) {
       y_ = absl::bit_cast<T>(base::Uniform<UnsignedT>());
       literals_[1] = LiteralUtil::CreateR0<T>(y_);
     }
