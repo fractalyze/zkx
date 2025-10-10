@@ -192,9 +192,9 @@ struct MatchOption {
 
 template <typename Value, typename Pattern>
 bool Match(Value* value, const Pattern& pattern,
-           MatchOption option = {/*.capture=*/true,
-                                 /*.single_user_only=*/false,
-                                 /*.explain_os=*/nullptr}) {
+           MatchOption option = {.capture = true,
+                                 .single_user_only = false,
+                                 .explain_os = nullptr}) {
   if (option.capture) {
     auto new_option = option;
     new_option.capture = false;
@@ -228,8 +228,8 @@ bool Match(Value* value, const Pattern& pattern,
 // Match(add, m::Add(m::Op().WithOneUser(), m::Op().WithOneUser()) -> false.
 template <typename Value, typename Pattern>
 bool MatchSingleUserOnly(Value* value, const Pattern& pattern) {
-  MatchOption option = {/*.capture=*/true, /*.single_user_only=*/true,
-                        /*.explain_os=*/nullptr};
+  MatchOption option = {
+      .capture = true, .single_user_only = true, .explain_os = nullptr};
   return Match(value, pattern, option);
 }
 
@@ -259,9 +259,9 @@ bool MatchAndLogIfFailed(HloInstruction* instr, std::string_view desc,
     return matched;
   }
   std::stringstream os;
-  CHECK(!Match(
-      instr, pattern,
-      {/*capture=*/false, /*.single_user_only=*/false, /*explain_os=*/&os}));
+  CHECK(
+      !Match(instr, pattern,
+             {.capture = false, .single_user_only = false, .explain_os = &os}));
   LOG(ERROR) << "Failed to match " << desc << ":\n" << os.str();
   return false;
 }
