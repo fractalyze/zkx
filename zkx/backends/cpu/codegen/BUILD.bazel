@@ -153,6 +153,7 @@ zkx_cc_library(
         "//zkx/math/base:sparse_matrix",
         "//zkx/math/poly:root_of_unity",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -166,6 +167,7 @@ zkx_cc_library(
         "//zkx:literal_util",
         "//zkx:primitive_util",
         "//zkx/base/containers:container_util",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -181,6 +183,7 @@ zkx_cc_library(
         "//zkx/base:random",
         "//zkx/base/containers:container_util",
         "@com_google_absl//absl/base",
+        "@com_google_absl//absl/strings",
     ],
 )
 
