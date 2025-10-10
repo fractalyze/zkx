@@ -106,7 +106,7 @@ ShapedBuffer AsShapedBuffer(
   return shaped_buffer;
 }
 
-}  //  namespace
+}  // namespace
 
 AbstractTfrtCpuBuffer::AbstractTfrtCpuBuffer(
     Shape on_device_shape,
