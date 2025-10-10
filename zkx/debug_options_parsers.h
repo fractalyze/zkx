@@ -25,13 +25,13 @@ namespace zkx {
 
 template <typename T>
 void parse_zkx_backend_extra_options(T* extra_options_map,
-                                     std::string comma_separated_values) {
-  std::vector<std::string> extra_options_parts =
+                                     std::string_view comma_separated_values) {
+  std::vector<std::string_view> extra_options_parts =
       absl::StrSplit(comma_separated_values, ',');
 
   // The flag contains a comma-separated list of options; some options
   // have arguments following "=", some don't.
-  for (const auto& part : extra_options_parts) {
+  for (std::string_view part : extra_options_parts) {
     size_t eq_pos = part.find_first_of('=');
     if (eq_pos == std::string::npos) {
       (*extra_options_map)[part] = "";

@@ -159,7 +159,7 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
 
   auto make_repeated_string_setter =
       [debug_options](void (DebugOptions::*adder)(std::string_view)) {
-        return [debug_options, adder](std::string comma_separated_values) {
+        return [debug_options, adder](std::string_view comma_separated_values) {
           for (const std::string_view passname :
                absl::StrSplit(comma_separated_values, ',')) {
             (debug_options->*adder)(passname);
@@ -191,7 +191,7 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
 
   // Custom "sub-parser" lambda for zkx_backend_extra_options.
   auto setter_for_zkx_backend_extra_options =
-      [debug_options](std::string comma_separated_values) {
+      [debug_options](std::string_view comma_separated_values) {
         auto* extra_options_map =
             debug_options->mutable_zkx_backend_extra_options();
         parse_zkx_backend_extra_options(extra_options_map,
