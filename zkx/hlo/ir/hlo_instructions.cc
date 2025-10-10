@@ -2302,4 +2302,4 @@ std::unique_ptr<HloInstruction> HloDotInstruction::CloneWithNewOperandsImpl(
       sparsity_, new_operands.subspan(kOperands));
 }
 
-}  //  namespace zkx
+}  // namespace zkx
