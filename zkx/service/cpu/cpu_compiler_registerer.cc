@@ -19,11 +19,15 @@ limitations under the License.
 #include "zkx/service/cpu/cpu_compiler.h"
 #include "zkx/stream_executor/host/host_platform_id.h"
 
-static bool InitModule() {
+namespace {
+
+bool InitModule() {
   zkx::Compiler::RegisterCompilerFactory(
       stream_executor::host::kHostPlatformId,
       []() { return std::make_unique<zkx::cpu::CpuCompiler>(); });
   return true;
 }
 
-static bool g_module_initialized = InitModule();
+bool g_module_initialized = InitModule();
+
+}  // namespace
