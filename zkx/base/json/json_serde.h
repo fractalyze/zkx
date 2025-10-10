@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "absl/numeric/bits.h"
+#include "absl/base/casts.h"
 #include "absl/strings/substitute.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"

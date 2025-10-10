@@ -17,6 +17,7 @@ limitations under the License.
 
 #define EIGEN_USE_THREADS
 
+#include "absl/base/casts.h"
 #include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "unsupported/Eigen/CXX11/Tensor"

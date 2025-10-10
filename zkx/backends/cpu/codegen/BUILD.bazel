@@ -93,7 +93,9 @@ zkx_cc_library(
         "@llvm-project//mlir:SparseTensorTransforms",
         "@llvm-project//mlir:Transforms",
         "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField",
+        "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",
         "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@zkir//zkir/Dialect/Field/Conversions/ExtFieldToLLVM",
         "@zkir//zkir/Dialect/Field/Conversions/FieldToModArith",
         "@zkir//zkir/Dialect/Field/IR:Field",
         "@zkir//zkir/Dialect/ModArith/Conversions/ModArithToArith",
@@ -105,6 +107,27 @@ zkx_cc_library(
         "@llvm-project//mlir:OpenMPToLLVMIRTranslation",
         "@llvm-project//mlir:SCFToOpenMP",
     ]),
+)
+
+zkx_cc_library(
+    name = "cpu_kernel_emitter_test",
+    testonly = True,
+    srcs = ["cpu_kernel_emitter_test.cc"],
+    hdrs = ["cpu_kernel_emitter_test.h"],
+    deps = [
+        ":cpu_kernel_emitter",
+        "//xla/tsl/platform:status_matchers",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/service:hlo_runner",
+        "//zkx/service:platform_util",
+        "//zkx/service/cpu:cpu_compiler_registerer",
+        "//zkx/service/cpu:cpu_transfer_manager",
+        "//zkx/stream_executor/host:host_platform",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
+    ],
 )
 
 zkx_cc_library(
@@ -121,6 +144,52 @@ zkx_cc_library(
         "@llvm-project//llvm:Core",
         "@llvm-project//llvm:ExecutionEngine",
         "@llvm-project//llvm:OrcJIT",
+    ],
+)
+
+zkx_cc_library(
+    name = "field_test",
+    testonly = True,
+    hdrs = ["field_test.h"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:status",
+        "//zkx:array2d",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base/containers:container_util",
+        "//zkx/math/base:batch_inverse",
+        "//zkx/math/base:sparse_matrix",
+        "//zkx/math/poly:root_of_unity",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
+zkx_cc_library(
+    name = "group_test",
+    testonly = True,
+    hdrs = ["group_test.h"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//zkx:array2d",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base/containers:container_util",
+    ],
+)
+
+zkx_cc_library(
+    name = "int_test",
+    testonly = True,
+    hdrs = ["int_test.h"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//zkx:array2d",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base:random",
+        "//zkx/base/containers:container_util",
+        "@com_google_absl//absl/base",
     ],
 )
 
@@ -199,6 +268,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "msm_test",
+    testonly = True,
+    hdrs = ["msm_test.h"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//xla/tsl/platform:cpu_info",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base/containers:container_util",
+    ],
+)
+
+zkx_cc_library(
     name = "object_loader",
     srcs = ["object_loader.cc"],
     hdrs = ["object_loader.h"],
@@ -233,26 +315,6 @@ zkx_cc_library(
     ],
 )
 
-zkx_cc_library(
-    name = "cpu_kernel_emitter_test",
-    testonly = True,
-    srcs = ["cpu_kernel_emitter_test.cc"],
-    hdrs = ["cpu_kernel_emitter_test.h"],
-    deps = [
-        ":cpu_kernel_emitter",
-        "//xla/tsl/platform:statusor",
-        "//zkx:literal",
-        "//zkx/hlo/parser:hlo_parser",
-        "//zkx/service:hlo_runner",
-        "//zkx/service:platform_util",
-        "//zkx/service/cpu:cpu_compiler_registerer",
-        "//zkx/service/cpu:cpu_transfer_manager",
-        "//zkx/stream_executor/host:host_platform",
-        "@com_google_absl//absl/types:span",
-        "@com_google_googletest//:gtest",
-    ],
-)
-
 zkx_cc_unittest(
     name = "codegen_unittests",
     srcs = [
@@ -274,62 +336,41 @@ zkx_cc_unittest(
 )
 
 zkx_cc_unittest(
-    name = "cpu_kernel_emitter_bn254_sf_unittest",
-    srcs = ["cpu_kernel_emitter_bn254_sf_unittest.cc"],
-    deps = [
-        ":cpu_kernel_emitter_test",
-        "//xla/tsl/platform:status",
-        "//xla/tsl/platform:status_matchers",
-        "//zkx:literal_util",
-        "//zkx/math/base:sparse_matrix",
-        "//zkx/math/poly:root_of_unity",
-    ],
+    name = "cpu_kernel_emitter_field_unittest",
+    srcs = ["cpu_kernel_emitter_field_unittest.cc"],
+    deps = [":field_test"],
 )
 
 zkx_cc_unittest(
-    name = "cpu_kernel_emitter_bn254_g1_unittest",
+    name = "cpu_kernel_emitter_g1_unittest",
     timeout = "moderate",
-    srcs = ["cpu_kernel_emitter_bn254_g1_unittest.cc"],
-    deps = [
-        ":cpu_kernel_emitter_test",
-        "//xla/tsl/platform:status",
-        "//zkx:literal_util",
-    ],
+    srcs = ["cpu_kernel_emitter_g1_unittest.cc"],
+    deps = [":group_test"],
 )
 
 zkx_cc_unittest(
-    name = "cpu_kernel_emitter_bn254_g1_msm_unittest",
+    name = "cpu_kernel_emitter_g2_unittest",
     timeout = "moderate",
-    srcs = ["cpu_kernel_emitter_bn254_g1_msm_unittest.cc"],
-    deps = [
-        ":cpu_kernel_emitter_test",
-        "//xla/tsl/platform:cpu_info",
-        "//xla/tsl/platform:status",
-        "//zkx:literal_util",
-        "//zkx/base/containers:container_util",
-    ],
+    srcs = ["cpu_kernel_emitter_g2_unittest.cc"],
+    deps = [":group_test"],
 )
 
 zkx_cc_unittest(
-    name = "cpu_kernel_emitter_bn254_g2_unittest",
+    name = "cpu_kernel_emitter_g1_msm_unittest",
     timeout = "moderate",
-    srcs = ["cpu_kernel_emitter_bn254_g2_unittest.cc"],
-    deps = [
-        ":cpu_kernel_emitter_test",
-        "//xla/tsl/platform:status",
-        "//zkx:literal_util",
-    ],
+    srcs = ["cpu_kernel_emitter_g1_msm_unittest.cc"],
+    deps = [":msm_test"],
 )
 
 zkx_cc_unittest(
-    name = "cpu_kernel_emitter_bn254_g2_msm_unittest",
+    name = "cpu_kernel_emitter_g2_msm_unittest",
     timeout = "long",
-    srcs = ["cpu_kernel_emitter_bn254_g2_msm_unittest.cc"],
-    deps = [
-        ":cpu_kernel_emitter_test",
-        "//xla/tsl/platform:cpu_info",
-        "//xla/tsl/platform:status",
-        "//zkx:literal_util",
-        "//zkx/base/containers:container_util",
-    ],
+    srcs = ["cpu_kernel_emitter_g2_msm_unittest.cc"],
+    deps = [":msm_test"],
+)
+
+zkx_cc_unittest(
+    name = "cpu_kernel_emitter_int_unittest",
+    srcs = ["cpu_kernel_emitter_int_unittest.cc"],
+    deps = [":int_test"],
 )

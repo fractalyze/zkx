@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/pjrt/pjrt_client.h"
 
+#include "absl/base/casts.h"
 #include "absl/strings/substitute.h"
 
 namespace zkx {

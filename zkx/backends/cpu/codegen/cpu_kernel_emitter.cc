@@ -61,8 +61,10 @@ limitations under the License.
 #include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
+#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
+#include "zkir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
 #include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
 #include "zkir/Dialect/Field/IR/FieldDialect.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
@@ -189,26 +191,34 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
         mlir::SparseParallelizationStrategy::kDenseOuterLoop));
   }
 
+  auto maybe_add_elementwise_to_linalg =
+      [](mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) -> void {
+    if (flag.enable_elementwise_to_linalg) {
+      VLOG(2) << "add pass: -convert-elementwise-to-linalg "
+                 "-linalg-fuse-elementwise-ops";
+      flag.enable_linalg_to_parallel_loops = true;
+      pm.addNestedPass<mlir::func::FuncOp>(
+          mlir::createConvertElementwiseToLinalgPass());
+      pm.addNestedPass<mlir::func::FuncOp>(
+          mlir::createLinalgElementwiseOpFusionPass());
+    }
+  };
+
   if (flag.enable_poly_to_field) {
     VLOG(2) << "add pass: -poly-to-field";
     flag.enable_field_to_arith = true;
     pm.addPass(mlir::zkir::poly::createPolyToField());
   }
+
+  maybe_add_elementwise_to_linalg(pm, flag);
+
   if (flag.enable_elliptic_curve_to_field) {
     VLOG(2) << "add pass: -elliptic-curve-to-field";
     flag.enable_field_to_arith = true;
     pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
   }
 
-  if (flag.enable_elementwise_to_linalg) {
-    VLOG(2) << "add pass: -convert-elementwise-to-linalg "
-               "-linalg-fuse-elementwise-ops";
-    flag.enable_linalg_to_parallel_loops = true;
-    pm.addNestedPass<mlir::func::FuncOp>(
-        mlir::createConvertElementwiseToLinalgPass());
-    pm.addNestedPass<mlir::func::FuncOp>(
-        mlir::createLinalgElementwiseOpFusionPass());
-  }
+  maybe_add_elementwise_to_linalg(pm, flag);
 
   if (flag.enable_field_to_arith) {
     VLOG(2) << "add pass: -field-to-mod-arith -mod-arith-to-arith";
@@ -279,6 +289,14 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     VLOG(2) << "add pass: -convert-scf-to-cf";
     pm.addPass(mlir::createSCFToControlFlowPass());
   }
+  if (flag.enable_elliptic_curve_to_llvm) {
+    VLOG(2) << "add pass: -convert-ec-to-llvm";
+    pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToLLVM());
+  }
+  if (flag.enable_ext_field_to_llvm) {
+    VLOG(2) << "add pass: -convert-ext-field-to-llvm";
+    pm.addPass(mlir::zkir::field::createExtFieldToLLVM());
+  }
   pm.addPass(mlir::createConvertToLLVMPass());
   pm.addPass(mlir::createCanonicalizerPass());
 }
@@ -316,6 +334,13 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
     mlir::sparse_tensor::registerBufferizableOpInterfaceExternalModels(
         registry);
     mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
+  }
+  if (pass_flag.enable_elliptic_curve_to_llvm) {
+    mlir::zkir::elliptic_curve::registerConvertEllipticCurveToLLVMInterface(
+        registry);
+  }
+  if (pass_flag.enable_ext_field_to_llvm) {
+    mlir::zkir::field::registerConvertExtFieldToLLVMInterface(registry);
   }
   module->getContext()->appendDialectRegistry(registry);
 
@@ -813,8 +838,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
   const Shape& shape = instr->shape();
-  mlir::Type ret_type =
-      mlir_utils::PrimitiveTypeToMlirType(shape.element_type(), b.getContext());
+  mlir::Type ret_type;
+  if (ShapeUtil::IsScalar(shape)) {
+    ret_type = mlir_utils::PrimitiveTypeToMlirType(shape.element_type(),
+                                                   b.getContext());
+  } else {
+    ret_type = mlir_utils::ShapeToMlirTensorType(shape, b.getContext());
+  }
+
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
@@ -891,15 +922,16 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
       mlir::ValueRange{});
   switch (instr->fft_type()) {
     case FftType::FFT: {
-      return b.create<mlir::zkir::poly::NTTOp>(value, alloc_tensor,
-                                               twiddle_factor, root_attr,
-                                               instr->fft_do_bit_reverse());
+      return b.create<mlir::zkir::poly::NTTOp>(
+          value, alloc_tensor, twiddle_factor, root_attr,
+          /*tileX=*/nullptr, /*gridSizeX=*/nullptr,
+          instr->fft_do_bit_reverse());
     }
     case FftType::IFFT: {
-      return b.create<mlir::zkir::poly::NTTOp>(value, alloc_tensor,
-                                               twiddle_factor, root_attr,
-                                               instr->fft_do_bit_reverse(),
-                                               /*inverse=*/true);
+      return b.create<mlir::zkir::poly::NTTOp>(
+          value, alloc_tensor, twiddle_factor, root_attr,
+          /*tileX=*/nullptr, /*gridSizeX=*/nullptr, instr->fft_do_bit_reverse(),
+          /*inverse=*/true);
     }
 
     default:
@@ -1236,7 +1268,16 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return;
     } else if (primitive_util::IsEcPointType(element_type)) {
       pass_flag_.enable_elliptic_curve_to_field = true;
-      return;
+      pass_flag_.enable_elliptic_curve_to_llvm = true;
+      switch (element_type) {
+        case BN254_G2_AFFINE:
+        case BN254_G2_JACOBIAN:
+        case BN254_G2_XYZZ:
+          pass_flag_.enable_ext_field_to_llvm = true;
+          break;
+        default:
+          break;
+      }
     }
   };
 

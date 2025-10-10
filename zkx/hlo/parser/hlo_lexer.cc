@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/hlo/parser/hlo_lexer.h"
 
+#include "absl/base/casts.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
