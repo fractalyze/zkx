@@ -1,6 +1,7 @@
 #ifndef ZKX_MLIR_MLIR_UTILS_H_
 #define ZKX_MLIR_MLIR_UTILS_H_
 
+#include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
@@ -188,7 +189,7 @@ mlir::MemRefType ShapeToMlirMemRefType(const Shape& shape,
 mlir::RankedTensorType ShapeToMlirTensorType(const Shape& shape,
                                              mlir::MLIRContext* context);
 
-std::vector<mlir::Type> ShapeToMlirTensorTypes(const Shape& shape,
+llvm::SmallVector<mlir::Type> ShapeToMlirTypes(const Shape& shape,
                                                mlir::MLIRContext* context);
 
 template <typename T>
