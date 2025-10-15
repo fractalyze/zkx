@@ -1,0 +1,14 @@
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "compiler_trace_proto",
+    srcs = ["compiler_trace.proto"],
+)
+
+cc_proto_library(
+    name = "compiler_trace_cc_proto",
+    deps = [":compiler_trace_proto"],
+)

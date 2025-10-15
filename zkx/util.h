@@ -228,6 +228,15 @@ std::vector<T> SpanToVector(absl::Span<const T> slice) {
   return std::vector<T>(slice.begin(), slice.end());
 }
 
+// Returns true if `x` fits in 32-bits.
+template <typename T>
+bool IsInt32(T x) {
+  // Following conversion rules: "the value is unchanged if it can be
+  // represented in the destination type (and bit-field width); otherwise, the
+  // value is implementation-defined."
+  return static_cast<int32_t>(x) == x;
+}
+
 template <typename T>
 absl::Status EraseElementFromVector(std::vector<T>* container, const T& value) {
   // absl::c_find returns a const_iterator which does not seem to work on

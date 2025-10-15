@@ -38,6 +38,19 @@ absl::StatusOr<BufferAllocation::Slice> GetAllocationSlice(
   return buffer_assignment.GetUniqueSlice(instr, index);
 }
 
+absl::StatusOr<bool> CanEmitFusedDynamicUpdateSliceInPlaceForGpu(
+    const HloFusionAdaptor& fusion_adaptor,
+    std::function<absl::StatusOr<BufferAllocation::Slice>(
+        const HloInstruction* instr, const ShapeIndex& index)>
+        get_allocation_slice,
+    const HloInstruction* fusion) {
+  // clang-format off
+  // TODO(chokobole): Implement this. Dependency: HloDynamicUpdateSliceInstruction
+  // clang-format on
+  return absl::UnimplementedError(
+      "Not implemented for CanEmitFusedDynamicUpdateSliceInPlaceForGpu");
+}
+
 std::optional<TransposeDescription> GetDescriptionForTiledTransposeEmitter(
     const HloInstruction& hero) {
   if (hero.opcode() != HloOpcode::kTranspose) {

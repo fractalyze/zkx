@@ -17,10 +17,15 @@ limitations under the License.
 
 #include <algorithm>
 #include <cctype>
+#include <utility>
 
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Triple.h"
 
 namespace zkx::llvm_ir {
 namespace {
@@ -61,6 +66,23 @@ std::string DumpToString(mlir::Value value) {
   return DumpToStringTempl(&value);
 }
 
+llvm::Instruction* AddRangeMetadata(int32_t lower, int32_t upper,
+                                    llvm::Instruction* inst,
+                                    llvm::Module* module) {
+  if (llvm::Triple(module->getTargetTriple()).isSPIR()) {
+    return inst;
+  }
+  llvm::LLVMContext& context = inst->getParent()->getContext();
+  llvm::IntegerType* i32 = llvm::Type::getInt32Ty(context);
+  inst->setMetadata(
+      llvm::LLVMContext::MD_range,
+      llvm::MDNode::get(
+          context,
+          {llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(i32, lower)),
+           llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(i32, upper))}));
+  return inst;
+}
+
 std::string IrName(std::string_view a) {
   std::string s(a);
   s.erase(std::remove(s.begin(), s.end(), '%'), s.end());
@@ -76,6 +98,12 @@ std::string IrName(std::string_view a, std::string_view b) {
 
 std::string IrName(const HloInstruction* a, std::string_view b) {
   return IrName(a->name(), b);
+}
+
+mlir::OwningOpRef<mlir::ModuleOp> CreateMlirModuleOp(
+    mlir::Location loc, std::optional<llvm::StringRef> name) {
+  return mlir::OwningOpRef<mlir::ModuleOp>(
+      mlir::ModuleOp::create(std::move(loc), std::move(name)));
 }
 
 std::string SanitizeFunctionName(std::string_view old_function_name) {

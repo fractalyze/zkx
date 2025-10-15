@@ -16,13 +16,21 @@ limitations under the License.
 #ifndef ZKX_SERVICE_LLVM_IR_LLVM_UTIL_H_
 #define ZKX_SERVICE_LLVM_IR_LLVM_UTIL_H_
 
+#include <stdint.h>
+
+#include <optional>
 #include <string>
 
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/IR/OwningOpRef.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 
@@ -62,6 +70,13 @@ std::string IrName(std::string_view a);
 std::string IrName(std::string_view a, std::string_view b);
 std::string IrName(const HloInstruction* a, std::string_view b = "");
 
+// Construct a module from the given location with an optional name.
+//
+// The underlying "create" method is unsafe, because it leaks the new module by
+// default. This function avoids this by always returning an OwningOpRef.
+mlir::OwningOpRef<mlir::ModuleOp> CreateMlirModuleOp(
+    mlir::Location loc, std::optional<llvm::StringRef> name = std::nullopt);
+
 // Removes special characters from a function name.
 //
 // Note that this can cause different inputs to map to the same output, so after
@@ -72,6 +87,11 @@ template <typename T>
 llvm::APInt ConvertBigIntToAPInt(const T& value) {
   return {T::kBitWidth, static_cast<unsigned>(T::kLimbNums), value.limbs()};
 }
+
+// Tells LLVM `inst >= lower && inst < upper`. Returns `inst` for convenience.
+llvm::Instruction* AddRangeMetadata(int32_t lower, int32_t upper,
+                                    llvm::Instruction* inst,
+                                    llvm::Module* module);
 
 }  // namespace zkx::llvm_ir
 
