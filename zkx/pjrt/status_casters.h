@@ -54,7 +54,7 @@ namespace zkx {
 
 inline void ThrowIfError(absl::Status src) {
   if (!src.ok()) {
-    throw zkx::XlaRuntimeError(src);
+    throw zkx::ZkxRuntimeError(src);
   }
 }
 
@@ -143,7 +143,7 @@ struct ThrowIfErrorWrapper<absl::Status(Args...) const, C> {
 template <typename T>
 T ValueOrThrow(absl::StatusOr<T> v) {
   if (!v.ok()) {
-    throw zkx::XlaRuntimeError(v.status());
+    throw zkx::ZkxRuntimeError(v.status());
   }
   return std::move(v).value();
 }
