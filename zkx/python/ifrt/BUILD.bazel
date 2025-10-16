@@ -30,6 +30,16 @@ cc_proto_library(
 )
 
 proto_library(
+    name = "device_proto",
+    srcs = ["device.proto"],
+)
+
+cc_proto_library(
+    name = "device_cc_proto",
+    deps = [":device_proto"],
+)
+
+proto_library(
     name = "dtype_proto",
     srcs = ["dtype.proto"],
 )
@@ -52,6 +62,19 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "device",
+    srcs = ["device.cc"],
+    hdrs = ["device.h"],
+    deps = [
+        ":attribute_map",
+        "//xla/tsl/lib/gtl:int_type",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
     ],
 )
 
