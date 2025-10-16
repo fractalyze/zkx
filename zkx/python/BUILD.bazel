@@ -49,3 +49,19 @@ cc_library(
         "@nanobind",
     ],
 )
+
+cc_library(
+    name = "nb_numpy",
+    srcs = ["nb_numpy.cc"],
+    hdrs = ["nb_numpy.h"],
+    compatible_with = [],
+    copts = ["-fexceptions"],
+    features = ["-use_header_modules"],
+    deps = [
+        "//xla/tsl/python/lib/core:numpy",
+        "@com_google_absl//absl/strings:string_view",
+        "@com_google_absl//absl/types:span",
+        "@local_config_python//:python_headers",
+        "@nanobind",
+    ],
+)
