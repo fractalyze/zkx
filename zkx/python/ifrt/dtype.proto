@@ -1,0 +1,79 @@
+/* Copyright 2024 The OpenXLA Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+syntax = "proto3";
+
+package zkx.ifrt;
+
+// Proto equivalent of C++ `DType`.
+message DTypeProto {
+  int32 version_number = 1;
+
+  // LINT.IfChange(DTypeProtoKind)
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+
+    // Predicates are two-state booleans.
+    KIND_PRED = 1;
+
+    // Signed integral values of fixed width.
+    KIND_S2 = 3;
+    KIND_S4 = 4;
+    KIND_S8 = 5;
+    KIND_S16 = 6;
+    KIND_S32 = 7;
+    KIND_S64 = 8;
+
+    // Unsigned integral values of fixed width.
+    KIND_U2 = 10;
+    KIND_U4 = 11;
+    KIND_U8 = 12;
+    KIND_U16 = 13;
+    KIND_U32 = 14;
+    KIND_U64 = 15;
+
+    // Opaque objects.
+    KIND_OPAQUE = 17;
+
+    // A token type threaded between side-effecting operations. Shapes of this
+    // dtype will have empty dimensions.
+    KIND_TOKEN = 18;
+
+    KIND_BN254_SCALAR = 19;
+    KIND_BN254_SCALAR_STD = 20;
+    KIND_BN254_G1_AFFINE = 21;
+    KIND_BN254_G1_AFFINE_STD = 22;
+    KIND_BN254_G1_JACOBIAN = 23;
+    KIND_BN254_G1_JACOBIAN_STD = 24;
+    KIND_BN254_G1_XYZZ = 25;
+    KIND_BN254_G1_XYZZ_STD = 26;
+    KIND_BN254_G2_AFFINE = 27;
+    KIND_BN254_G2_AFFINE_STD = 28;
+    KIND_BN254_G2_JACOBIAN = 29;
+    KIND_BN254_G2_JACOBIAN_STD = 30;
+    KIND_BN254_G2_XYZZ = 31;
+    KIND_BN254_G2_XYZZ_STD = 32;
+
+    // Variable-length string represented as raw bytes, as in `bytes` in Python,
+    // i.e., no encoding enforcement. String is not support in ZKX. DType.Kind
+    // needs to match zkx.PrimitiveType enum, so choose a large enum to avoid
+    // collision.
+    KIND_STRING = 99;
+
+    // Next: 33
+  }
+  // LINT.ThenChange()
+  Kind kind = 2;
+}
