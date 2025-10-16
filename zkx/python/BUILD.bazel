@@ -74,3 +74,37 @@ cc_library(
         "@nanobind",
     ],
 )
+
+cc_library(
+    name = "types",
+    srcs = ["types.cc"],
+    hdrs = ["types.h"],
+    compatible_with = [],
+    copts = [
+        "-fexceptions",
+        "-fno-strict-aliasing",
+    ],
+    features = ["-use_header_modules"],
+    deps = [
+        ":nb_numpy",
+        "//xla/tsl/platform:statusor",
+        "//xla/tsl/python/lib/core:numpy",
+        "//zkx:literal",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/pjrt:exceptions",
+        "//zkx/python/ifrt:dtype",
+        "//zkx/python/pjrt_ifrt:pjrt_dtype",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@local_config_python//:python_headers",
+        "@nanobind",
+    ],
+)
