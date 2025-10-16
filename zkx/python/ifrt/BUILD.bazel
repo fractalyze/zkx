@@ -49,6 +49,16 @@ cc_proto_library(
     deps = [":dtype_proto"],
 )
 
+proto_library(
+    name = "shape_proto",
+    srcs = ["shape.proto"],
+)
+
+cc_proto_library(
+    name = "shape_cc_proto",
+    deps = [":shape_proto"],
+)
+
 cc_library(
     name = "attribute_map",
     srcs = ["attribute_map.cc"],
@@ -139,6 +149,26 @@ cc_library(
 )
 
 cc_library(
+    name = "shape",
+    srcs = ["shape.cc"],
+    hdrs = ["shape.h"],
+    deps = [
+        ":serdes_default_version_accessor",
+        ":serdes_version",
+        ":shape_cc_proto",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_library(
     name = "user_context",
     srcs = ["user_context.cc"],
     hdrs = ["user_context.h"],
@@ -202,6 +232,7 @@ zkx_cc_unittest(
         "attribute_map_unittest.cc",
         "dtype_unittest.cc",
         "future_unittest.cc",
+        "shape_unittest.cc",
         "user_context_registry_unittest.cc",
         "user_context_status_util_unittest.cc",
         "user_context_unittest.cc",
@@ -211,6 +242,7 @@ zkx_cc_unittest(
         ":dtype",
         ":future",
         ":serdes_test_util",
+        ":shape",
         ":user_context_registry",
         ":user_context_status_util",
         ":user_context_test_util",
@@ -218,8 +250,10 @@ zkx_cc_unittest(
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/hash:hash_testing",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
