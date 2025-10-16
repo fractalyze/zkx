@@ -1,0 +1,118 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+td_library(
+    name = "hlo_ops_td_files",
+    srcs = glob(["*.td"]),
+    includes = ["."],
+    deps = [
+        "//zkx/mlir_hlo/stablehlo/dialect:base_td_files",
+        "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:SideEffectInterfacesTdFiles",
+    ],
+)
+
+gentbl_cc_library(
+    name = "hlo_ops_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-op-decls"],
+            "hlo_ops.h.inc",
+        ),
+        (
+            ["-gen-op-defs"],
+            "hlo_ops.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "hlo_ops.td",
+    deps = [":hlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "hlo_ops_attrs_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-attrdef-decls"],
+            "hlo_ops_attrs.h.inc",
+        ),
+        (
+            ["-gen-attrdef-defs"],
+            "hlo_ops_attrs.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "hlo_ops.td",
+    deps = [":hlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "hlo_ops_enums_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-enum-decls"],
+            "hlo_ops_enums.h.inc",
+        ),
+        (
+            ["-gen-enum-defs"],
+            "hlo_ops_enums.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "hlo_ops.td",
+    deps = [":hlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "hlo_ops_pattern_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-rewriters"],
+            "hlo_patterns.cc.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "hlo_patterns.td",
+    deps = [":hlo_ops_td_files"],
+)
+
+zkx_cc_library(
+    name = "mlir_hlo",
+    srcs = [
+        "hlo_ops.cc",
+        "hlo_ops.cc.inc",
+        "hlo_ops.h.inc",
+        "hlo_ops_attrs.cc.inc",
+        "hlo_ops_attrs.h.inc",
+        "hlo_ops_enums.cc.inc",
+        "hlo_ops_enums.h.inc",
+    ],
+    hdrs = ["hlo_ops.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":hlo_ops_attrs_inc_gen",
+        ":hlo_ops_enums_inc_gen",
+        ":hlo_ops_inc_gen",
+        ":hlo_ops_pattern_inc_gen",
+        "//zkx/mlir_hlo/stablehlo/dialect:assembly_format",
+        "//zkx/mlir_hlo/stablehlo/dialect:base",
+        "//zkx/mlir_hlo/stablehlo/dialect:type_inference",
+        "//zkx/mlir_hlo/utils:convert_op_folder",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:BytecodeOpInterface",
+        "@llvm-project//mlir:Dialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:InliningUtils",
+        "@llvm-project//mlir:SideEffectInterfaces",
+        "@llvm-project//mlir:Support",
+    ],
+)

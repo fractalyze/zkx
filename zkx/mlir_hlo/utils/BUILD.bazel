@@ -1,0 +1,13 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "convert_op_folder",
+    srcs = ["convert_op_folder.cc"],
+    hdrs = ["convert_op_folder.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+    ],
+)

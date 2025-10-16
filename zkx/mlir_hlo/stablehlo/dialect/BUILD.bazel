@@ -1,0 +1,86 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "assembly_format",
+    srcs = ["AssemblyFormat.cpp"],
+    hdrs = ["AssemblyFormat.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":base",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
+    name = "base",
+    srcs = ["Base.cpp"],
+    hdrs = ["Base.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":base_attr_interfaces_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:ShapeDialect",
+    ],
+)
+
+gentbl_cc_library(
+    name = "base_attr_interfaces_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-attr-interface-decls"],
+            "BaseAttrInterfaces.h.inc",
+        ),
+        (
+            ["-gen-attr-interface-defs"],
+            "BaseAttrInterfaces.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "Base.td",
+    deps = [":ops_td_files"],
+)
+
+td_library(
+    name = "base_td_files",
+    srcs = ["Base.td"],
+    includes = ["."],
+    deps = [
+        "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+    ],
+)
+
+td_library(
+    name = "ops_td_files",
+    srcs = ["StablehloAttrs.td"],
+    includes = ["."],
+    deps = [
+        ":base_td_files",
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:ShapeOpsTdFiles",
+    ],
+)
+
+zkx_cc_library(
+    name = "type_inference",
+    srcs = ["TypeInference.cpp"],
+    hdrs = ["TypeInference.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":assembly_format",
+        ":base",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Support",
+    ],
+)
