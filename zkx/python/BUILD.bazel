@@ -1,0 +1,51 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "nb_absl_inlined_vector",
+    hdrs = ["nb_absl_inlined_vector.h"],
+    compatible_with = [],
+    copts = ["-fexceptions"],
+    features = ["-use_header_modules"],
+    deps = [
+        "@com_google_absl//absl/container:inlined_vector",
+        "@nanobind",
+    ],
+)
+
+cc_library(
+    name = "nb_absl_span",
+    hdrs = ["nb_absl_span.h"],
+    compatible_with = [],
+    copts = ["-fexceptions"],
+    features = ["-use_header_modules"],
+    deps = [
+        "@com_google_absl//absl/types:span",
+        "@nanobind",
+    ],
+)
+
+cc_library(
+    name = "nb_absl_flat_hash_map",
+    hdrs = ["nb_absl_flat_hash_map.h"],
+    compatible_with = [],
+    copts = ["-fexceptions"],
+    features = ["-use_header_modules"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@nanobind",
+    ],
+)
+
+cc_library(
+    name = "nb_absl_flat_hash_set",
+    hdrs = ["nb_absl_flat_hash_set.h"],
+    compatible_with = [],
+    copts = ["-fexceptions"],
+    features = ["-use_header_modules"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@nanobind",
+    ],
+)
