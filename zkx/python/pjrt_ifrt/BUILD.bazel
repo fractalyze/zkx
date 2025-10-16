@@ -1,0 +1,15 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "pjrt_dtype",
+    srcs = ["pjrt_dtype.cc"],
+    hdrs = ["pjrt_dtype.h"],
+    deps = [
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/python/ifrt:dtype",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
