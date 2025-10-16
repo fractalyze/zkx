@@ -7,7 +7,9 @@ load("@zkx//third_party/gloo:workspace.bzl", gloo = "repo")
 load("@zkx//third_party/gpus/cuda/hermetic:cuda_json_init_repository.bzl", "cuda_json_init_repository")
 load("@zkx//third_party/implib_so:workspace.bzl", implib_so = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
+load("@zkx//third_party/nanobind:workspace.bzl", nanobind = "repo")
 load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
+load("@zkx//third_party/robin_map:workspace.bzl", robin_map = "repo")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 
 def zkx_deps():
@@ -19,6 +21,8 @@ def zkx_deps():
     farmhash()
     gloo()
     implib_so()
+    nanobind()
+    robin_map()
     uv()
 
     # Load the raw llvm-project.  llvm does not have build rules set up by default,
