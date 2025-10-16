@@ -5,6 +5,16 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 proto_library(
+    name = "attribute_map_proto",
+    srcs = ["attribute_map.proto"],
+)
+
+cc_proto_library(
+    name = "attribute_map_cc_proto",
+    deps = [":attribute_map_proto"],
+)
+
+proto_library(
     name = "dtype_proto",
     srcs = ["dtype.proto"],
 )
@@ -12,6 +22,22 @@ proto_library(
 cc_proto_library(
     name = "dtype_cc_proto",
     deps = [":dtype_proto"],
+)
+
+cc_library(
+    name = "attribute_map",
+    srcs = ["attribute_map.cc"],
+    hdrs = ["attribute_map.h"],
+    deps = [
+        ":attribute_map_cc_proto",
+        ":serdes_default_version_accessor",
+        ":serdes_version",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
 )
 
 cc_library(
@@ -129,12 +155,14 @@ cc_library(
 zkx_cc_unittest(
     name = "ifrt_unittests",
     srcs = [
+        "attribute_map_unittest.cc",
         "dtype_unittest.cc",
         "user_context_registry_unittest.cc",
         "user_context_status_util_unittest.cc",
         "user_context_unittest.cc",
     ],
     deps = [
+        ":attribute_map",
         ":dtype",
         ":serdes_test_util",
         ":user_context_registry",
@@ -146,6 +174,7 @@ zkx_cc_unittest(
         "//xla/tsl/platform:statusor",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
     ],
