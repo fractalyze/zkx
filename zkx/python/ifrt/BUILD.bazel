@@ -169,6 +169,22 @@ cc_library(
 )
 
 cc_library(
+    name = "topology",
+    srcs = ["topology.cc"],
+    hdrs = ["topology.h"],
+    deps = [
+        ":attribute_map",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/pjrt:pjrt_compiler",
+        "//zkx/pjrt:pjrt_device_description",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "tuple",
     srcs = ["tuple.cc"],
     hdrs = ["tuple.h"],
