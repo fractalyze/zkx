@@ -69,6 +69,12 @@ cc_library(
 )
 
 cc_library(
+    name = "future",
+    hdrs = ["future.h"],
+    deps = ["//zkx/pjrt:pjrt_future"],
+)
+
+cc_library(
     name = "serdes_any_version_accessor",
     hdrs = ["serdes_any_version_accessor.h"],
     deps = [":serdes_version"],
@@ -172,6 +178,7 @@ zkx_cc_unittest(
     srcs = [
         "attribute_map_unittest.cc",
         "dtype_unittest.cc",
+        "future_unittest.cc",
         "user_context_registry_unittest.cc",
         "user_context_status_util_unittest.cc",
         "user_context_unittest.cc",
@@ -179,6 +186,7 @@ zkx_cc_unittest(
     deps = [
         ":attribute_map",
         ":dtype",
+        ":future",
         ":serdes_test_util",
         ":user_context_registry",
         ":user_context_status_util",
