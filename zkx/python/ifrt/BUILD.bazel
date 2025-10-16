@@ -169,6 +169,18 @@ cc_library(
 )
 
 cc_library(
+    name = "tuple",
+    srcs = ["tuple.cc"],
+    hdrs = ["tuple.h"],
+    deps = [
+        ":value",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "user_context",
     srcs = ["user_context.cc"],
     hdrs = ["user_context.h"],
