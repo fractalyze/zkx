@@ -222,6 +222,17 @@ cc_library(
         ":user_context",
         "//xla/tsl/concurrency:ref_count",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "value",
+    srcs = ["value.cc"],
+    hdrs = ["value.h"],
+    deps = [
+        ":future",
+        ":user_context",
+        "//xla/tsl/concurrency:ref_count",
         "@llvm-project//llvm:Support",
     ],
 )
