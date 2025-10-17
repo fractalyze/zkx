@@ -118,6 +118,22 @@ cc_library(
 )
 
 cc_library(
+    name = "memory",
+    srcs = ["memory.cc"],
+    hdrs = ["memory.h"],
+    deps = [
+        ":device",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:node_hash_set",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "serdes",
     srcs = ["serdes.cc"],
     hdrs = ["serdes.h"],
@@ -302,6 +318,7 @@ zkx_cc_unittest(
         "attribute_map_unittest.cc",
         "dtype_unittest.cc",
         "future_unittest.cc",
+        "memory_unittest.cc",
         "serdes_unittest.cc",
         "shape_unittest.cc",
         "user_context_registry_unittest.cc",
@@ -312,6 +329,7 @@ zkx_cc_unittest(
         ":attribute_map",
         ":dtype",
         ":future",
+        ":memory",
         ":serdes",
         ":serdes_test_util",
         ":shape",
