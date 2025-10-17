@@ -331,6 +331,40 @@ cc_library(
 )
 
 cc_library(
+    name = "mock",
+    testonly = True,
+    srcs = ["mock.cc"],
+    hdrs = ["mock.h"],
+    deps = [
+        ":attribute_map",
+        ":basic_device_list",
+        ":device",
+        ":dtype",
+        ":future",
+        ":host_callback",
+        ":index_domain",
+        ":memory",
+        ":program",
+        ":shape",
+        ":topology",
+        ":tuple",
+        ":user_context",
+        ":value",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/pjrt:pjrt_executable",
+        "//zkx/pjrt:pjrt_layout",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:no_destructor",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "program",
     srcs = ["program.cc"],
     hdrs = ["program.h"],
