@@ -19,4 +19,6 @@ namespace zkx {
 
 const char kZkxStreamAnnotationAttr[] = "_zkx_stream_annotation";
 
+const char kZkxSchedulingGroupIdAttr[] = "_scheduling_group_id";
+
 }  // namespace zkx
