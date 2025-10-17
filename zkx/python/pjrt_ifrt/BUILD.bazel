@@ -14,8 +14,20 @@
 # ==============================================================================
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "pjrt_attribute_map_util",
+    srcs = ["pjrt_attribute_map_util.cc"],
+    hdrs = ["pjrt_attribute_map_util.h"],
+    deps = [
+        "//zkx/pjrt:pjrt_common",
+        "//zkx/python/ifrt:attribute_map",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)
 
 cc_library(
     name = "basic_string_array",
@@ -53,4 +65,10 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
     ],
+)
+
+zkx_cc_unittest(
+    name = "pjrt_ifrt_unittests",
+    srcs = ["pjrt_attribute_map_util_unittest.cc"],
+    deps = [":pjrt_attribute_map_util"],
 )
