@@ -55,6 +55,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "pattern_matcher_gmock",
+    testonly = True,
+    srcs = ["pattern_matcher_gmock.h"],
+    hdrs = ["pattern_matcher_gmock.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:pattern_matcher",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
     name = "verified_hlo_module",
     testonly = True,
     srcs = ["verified_hlo_module.cc"],

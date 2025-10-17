@@ -18,6 +18,7 @@ limitations under the License.
 #include "absl/base/call_once.h"
 #include "absl/debugging/leak_check.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/str_join.h"
 
 #include "zkx/debug_options_parsers.h"
 #include "zkx/parse_flags_from_env.h"
@@ -66,7 +67,10 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_gpu_require_exclusive_lock(false);
 
   opts.set_zkx_dump_latency_hiding_schedule(false);
+  opts.set_zkx_gpu_enable_latency_hiding_scheduler(false);
+  opts.set_zkx_gpu_pgle_profile_file_or_directory_path("");
   opts.set_zkx_gpu_enable_highest_priority_async_stream(true);
+  opts.set_zkx_gpu_memory_limit_slop_factor(95);
   opts.set_zkx_gpu_enable_pipelined_p2p(false);
 
   opts.set_zkx_gpu_experimental_pipeline_parallelism_opt_level(
@@ -88,6 +92,7 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
 
   opts.set_zkx_gpu_executable_warn_stuck_timeout_seconds(10);
   opts.set_zkx_gpu_executable_terminate_timeout_seconds(30);
+  opts.set_zkx_gpu_experimental_parallel_collective_overlap_limit(1);
   opts.set_zkx_pjrt_allow_auto_layout_in_hlo(false);
   return opts;
 }
@@ -182,6 +187,52 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
         }
         debug_options->set_zkx_gpu_experimental_pipeline_parallelism_opt_level(
             level);
+        return true;
+      };
+
+  auto collective_op_types_to_string =
+      [](google::protobuf::RepeatedField<int> collective_ops) -> std::string {
+    struct Formatter {
+      void operator()(std::string* out, int type) const {
+        absl::StrAppend(out, DebugOptions::CollectiveOpType_Name(type));
+      }
+    };
+    return absl::StrJoin(collective_ops, ", ", Formatter());
+  };
+
+  // Custom parser for zkx_gpu_disable_async_collectives.
+  auto setter_for_zkx_gpu_disable_async_collectives =
+      [debug_options](std::string_view input) {
+        std::vector<std::string_view> values = absl::StrSplit(input, ',');
+        std::vector<DebugOptions::CollectiveOpType> parsed_ops;
+        parsed_ops.reserve(values.size());
+        bool has_all_collectives = false;
+
+        for (const std::string_view value : values) {
+          DebugOptions::CollectiveOpType op_type;
+          if (!DebugOptions::CollectiveOpType_Parse(
+                  absl::AsciiStrToUpper(value), &op_type)) {
+            // Return an error if flag value was not recognized.
+            return false;
+          }
+          if (op_type == DebugOptions::ALLCOLLECTIVES) {
+            has_all_collectives = true;
+          }
+          parsed_ops.push_back(op_type);
+        }
+
+        debug_options->clear_zkx_gpu_disable_async_collectives();
+        if (has_all_collectives) {
+          for (int i = static_cast<int>(DebugOptions::ALLREDUCE);
+               i < static_cast<int>(DebugOptions::ALLCOLLECTIVES); ++i) {
+            debug_options->add_zkx_gpu_disable_async_collectives(
+                static_cast<DebugOptions::CollectiveOpType>(i));
+          }
+        } else {
+          for (DebugOptions::CollectiveOpType op_type : parsed_ops) {
+            debug_options->add_zkx_gpu_disable_async_collectives(op_type);
+          }
+        }
         return true;
       };
 
@@ -453,6 +504,15 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       debug_options->zkx_gpu_exclude_nondeterministic_ops(),
       "Excludes non-deterministic ops from compiled executables."));
   flag_list->push_back(tsl::Flag(
+      "zkx_gpu_disable_async_collectives",
+      setter_for_zkx_gpu_disable_async_collectives,
+      collective_op_types_to_string(
+          debug_options->zkx_gpu_disable_async_collectives()),
+      "This disables a certain set of async collectives and turn them into "
+      "synchronous ones. By default, this is empty which indicates enabling "
+      "async execution for all collectives. A sample usage is: "
+      "--zkx_gpu_disable_async_collectives=ALLREDUCE,REDUCESCATTER"));
+  flag_list->push_back(tsl::Flag(
       "zkx_gpu_enable_approx_costly_collectives",
       bool_setter_for(
           &DebugOptions::set_zkx_gpu_enable_approx_costly_collectives),
@@ -519,6 +579,14 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
           &DebugOptions::set_zkx_gpu_executable_terminate_timeout_seconds),
       debug_options->zkx_gpu_executable_terminate_timeout_seconds(),
       "Set timeout for Rendezvous termination"));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_experimental_parallel_collective_overlap_limit",
+      int32_setter_for(
+          &DebugOptions::
+              set_zkx_gpu_experimental_parallel_collective_overlap_limit),
+      debug_options->zkx_gpu_experimental_parallel_collective_overlap_limit(),
+      "This controls how many in-flight collectives latency hiding scheduler "
+      "can schedule."));
   flag_list->push_back(tsl::Flag(
       "zkx_pjrt_allow_auto_layout_in_hlo",
       bool_setter_for(&DebugOptions::set_zkx_pjrt_allow_auto_layout_in_hlo),
@@ -617,6 +685,39 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       bool_setter_for(&DebugOptions::set_zkx_dump_latency_hiding_schedule),
       debug_options->zkx_dump_latency_hiding_schedule(),
       "Dump the schedule from the latency-hiding scheduler."));
+  flag_list->push_back(
+      tsl::Flag("zkx_gpu_enable_latency_hiding_scheduler",
+                bool_setter_for(
+                    &DebugOptions::set_zkx_gpu_enable_latency_hiding_scheduler),
+                debug_options->zkx_gpu_enable_latency_hiding_scheduler(),
+                "Enable latency-hiding scheduler for ZKX:GPU"));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_pgle_profile_file_or_directory_path",
+      string_setter_for(
+          &DebugOptions::set_zkx_gpu_pgle_profile_file_or_directory_path),
+      debug_options->zkx_gpu_pgle_profile_file_or_directory_path(),
+      "Directory or file for PGLE profiles in ZKX:GPU"));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_memory_limit_slop_factor",
+      int32_setter_for(&DebugOptions::set_zkx_gpu_memory_limit_slop_factor),
+      debug_options->zkx_gpu_memory_limit_slop_factor(),
+      "Slop factor for memory limits in ZKX:GPU. This flag serves as a "
+      "multiplier applied to the total available memory, creating a threshold "
+      "that guides the Latency Hiding Scheduler (LHS) in balancing memory "
+      "reduction and latency hiding optimizations. This factor effectively "
+      "establishes a memory limit for compiler passes, determining when the "
+      "scheduler should prioritize: "
+      "  1. Memory reduction: When memory usage approaches or exceeds the "
+      "calculated "
+      "     threshold. "
+      "  2. Latency hiding: When memory usage is below the threshold, allowing "
+      "for "
+      "     more aggressive optimizations that may temporarily increase memory "
+      "usage "
+      "     but improve overall performance. "
+      "By adjusting this factor, users can fine-tune the trade-off between "
+      "memory efficiency and performance optimizations. The default value is "
+      "95."));
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_enable_highest_priority_async_stream",
       bool_setter_for(
