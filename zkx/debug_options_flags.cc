@@ -33,6 +33,8 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_llvm_disable_expensive_passes(false);
   opts.set_zkx_backend_optimization_level(3);
   opts.set_zkx_gpu_cuda_data_dir("./cuda_sdk_lib");
+  opts.set_zkx_gpu_generate_debug_info(false);
+  opts.set_zkx_gpu_generate_line_info(false);
 
   opts.set_zkx_dump_hlo_as_html(false);
   opts.set_zkx_dump_fusion_visualization(false);
@@ -43,6 +45,7 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_dump_large_constants(false);
   opts.set_zkx_dump_enable_mlir_pretty_form(true);
   opts.set_zkx_annotate_with_emitter_loc(false);
+  opts.set_zkx_debug_buffer_assignment_show_max(15);
   opts.set_zkx_cpu_parallel_codegen_split_count(32);
   opts.set_zkx_cpu_enable_concurrency_optimized_scheduler(true);
   opts.set_zkx_cpu_prefer_vector_width(256);
@@ -75,6 +78,12 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
 
   opts.set_zkx_gpu_experimental_pipeline_parallelism_opt_level(
       DebugOptions::PIPELINE_PARALLELISM_OPT_LEVEL_DISABLE);
+
+  opts.set_zkx_llvm_force_inline_before_split(true);
+
+  opts.set_zkx_gpu_filter_kernels_spilling_registers_on_autotuning(true);
+  opts.set_zkx_gpu_fail_ptx_compilation_on_register_spilling(false);
+  opts.set_zkx_gpu_target_config_filename("");
 
   opts.set_zkx_gpu_enable_llvm_module_compilation_parallelism(false);
   opts.set_zkx_gpu_enable_libnvptxcompiler(se::IsLibNvPtxCompilerSupported());
@@ -150,7 +159,7 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
 
   auto make_repeated_string_setter =
       [debug_options](void (DebugOptions::*adder)(std::string_view)) {
-        return [debug_options, adder](std::string comma_separated_values) {
+        return [debug_options, adder](std::string_view comma_separated_values) {
           for (const std::string_view passname :
                absl::StrSplit(comma_separated_values, ',')) {
             (debug_options->*adder)(passname);
@@ -167,9 +176,22 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
   auto setter_for_zkx_enable_hlo_passes_only = make_repeated_string_setter(
       &DebugOptions::add_zkx_enable_hlo_passes_only);
 
+  // Custom "sub-parser" lambda for zkx_gpu_ptx_file.
+  auto setter_for_zkx_gpu_ptx_file = [debug_options](const std::string& value) {
+    debug_options->add_zkx_gpu_ptx_file(value);
+    return true;
+  };
+
+  // Custom "sub-parser" lambda for zkx_gpu_llvm_ir_file.
+  auto setter_for_zkx_gpu_llvm_ir_file =
+      [debug_options](const std::string& value) {
+        debug_options->add_zkx_gpu_llvm_ir_file(value);
+        return true;
+      };
+
   // Custom "sub-parser" lambda for zkx_backend_extra_options.
   auto setter_for_zkx_backend_extra_options =
-      [debug_options](std::string comma_separated_values) {
+      [debug_options](std::string_view comma_separated_values) {
         auto* extra_options_map =
             debug_options->mutable_zkx_backend_extra_options();
         parse_zkx_backend_extra_options(extra_options_map,
@@ -287,10 +309,29 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "over time. The only 'guarantee', such as it is, is that if you compile "
       "ZKX and dump the optimized HLO for some graph, you should be able to "
       "run it again on the same device with the same build of ZKX."));
+  flag_list->push_back(
+      tsl::Flag("zkx_embed_ir_in_executable",
+                bool_setter_for(&DebugOptions::set_zkx_embed_ir_in_executable),
+                debug_options->zkx_embed_ir_in_executable(),
+                "Embed the compiler IR as a string in the executable."));
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_cuda_data_dir", debug_options->mutable_zkx_gpu_cuda_data_dir(),
       "If non-empty, specifies a local directory containing ptxas and nvvm "
       "libdevice files; otherwise we use those from runfile directories."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_ptx_file", setter_for_zkx_gpu_ptx_file, "",
+      "If non-empty, specifies a file containing ptx to use. The filename "
+      "prefix must have the same pattern as PTX dumped by ZKX. This allows to "
+      "match one specific module. General workflow. Get the generated module "
+      "ptx from ZKX, modify it, then pass it back via this option."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_llvm_ir_file", setter_for_zkx_gpu_llvm_ir_file, "",
+      "If non-empty, specifies a file containing textual LLVM IR to use. The "
+      "filename prefix must have the same pattern as LLVM dumped by ZKX "
+      "(i.e. module_0001.ir-no-opt.ll -> module_0001.MY_NEW_FILE.ll). This "
+      "allows to match one specific module. General workflow. Get the not "
+      "optimized LLVM IR from ZKX, modify it, then pass it back via this "
+      "option."));
   flag_list->push_back(tsl::Flag(
       "zkx_hlo_profile", bool_setter_for(&DebugOptions::set_zkx_hlo_profile),
       debug_options->zkx_hlo_profile(),
@@ -335,6 +376,21 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "from context switching but we let the user override this behavior to "
       "help run tests on the host that run models in parallel across multiple "
       "devices."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_disable_gpuasm_optimizations",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_disable_gpuasm_optimizations),
+      debug_options->zkx_gpu_disable_gpuasm_optimizations(),
+      "In ZKX:GPU run ptxas in -O0 (default is -O3)."));
+  flag_list->push_back(
+      tsl::Flag("zkx_gpu_generate_debug_info",
+                bool_setter_for(&DebugOptions::set_zkx_gpu_generate_debug_info),
+                debug_options->zkx_gpu_generate_debug_info(),
+                "Generate debug info for codegened CUDA kernels."));
+  flag_list->push_back(
+      tsl::Flag("zkx_gpu_generate_line_info",
+                bool_setter_for(&DebugOptions::set_zkx_gpu_generate_line_info),
+                debug_options->zkx_gpu_generate_line_info(),
+                "Generate line info for codegened CUDA kernels."));
   flag_list->push_back(tsl::Flag(
       "zkx_dump_to", string_setter_for(&DebugOptions::set_zkx_dump_to),
       debug_options->zkx_dump_to(),
@@ -482,6 +538,13 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "larger than the given constraint size. -1 corresponds to no "
       "constraints."));
   flag_list->push_back(tsl::Flag(
+      "zkx_gpu_force_compilation_parallelism",
+      int32_setter_for(
+          &DebugOptions::set_zkx_gpu_force_compilation_parallelism),
+      debug_options->zkx_gpu_force_compilation_parallelism(),
+      "Overrides normal multi-threaded compilation setting to use this many "
+      "threads. Setting to 0 (the default value) means no enforcement."));
+  flag_list->push_back(tsl::Flag(
       "zkx_gpu_enable_llvm_module_compilation_parallelism",
       bool_setter_for(
           &DebugOptions::
@@ -519,6 +582,31 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       debug_options->zkx_gpu_enable_approx_costly_collectives(),
       "Enables more accurate latency approximation of collectives. Used in "
       "`ApproximateLatencyEstimator` scheduler."));
+
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_filter_kernels_spilling_registers_on_autotuning",
+      bool_setter_for(
+          &DebugOptions::
+              set_zkx_gpu_filter_kernels_spilling_registers_on_autotuning),
+      debug_options->zkx_gpu_filter_kernels_spilling_registers_on_autotuning(),
+      "Filter out kernels that spill registers during autotuning"));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_fail_ptx_compilation_on_register_spilling",
+      bool_setter_for(
+          &DebugOptions::set_zkx_gpu_fail_ptx_compilation_on_register_spilling),
+      debug_options->zkx_gpu_fail_ptx_compilation_on_register_spilling(),
+      "Fails the PTX compilation if a kernel spills registers."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_debug_buffer_assignment_show_max",
+      int64_setter_for(&DebugOptions::set_zkx_debug_buffer_assignment_show_max),
+      debug_options->zkx_debug_buffer_assignment_show_max(),
+      "Number of buffers to display when debugging the buffer assignment"));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_target_config_filename",
+      string_setter_for(&DebugOptions::set_zkx_gpu_target_config_filename),
+      debug_options->zkx_gpu_target_config_filename(),
+      "Filename for GPU TargetConfig. Triggers devicless compilation: attached "
+      "device is ignored, and the proto is queried instead"));
 
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_enable_libnvptxcompiler",
@@ -594,6 +682,14 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       "Experimental: Make unset entry computation layout mean auto layout "
       "instead of default layout in HLO when run through PjRT. In other cases "
       "(StableHLO or non-PjRT) the auto layout is already used."));
+
+  flag_list->push_back(tsl::Flag(
+      "zkx_llvm_force_inline_before_split",
+      bool_setter_for(&DebugOptions::set_zkx_llvm_force_inline_before_split),
+      debug_options->zkx_llvm_force_inline_before_split(),
+      "Decide whether to force inline before llvm module split to get a more "
+      "balanced splits for parallel compilation"));
+
   flag_list->push_back(
       tsl::Flag("zkx_gpu_dump_llvmir",
                 bool_setter_for(&DebugOptions::set_zkx_gpu_dump_llvmir),

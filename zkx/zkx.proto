@@ -132,6 +132,9 @@ message DebugOptions {
 
   repeated CollectiveOpType zkx_gpu_disable_async_collectives = 289;
 
+  // If set to true ZKX:GPU invokes `ptxas` with -O0 (default is -O3).
+  bool zkx_gpu_disable_gpuasm_optimizations = 103;
+
   // File to write autotune logs to. It will stored in txt format.
   string zkx_gpu_dump_autotune_logs_to = 292;
 
@@ -175,6 +178,21 @@ message DebugOptions {
   //   coll.2-done = collective(coll.2-start)
   int32 zkx_gpu_experimental_parallel_collective_overlap_limit = 336;
 
+  // If true, PTX compilation will fail if a kernel spills registers.
+  // This is meant for debugging and only applies to CUDA PTX compilation.
+  bool zkx_gpu_fail_ptx_compilation_on_register_spilling = 353;
+
+  // Filter out kernels that spill registers during autotuning.
+  bool zkx_gpu_filter_kernels_spilling_registers_on_autotuning = 250;
+
+  // If true, we generate debug info when compiling PTX. This is useful for
+  // profiling and debugging.
+  bool zkx_gpu_generate_debug_info = 348;
+
+  // If true, we generate line info when compiling PTX. This is useful for
+  // profiling and debugging.
+  bool zkx_gpu_generate_line_info = 349;
+
   bool zkx_gpu_enable_highest_priority_async_stream = 216;
 
   bool zkx_gpu_enable_latency_hiding_scheduler = 186;
@@ -205,10 +223,17 @@ message DebugOptions {
   // a deterministic implementation.
   bool zkx_gpu_exclude_nondeterministic_ops = 297;
 
+  // Overrides normal multi-threaded compilation setting to use this many
+  // threads. Setting to 0 (the default value) means no enforcement.
+  int32 zkx_gpu_force_compilation_parallelism = 147;
+
   string zkx_gpu_kernel_cache_file = 306;
 
   // If enabled, uses the libnvjitlink library for PTX compilation and linking
   LibNvJitLinkMode zkx_gpu_libnvjitlink_mode = 343;
+
+  // Paths to files with LLVM code.
+  repeated string zkx_gpu_llvm_ir_file = 150;
 
   int32 zkx_gpu_memory_limit_slop_factor = 260;
 
@@ -234,12 +259,20 @@ message DebugOptions {
 
   string zkx_gpu_pgle_profile_file_or_directory_path = 210;
 
+  // Paths to files with ptx code.
+  repeated string zkx_gpu_ptx_file = 127;
+
   // If true, ZKX runtime will retain exclusive ownership of the GPU when
   // running a module, so there are no multi-thread conflicts on the GPU. This
   // can enable some optimizations that reduce the cost of resource management,
   // e.g., command buffer updates to ensure correctness when running in
   // multi-thread mode.
   bool zkx_gpu_require_exclusive_lock = 347;
+
+  // Description of the target platform in GpuTargetConfigProto format; if
+  // provided, deviceless compilation is assumed, and the current device is
+  // ignored.
+  string zkx_gpu_target_config_filename = 261;
 
   // If enabled, uses a separate memory space color for a temp buffer,
   // and uses a separate memory allocator to allocate it.
@@ -279,6 +312,9 @@ message DebugOptions {
   // Numerical optimization level for the ZKX compiler backend; the specific
   // interpretation of this value is left to the backends.
   int32 zkx_backend_optimization_level = 31;
+
+  // Embed the compiler IR as a string in the executable.
+  bool zkx_embed_ir_in_executable = 33;
 
   // If true, in LLVM-based backends, emit !invariant.load metadata in
   // the generated IR.
@@ -369,6 +405,10 @@ message DebugOptions {
   // Enable HLO dumping. If this is disabled, no HLO modules will be dumped.
   bool zkx_enable_dumping = 253;
 
+  // Whether to force inline before llvm module split to get a more balanced
+  // splits for parallel compilation.
+  bool zkx_llvm_force_inline_before_split = 300;
+
   // Disable dumping metadata in HLO dumps.
   bool zkx_dump_disable_metadata = 153;
 
@@ -382,6 +422,9 @@ message DebugOptions {
   int32 zkx_multiheap_size_constraint_per_heap = 142;
 
   bool zkx_dump_latency_hiding_schedule = 182;
+
+  // Maximum number of buffers to print when debugging buffer assignment.
+  int64 zkx_debug_buffer_assignment_show_max = 251;
 
   // If true, large constants will be printed out when dumping HLOs.
   bool zkx_dump_large_constants = 290;

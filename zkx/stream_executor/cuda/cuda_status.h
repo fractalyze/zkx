@@ -21,6 +21,8 @@ limitations under the License.
 #include "third_party/gpus/cuda/include/cuda.h"
 #include "third_party/gpus/cuda/include/cuda_runtime_api.h"
 
+#include "zkx/stream_executor/namespace_alias.h"  // IWYU pragma: keep
+
 namespace stream_executor::cuda {
 namespace internal {
 

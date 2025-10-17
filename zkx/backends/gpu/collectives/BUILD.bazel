@@ -95,6 +95,21 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "gpu_collectives_plugin",
+    deps = [":gpu_collectives_stub"],
+)
+
+zkx_cc_library(
+    name = "gpu_collectives_stub",
+    srcs = ["gpu_collectives_stub.cc"],
+    hdrs = ["gpu_collectives_stub.h"],
+    deps = [
+        ":gpu_collectives",
+        "@com_google_absl//absl/status",
+    ],
+)
+
 zkx_cc_unittest(
     name = "collectives_unittests",
     srcs = ["gpu_clique_key_unittest.cc"],
