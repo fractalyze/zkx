@@ -18,6 +18,32 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
+    name = "basic_string_array",
+    srcs = ["basic_string_array.cc"],
+    hdrs = ["basic_string_array.h"],
+    deps = [
+        "//xla/tsl/concurrency:ref_count",
+        "//xla/tsl/platform:statusor",
+        "//zkx/pjrt:pjrt_layout",
+        "//zkx/python/ifrt",
+        "//zkx/python/ifrt:device",
+        "//zkx/python/ifrt:dtype",
+        "//zkx/python/ifrt:future",
+        "//zkx/python/ifrt:memory",
+        "//zkx/python/ifrt:shape",
+        "//zkx/python/ifrt:user_context",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "pjrt_dtype",
     srcs = ["pjrt_dtype.cc"],
     hdrs = ["pjrt_dtype.h"],
