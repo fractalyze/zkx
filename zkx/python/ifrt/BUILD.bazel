@@ -118,6 +118,18 @@ cc_library(
 )
 
 cc_library(
+    name = "index",
+    srcs = ["index.cc"],
+    hdrs = ["index.h"],
+    deps = [
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_library(
     name = "memory",
     srcs = ["memory.cc"],
     hdrs = ["memory.h"],
@@ -318,6 +330,7 @@ zkx_cc_unittest(
         "attribute_map_unittest.cc",
         "dtype_unittest.cc",
         "future_unittest.cc",
+        "index_unittest.cc",
         "memory_unittest.cc",
         "serdes_unittest.cc",
         "shape_unittest.cc",
@@ -329,6 +342,7 @@ zkx_cc_unittest(
         ":attribute_map",
         ":dtype",
         ":future",
+        ":index",
         ":memory",
         ":serdes",
         ":serdes_test_util",
@@ -341,6 +355,7 @@ zkx_cc_unittest(
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/hash:hash_testing",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/memory",
