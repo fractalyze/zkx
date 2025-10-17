@@ -873,6 +873,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "slow_operation_alarm",
+    srcs = ["slow_operation_alarm.cc"],
+    hdrs = ["slow_operation_alarm.h"],
+    deps = [
+        "//xla/tsl/platform:env",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+zkx_cc_library(
     name = "stream_pool",
     srcs = ["stream_pool.cc"],
     hdrs = ["stream_pool.h"],
@@ -980,6 +996,7 @@ zkx_cc_unittest(
         "rendezvous_unittest.cc",
         "shape_inference_unittest.cc",
         "sharding_config_unittest.cc",
+        "slow_operation_alarm_unittest.cc",
         # TODO(chokobole): Add unittest. Dependency: PlatformUtil::GetStreamExecutors
         # "shaped_buffer_unittest.cc",
         "stream_pool_unittest.cc",
@@ -1000,6 +1017,7 @@ zkx_cc_unittest(
         ":rendezvous",
         ":shape_inference",
         ":sharding_config",
+        ":slow_operation_alarm",
         ":stream_pool",
         ":test_compilation_environment_cc_proto",
         "//xla/tsl/platform",
@@ -1013,6 +1031,8 @@ zkx_cc_unittest(
         "//zkx/stream_executor:platform_manager",
         "//zkx/stream_executor/host:host_platform",
         "//zkx/tests:test_utils",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
     ],
 )

@@ -152,9 +152,7 @@ HloModuleConfig::HloModuleConfig()
     : debug_options_(DefaultDebugOptionsIgnoringFlags()) {}
 
 std::string HloModuleConfig::compilation_cache_key() const {
-  // TODO(chokobole): Uncomment this. Dependency: DebugOptions::xla_hlo_profile
-  // std::string key = absl::StrCat("profiling=", hlo_profiling_enabled());
-  std::string key;
+  std::string key = absl::StrCat("profiling=", hlo_profiling_enabled());
   absl::StrAppend(&key, "::(");
   std::vector<std::string> params;
   if (entry_computation_layout_.has_value()) {
