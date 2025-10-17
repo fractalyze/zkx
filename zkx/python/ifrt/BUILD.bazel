@@ -130,6 +130,17 @@ cc_library(
 )
 
 cc_library(
+    name = "index_domain",
+    srcs = ["index_domain.cc"],
+    hdrs = ["index_domain.h"],
+    deps = [
+        ":index",
+        ":shape",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "memory",
     srcs = ["memory.cc"],
     hdrs = ["memory.h"],
@@ -330,6 +341,7 @@ zkx_cc_unittest(
         "attribute_map_unittest.cc",
         "dtype_unittest.cc",
         "future_unittest.cc",
+        "index_domain_unittest.cc",
         "index_unittest.cc",
         "memory_unittest.cc",
         "serdes_unittest.cc",
@@ -343,6 +355,7 @@ zkx_cc_unittest(
         ":dtype",
         ":future",
         ":index",
+        ":index_domain",
         ":memory",
         ":serdes",
         ":serdes_test_util",
