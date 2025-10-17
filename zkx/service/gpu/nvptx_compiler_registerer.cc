@@ -1,4 +1,4 @@
-/* Copyright 2023 The OpenXLA Authors.
+/* Copyright 2019 The OpenXLA Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@ limitations under the License.
 #include <memory>
 
 #include "zkx/service/compiler.h"
-#include "zkx/service/cpu/cpu_compiler.h"
-#include "zkx/stream_executor/host/host_platform_id.h"
+#include "zkx/service/gpu/nvptx_compiler.h"
+#include "zkx/stream_executor/cuda/cuda_platform_id.h"
 
 namespace {
 
 bool InitModule() {
-  zkx::Compiler::RegisterCompilerFactory(
-      stream_executor::host::kHostPlatformId,
-      []() { return std::make_unique<zkx::cpu::CpuCompiler>(); });
+  zkx::Compiler::RegisterCompilerFactory(se::cuda::kCudaPlatformId, []() {
+    return std::make_unique<zkx::gpu::NVPTXCompiler>();
+  });
   return true;
 }
 
