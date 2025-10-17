@@ -2562,8 +2562,6 @@ std::string_view PrintName(std::string_view name, bool print_ids) {
 
 namespace {
 
-namespace {
-
 using DFSStack = absl::InlinedVector<std::pair<int, HloInstruction*>, 16>;
 
 void PrintNameInternal(Printer* printer, std::string_view name,
@@ -2626,8 +2624,6 @@ std::string PrintCycle(const HloInstruction* child, DFSStack* dfs_stack,
 }
 
 }  // namespace
-
-}  //  namespace
 
 void HloInstruction::PrintWithCanonicalNameMap(
     Printer* printer, const HloPrintOptions& options,

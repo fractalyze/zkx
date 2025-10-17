@@ -368,6 +368,31 @@ class HloComputation {
       const absl::flat_hash_map<int64_t, HloComputation*>& computation_map,
       bool prohibit_empty_literal = true);
 
+  // Generates a hash value of an HLO computation. Hash considers
+  // information on opcode, shape, operands, and typically a root instruction.
+  // This function returns the same hash value for equivalent HLO computations,
+  // with respect to HloComputation::Equal() method.
+  template <typename H>
+  friend H AbslHashValue(H h, const HloComputation& computation) {
+    // Walk the computation in post-order, computing (and caching) the
+    // Absl::Hash after each instruction to use to as an operand for
+    // subsequent instructions.
+    auto instructions = computation.MakeInstructionPostOrder();
+    absl::flat_hash_map<HloInstruction*, size_t> instruction_hash_cache;
+    instruction_hash_cache.reserve(instructions.size());
+    for (auto* instruction : instructions) {
+      absl::InlinedVector<size_t, 2> operand_hashes;
+      for (const HloInstruction* operand : instruction->operands()) {
+        operand_hashes.push_back(instruction_hash_cache.at(operand));
+      }
+      instruction_hash_cache.emplace(
+          instruction, absl::HashOf(*instruction, operand_hashes));
+    }
+    return H::combine(std::move(h),
+                      instruction_hash_cache[computation.root_instruction()],
+                      instructions.size());
+  }
+
   using InstructionSequence = tsl::gtl::iterator_range<
       UnwrappingIterator<HloInstructionList::iterator>>;
 

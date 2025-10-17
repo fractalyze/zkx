@@ -3,6 +3,22 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "async_collective_annotator",
+    srcs = ["async_collective_annotator.cc"],
+    hdrs = ["async_collective_annotator.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_opcode",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "//zkx/hlo/utils:hlo_query",
+        "//zkx/service/gpu:backend_configs_cc_proto",
+    ],
+)
+
+zkx_cc_library(
     name = "pgle_accuracy_checker",
     srcs = ["pgle_accuracy_checker.cc"],
     hdrs = ["pgle_accuracy_checker.h"],
@@ -13,14 +29,58 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "schedule_postprocessing",
+    srcs = ["schedule_postprocessing.cc"],
+    hdrs = ["schedule_postprocessing.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_opcode",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "//zkx/hlo/utils:hlo_query",
+        "//zkx/service/gpu:backend_configs_cc_proto",
+        "//zkx/service/gpu/transforms/collectives:collective_ops_utils",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)
+
+zkx_cc_library(
+    name = "scheduling_instruction_annotator",
+    srcs = ["scheduling_instruction_annotator.cc"],
+    hdrs = ["scheduling_instruction_annotator.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_opcode",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "@com_google_absl//absl/log:check",
+    ],
+)
+
 zkx_cc_unittest(
     name = "transforms_unittests",
-    srcs = ["pgle_accuracy_checker_unittest.cc"],
+    srcs = [
+        "async_collective_annotator_unittest.cc",
+        "pgle_accuracy_checker_unittest.cc",
+        "schedule_postprocessing_unittest.cc",
+        "scheduling_instruction_annotator_unittest.cc",
+    ],
     deps = [
+        ":async_collective_annotator",
         ":pgle_accuracy_checker",
+        ":schedule_postprocessing",
+        ":scheduling_instruction_annotator",
         "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
+        "//zkx:util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/hlo/testlib:file_check",
         "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/hlo/utils:hlo_query",
         "//zkx/service:latency_hiding_scheduler",
         "//zkx/service:profile_guided_latency_estimator",
         "//zkx/service/gpu:gpu_latency_hiding_scheduler",
