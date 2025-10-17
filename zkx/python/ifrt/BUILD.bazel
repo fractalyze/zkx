@@ -131,6 +131,21 @@ cc_proto_library(
     deps = [":sharding_proto"],
 )
 
+proto_library(
+    name = "sharding_serdes_proto",
+    srcs = ["sharding_serdes.proto"],
+    deps = [
+        ":device_proto",
+        ":shape_proto",
+        "//zkx/python/ifrt/ir:sharding_param_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "sharding_serdes_cc_proto",
+    deps = [":sharding_serdes_proto"],
+)
+
 cc_library(
     name = "attribute_map",
     srcs = ["attribute_map.cc"],
@@ -493,6 +508,27 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
+)
+
+cc_library(
+    name = "sharding_serdes",
+    srcs = ["sharding_serdes.cc"],
+    deps = [
+        ":device",
+        ":ifrt",
+        ":memory",
+        ":serdes",
+        ":serdes_version",
+        ":shape",
+        ":sharding_serdes_cc_proto",
+        "//xla/tsl/platform:statusor",
+        "//zkx/python/ifrt/ir:sharding_param",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Support",
+    ],
+    alwayslink = True,
 )
 
 cc_library(
