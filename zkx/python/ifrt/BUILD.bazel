@@ -179,6 +179,26 @@ cc_library(
 )
 
 cc_library(
+    name = "device_test_util",
+    testonly = True,
+    srcs = ["device_test_util.cc"],
+    hdrs = ["device_test_util.h"],
+    deps = [
+        ":basic_device_list",
+        ":device",
+        ":ifrt",
+        ":memory",
+        ":mock",
+        ":test_util",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_library(
     name = "dtype",
     srcs = ["dtype.cc"],
     hdrs = ["dtype.h"],
