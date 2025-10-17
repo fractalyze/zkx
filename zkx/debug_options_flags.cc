@@ -50,6 +50,7 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_gpu_collectives_use_persistent_cliques(false);
 
   opts.set_zkx_force_host_platform_device_count(1);
+  opts.set_zkx_gpu_enable_approx_costly_collectives(false);
 
   opts.set_zkx_gpu_unsafe_fallback_to_driver_on_ptxas_not_found(false);
   opts.set_zkx_multiheap_size_constraint_per_heap(-1);
@@ -66,6 +67,10 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
 
   opts.set_zkx_dump_latency_hiding_schedule(false);
   opts.set_zkx_gpu_enable_highest_priority_async_stream(true);
+  opts.set_zkx_gpu_enable_pipelined_p2p(false);
+
+  opts.set_zkx_gpu_experimental_pipeline_parallelism_opt_level(
+      DebugOptions::PIPELINE_PARALLELISM_OPT_LEVEL_DISABLE);
 
   opts.set_zkx_gpu_enable_llvm_module_compilation_parallelism(false);
   opts.set_zkx_gpu_enable_libnvptxcompiler(se::IsLibNvPtxCompilerSupported());
@@ -77,6 +82,9 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_gpu_nccl_terminate_on_error(false);
 
   opts.set_zkx_syntax_sugar_async_ops(false);
+
+  opts.set_zkx_gpu_pgle_accuracy_checker(
+      DebugOptions::PGLE_STRICTNESS_LEVEL_WARN);
 
   opts.set_zkx_gpu_executable_warn_stuck_timeout_seconds(10);
   opts.set_zkx_gpu_executable_terminate_timeout_seconds(30);
@@ -161,6 +169,31 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
             debug_options->mutable_zkx_backend_extra_options();
         parse_zkx_backend_extra_options(extra_options_map,
                                         comma_separated_values);
+        return true;
+      };
+
+  // Custom "sub-parser" lambda for
+  // zkx_gpu_experimental_pipeline_parallelism_opt_level.
+  auto setter_for_zkx_gpu_experimental_pipeline_parallelism_opt_level =
+      [debug_options](const std::string& value) {
+        DebugOptions::PipelineParallelismOptLevel level;
+        if (!DebugOptions::PipelineParallelismOptLevel_Parse(value, &level)) {
+          return false;
+        }
+        debug_options->set_zkx_gpu_experimental_pipeline_parallelism_opt_level(
+            level);
+        return true;
+      };
+
+  // Custom "sub-parser" lambda for zkx_gpu_pgle_accuracy_checker.
+  auto setter_for_zkx_gpu_pgle_accuracy_checker =
+      [debug_options](const std::string& value) {
+        DebugOptions::PGLEStrictnessLevel strictness_level;
+        if (!DebugOptions::PGLEStrictnessLevel_Parse(value,
+                                                     &strictness_level)) {
+          return false;
+        }
+        debug_options->set_zkx_gpu_pgle_accuracy_checker(strictness_level);
         return true;
       };
 
@@ -419,6 +452,13 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       bool_setter_for(&DebugOptions::set_zkx_gpu_exclude_nondeterministic_ops),
       debug_options->zkx_gpu_exclude_nondeterministic_ops(),
       "Excludes non-deterministic ops from compiled executables."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_enable_approx_costly_collectives",
+      bool_setter_for(
+          &DebugOptions::set_zkx_gpu_enable_approx_costly_collectives),
+      debug_options->zkx_gpu_enable_approx_costly_collectives(),
+      "Enables more accurate latency approximation of collectives. Used in "
+      "`ApproximateLatencyEstimator` scheduler."));
 
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_enable_libnvptxcompiler",
@@ -458,6 +498,14 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       debug_options->zkx_gpu_nccl_p2p_max_nchannels(),
       "Specify the maximum number of channels(SMs) NCCL will use "
       "for p2p operations. Default is 0 which is to let NCCL decide."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_pgle_accuracy_checker", setter_for_zkx_gpu_pgle_accuracy_checker,
+      DebugOptions::PGLEStrictnessLevel_Name(
+          debug_options->zkx_gpu_pgle_accuracy_checker()),
+      "If an FDO profile is specified and latency hiding scheduler encounters "
+      "missing instructions in the profile, then the compilation will halt "
+      "(ERROR), or a warning will be emitted (WARN), or the checker is "
+      "disabled (OFF)"));
 
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_executable_warn_stuck_timeout",
@@ -575,6 +623,18 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
           &DebugOptions::set_zkx_gpu_enable_highest_priority_async_stream),
       debug_options->zkx_gpu_enable_highest_priority_async_stream(),
       "Enable async stream to have the highest priority."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_enable_pipelined_p2p",
+      bool_setter_for(&DebugOptions::set_zkx_gpu_enable_pipelined_p2p),
+      debug_options->zkx_gpu_enable_pipelined_p2p(),
+      "Enable pipelinling of P2P instructions."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_gpu_experimental_pipeline_parallelism_opt_level",
+      setter_for_zkx_gpu_experimental_pipeline_parallelism_opt_level,
+      DebugOptions::PipelineParallelismOptLevel_Name(
+          debug_options->zkx_gpu_experimental_pipeline_parallelism_opt_level()),
+      "Experimental optimizations for SPMD-based pipeline parallelism on "
+      "GPU."));
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_dump_autotune_results_to",
       string_setter_for(&DebugOptions::set_zkx_gpu_dump_autotune_results_to),

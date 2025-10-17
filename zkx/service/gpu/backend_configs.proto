@@ -19,6 +19,24 @@ package zkx.gpu;
 //
 // See HloInstruction::backend_config() for more info.
 
+// Backend config for async collective operations. Note that for is_sync will
+// be false by default, so even if a backend config is not explicitly attached
+// to the HLOInstruction, getting the backend_config will yield a default valued
+// proto which will have is_sync = false. Attribute no_parallel_custom_call
+// asserts that an asynchronous collective operation does not execute in
+// parallel with custom-calls, which can trigger device synchronization. This
+// attribute will also be false by default and should lead to conservative
+// runtime behavior.
+message CollectiveBackendConfig {
+  bool is_sync = 1;
+  bool no_parallel_custom_call = 2;
+  // Determines whether the collective op of interested has been pipelined
+  // within a loop.
+  bool is_pipelined = 3;
+  // Cost model prediction.
+  ReificationCost reification_cost = 4;
+}
+
 // Backend config for cost model estimates.
 message ReificationCost {
   // Total execution time of the reified op.
@@ -113,6 +131,8 @@ message GpuBackendConfig {
   repeated int64 wait_on_operation_queues = 2;
 
   oneof backend_config {
+    CollectiveBackendConfig collective_backend_config = 6;
+
     FusionBackendConfig fusion_backend_config = 7;
 
     CustomCallBackendConfig custom_call_backend_config = 11;

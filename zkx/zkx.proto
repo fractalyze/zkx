@@ -49,6 +49,15 @@ message DebugOptions {
     LIB_NV_JIT_LINK_MODE_ENABLED = 2;
   }
 
+  // Enables strict PGLE checking. If an FDO profile is specified and latency
+  // hiding scheduler encounters missing instructions in the profile
+  // compilation will halt or warn depending on the value of this option.
+  enum PGLEStrictnessLevel {
+    PGLE_STRICTNESS_LEVEL_OFF = 0;
+    PGLE_STRICTNESS_LEVEL_WARN = 1;
+    PGLE_STRICTNESS_LEVEL_ERROR = 2;
+  }
+
   // When true, ZKX:CPU uses HLO module scheduler that is optimized for
   // extracting concurrency at the cost of extra memory: we extend the live
   // ranges of temporaries to allow ZKX runtime to schedule independent
@@ -59,6 +68,28 @@ message DebugOptions {
   // (It will not use newer ISAs.) Using the string format allows us to extend
   // the flag for more flexible control if necessary.
   string zkx_cpu_max_isa = 333;
+
+  //--------------------------------------------------------------------------//
+  // ZKX:GPU options.
+  //--------------------------------------------------------------------------//
+
+  PipelineParallelismOptLevel
+      zkx_gpu_experimental_pipeline_parallelism_opt_level = 351;
+
+  // Experimental optimizations for SPMD-based pipeline parallelism on GPU.
+  enum PipelineParallelismOptLevel {
+    PIPELINE_PARALLELISM_OPT_LEVEL_DISABLE = 0;
+    // Enable only collective-permute decomposer to overlap send and recv
+    // separately, allowing to receive data in the previous iteration while
+    // sending the current iteration.
+    PIPELINE_PARALLELISM_OPT_LEVEL_ENABLE = 1;
+    // Additionally, enable collective-permute cycle decomposer. This set of
+    // optimizations will lead to best overlap for trivial pipeline parallelism
+    // implementation.
+    // TODO(b/393127848): Remove these optimizations when all users implement
+    // cycle decomposition at the JAX level.
+    PIPELINE_PARALLELISM_OPT_LEVEL_ENABLE_CYCLE_DECOMPOSER = 2;
+  }
 
   // The number of parts to split the LLVM module into before codegen. This
   // allows ZKX to compile all parts in parallel, and resolve kernel symbols
@@ -102,6 +133,8 @@ message DebugOptions {
   // Whether to dump llvm ir when compiling to ptx.
   bool zkx_gpu_dump_llvmir = 155;
 
+  bool zkx_gpu_enable_approx_costly_collectives = 305;
+
   // Timeout to terminate on stuck rendezvous.
   int32 zkx_gpu_executable_terminate_timeout_seconds = 328;
 
@@ -125,6 +158,8 @@ message DebugOptions {
 
   // Enable NCCL user buffers.
   bool zkx_gpu_enable_nccl_user_buffers = 267;
+
+  bool zkx_gpu_enable_pipelined_p2p = 246;
 
   // Enables shared constants for ZKX/GPU. This allows large constants to be
   // shared among multiple GPU executables.
@@ -159,6 +194,8 @@ message DebugOptions {
   // Timeout in seconds before terminating jobs that are stuck in a NCCL
   // Rendezvous. Negative value disables the timeout and will not terminate.
   int64 zkx_gpu_nccl_termination_timeout_seconds = 163;
+
+  PGLEStrictnessLevel zkx_gpu_pgle_accuracy_checker = 341;
 
   // If true, ZKX runtime will retain exclusive ownership of the GPU when
   // running a module, so there are no multi-thread conflicts on the GPU. This
