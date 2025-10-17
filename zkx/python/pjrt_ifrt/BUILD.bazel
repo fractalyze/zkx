@@ -67,6 +67,24 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "pjrt_topology",
+    srcs = ["pjrt_topology.cc"],
+    hdrs = ["pjrt_topology.h"],
+    deps = [
+        ":pjrt_attribute_map_util",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/pjrt:pjrt_compiler",
+        "//zkx/pjrt:pjrt_device_description",
+        "//zkx/python/ifrt:attribute_map",
+        "//zkx/python/ifrt:topology",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
 zkx_cc_unittest(
     name = "pjrt_ifrt_unittests",
     srcs = ["pjrt_attribute_map_util_unittest.cc"],
