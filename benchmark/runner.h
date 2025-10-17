@@ -1,7 +1,6 @@
 #ifndef BENCHMARK_RUNNER_H_
 #define BENCHMARK_RUNNER_H_
 
-#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <memory>

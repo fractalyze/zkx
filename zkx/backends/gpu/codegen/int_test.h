@@ -1,5 +1,5 @@
-#ifndef ZKX_BACKENDS_CPU_CODEGEN_INT_TEST_H_
-#define ZKX_BACKENDS_CPU_CODEGEN_INT_TEST_H_
+#ifndef ZKX_BACKENDS_GPU_CODEGEN_INT_TEST_H_
+#define ZKX_BACKENDS_GPU_CODEGEN_INT_TEST_H_
 
 #include <type_traits>
 #include <vector>
@@ -8,22 +8,22 @@
 #include "absl/strings/substitute.h"
 
 #include "zkx/array2d.h"
-#include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
+#include "zkx/backends/gpu/codegen/cuda_kernel_emitter_test.h"
 #include "zkx/base/containers/container_util.h"
 #include "zkx/base/random.h"
 #include "zkx/literal_util.h"
 #include "zkx/primitive_util.h"
 
-namespace zkx::cpu {
+namespace zkx::gpu {
 
 template <typename T>
-class IntScalarBinaryTest : public CpuKernelEmitterTest {
+class IntScalarBinaryTest : public CudaKernelEmitterTest {
   using UnsignedT =
       std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
 
  public:
   void SetUp() override {
-    CpuKernelEmitterTest::SetUp();
+    CudaKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<T>());
     x_ = absl::bit_cast<T>(base::Uniform<UnsignedT>());
@@ -35,11 +35,18 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
  protected:
   void SetUpAdd() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
         %y = $0[] parameter(1)
 
         ROOT %ret = $0[] add(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_);
@@ -48,11 +55,18 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
 
   void SetUpSub() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
         %y = $0[] parameter(1)
 
         ROOT %ret = $0[] subtract(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_);
@@ -61,11 +75,18 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
 
   void SetUpMul() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
         %y = $0[] parameter(1)
 
         ROOT %ret = $0[] multiply(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_);
@@ -74,11 +95,18 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
 
   void SetUpDiv() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
         %y = $0[] parameter(1)
 
         ROOT %ret = $0[] divide(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_);
@@ -103,7 +131,7 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename T>
-class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
+class IntR2TensorBinaryTest : public CudaKernelEmitterTest {
  public:
   using UnsignedT =
       std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
@@ -112,7 +140,7 @@ class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
   constexpr static int64_t N = 3;
 
   void SetUp() override {
-    CpuKernelEmitterTest::SetUp();
+    CudaKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<T>());
     x_ = base::CreateVector(M, []() {
@@ -146,11 +174,18 @@ class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
 
   void SetUpAdd() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[$1, $2] parameter(0)
         %y = $0[$1, $2] parameter(1)
 
         ROOT %ret = $0[$1, $2] add(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[$1, $2] parameter(0)
+        %y = $0[$1, $2] parameter(1)
+
+        ROOT %ret = $0[$1, $2] fusion(%x, %y), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_, M, N);
@@ -168,27 +203,34 @@ class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename T>
-class IntTest : public CpuKernelEmitterTest {
+class IntTest : public CudaKernelEmitterTest {
  public:
   using UnsignedT =
       std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
 
   void SetUp() override {
-    CpuKernelEmitterTest::SetUp();
+    CudaKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<T>());
   }
 
+ protected:
   void SetUpSlice() {
     constexpr static int64_t N = 6;
     constexpr static int64_t S = 2;
     constexpr static int64_t E = 5;
 
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[$1] parameter(0)
 
         ROOT %ret = $0[$2] slice(%x), slice={[$3:$4]}
+      }
+
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+
+        ROOT %ret = $0[$2] fusion(%x), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_, N, E - S, S, E);
@@ -201,6 +243,6 @@ class IntTest : public CpuKernelEmitterTest {
   }
 };
 
-}  // namespace zkx::cpu
+}  // namespace zkx::gpu
 
-#endif  // ZKX_BACKENDS_CPU_CODEGEN_INT_TEST_H_
+#endif  // ZKX_BACKENDS_GPU_CODEGEN_INT_TEST_H_

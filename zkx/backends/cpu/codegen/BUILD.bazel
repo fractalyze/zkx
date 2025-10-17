@@ -112,21 +112,12 @@ zkx_cc_library(
 zkx_cc_library(
     name = "cpu_kernel_emitter_test",
     testonly = True,
-    srcs = ["cpu_kernel_emitter_test.cc"],
     hdrs = ["cpu_kernel_emitter_test.h"],
     deps = [
-        ":cpu_kernel_emitter",
-        "//xla/tsl/platform:status_matchers",
-        "//xla/tsl/platform:statusor",
-        "//zkx:literal",
-        "//zkx/hlo/parser:hlo_parser",
-        "//zkx/service:hlo_runner",
-        "//zkx/service:platform_util",
+        "//zkx/backends:kernel_emitter_test",
         "//zkx/service/cpu:cpu_compiler_registerer",
         "//zkx/service/cpu:cpu_transfer_manager",
         "//zkx/stream_executor/host:host_platform",
-        "@com_google_absl//absl/types:span",
-        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -162,6 +153,7 @@ zkx_cc_library(
         "//zkx/math/base:sparse_matrix",
         "//zkx/math/poly:root_of_unity",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -175,6 +167,7 @@ zkx_cc_library(
         "//zkx:literal_util",
         "//zkx:primitive_util",
         "//zkx/base/containers:container_util",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -190,6 +183,7 @@ zkx_cc_library(
         "//zkx/base:random",
         "//zkx/base/containers:container_util",
         "@com_google_absl//absl/base",
+        "@com_google_absl//absl/strings",
     ],
 )
 

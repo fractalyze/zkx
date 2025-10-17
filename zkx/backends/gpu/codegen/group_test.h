@@ -1,25 +1,25 @@
-#ifndef ZKX_BACKENDS_CPU_CODEGEN_GROUP_TEST_H_
-#define ZKX_BACKENDS_CPU_CODEGEN_GROUP_TEST_H_
+#ifndef ZKX_BACKENDS_GPU_CODEGEN_GROUP_TEST_H_
+#define ZKX_BACKENDS_GPU_CODEGEN_GROUP_TEST_H_
 
 #include <string_view>
 
 #include "absl/strings/substitute.h"
 
 #include "zkx/array2d.h"
-#include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
+#include "zkx/backends/gpu/codegen/cuda_kernel_emitter_test.h"
 #include "zkx/base/containers/container_util.h"
 #include "zkx/literal_util.h"
 #include "zkx/primitive_util.h"
 
-namespace zkx::cpu {
+namespace zkx::gpu {
 
 template <typename AffinePoint>
-class GroupScalarUnaryTest : public CpuKernelEmitterTest {
+class GroupScalarUnaryTest : public CudaKernelEmitterTest {
  public:
   using JacobianPoint = typename AffinePoint::JacobianPoint;
 
   void SetUp() override {
-    CpuKernelEmitterTest::SetUp();
+    CudaKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<AffinePoint>());
     ret_typename_ = primitive_util::LowercasePrimitiveTypeName(
@@ -31,10 +31,16 @@ class GroupScalarUnaryTest : public CpuKernelEmitterTest {
  protected:
   void SetUpConvert() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
 
         ROOT %ret = $1[] convert(%x)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $1[] fusion(%x), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_, ret_typename_);
@@ -43,10 +49,16 @@ class GroupScalarUnaryTest : public CpuKernelEmitterTest {
 
   void SetUpNegate() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
 
         ROOT %ret = $0[] negate(%x)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] fusion(%x), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_);
@@ -59,13 +71,13 @@ class GroupScalarUnaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename AffinePoint>
-class GroupScalarBinaryTest : public CpuKernelEmitterTest {
+class GroupScalarBinaryTest : public CudaKernelEmitterTest {
  public:
   using JacobianPoint = typename AffinePoint::JacobianPoint;
   using ScalarField = typename AffinePoint::ScalarField;
 
   void SetUp() override {
-    CpuKernelEmitterTest::SetUp();
+    CudaKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<AffinePoint>());
     ret_typename_ = primitive_util::LowercasePrimitiveTypeName(
@@ -79,11 +91,18 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
  protected:
   void SetUpAdd() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
         %y = $0[] parameter(1)
 
         ROOT %ret = $1[] add(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $1[] fusion(%x, %y), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_, ret_typename_);
@@ -92,10 +111,16 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
 
   void SetUpDouble() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
 
         ROOT %ret = $1[] add(%x, %x)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $1[] fusion(%x), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_, ret_typename_);
@@ -105,11 +130,18 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
 
   void SetUpSub() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
         %y = $0[] parameter(1)
 
         ROOT %ret = $1[] subtract(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $1[] fusion(%x, %y), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_, ret_typename_);
@@ -119,11 +151,18 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
   void SetUpScalarMul() {
     hlo_text_ = absl::Substitute(
         R"(
-      ENTRY %main {
+      %f {
         %x = $0[] parameter(0)
         %y = $1[] parameter(1)
 
         ROOT %ret = $2[] multiply(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $1[] parameter(1)
+
+        ROOT %ret = $2[] fusion(%x, %y), kind=kLoop, calls=%f
       }
     )",
         primitive_util::LowercasePrimitiveTypeName(
@@ -143,13 +182,13 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename AffinePoint>
-class GroupR2TensorUnaryTest : public CpuKernelEmitterTest {
+class GroupR2TensorUnaryTest : public CudaKernelEmitterTest {
  public:
   constexpr static int64_t M = 2;
   constexpr static int64_t N = 3;
 
   void SetUp() override {
-    CpuKernelEmitterTest::SetUp();
+    CudaKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<AffinePoint>());
     x_ = base::CreateVector(M, []() {
@@ -175,10 +214,16 @@ class GroupR2TensorUnaryTest : public CpuKernelEmitterTest {
 
   void SetUpNegate() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[$1, $2] parameter(0)
 
         ROOT %ret = $0[$1, $2] negate(%x)
+      }
+
+      ENTRY %main {
+        %x = $0[$1, $2] parameter(0)
+
+        ROOT %ret = $0[$1, $2] fusion(%x), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_, M, N);
@@ -193,7 +238,7 @@ class GroupR2TensorUnaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename AffinePoint>
-class GroupR2TensorBinaryTest : public CpuKernelEmitterTest {
+class GroupR2TensorBinaryTest : public CudaKernelEmitterTest {
  public:
   constexpr static int64_t M = 2;
   constexpr static int64_t N = 3;
@@ -201,7 +246,7 @@ class GroupR2TensorBinaryTest : public CpuKernelEmitterTest {
   using JacobianPoint = typename AffinePoint::JacobianPoint;
 
   void SetUp() override {
-    CpuKernelEmitterTest::SetUp();
+    CudaKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<AffinePoint>());
     ret_typename_ = primitive_util::LowercasePrimitiveTypeName(
@@ -235,11 +280,18 @@ class GroupR2TensorBinaryTest : public CpuKernelEmitterTest {
 
   void SetUpAdd() {
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[$2, $3] parameter(0)
         %y = $0[$2, $3] parameter(1)
 
         ROOT %ret = $1[$2, $3] add(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[$2, $3] parameter(0)
+        %y = $0[$2, $3] parameter(1)
+
+        ROOT %ret = $1[$2, $3] fusion(%x, %y), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_, ret_typename_, M, N);
@@ -257,10 +309,10 @@ class GroupR2TensorBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename AffinePoint>
-class GroupTest : public CpuKernelEmitterTest {
+class GroupTest : public CudaKernelEmitterTest {
  public:
   void SetUp() override {
-    CpuKernelEmitterTest::SetUp();
+    CudaKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<AffinePoint>());
   }
@@ -272,10 +324,16 @@ class GroupTest : public CpuKernelEmitterTest {
     constexpr static int64_t E = 5;
 
     hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
+      %f {
         %x = $0[$1] parameter(0)
 
         ROOT %ret = $0[$2] slice(%x), slice={[$3:$4]}
+      }
+
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+
+        ROOT %ret = $0[$2] fusion(%x), kind=kLoop, calls=%f
       }
     )",
                                  x_typename_, N, E - S, S, E);
@@ -287,6 +345,6 @@ class GroupTest : public CpuKernelEmitterTest {
   }
 };
 
-}  // namespace zkx::cpu
+}  // namespace zkx::gpu
 
-#endif  // ZKX_BACKENDS_CPU_CODEGEN_GROUP_TEST_H_
+#endif  // ZKX_BACKENDS_GPU_CODEGEN_GROUP_TEST_H_
