@@ -157,6 +157,16 @@ cc_library(
 )
 
 cc_library(
+    name = "program",
+    srcs = ["program.cc"],
+    hdrs = ["program.h"],
+    deps = [
+        ":serdes",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "ref_wrapper",
     hdrs = ["ref_wrapper.h"],
     deps = [
