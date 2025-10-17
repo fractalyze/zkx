@@ -1,6 +1,23 @@
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 
 package(default_visibility = ["//visibility:public"])
+
+gentbl_cc_library(
+    name = "passes_inc_gen",
+    tbl_outs = [
+        (
+            [
+                "-gen-pass-decls",
+                "-name=AllMhlo",
+            ],
+            "mhlo_passes.h.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "mhlo_passes.td",
+    deps = ["@llvm-project//mlir:PassBaseTdFiles"],
+)
 
 zkx_cc_library(
     name = "map_mhlo_to_scalar_op",
@@ -14,5 +31,14 @@ zkx_cc_library(
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+    ],
+)
+
+zkx_cc_library(
+    name = "passes",
+    hdrs = ["passes.h"],
+    deps = [
+        ":passes_inc_gen",
+        "//zkx/mlir_hlo/mhlo/transforms/convert_to_signless:convert_to_signless_pass",
     ],
 )

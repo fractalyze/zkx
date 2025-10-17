@@ -1,4 +1,4 @@
-/* Copyright 2018 The OpenXLA Authors.
+/* Copyright 2022 The OpenXLA Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,25 +13,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef ZKX_SERVICE_GPU_GPU_FUSIBLE_H_
-#define ZKX_SERVICE_GPU_GPU_FUSIBLE_H_
+#ifndef ZKX_SERVICE_GPU_GPU_DEVICE_INFO_FOR_TESTS_H_
+#define ZKX_SERVICE_GPU_GPU_DEVICE_INFO_FOR_TESTS_H_
 
-#include <stdint.h>
-
-#include "zkx/service/gpu/hlo_fusion_analysis.h"
-#include "zkx/service/gpu/launch_dimensions.h"
+#include "zkx/stream_executor/device_description.h"
 
 namespace zkx::gpu {
 
-// Returns the max loop unroll factor.
-inline constexpr int64_t MaxUnrollFactor() { return 4; }
-
-LaunchDimensionsConfig ComputeLoopFusionConfig(
-    const HloFusionAnalysis& analysis);
-
-LaunchDimensionsConfig ComputeLoopFusionConfig(
-    const HloFusionAnalysis& analysis, const Shape& shape);
+class TestGpuDeviceInfo {
+ public:
+  static se::DeviceDescription RTXA6000DeviceInfo(
+      se::GpuComputeCapability cc = se::CudaComputeCapability(8, 9));
+  static se::DeviceDescription AMDMI210DeviceInfo();
+  // Returns default RTXA6000 or AMDMI210 device info
+  static se::DeviceDescription CudaOrRocmDeviceInfo();
+};
 
 }  // namespace zkx::gpu
 
-#endif  // ZKX_SERVICE_GPU_GPU_FUSIBLE_H_
+#endif  // ZKX_SERVICE_GPU_GPU_DEVICE_INFO_FOR_TESTS_H_

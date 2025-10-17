@@ -64,6 +64,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gpu_device_info_for_tests",
+    testonly = True,
+    srcs = ["gpu_device_info_for_tests.cc"],
+    hdrs = ["gpu_device_info_for_tests.h"],
+    deps = [
+        "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:semantic_version",
+    ],
+)
+
+zkx_cc_library(
     name = "gpu_executable",
     srcs = ["gpu_executable.cc"],
     hdrs = ["gpu_executable.h"],
@@ -132,7 +143,18 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "gpu_fusible",
+    srcs = ["gpu_fusible.cc"],
     hdrs = ["gpu_fusible.h"],
+    deps = [
+        ":hlo_fusion_analysis",
+        ":launch_dimensions",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/hlo/utils:hlo_traversal",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/numeric:bits",
+    ],
 )
 
 zkx_cc_library(
