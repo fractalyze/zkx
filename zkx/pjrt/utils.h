@@ -70,6 +70,13 @@ absl::StatusOr<std::vector<int>> ComputeParametersThatMustBeDonated(
 bool HasMajorToMinorLayout(PrimitiveType type, absl::Span<const int64_t> dims,
                            absl::Span<const int64_t> byte_strides);
 
+// Constructs a new dense array shape with the given byte strides. Supports only
+// trivial (compact) byte_strides that represents a transposition of a dense
+// buffer.
+absl::StatusOr<Shape> MakeShapeWithTrivialByteStrides(
+    PrimitiveType element_type, absl::Span<const int64_t> dimensions,
+    absl::Span<const int64_t> byte_strides);
+
 // If a buffer `is_donated`, then it can only be used once. This function
 // records the use into donation_clashes and tests for incompatible uses.
 // Multiple uses are valid iff they are all not donations.  The provided map

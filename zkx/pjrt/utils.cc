@@ -18,12 +18,14 @@ limitations under the License.
 
 #include <algorithm>
 #include <cstdlib>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/statusor.h"
@@ -32,6 +34,7 @@ limitations under the License.
 #include "zkx/layout_util.h"
 #include "zkx/primitive_util.h"
 #include "zkx/shape_util.h"
+#include "zkx/status_macros.h"
 
 namespace zkx {
 namespace {
@@ -340,6 +343,42 @@ bool HasMajorToMinorLayout(PrimitiveType type, absl::Span<const int64_t> dims,
     }
   }
   return true;
+}
+
+absl::StatusOr<Shape> MakeShapeWithTrivialByteStrides(
+    PrimitiveType element_type, absl::Span<const int64_t> dimensions,
+    absl::Span<const int64_t> byte_strides) {
+  TF_RET_CHECK(dimensions.size() == byte_strides.size());
+  std::vector<int64_t> minor_to_major(dimensions.size());
+  // Begin with a major-to-minor layout that is likely the most common.
+  std::iota(minor_to_major.rbegin(), minor_to_major.rend(), 0);
+  // Find minor-to-major only if there is no zero dimension size because
+  // minor-to-major is irrelevant with any zero dimension size.
+  if (absl::c_find(dimensions, 0) == dimensions.end()) {
+    absl::c_sort(minor_to_major, [&](int a, int b) {
+      if (byte_strides[a] < byte_strides[b]) {
+        return true;
+      }
+      if (byte_strides[a] > byte_strides[b]) {
+        return false;
+      }
+      return dimensions[a] == 1 && dimensions[b] != 1;
+    });
+    int64_t byte_stride = ShapeUtil::ByteSizeOfPrimitiveType(element_type);
+    for (int64_t d : minor_to_major) {
+      if (dimensions[d] != 1 && byte_strides[d] != byte_stride) {
+        return absl::UnimplementedError(absl::StrFormat(
+            "Only trivial (compact) byte strides are supported; i.e., byte "
+            "striding represents a transposition of the underlying dense "
+            "buffer but not broadcasting. Dimensions were: [%s], byte "
+            "strides were [%s].",
+            absl::StrJoin(dimensions, ","), absl::StrJoin(byte_strides, ",")));
+      }
+      byte_stride *= dimensions[d];
+    }
+  }
+  return ShapeUtil::MakeShapeWithDenseLayout(element_type, dimensions,
+                                             minor_to_major);
 }
 
 absl::Status TestBufferDonationClashes(
