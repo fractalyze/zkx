@@ -68,12 +68,48 @@ cc_library(
     deps = [":serdes_version"],
 )
 
+cc_library(
+    name = "user_context",
+    srcs = ["user_context.cc"],
+    hdrs = ["user_context.h"],
+    deps = [
+        "//xla/tsl/concurrency:ref_count",
+        "//xla/tsl/lib/gtl:int_type",
+        "//xla/tsl/platform:random",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:no_destructor",
+        "@com_google_absl//absl/base:nullability",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
+    name = "user_context_test_util",
+    testonly = True,
+    hdrs = ["user_context_test_util.h"],
+    deps = [
+        ":user_context",
+        "//xla/tsl/concurrency:ref_count",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
 zkx_cc_unittest(
     name = "ifrt_unittests",
-    srcs = ["dtype_unittest.cc"],
+    srcs = [
+        "dtype_unittest.cc",
+        "user_context_unittest.cc",
+    ],
     deps = [
         ":dtype",
         ":serdes_test_util",
+        ":user_context_test_util",
+        "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/time",
     ],
 )
