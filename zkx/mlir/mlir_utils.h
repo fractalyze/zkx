@@ -206,6 +206,11 @@ mlir::RankedTensorType ShapeToMlirTensorType(const Shape& shape,
 llvm::SmallVector<mlir::Type> ShapeToMlirTypes(const Shape& shape,
                                                mlir::MLIRContext* context);
 
+// Returns a ZKX PrimitiveType equivalent of an MLIR Type that represents
+// a primitive type (e.g., i8), else returns PRIMITIVE_TYPE_INVALID.
+// Signless MLIR types are converted to signed ZKX primitive types.
+PrimitiveType MlirTypeToPrimitiveTypeWithSign(mlir::Type type);
+
 template <typename T>
 mlir::Value CreateMlirPrimeFieldConstant(mlir::ImplicitLocOpBuilder& b,
                                          const T& value) {

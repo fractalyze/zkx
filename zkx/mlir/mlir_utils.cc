@@ -232,6 +232,138 @@ llvm::SmallVector<mlir::Type> ShapeToMlirTypes(const Shape& shape,
   return types;
 }
 
+namespace {
+
+PrimitiveType GetPrimitiveTypeOfPrimeFieldType(
+    mlir::zkir::field::PrimeFieldType field_type) {
+  mlir::IntegerAttr modulus = field_type.getModulus();
+  mlir::IntegerAttr bn254_fr_modulus =
+      GetModulus<zk_dtypes::bn254::Fr>(modulus.getContext());
+  if (modulus == bn254_fr_modulus) {
+    if (field_type.isMontgomery()) {
+      return PrimitiveType::BN254_SCALAR;
+    } else {
+      return PrimitiveType::BN254_SCALAR_STD;
+    }
+  }
+  return PrimitiveType::PRIMITIVE_TYPE_INVALID;
+}
+
+PrimitiveType GetPrimitiveTypeOfAffineType(
+    mlir::zkir::elliptic_curve::AffineType affine_type) {
+  mlir::zkir::elliptic_curve::ShortWeierstrassAttr curve =
+      affine_type.getCurve();
+  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g1_curve =
+      GetMlirG1ShortWeierstrassAttr<zk_dtypes::bn254::G1AffinePoint>(
+          affine_type.getContext());
+  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g2_curve =
+      GetMlirG2ShortWeierstrassAttr<zk_dtypes::bn254::G2AffinePoint>(
+          affine_type.getContext());
+  if (curve == bn254_g1_curve) {
+    if (mlir::cast<mlir::zkir::field::PrimeFieldType>(curve.getBaseField())
+            .isMontgomery()) {
+      return PrimitiveType::BN254_G1_AFFINE;
+    } else {
+      return PrimitiveType::BN254_G1_AFFINE_STD;
+    }
+  } else if (curve == bn254_g2_curve) {
+    if (mlir::cast<mlir::zkir::field::QuadraticExtFieldType>(
+            curve.getBaseField())
+            .isMontgomery()) {
+      return PrimitiveType::BN254_G2_AFFINE;
+    } else {
+      return PrimitiveType::BN254_G2_AFFINE_STD;
+    }
+  }
+  return PrimitiveType::PRIMITIVE_TYPE_INVALID;
+}
+
+PrimitiveType GetPrimitiveTypeOfJacobianType(
+    mlir::zkir::elliptic_curve::JacobianType jacobian_type) {
+  mlir::zkir::elliptic_curve::ShortWeierstrassAttr curve =
+      jacobian_type.getCurve();
+  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g1_curve =
+      GetMlirG1ShortWeierstrassAttr<zk_dtypes::bn254::G1JacobianPoint>(
+          jacobian_type.getContext());
+  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g2_curve =
+      GetMlirG2ShortWeierstrassAttr<zk_dtypes::bn254::G2JacobianPoint>(
+          jacobian_type.getContext());
+  if (curve == bn254_g1_curve) {
+    if (mlir::cast<mlir::zkir::field::PrimeFieldType>(curve.getBaseField())
+            .isMontgomery()) {
+      return PrimitiveType::BN254_G1_JACOBIAN;
+    } else {
+      return PrimitiveType::BN254_G1_JACOBIAN_STD;
+    }
+  } else if (curve == bn254_g2_curve) {
+    if (mlir::cast<mlir::zkir::field::QuadraticExtFieldType>(
+            curve.getBaseField())
+            .isMontgomery()) {
+      return PrimitiveType::BN254_G2_JACOBIAN;
+    } else {
+      return PrimitiveType::BN254_G2_JACOBIAN_STD;
+    }
+  }
+  return PrimitiveType::PRIMITIVE_TYPE_INVALID;
+}
+
+PrimitiveType GetPrimitiveTypeOfXYZZType(
+    mlir::zkir::elliptic_curve::XYZZType xyzz_type) {
+  mlir::zkir::elliptic_curve::ShortWeierstrassAttr curve = xyzz_type.getCurve();
+  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g1_curve =
+      GetMlirG1ShortWeierstrassAttr<zk_dtypes::bn254::G1PointXyzz>(
+          xyzz_type.getContext());
+  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g2_curve =
+      GetMlirG2ShortWeierstrassAttr<zk_dtypes::bn254::G2PointXyzz>(
+          xyzz_type.getContext());
+  if (curve == bn254_g1_curve) {
+    if (mlir::cast<mlir::zkir::field::PrimeFieldType>(curve.getBaseField())
+            .isMontgomery()) {
+      return PrimitiveType::BN254_G1_XYZZ;
+    } else {
+      return PrimitiveType::BN254_G1_XYZZ_STD;
+    }
+  } else if (curve == bn254_g2_curve) {
+    if (mlir::cast<mlir::zkir::field::QuadraticExtFieldType>(
+            curve.getBaseField())
+            .isMontgomery()) {
+      return PrimitiveType::BN254_G2_XYZZ;
+    } else {
+      return PrimitiveType::BN254_G2_XYZZ_STD;
+    }
+  }
+  return PrimitiveType::PRIMITIVE_TYPE_INVALID;
+}
+
+}  // namespace
+
+PrimitiveType MlirTypeToPrimitiveTypeWithSign(mlir::Type type) {
+  if (auto integer_type = mlir::dyn_cast<mlir::IntegerType>(type)) {
+    bool is_unsigned = integer_type.isUnsigned();
+    if (integer_type.getWidth() == 1) {
+      return PrimitiveType::PRED;
+    }
+    return is_unsigned ? primitive_util::UnsignedIntegralTypeForBitWidth(
+                             integer_type.getWidth())
+                       : primitive_util::SignedIntegralTypeForBitWidth(
+                             integer_type.getWidth());
+  } else if (auto field_type =
+                 mlir::dyn_cast<mlir::zkir::field::PrimeFieldType>(type)) {
+    return GetPrimitiveTypeOfPrimeFieldType(field_type);
+  } else if (auto affine_type =
+                 mlir::dyn_cast<mlir::zkir::elliptic_curve::AffineType>(type)) {
+    return GetPrimitiveTypeOfAffineType(affine_type);
+  } else if (auto jacobian_type =
+                 mlir::dyn_cast<mlir::zkir::elliptic_curve::JacobianType>(
+                     type)) {
+    return GetPrimitiveTypeOfJacobianType(jacobian_type);
+  } else if (auto xyzz_type =
+                 mlir::dyn_cast<mlir::zkir::elliptic_curve::XYZZType>(type)) {
+    return GetPrimitiveTypeOfXYZZType(xyzz_type);
+  }
+  return PrimitiveType::PRIMITIVE_TYPE_INVALID;
+}
+
 mlir::arith::CmpIPredicate CreateMlirArithCmpIPredicate(
     ComparisonDirection direction, bool is_signed) {
   switch (direction) {
