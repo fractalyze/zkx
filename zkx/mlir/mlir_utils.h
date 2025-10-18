@@ -35,21 +35,24 @@ llvm::APInt ConvertUnderlyingValueToAPInt(T value) {
 }
 
 template <typename T>
+mlir::IntegerAttr GetModulus(mlir::MLIRContext* context) {
+  auto type = mlir::IntegerType::get(context, T::kBitWidth);
+  return mlir::IntegerAttr::get(
+      type, ConvertUnderlyingValueToAPInt(T::Config::kModulus));
+}
+
+template <typename T>
 mlir::zkir::mod_arith::ModArithType GetMlirModArithType(
     mlir::MLIRContext* context) {
-  auto type = mlir::IntegerType::get(context, T::kBitWidth);
-  auto modulus = mlir::IntegerAttr::get(
-      type, llvm_ir::ConvertBigIntToAPInt(T::Config::kModulus));
-  return mlir::zkir::mod_arith::ModArithType::get(context, modulus);
+  return mlir::zkir::mod_arith::ModArithType::get(context,
+                                                  GetModulus<T>(context));
 }
 
 template <typename T>
 mlir::zkir::mod_arith::MontgomeryAttr GetMlirMontgomeryAttr(
     mlir::MLIRContext* context) {
-  auto type = mlir::IntegerType::get(context, T::kBitWidth);
-  auto modulus = mlir::IntegerAttr::get(
-      type, llvm_ir::ConvertBigIntToAPInt(T::Config::kModulus));
-  return mlir::zkir::mod_arith::MontgomeryAttr::get(context, modulus);
+  return mlir::zkir::mod_arith::MontgomeryAttr::get(context,
+                                                    GetModulus<T>(context));
 }
 
 // TODO(chokobole): Remove the `use_montgomery` parameter once
@@ -62,10 +65,7 @@ mlir::zkir::field::PrimeFieldType GetMlirPrimeFieldType(
   if constexpr (!T::kUseMontgomery) {
     DCHECK(!use_montgomery);
   }
-  auto type = mlir::IntegerType::get(context, T::kBitWidth);
-  auto modulus = mlir::IntegerAttr::get(
-      type, ConvertUnderlyingValueToAPInt(T::Config::kModulus));
-  return mlir::zkir::field::PrimeFieldType::get(context, modulus,
+  return mlir::zkir::field::PrimeFieldType::get(context, GetModulus<T>(context),
                                                 use_montgomery);
 }
 
