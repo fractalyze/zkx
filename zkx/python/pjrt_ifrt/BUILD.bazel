@@ -56,6 +56,7 @@ cc_library(
         "//zkx/python/ifrt:memory",
         "//zkx/python/ifrt:shape",
         "//zkx/python/ifrt:user_context",
+        "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/status",
@@ -301,5 +302,25 @@ zkx_cc_unittest(
         "//zkx/python/ifrt:index_domain",
         "@com_google_absl//absl/hash:hash_testing",
         "@com_google_absl//absl/status:status_matchers",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "pjrt_ifrt_tests_with_cpu_client_multi_process",
+    srcs = ["basic_string_array_unittest.cc"],
+    deps = [
+        ":basic_string_array",
+        ":pjrt_cpu_client_multi_process_test_lib",
+        "//xla/tsl/concurrency:ref_count",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx/pjrt:pjrt_future",
+        "//zkx/python/ifrt:test_util",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@llvm-project//llvm:Support",
     ],
 )
