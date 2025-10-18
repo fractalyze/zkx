@@ -13,10 +13,22 @@
 # limitations under the License.
 # ==============================================================================
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "zkx_compiler_proto",
+    srcs = ["zkx_compiler.proto"],
+    deps = ["//zkx/pjrt:compile_options_proto"],
+)
+
+cc_proto_library(
+    name = "zkx_compiler_cc_proto",
+    deps = [":zkx_compiler_proto"],
+)
 
 cc_library(
     name = "pjrt_attribute_map_util",
@@ -81,6 +93,25 @@ cc_library(
         "//zkx/python/ifrt:topology",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
+    name = "zkx_compiler",
+    srcs = ["zkx_compiler.cc"],
+    hdrs = ["zkx_compiler.h"],
+    deps = [
+        ":zkx_compiler_cc_proto",
+        "//xla/tsl/platform:statusor",
+        "//zkx/pjrt:pjrt_executable",
+        "//zkx/python/ifrt",
+        "//zkx/python/ifrt:device",
+        "//zkx/python/ifrt:host_callback",
+        "//zkx/python/ifrt:serdes",
+        "//zkx/service:computation_placer",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@llvm-project//llvm:Support",
     ],
 )
