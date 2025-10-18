@@ -68,6 +68,22 @@ cc_library(
 )
 
 cc_library(
+    name = "pjrt_cpu_client_multi_process_test_lib",
+    testonly = True,
+    srcs = ["pjrt_cpu_client_multi_process_test_lib.cc"],
+    deps = [
+        ":pjrt_ifrt",
+        "//zkx/pjrt/cpu:cpu_client",
+        "//zkx/pjrt/plugin/cpu:cpu_client_options",
+        "//zkx/python/ifrt",
+        "//zkx/python/ifrt:device",
+        "//zkx/python/ifrt:test_util",
+        "@com_google_absl//absl/status:statusor",
+    ],
+    alwayslink = True,
+)
+
+cc_library(
     name = "pjrt_dtype",
     srcs = ["pjrt_dtype.cc"],
     hdrs = ["pjrt_dtype.h"],
