@@ -89,9 +89,6 @@ build:nvcc_clang --config=cuda_nvcc
 # WARN(batzor): this will make the build non-portable
 build:native --copt=-march=native
 
-# NOTE(chokobole): `CliqueKey` depends on `std::type_index()`.
-build --//:has_rtti
-
 # NOTE(chokobole): pjrt needs exception.
 build --//:has_exception
 
