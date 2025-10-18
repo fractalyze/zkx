@@ -58,7 +58,7 @@ using LayoutCanonicalizationCallback =
 //
 // HloModule is the top-level unit in the HLO IR. It corresponds to a whole
 // "program". Running a module, from beginning to end, is the only way to run
-// an ZKX program.
+// a ZKX program.
 //
 // A module contains one "entry computation"; this HloComputation is like main()
 // in a C program. The result of running the module is the result of running

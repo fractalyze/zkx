@@ -222,7 +222,7 @@ absl::StatusOr<CpuExecutable::ConstantAllocation> LiteralToConstantAllocation(
   int64_t size_bytes = literal.size_bytes();
   const void* untyped_data = literal.untyped_data();
 
-  // Pack sub-byte types into an ZKX storage format.
+  // Pack sub-byte types into a ZKX storage format.
   if (primitive_util::IsSubByteNonPredType(element_type)) {
     int bit_width = primitive_util::BitWidth(element_type);
     int packed_size_bytes = CeilOfRatio<int64_t>(size_bytes, 8 / bit_width);
@@ -818,7 +818,7 @@ CpuExecutableAotCompilationResult::LoadExecutable(
             target_machine->createDataLayout()));
   }
 
-  // We might have an ZKX:CPU executable that has only runtime thunks and
+  // We might have a ZKX:CPU executable that has only runtime thunks and
   // doesn't have any corresponding object files, and it's absolutely fine.
   VLOG(2) << "Load ZKX:CPU executable from " << proto_.obj_files_size()
           << " object files; entry_function_name="

@@ -26,7 +26,7 @@ limitations under the License.
 
 namespace zkx {
 
-// Options for creating an ZKX:CPU PjRtClient.
+// Options for creating a ZKX:CPU PjRtClient.
 struct CpuClientOptions {
   // Used to control whether asynchronous computation dispatch is available for
   // this client. Only applies to non-parallel computations, because collectives

@@ -42,7 +42,7 @@ extern "C" {
 //
 // (*) https://llvm.org/docs/LangRef.html#structure-types
 
-// Similar to a Gpu backend an ZKX:CPU compiler generates a tiled function from
+// Similar to a Gpu backend a ZKX:CPU compiler generates a tiled function from
 // an HLO fusion where each tile is responsible for computing a part of the
 // output. It's up to compiler to chose the tiling strategy, from CPU runtime
 // perspective it's simply an iteration space where each task is independent and

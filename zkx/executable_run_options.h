@@ -28,7 +28,7 @@ limitations under the License.
 #include "absl/status/statusor.h"
 
 // These classes are forward declared so that ExecutableRunOptions can be linked
-// into an ZKX-compiled binary without having to link all of the pointed-to
+// into a ZKX-compiled binary without having to link all of the pointed-to
 // objects (e.g., for an ahead-of-time compiled CPU binary, the gpu tools don't
 // need to be linked).
 namespace stream_executor {
@@ -68,7 +68,7 @@ namespace ffi {
 class ExecutionContext;
 }  // namespace ffi
 
-// A unique identifier for a particular "logical execution" of an ZKX model.
+// A unique identifier for a particular "logical execution" of a ZKX model.
 //
 // A logical execution might encompass multiple executions of one or more
 // HloModules.  Runs that are part of the same logical execution can

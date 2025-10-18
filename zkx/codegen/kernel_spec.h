@@ -30,7 +30,7 @@ limitations under the License.
 
 namespace zkx {
 
-// KernelSpec is a specification of an ZKX kernel produced by the ZKX codegen.
+// KernelSpec is a specification of a ZKX kernel produced by the ZKX codegen.
 // At ZKX compilation time, backends instantiates kernel specification into run
 // time instances that can be executed on the device, i.e. on GPU ZKX runtime
 // will load kernel PTX on device and instantiate a KernelThunk.
