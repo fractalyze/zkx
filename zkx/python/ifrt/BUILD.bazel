@@ -101,6 +101,20 @@ cc_library(
 )
 
 cc_library(
+    name = "user_context_status_util",
+    srcs = ["user_context_status_util.cc"],
+    hdrs = ["user_context_status_util.h"],
+    deps = [
+        ":user_context",
+        ":user_context_registry",
+        "//xla/tsl/platform:errors",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "user_context_test_util",
     testonly = True,
     hdrs = ["user_context_test_util.h"],
@@ -117,15 +131,18 @@ zkx_cc_unittest(
     srcs = [
         "dtype_unittest.cc",
         "user_context_registry_unittest.cc",
+        "user_context_status_util_unittest.cc",
         "user_context_unittest.cc",
     ],
     deps = [
         ":dtype",
         ":serdes_test_util",
         ":user_context_registry",
+        ":user_context_status_util",
         ":user_context_test_util",
         "//xla/tsl/concurrency:ref_count",
         "//xla/tsl/platform:env",
+        "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/memory",
