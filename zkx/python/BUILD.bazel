@@ -65,3 +65,12 @@ cc_library(
         "@nanobind",
     ],
 )
+
+cc_library(
+    name = "nb_helpers",
+    hdrs = ["nb_helpers.h"],
+    deps = [
+        "@com_google_absl//absl/strings:str_format",
+        "@nanobind",
+    ],
+)
