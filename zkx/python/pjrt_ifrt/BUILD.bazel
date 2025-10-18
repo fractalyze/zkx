@@ -80,6 +80,19 @@ cc_library(
 )
 
 cc_library(
+    name = "pjrt_host_callback",
+    srcs = ["pjrt_host_callback.cc"],
+    hdrs = ["pjrt_host_callback.h"],
+    deps = [
+        "//zkx/pjrt:host_callback",
+        "//zkx/python/ifrt",
+        "//zkx/python/ifrt:host_callback",
+        "@com_google_absl//absl/status:statusor",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "pjrt_topology",
     srcs = ["pjrt_topology.cc"],
     hdrs = ["pjrt_topology.h"],
