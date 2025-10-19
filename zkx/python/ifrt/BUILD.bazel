@@ -157,6 +157,15 @@ cc_library(
 )
 
 cc_library(
+    name = "ref_wrapper",
+    hdrs = ["ref_wrapper.h"],
+    deps = [
+        "//xla/tsl/concurrency:ref_count",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "serdes",
     srcs = ["serdes.cc"],
     hdrs = ["serdes.h"],
@@ -344,6 +353,7 @@ zkx_cc_unittest(
         "index_domain_unittest.cc",
         "index_unittest.cc",
         "memory_unittest.cc",
+        "ref_wrapper_unittest.cc",
         "serdes_unittest.cc",
         "shape_unittest.cc",
         "user_context_registry_unittest.cc",
@@ -357,6 +367,7 @@ zkx_cc_unittest(
         ":index",
         ":index_domain",
         ":memory",
+        ":ref_wrapper",
         ":serdes",
         ":serdes_test_util",
         ":shape",
