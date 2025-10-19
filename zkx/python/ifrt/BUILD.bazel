@@ -3,6 +3,12 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
+    name = "serdes_any_version_accessor",
+    hdrs = ["serdes_any_version_accessor.h"],
+    deps = [":serdes_version"],
+)
+
+cc_library(
     name = "serdes_default_version_accessor",
     hdrs = ["serdes_default_version_accessor.h"],
     deps = [
