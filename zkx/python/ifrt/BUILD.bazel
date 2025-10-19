@@ -20,6 +20,21 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 proto_library(
+    name = "array_spec_proto",
+    srcs = ["array_spec.proto"],
+    deps = [
+        ":dtype_proto",
+        ":shape_proto",
+        ":sharding_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "array_spec_cc_proto",
+    deps = [":array_spec_proto"],
+)
+
+proto_library(
     name = "attribute_map_proto",
     srcs = ["attribute_map.proto"],
 )
@@ -50,6 +65,42 @@ cc_proto_library(
 )
 
 proto_library(
+    name = "execute_options_proto",
+    srcs = ["execute_options.proto"],
+    deps = [":attribute_map_proto"],
+)
+
+cc_proto_library(
+    name = "execute_options_cc_proto",
+    deps = [":execute_options_proto"],
+)
+
+proto_library(
+    name = "layout_proto",
+    srcs = ["layout.proto"],
+    deps = [":serdes_proto"],
+)
+
+cc_proto_library(
+    name = "layout_cc_proto",
+    deps = [":layout_proto"],
+)
+
+proto_library(
+    name = "remap_plan_proto",
+    srcs = ["remap_plan.proto"],
+    deps = [
+        ":array_spec_proto",
+        ":device_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "remap_plan_cc_proto",
+    deps = [":remap_plan_proto"],
+)
+
+proto_library(
     name = "serdes_proto",
     srcs = ["serdes.proto"],
 )
@@ -67,6 +118,17 @@ proto_library(
 cc_proto_library(
     name = "shape_cc_proto",
     deps = [":shape_proto"],
+)
+
+proto_library(
+    name = "sharding_proto",
+    srcs = ["sharding.proto"],
+    deps = [":serdes_proto"],
+)
+
+cc_proto_library(
+    name = "sharding_cc_proto",
+    deps = [":sharding_proto"],
 )
 
 cc_library(
@@ -115,6 +177,90 @@ cc_library(
     name = "future",
     hdrs = ["future.h"],
     deps = ["//zkx/pjrt:pjrt_future"],
+)
+
+cc_library(
+    name = "ifrt",
+    srcs = [
+        "array.cc",
+        "array_spec.cc",
+        "client.cc",
+        "compiler.cc",
+        "device_list.cc",
+        "executable.cc",
+        "executable_serdes.cc",
+        "layout.cc",
+        "remap_plan.cc",
+        "sharding.cc",
+    ],
+    hdrs = [
+        "array.h",
+        "array_spec.h",
+        "client.h",
+        "compiler.h",
+        "device_list.h",
+        "executable.h",
+        "executable_serdes.h",
+        "layout.h",
+        "remap_plan.h",
+        "sharding.h",
+    ],
+    deps = [
+        ":array_spec_cc_proto",
+        ":attribute_map",
+        ":device",
+        ":device_cc_proto",
+        ":dtype",
+        ":execute_options_cc_proto",
+        ":future",
+        ":index",
+        ":index_domain",
+        ":layout_cc_proto",
+        ":memory",
+        ":program",
+        ":ref_wrapper",
+        ":remap_plan_cc_proto",
+        ":serdes",
+        ":serdes_default_version_accessor",
+        ":serdes_version",
+        ":shape",
+        ":sharding_cc_proto",
+        ":topology",
+        ":tuple",
+        ":user_context",
+        ":value",
+        "//xla/tsl/concurrency:ref_count",
+        "//xla/tsl/lib/core:bitmap",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:status_macros",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/pjrt:pjrt_client",
+        "//zkx/pjrt:pjrt_compiler",
+        "//zkx/pjrt:pjrt_executable",
+        "//zkx/pjrt:pjrt_layout",
+        "//zkx/python/ifrt/ir:sharding_param",
+        "//zkx/service:computation_placer",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:nullability",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+        "@highwayhash",
+        "@highwayhash//:arch_specific",
+        "@highwayhash//:hh_types",
+        "@llvm-project//llvm:Support",
+    ],
 )
 
 cc_library(
