@@ -148,6 +148,24 @@ cc_library(
 )
 
 cc_library(
+    name = "basic_device_list",
+    srcs = ["basic_device_list.cc"],
+    hdrs = ["basic_device_list.h"],
+    deps = [
+        ":device",
+        ":ifrt",
+        "//xla/tsl/concurrency:ref_count",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "device",
     srcs = ["device.cc"],
     hdrs = ["device.h"],
