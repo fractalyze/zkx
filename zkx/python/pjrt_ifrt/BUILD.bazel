@@ -111,6 +111,21 @@ cc_library(
 )
 
 cc_library(
+    name = "transfer_server_interface",
+    hdrs = ["transfer_server_interface.h"],
+    deps = [
+        "//zkx/pjrt:pjrt_client",
+        "//zkx/python/ifrt",
+        "//zkx/python/ifrt:memory",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_library(
     name = "zkx_compiler",
     srcs = ["zkx_compiler.cc"],
     hdrs = ["zkx_compiler.h"],
