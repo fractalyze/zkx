@@ -323,6 +323,18 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "unbounded_work_queue",
+    srcs = ["unbounded_work_queue.cc"],
+    hdrs = ["unbounded_work_queue.h"],
+    deps = [
+        ":env",
+        ":numa",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
 zkx_cc_unittest(
     name = "platform_unittests",
     srcs = [
