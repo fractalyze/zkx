@@ -663,6 +663,7 @@ zkx_cc_unittest(
         "attribute_map_unittest.cc",
         "device_list_unittest.cc",
         "dtype_unittest.cc",
+        "executable_unittest.cc",
         "future_unittest.cc",
         "index_domain_unittest.cc",
         "index_unittest.cc",
