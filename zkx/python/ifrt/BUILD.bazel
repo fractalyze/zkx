@@ -19,3 +19,9 @@ cc_library(
         "@com_google_absl//absl/strings",
     ],
 )
+
+cc_library(
+    name = "serdes_week_4_old_version_accessor",
+    hdrs = ["serdes_week_4_old_version_accessor.h"],
+    deps = [":serdes_version"],
+)
