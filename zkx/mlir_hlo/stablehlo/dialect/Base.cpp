@@ -221,6 +221,35 @@ Attribute boundsToEncoding(Attribute prototype, ArrayRef<int64_t> bounds) {
   return dialect->createTypeExtensions(bounds);
 }
 
+// Inference rules to concat dimensions with bounds (lhs/rhs are commutative):
+//       Dim of lhs     Dim of rhs      Infer
+//  c0:  X              Y               X+Y
+//  c1:  X              ?               ?
+//  c2:  X              ?, B            ?, X+B
+//  c3:  ?              ?               ?
+//  c4:  ?              ?, B            ?
+//  c5:  ?, B           ?, C            ?, B+C
+std::pair<int64_t, int64_t> inferConcatenatedDimAndBound(int64_t leftSize,
+                                                         int64_t rightSize,
+                                                         int64_t leftBound,
+                                                         int64_t rightBound) {
+  bool isLeftStaticDim = !isDynamicDimSize(leftSize);
+  bool isRightStaticDim = !isDynamicDimSize(rightSize);
+  int64_t inferredSize = ShapedType::kDynamic;
+  int64_t inferredBound = ShapedType::kDynamic;
+
+  if (isLeftStaticDim && isRightStaticDim) {
+    inferredSize = leftSize + rightSize;
+  } else {
+    int64_t leftSizeOrBound = isLeftStaticDim ? leftSize : leftBound;
+    int64_t rightSizeOrBound = isRightStaticDim ? rightSize : rightBound;
+    if (!isDynamicDimSize(leftSizeOrBound) &&
+        !isDynamicDimSize(rightSizeOrBound))
+      inferredBound = leftSizeOrBound + rightSizeOrBound;
+  }
+  return {inferredSize, inferredBound};
+}
+
 FailureOr<std::pair<int64_t, int64_t>>
 inferMostSpecificDimAndBound(std::optional<Location> location, int64_t dim,
                              int64_t leftSize, int64_t rightSize,
@@ -410,6 +439,38 @@ FailureOr<Type> inferMostSpecificType(std::optional<Location> location,
                                       TypeRange inputTypes) {
   return mapOverTupleElements(location, inputTypes,
                               inferMostSpecificShapedType);
+}
+
+LogicalResult inferMostSpecificTypeComponents(
+    std::optional<Location> location, TypeRange inputTypes,
+    SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
+  auto inferredTypeOrErr = inferMostSpecificType(location, inputTypes);
+  if (failed(inferredTypeOrErr))
+    return failure();
+
+  auto inferredShapeType = dyn_cast<ShapedType>((*inferredTypeOrErr));
+  if (!inferredShapeType)
+    return failure();
+  inferredReturnShapes.emplace_back(inferredShapeType);
+
+  return success();
+}
+
+mlir::Speculation::Speculatability
+getShapedSpeculatability(Operation *op, int64_t shapeCount) {
+  // If all inputs are static and the shape-related operands are constant
+  // then any relationship between the input, the shapes and the output can be
+  // verified statically.
+  bool allInputsStatic = llvm::all_of(op->getOperandTypes(), [](Type t) {
+    return cast<ShapedType>(t).hasStaticShape();
+  });
+  bool allShapesConstant = llvm::all_of(llvm::seq(shapeCount), [&](int64_t i) {
+    return matchPattern(op->getOperand(op->getNumOperands() - 1 - i),
+                        m_Constant());
+  });
+  return allInputsStatic && allShapesConstant
+             ? mlir::Speculation::Speculatable
+             : mlir::Speculation::NotSpeculatable;
 }
 
 bool hasSingleBoundedDimension(Type type) {
