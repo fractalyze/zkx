@@ -193,6 +193,24 @@ td_library(
     ],
 )
 
+cc_library(
+    name = "vhlo_types",
+    srcs = ["VhloTypes.cpp"],
+    hdrs = ["VhloTypes.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":assembly_format",
+        ":version",
+        ":vhlo_type_interfaces_inc_gen",
+        ":vhlo_types_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:ShapeDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
 gentbl_cc_library(
     name = "vhlo_type_interfaces_inc_gen",
     strip_include_prefix = ".",
