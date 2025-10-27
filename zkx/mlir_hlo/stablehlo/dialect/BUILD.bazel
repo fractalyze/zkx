@@ -91,6 +91,42 @@ gentbl_cc_library(
     deps = [":stablehlo_ops_td_files"],
 )
 
+cc_library(
+    name = "stablehlo_ops",
+    srcs = [
+        "StablehloBytecode.cpp",
+        "StablehloOps.cpp",
+    ],
+    hdrs = [
+        "StablehloBytecode.h",
+        "StablehloOps.h",
+    ],
+    strip_include_prefix = ".",
+    deps = [
+        ":assembly_format",
+        ":base",
+        ":stablehlo_attrs_inc_gen",
+        ":stablehlo_enums_inc_gen",
+        ":stablehlo_ops_inc_gen",
+        ":stablehlo_types_inc_gen",
+        ":type_inference",
+        ":version",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:BytecodeOpInterface",
+        "@llvm-project//mlir:DataLayoutInterfaces",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:InliningUtils",
+        "@llvm-project//mlir:ShapeDialect",
+        "@llvm-project//mlir:SideEffectInterfaces",
+        "@llvm-project//mlir:SparseTensorDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
+
 gentbl_cc_library(
     name = "stablehlo_ops_inc_gen",
     strip_include_prefix = ".",
