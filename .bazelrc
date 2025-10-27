@@ -109,8 +109,8 @@ build --noenable_bzlmod
 build --build_tag_filters -cuda-only,-gpu
 build --test_tag_filters -cuda-only,-gpu
 
-build:cuda --build_tag_filters
-build:cuda --test_tag_filters
+build:cuda --build_tag_filters=""
+build:cuda --test_tag_filters=""
 
 # defaults are: 60,300,900,3600
 test:ci --test_timeout=300,600,1800,-1

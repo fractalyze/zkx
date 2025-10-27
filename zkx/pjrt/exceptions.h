@@ -24,16 +24,16 @@ limitations under the License.
 
 namespace zkx {
 
-// Custom exception type used such that we can raise XlaRuntimeError in
+// Custom exception type used such that we can raise ZkxRuntimeError in
 // Python code instead of RuntimeError.
-class XlaRuntimeError : public std::runtime_error {
+class ZkxRuntimeError : public std::runtime_error {
  public:
-  explicit XlaRuntimeError(absl::Status status)
+  explicit ZkxRuntimeError(absl::Status status)
       : std::runtime_error(StatusToString(status)), status_(status) {
     CHECK(!status_->ok());
   }
 
-  explicit XlaRuntimeError(const std::string what) : std::runtime_error(what) {}
+  explicit ZkxRuntimeError(const std::string what) : std::runtime_error(what) {}
 
   std::optional<absl::Status> status() const { return status_; }
 
