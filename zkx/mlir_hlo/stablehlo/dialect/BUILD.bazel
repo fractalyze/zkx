@@ -240,6 +240,38 @@ gentbl_cc_library(
     deps = [":vhlo_ops_td_files"],
 )
 
+cc_library(
+    name = "vhlo_ops",
+    srcs = [
+        "VhloBytecode.cpp",
+        "VhloOps.cpp",
+    ],
+    hdrs = [
+        "VhloBytecode.h",
+        "VhloOps.h",
+    ],
+    strip_include_prefix = ".",
+    deps = [
+        ":assembly_format",
+        ":base",
+        ":version",
+        ":vhlo_attr_interfaces_inc_gen",
+        ":vhlo_attrs_inc_gen",
+        ":vhlo_enums_inc_gen",
+        ":vhlo_op_interfaces_inc_gen",
+        ":vhlo_ops_inc_gen",
+        ":vhlo_types",
+        ":vhlo_types_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:BytecodeOpInterface",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:QuantOps",
+        "@llvm-project//mlir:ShapeDialect",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 gentbl_cc_library(
     name = "vhlo_ops_inc_gen",
     strip_include_prefix = ".",
