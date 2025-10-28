@@ -1,0 +1,54 @@
+# Copyright 2025 The ZKX Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "client",
+    srcs = ["client.cc"],
+    hdrs = ["client.h"],
+    deps = [
+        "//xla/tsl/concurrency:ref_count",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/pjrt:host_memory_spaces",
+        "//zkx/pjrt:pjrt_device_description",
+        "//zkx/pjrt:pjrt_layout",
+        "//zkx/python/ifrt",
+        "//zkx/python/ifrt:attribute_map",
+        "//zkx/python/ifrt:device",
+        "//zkx/python/ifrt:dtype",
+        "//zkx/python/ifrt:memory",
+        "//zkx/python/ifrt:program",
+        "//zkx/python/ifrt:shape",
+        "//zkx/python/ifrt:topology",
+        "//zkx/python/ifrt:tuple",
+        "//zkx/python/ifrt:user_context",
+        "//zkx/python/ifrt:value",
+        "//zkx/python/pjrt_ifrt",
+        "//zkx/python/pjrt_ifrt:pjrt_attribute_map_util",
+        "//zkx/python/pjrt_ifrt:pjrt_dtype",
+        "//zkx/python/pjrt_ifrt:pjrt_topology",
+        "//zkx/service:computation_placer",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
