@@ -1995,11 +1995,11 @@ inline bool HloInstruction::MightHaveCalledComputations(HloOpcode opcode) {
     case HloOpcode::kAllReduce:
     case HloOpcode::kAllReduceStart:
     case HloOpcode::kCall:
+    case HloOpcode::kCustomCall:
     case HloOpcode::kMap:
     case HloOpcode::kReduce:
     case HloOpcode::kReduceScatter:
     case HloOpcode::kScatter:
-    case HloOpcode::kCustomCall:
       return true;
     default:
       return false;

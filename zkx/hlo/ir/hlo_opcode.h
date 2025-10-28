@@ -135,8 +135,8 @@ namespace zkx {
   V(kSend, "send", 2)                                                          \
   V(kSendDone, "send-done", 1)                                                 \
   V(kSetDimensionSize, "set-dimension-size", 2)                                \
-  V(kSubtract, "subtract", 2)                                                  \
   V(kSlice, "slice", 1)                                                        \
+  V(kSubtract, "subtract", 2)                                                  \
   V(kTranspose, "transpose", 1)                                                \
   V(kTuple, "tuple", kHloOpcodeIsVariadic)                                     \
   V(kWhile, "while", 1)                                                        \

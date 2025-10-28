@@ -49,25 +49,25 @@ std::ostream& operator<<(std::ostream& out, const CallContext& context) {
 
 CallContext GetInstructionCallContext(HloOpcode opcode) {
   switch (opcode) {
-    case HloOpcode::kCall:
-    case HloOpcode::kConditional:
-    case HloOpcode::kWhile:
     case HloOpcode::kAsyncStart:
     case HloOpcode::kAsyncUpdate:
     case HloOpcode::kAsyncDone:
+    case HloOpcode::kCall:
+    case HloOpcode::kConditional:
+    case HloOpcode::kWhile:
       return CallContext::kControlFlow;
     case HloOpcode::kAllReduce:
-    case HloOpcode::kReduceScatter:
     case HloOpcode::kAllReduceStart:
+    case HloOpcode::kCustomCall:
+    case HloOpcode::kFusion:
     case HloOpcode::kMap:
     case HloOpcode::kReduce:
+    case HloOpcode::kReduceScatter:
     case HloOpcode::kScatter:
     // clang-format off
     // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
     // clang-format on
     // case HloOpcode::kSort:
-    case HloOpcode::kFusion:
-    case HloOpcode::kCustomCall:
       return CallContext::kEmbedded;
     default:
       return CallContext::kNone;

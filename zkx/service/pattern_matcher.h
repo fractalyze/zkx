@@ -2529,25 +2529,25 @@ ZKX_NULLOP_PATTERN(ReplicaId)
         .WithOpcode(HloOpcode::k##NAME)                              \
         .WithOperand(0, std::forward<Arg>(arg));                     \
   }
-ZKX_UNOP_PATTERN(Bitcast)
-ZKX_UNOP_PATTERN(BitcastConvert)
-ZKX_UNOP_PATTERN(Broadcast)
-ZKX_UNOP_PATTERN(Copy)
 ZKX_UNOP_PATTERN(AllReduceStart)
 ZKX_UNOP_PATTERN(AllReduceDone)
 ZKX_UNOP_PATTERN(AllToAll)
-ZKX_UNOP_PATTERN(RaggedAllToAll)
 ZKX_UNOP_PATTERN(AsyncDone)
+ZKX_UNOP_PATTERN(Bitcast)
+ZKX_UNOP_PATTERN(BitcastConvert)
+ZKX_UNOP_PATTERN(Broadcast)
 ZKX_UNOP_PATTERN(CollectiveBroadcast)
 ZKX_UNOP_PATTERN(CollectivePermute)
 ZKX_UNOP_PATTERN(CollectivePermuteStart)
 ZKX_UNOP_PATTERN(CollectivePermuteDone)
+ZKX_UNOP_PATTERN(Copy)
 ZKX_UNOP_PATTERN(Domain)
 ZKX_UNOP_PATTERN(GetTupleElement)
 ZKX_UNOP_PATTERN(Infeed)
 ZKX_UNOP_PATTERN(Inverse)
 ZKX_UNOP_PATTERN(Negate)
 ZKX_UNOP_PATTERN(OptimizationBarrier)
+ZKX_UNOP_PATTERN(RaggedAllToAll)
 ZKX_UNOP_PATTERN(Recv)
 ZKX_UNOP_PATTERN(RecvDone)
 ZKX_UNOP_PATTERN(Reshape)
@@ -2595,8 +2595,8 @@ ZKX_UNOP_PATTERN(While)
         nullptr, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs));          \
   }
 ZKX_COMMUTATIVE_BINOP_PATTERN(Add)
-ZKX_BINOP_PATTERN(Divide)
 ZKX_BINOP_PATTERN(Compare)
+ZKX_BINOP_PATTERN(Divide)
 ZKX_BINOP_PATTERN(Dot)
 ZKX_BINOP_PATTERN(Gather)
 ZKX_COMMUTATIVE_BINOP_PATTERN(Maximum)
@@ -2683,6 +2683,7 @@ ZKX_VARIADIC_OP_PATTERN(AfterAll);
 ZKX_VARIADIC_OP_PATTERN(AllGather)
 ZKX_VARIADIC_OP_PATTERN(AllReduce)
 ZKX_VARIADIC_OP_PATTERN(AsyncStart)
+ZKX_VARIADIC_OP_PATTERN(Call);
 ZKX_VARIADIC_OP_PATTERN(Concatenate);
 ZKX_VARIADIC_OP_PATTERN(Conditional);
 ZKX_VARIADIC_OP_PATTERN(DynamicSlice)
@@ -2694,7 +2695,6 @@ ZKX_VARIADIC_OP_PATTERN(Reduce);
 ZKX_VARIADIC_OP_PATTERN(ReduceScatter)
 ZKX_VARIADIC_OP_PATTERN(Scatter);
 ZKX_VARIADIC_OP_PATTERN(Tuple);
-ZKX_VARIADIC_OP_PATTERN(Call);
 
 // CustomCall doesn't use the ZKX_VARIADIC_OP_PATTERN macro so that you can
 // optionally pass a string_view for the custom_call_target before the other

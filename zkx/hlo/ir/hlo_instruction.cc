@@ -1688,24 +1688,24 @@ void HloInstruction::SetupDerivedInstruction(
 
 bool HloInstruction::HasSideEffectNoRecurse() const {
   switch (opcode_) {
-    case HloOpcode::kSend:
-    case HloOpcode::kSendDone:
-    case HloOpcode::kRecv:
-    case HloOpcode::kRecvDone:
-    case HloOpcode::kInfeed:
-    case HloOpcode::kOutfeed:
-    case HloOpcode::kAllReduceStart:
-    case HloOpcode::kAllReduceDone:
     case HloOpcode::kAllGatherStart:
     case HloOpcode::kAllGatherDone:
+    case HloOpcode::kAllReduceStart:
+    case HloOpcode::kAllReduceDone:
     case HloOpcode::kCollectiveBroadcast:
     case HloOpcode::kCollectivePermuteStart:
     case HloOpcode::kCollectivePermuteDone:
+    case HloOpcode::kInfeed:
+    case HloOpcode::kOutfeed:
+    case HloOpcode::kRecv:
+    case HloOpcode::kRecvDone:
+    case HloOpcode::kSend:
+    case HloOpcode::kSendDone:
       return true;
 
-    case HloOpcode::kAllToAll:
     case HloOpcode::kAllGather:
     case HloOpcode::kAllReduce:
+    case HloOpcode::kAllToAll:
     case HloOpcode::kReduceScatter:
       if (Cast<HloCollectiveInstruction>(this)->constrain_layout()) {
         return true;
@@ -1827,50 +1827,50 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
   switch (opcode_) {
     // Ops migrated to subclasses.
     // TODO(b/80131774): Remove this switch when migration is complete.
-    case HloOpcode::kFft:
     case HloOpcode::kCompare:
-    case HloOpcode::kAsyncStart:
-    case HloOpcode::kAsyncUpdate:
-    case HloOpcode::kAsyncDone:
-    case HloOpcode::kCopyStart:
-    case HloOpcode::kSend:
-    case HloOpcode::kSendDone:
-    case HloOpcode::kRecv:
-    case HloOpcode::kRecvDone:
-    case HloOpcode::kReverse:
-    case HloOpcode::kConcatenate:
-    case HloOpcode::kReduce:
-    case HloOpcode::kTranspose:
-    case HloOpcode::kBroadcast:
-    case HloOpcode::kReshape:
-    case HloOpcode::kDynamicReshape:
-    case HloOpcode::kMap:
-    case HloOpcode::kSlice:
-    case HloOpcode::kConstant:
-    case HloOpcode::kFusion:
-    case HloOpcode::kParameter:
-    case HloOpcode::kGetTupleElement:
     case HloOpcode::kAllGather:
     case HloOpcode::kAllGatherStart:
     case HloOpcode::kAllReduce:
-    case HloOpcode::kReduceScatter:
     case HloOpcode::kAllReduceStart:
     case HloOpcode::kAllToAll:
-    case HloOpcode::kRaggedAllToAll:
+    case HloOpcode::kAsyncStart:
+    case HloOpcode::kAsyncUpdate:
+    case HloOpcode::kAsyncDone:
+    case HloOpcode::kBroadcast:
     case HloOpcode::kCollectiveBroadcast:
     case HloOpcode::kCollectivePermute:
     case HloOpcode::kCollectivePermuteStart:
+    case HloOpcode::kConcatenate:
+    case HloOpcode::kConstant:
+    case HloOpcode::kCopyStart:
+    case HloOpcode::kCustomCall:
+    case HloOpcode::kDomain:
+    case HloOpcode::kDot:
+    case HloOpcode::kDynamicReshape:
+    case HloOpcode::kDynamicSlice:
+    case HloOpcode::kFft:
+    case HloOpcode::kFusion:
+    case HloOpcode::kGather:
+    case HloOpcode::kGetDimensionSize:
+    case HloOpcode::kGetTupleElement:
+    case HloOpcode::kMap:
     case HloOpcode::kInfeed:
     case HloOpcode::kOutfeed:
-    case HloOpcode::kCustomCall:
-    case HloOpcode::kDynamicSlice:
-    case HloOpcode::kGather:
-    case HloOpcode::kScatter:
-    case HloOpcode::kDot:
+    case HloOpcode::kParameter:
+    case HloOpcode::kRaggedAllToAll:
     case HloOpcode::kRaggedDot:
-    case HloOpcode::kDomain:
-    case HloOpcode::kGetDimensionSize:
+    case HloOpcode::kRecv:
+    case HloOpcode::kRecvDone:
+    case HloOpcode::kReduce:
+    case HloOpcode::kReduceScatter:
+    case HloOpcode::kReshape:
+    case HloOpcode::kReverse:
+    case HloOpcode::kScatter:
+    case HloOpcode::kSend:
+    case HloOpcode::kSendDone:
     case HloOpcode::kSetDimensionSize:
+    case HloOpcode::kSlice:
+    case HloOpcode::kTranspose:
       clone = CloneWithNewOperandsImpl(shape, new_operands, context);
       break;
     // Unary ops.
@@ -1898,6 +1898,13 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
       CHECK_EQ(new_operands.size(), 2);
       clone = CreateBinary(shape, opcode_, new_operands[0], new_operands[1]);
       break;
+    case HloOpcode::kAfterAll:
+      if (new_operands.empty()) {
+        clone = CreateToken();
+      } else {
+        clone = CreateAfterAll(new_operands);
+      }
+      break;
     case HloOpcode::kConvert:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateConvert(shape, new_operands[0]);
@@ -1905,13 +1912,6 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kTuple:
       clone = CreateTuple(new_operands);
       *clone->mutable_shape() = shape;
-      break;
-    case HloOpcode::kAfterAll:
-      if (new_operands.empty()) {
-        clone = CreateToken();
-      } else {
-        clone = CreateAfterAll(new_operands);
-      }
       break;
     default:
       CHECK(0) << "Unsupported opcode: " << opcode_;
@@ -2163,17 +2163,18 @@ bool HloInstruction::IdenticalSlowPath(
   switch (opcode()) {
     // The result of these instructions only depend upon their opcode and
     // operands.
+    case HloOpcode::kAdd:
     case HloOpcode::kAllGatherDone:
     case HloOpcode::kAllReduceDone:
-    case HloOpcode::kAdd:
     case HloOpcode::kBitcast:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kCollectivePermuteDone:
     case HloOpcode::kConvert:
     case HloOpcode::kCopy:
-    case HloOpcode::kCopyStart:
     case HloOpcode::kCopyDone:
+    case HloOpcode::kCopyStart:
     case HloOpcode::kDivide:
+    case HloOpcode::kDynamicReshape:
     case HloOpcode::kDynamicUpdateSlice:
     case HloOpcode::kInverse:
     case HloOpcode::kMaximum:
@@ -2183,17 +2184,16 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kOptimizationBarrier:
     case HloOpcode::kPartitionId:
     case HloOpcode::kPower:
-    case HloOpcode::kReshape:
-    case HloOpcode::kDynamicReshape:
     case HloOpcode::kReplicaId:
+    case HloOpcode::kReshape:
     case HloOpcode::kSelect:
     case HloOpcode::kSubtract:
     case HloOpcode::kTuple:
       return true;
 
     // This opcode has complex or special behavior so just return false.
-    case HloOpcode::kAfterAll:
     case HloOpcode::kAddDependency:
+    case HloOpcode::kAfterAll:
       return false;
 
       // Remaining instructions with special values.
@@ -2213,47 +2213,47 @@ bool HloInstruction::IdenticalSlowPath(
 
     // Ops migrated to subclasses should never come to this line.
     // TODO(b/80131774): Remove this switch when migration is complete.
-    case HloOpcode::kAsyncStart:
-    case HloOpcode::kAsyncUpdate:
-    case HloOpcode::kAsyncDone:
-    case HloOpcode::kFft:
-    case HloOpcode::kMsm:
-    case HloOpcode::kCompare:
-    case HloOpcode::kSend:
-    case HloOpcode::kSendDone:
-    case HloOpcode::kRecv:
-    case HloOpcode::kRecvDone:
-    case HloOpcode::kReverse:
-    case HloOpcode::kConcatenate:
-    case HloOpcode::kReduce:
-    case HloOpcode::kTranspose:
-    case HloOpcode::kBroadcast:
-    case HloOpcode::kMap:
-    case HloOpcode::kSlice:
-    case HloOpcode::kConstant:
-    case HloOpcode::kFusion:
-    case HloOpcode::kParameter:
-    case HloOpcode::kGetTupleElement:
-    case HloOpcode::kInfeed:
-    case HloOpcode::kOutfeed:
     case HloOpcode::kAllGather:
     case HloOpcode::kAllGatherStart:
     case HloOpcode::kAllReduce:
-    case HloOpcode::kReduceScatter:
     case HloOpcode::kAllReduceStart:
     case HloOpcode::kAllToAll:
+    case HloOpcode::kAsyncStart:
+    case HloOpcode::kAsyncUpdate:
+    case HloOpcode::kAsyncDone:
+    case HloOpcode::kBroadcast:
     case HloOpcode::kCollectiveBroadcast:
     case HloOpcode::kCollectivePermute:
     case HloOpcode::kCollectivePermuteStart:
+    case HloOpcode::kCompare:
+    case HloOpcode::kConcatenate:
+    case HloOpcode::kConstant:
     case HloOpcode::kCustomCall:
-    case HloOpcode::kDynamicSlice:
-    case HloOpcode::kGather:
-    case HloOpcode::kScatter:
-    case HloOpcode::kDot:
-    case HloOpcode::kRaggedDot:
     case HloOpcode::kDomain:
+    case HloOpcode::kDot:
+    case HloOpcode::kDynamicSlice:
+    case HloOpcode::kFft:
+    case HloOpcode::kFusion:
+    case HloOpcode::kGather:
     case HloOpcode::kGetDimensionSize:
+    case HloOpcode::kGetTupleElement:
+    case HloOpcode::kInfeed:
+    case HloOpcode::kMap:
+    case HloOpcode::kMsm:
+    case HloOpcode::kOutfeed:
+    case HloOpcode::kParameter:
     case HloOpcode::kRaggedAllToAll:
+    case HloOpcode::kRaggedDot:
+    case HloOpcode::kReduceScatter:
+    case HloOpcode::kRecv:
+    case HloOpcode::kRecvDone:
+    case HloOpcode::kReduce:
+    case HloOpcode::kReverse:
+    case HloOpcode::kSend:
+    case HloOpcode::kSendDone:
+    case HloOpcode::kSlice:
+    case HloOpcode::kTranspose:
+    case HloOpcode::kScatter:
     case HloOpcode::kSetDimensionSize:
       LOG(FATAL) << "Base class impl called for opcode with subclass: "
                  << opcode();
@@ -2963,11 +2963,11 @@ bool HloInstruction::IsCustomFusion() const {
 bool HloInstruction::IsFusible() const {
   // Some kinds of instructions don't make sense to fuse.
   switch (opcode_) {
+    case HloOpcode::kCall:
+    case HloOpcode::kConditional:
     case HloOpcode::kDomain:
     case HloOpcode::kParameter:
     case HloOpcode::kWhile:
-    case HloOpcode::kConditional:
-    case HloOpcode::kCall:
       return false;
     // Fusions are always fusible.
     case HloOpcode::kFusion:
@@ -3001,152 +3001,152 @@ template <typename HloInstructionPtr>
 absl::Status HloInstruction::Visit(
     DfsHloVisitorBase<HloInstructionPtr>* visitor) {
   switch (opcode_) {
-    case HloOpcode::kConstant:
-      return visitor->HandleConstant(this);
-    case HloOpcode::kGetTupleElement:
-      return visitor->HandleGetTupleElement(this);
-    case HloOpcode::kParameter:
-      return visitor->HandleParameter(this);
-    case HloOpcode::kCompare:
-      return visitor->HandleCompare(this);
     case HloOpcode::kAdd:
       return visitor->HandleAdd(this);
-    case HloOpcode::kDivide:
-      return visitor->HandleDivide(this);
-    case HloOpcode::kSubtract:
-      return visitor->HandleSubtract(this);
-    case HloOpcode::kMaximum:
-      return visitor->HandleMaximum(this);
-    case HloOpcode::kMinimum:
-      return visitor->HandleMinimum(this);
-    case HloOpcode::kConcatenate:
-      return visitor->HandleConcatenate(this);
-    case HloOpcode::kConvert:
-      return visitor->HandleConvert(this);
-    case HloOpcode::kBitcastConvert:
-      return visitor->HandleBitcastConvert(this);
-    case HloOpcode::kCopy:
-      return visitor->HandleCopy(this);
-    case HloOpcode::kMultiply:
-      return visitor->HandleMultiply(this);
-    case HloOpcode::kDot:
-      return visitor->HandleDot(this);
-    case HloOpcode::kRaggedDot:
-      return visitor->HandleRaggedDot(this);
-    case HloOpcode::kPower:
-      return visitor->HandlePower(this);
-    case HloOpcode::kSelect:
-      return visitor->HandleSelect(this);
-    case HloOpcode::kFft:
-      return visitor->HandleFft(this);
-    case HloOpcode::kMsm:
-      return visitor->HandleMsm(this);
+    case HloOpcode::kAddDependency:
+      return visitor->HandleAddDependency(this);
+    case HloOpcode::kAfterAll:
+      return visitor->HandleAfterAll(this);
     case HloOpcode::kAllGather:
       return visitor->HandleAllGather(this);
-    case HloOpcode::kAllGatherStart:
-      return visitor->HandleAllGatherStart(this);
     case HloOpcode::kAllGatherDone:
       return visitor->HandleAllGatherDone(this);
+    case HloOpcode::kAllGatherStart:
+      return visitor->HandleAllGatherStart(this);
     case HloOpcode::kAllReduce:
       return visitor->HandleAllReduce(this);
-    case HloOpcode::kReduceScatter:
-      return visitor->HandleReduceScatter(this);
-    case HloOpcode::kAllReduceStart:
-      return visitor->HandleAllReduceStart(this);
     case HloOpcode::kAllReduceDone:
       return visitor->HandleAllReduceDone(this);
+    case HloOpcode::kAllReduceStart:
+      return visitor->HandleAllReduceStart(this);
     case HloOpcode::kAllToAll:
       return visitor->HandleAllToAll(this);
-    case HloOpcode::kRaggedAllToAll:
-      return visitor->HandleRaggedAllToAll(this);
-    case HloOpcode::kCollectiveBroadcast:
-      return visitor->HandleCollectiveBroadcast(this);
-    case HloOpcode::kCollectivePermute:
-      return visitor->HandleCollectivePermute(this);
-    case HloOpcode::kCollectivePermuteStart:
-      return visitor->HandleCollectivePermuteStart(this);
-    case HloOpcode::kCollectivePermuteDone:
-      return visitor->HandleCollectivePermuteDone(this);
-    case HloOpcode::kReplicaId:
-      return visitor->HandleReplicaId(this);
-    case HloOpcode::kPartitionId:
-      return visitor->HandlePartitionId(this);
-    case HloOpcode::kTuple:
-      return visitor->HandleTuple(this);
-    case HloOpcode::kMap:
-      return visitor->HandleMap(this);
-    case HloOpcode::kReduce:
-      return visitor->HandleReduce(this);
-    case HloOpcode::kInverse:
-      return visitor->HandleInverse(this);
-    case HloOpcode::kNegate:
-      return visitor->HandleNegate(this);
-    case HloOpcode::kBitcast:
-      return visitor->HandleBitcast(this);
-    case HloOpcode::kBroadcast:
-      return visitor->HandleBroadcast(this);
-    case HloOpcode::kReshape:
-      return visitor->HandleReshape(this);
-    case HloOpcode::kDynamicReshape:
-      return visitor->HandleDynamicReshape(this);
-    case HloOpcode::kTranspose:
-      return visitor->HandleTranspose(this);
-    case HloOpcode::kReverse:
-      return visitor->HandleReverse(this);
-    case HloOpcode::kSlice:
-      return visitor->HandleSlice(this);
-    case HloOpcode::kDynamicSlice:
-      return visitor->HandleDynamicSlice(this);
-    case HloOpcode::kDynamicUpdateSlice:
-      return visitor->HandleDynamicUpdateSlice(this);
-    case HloOpcode::kInfeed:
-      return visitor->HandleInfeed(this);
-    case HloOpcode::kOutfeed:
-      return visitor->HandleOutfeed(this);
-    case HloOpcode::kWhile:
-      return visitor->HandleWhile(this);
-    case HloOpcode::kFusion:
-      return visitor->HandleFusion(this);
-    case HloOpcode::kCall:
-      return visitor->HandleCall(this);
-    case HloOpcode::kConditional:
-      return visitor->HandleConditional(this);
-    case HloOpcode::kCustomCall:
-      return visitor->HandleCustomCall(this);
+    case HloOpcode::kAsyncDone:
+      return visitor->HandleAsyncDone(this);
     case HloOpcode::kAsyncStart:
       return visitor->HandleAsyncStart(this);
     case HloOpcode::kAsyncUpdate:
       return visitor->HandleAsyncUpdate(this);
-    case HloOpcode::kAsyncDone:
-      return visitor->HandleAsyncDone(this);
-    case HloOpcode::kCopyStart:
-      return visitor->HandleCopyStart(this);
+    case HloOpcode::kBitcast:
+      return visitor->HandleBitcast(this);
+    case HloOpcode::kBitcastConvert:
+      return visitor->HandleBitcastConvert(this);
+    case HloOpcode::kBroadcast:
+      return visitor->HandleBroadcast(this);
+    case HloOpcode::kCall:
+      return visitor->HandleCall(this);
+    case HloOpcode::kCollectiveBroadcast:
+      return visitor->HandleCollectiveBroadcast(this);
+    case HloOpcode::kCollectivePermute:
+      return visitor->HandleCollectivePermute(this);
+    case HloOpcode::kCollectivePermuteDone:
+      return visitor->HandleCollectivePermuteDone(this);
+    case HloOpcode::kCollectivePermuteStart:
+      return visitor->HandleCollectivePermuteStart(this);
+    case HloOpcode::kConditional:
+      return visitor->HandleConditional(this);
     case HloOpcode::kCopyDone:
       return visitor->HandleCopyDone(this);
+    case HloOpcode::kCopyStart:
+      return visitor->HandleCopyStart(this);
+    case HloOpcode::kCustomCall:
+      return visitor->HandleCustomCall(this);
+    case HloOpcode::kCompare:
+      return visitor->HandleCompare(this);
+    case HloOpcode::kConcatenate:
+      return visitor->HandleConcatenate(this);
+    case HloOpcode::kConstant:
+      return visitor->HandleConstant(this);
+    case HloOpcode::kConvert:
+      return visitor->HandleConvert(this);
+    case HloOpcode::kCopy:
+      return visitor->HandleCopy(this);
+    case HloOpcode::kDivide:
+      return visitor->HandleDivide(this);
+    case HloOpcode::kDomain:
+      return visitor->HandleDomain(this);
+    case HloOpcode::kDot:
+      return visitor->HandleDot(this);
+    case HloOpcode::kDynamicReshape:
+      return visitor->HandleDynamicReshape(this);
+    case HloOpcode::kDynamicSlice:
+      return visitor->HandleDynamicSlice(this);
+    case HloOpcode::kDynamicUpdateSlice:
+      return visitor->HandleDynamicUpdateSlice(this);
+    case HloOpcode::kFft:
+      return visitor->HandleFft(this);
+    case HloOpcode::kFusion:
+      return visitor->HandleFusion(this);
+    case HloOpcode::kGather:
+      return visitor->HandleGather(this);
+    case HloOpcode::kGetDimensionSize:
+      return visitor->HandleGetDimensionSize(this);
+    case HloOpcode::kGetTupleElement:
+      return visitor->HandleGetTupleElement(this);
+    case HloOpcode::kInfeed:
+      return visitor->HandleInfeed(this);
+    case HloOpcode::kInverse:
+      return visitor->HandleInverse(this);
+    case HloOpcode::kMap:
+      return visitor->HandleMap(this);
+    case HloOpcode::kMaximum:
+      return visitor->HandleMaximum(this);
+    case HloOpcode::kMinimum:
+      return visitor->HandleMinimum(this);
+    case HloOpcode::kMsm:
+      return visitor->HandleMsm(this);
+    case HloOpcode::kMultiply:
+      return visitor->HandleMultiply(this);
+    case HloOpcode::kNegate:
+      return visitor->HandleNegate(this);
+    case HloOpcode::kOptimizationBarrier:
+      return visitor->HandleOptimizationBarrier(this);
+    case HloOpcode::kOutfeed:
+      return visitor->HandleOutfeed(this);
+    case HloOpcode::kParameter:
+      return visitor->HandleParameter(this);
+    case HloOpcode::kPartitionId:
+      return visitor->HandlePartitionId(this);
+    case HloOpcode::kPower:
+      return visitor->HandlePower(this);
+    case HloOpcode::kRaggedAllToAll:
+      return visitor->HandleRaggedAllToAll(this);
+    case HloOpcode::kRaggedDot:
+      return visitor->HandleRaggedDot(this);
     case HloOpcode::kRecv:
       return visitor->HandleRecv(this);
     case HloOpcode::kRecvDone:
       return visitor->HandleRecvDone(this);
+    case HloOpcode::kReduce:
+      return visitor->HandleReduce(this);
+    case HloOpcode::kReduceScatter:
+      return visitor->HandleReduceScatter(this);
+    case HloOpcode::kReplicaId:
+      return visitor->HandleReplicaId(this);
+    case HloOpcode::kReshape:
+      return visitor->HandleReshape(this);
+    case HloOpcode::kReverse:
+      return visitor->HandleReverse(this);
+    case HloOpcode::kScatter:
+      return visitor->HandleScatter(this);
+    case HloOpcode::kSelect:
+      return visitor->HandleSelect(this);
     case HloOpcode::kSend:
       return visitor->HandleSend(this);
     case HloOpcode::kSendDone:
       return visitor->HandleSendDone(this);
-    case HloOpcode::kGather:
-      return visitor->HandleGather(this);
-    case HloOpcode::kScatter:
-      return visitor->HandleScatter(this);
-    case HloOpcode::kDomain:
-      return visitor->HandleDomain(this);
-    case HloOpcode::kAfterAll:
-      return visitor->HandleAfterAll(this);
-    case HloOpcode::kAddDependency:
-      return visitor->HandleAddDependency(this);
-    case HloOpcode::kGetDimensionSize:
-      return visitor->HandleGetDimensionSize(this);
     case HloOpcode::kSetDimensionSize:
       return visitor->HandleSetDimensionSize(this);
-    case HloOpcode::kOptimizationBarrier:
-      return visitor->HandleOptimizationBarrier(this);
+    case HloOpcode::kSlice:
+      return visitor->HandleSlice(this);
+    case HloOpcode::kSubtract:
+      return visitor->HandleSubtract(this);
+    case HloOpcode::kTranspose:
+      return visitor->HandleTranspose(this);
+    case HloOpcode::kTuple:
+      return visitor->HandleTuple(this);
+    case HloOpcode::kWhile:
+      return visitor->HandleWhile(this);
     default:
       return absl::InternalError(absl::StrFormat(
           "Unhandled HloOpcode for DfsHloVisitor: %s. This should not happen - "

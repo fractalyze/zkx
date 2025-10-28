@@ -171,24 +171,24 @@ absl::Status GatherComputationsByAllocationType(
       for (HloComputation* subcomputation :
            instruction->called_computations()) {
         switch (instruction->opcode()) {
-          case HloOpcode::kCall:
-          case HloOpcode::kConditional:
-          case HloOpcode::kWhile:
           case HloOpcode::kAsyncStart:
           case HloOpcode::kAsyncUpdate:
           case HloOpcode::kAsyncDone:
+          case HloOpcode::kCall:
+          case HloOpcode::kConditional:
+          case HloOpcode::kWhile:
             // Call, conditional, while, and async operations inherit their
             // thread-locality from their parent computation.
             worklist.push_back(std::make_pair(subcomputation, is_thread_local));
             break;
-          case HloOpcode::kCustomCall:
           case HloOpcode::kAllReduce:
-          case HloOpcode::kReduceScatter:
           case HloOpcode::kAllReduceStart:
+          case HloOpcode::kCustomCall:
+          case HloOpcode::kFusion:
           case HloOpcode::kMap:
           case HloOpcode::kReduce:
+          case HloOpcode::kReduceScatter:
           case HloOpcode::kScatter:
-          case HloOpcode::kFusion:
             // Map/reduce etc computations are always thread-local.
             worklist.push_back(std::make_pair(subcomputation, true));
             break;

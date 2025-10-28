@@ -75,14 +75,12 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kConcatenate:
     case HloOpcode::kConditional:
     case HloOpcode::kCopy:
-    case HloOpcode::kOptimizationBarrier:
     case HloOpcode::kDivide:
     case HloOpcode::kDomain:
     case HloOpcode::kDot:
     case HloOpcode::kFft:
     case HloOpcode::kGather:
     case HloOpcode::kGetDimensionSize:
-    case HloOpcode::kSetDimensionSize:
     case HloOpcode::kGetTupleElement:
     case HloOpcode::kInverse:
     case HloOpcode::kMap:
@@ -91,6 +89,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kMsm:
     case HloOpcode::kMultiply:
     case HloOpcode::kNegate:
+    case HloOpcode::kOptimizationBarrier:
     case HloOpcode::kPartitionId:
     case HloOpcode::kPower:
     case HloOpcode::kRaggedDot:
@@ -99,6 +98,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kReverse:
     case HloOpcode::kScatter:
     case HloOpcode::kSelect:
+    case HloOpcode::kSetDimensionSize:
     case HloOpcode::kSubtract:
     case HloOpcode::kTranspose:
     case HloOpcode::kTuple:
@@ -106,9 +106,6 @@ bool CanInferShape(HloOpcode code) {
       return true;
     // Technically the following ops do not require an explicit result shape,
     // but we made it so that we always write the shapes explicitly.
-    case HloOpcode::kAsyncStart:
-    case HloOpcode::kAsyncUpdate:
-    case HloOpcode::kAsyncDone:
     case HloOpcode::kAllGather:
     case HloOpcode::kAllGatherStart:
     case HloOpcode::kAllGatherDone:
@@ -116,12 +113,15 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kAllReduceStart:
     case HloOpcode::kAllReduceDone:
     case HloOpcode::kAllToAll:
+    case HloOpcode::kAsyncStart:
+    case HloOpcode::kAsyncUpdate:
+    case HloOpcode::kAsyncDone:
     case HloOpcode::kCollectiveBroadcast:
     case HloOpcode::kCollectivePermute:
     case HloOpcode::kCollectivePermuteStart:
     case HloOpcode::kCollectivePermuteDone:
-    case HloOpcode::kCopyDone:
     case HloOpcode::kCopyStart:
+    case HloOpcode::kCopyDone:
     case HloOpcode::kDynamicReshape:
     case HloOpcode::kDynamicSlice:
     case HloOpcode::kDynamicUpdateSlice:
