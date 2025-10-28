@@ -1898,6 +1898,17 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
       CHECK_EQ(new_operands.size(), 2);
       clone = CreateBinary(shape, opcode_, new_operands[0], new_operands[1]);
       break;
+      // Ternary ops.
+    case HloOpcode::kSelect:
+      CHECK_EQ(new_operands.size(), 3);
+      clone = CreateTernary(shape, opcode_, new_operands[0], new_operands[1],
+                            new_operands[2]);
+      break;
+    // Other supported ops.
+    case HloOpcode::kAddDependency:
+      CHECK_EQ(new_operands.size(), 2);
+      clone = CreateAddDependency(new_operands[0], new_operands[1]);
+      break;
     case HloOpcode::kAfterAll:
       if (new_operands.empty()) {
         clone = CreateToken();
@@ -1905,9 +1916,21 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
         clone = CreateAfterAll(new_operands);
       }
       break;
+    case HloOpcode::kBitcastConvert:
+      CHECK_EQ(new_operands.size(), 1);
+      clone = CreateBitcastConvert(shape, new_operands[0]);
+      break;
     case HloOpcode::kConvert:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateConvert(shape, new_operands[0]);
+      break;
+    case HloOpcode::kPartitionId:
+      CHECK_EQ(new_operands.size(), 0);
+      clone = CreatePartitionId(shape);
+      break;
+    case HloOpcode::kReplicaId:
+      CHECK_EQ(new_operands.size(), 0);
+      clone = CreateReplicaId(shape);
       break;
     case HloOpcode::kTuple:
       clone = CreateTuple(new_operands);
