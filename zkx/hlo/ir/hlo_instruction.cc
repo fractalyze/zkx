@@ -795,7 +795,9 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kCustomCall: {
-      // TODO(chokobole): Implement this.
+      // TODO(chokobole): Implement this. Dependency: CreateCustomCall
+      return absl::UnimplementedError(
+          "HloInstruction::CreateFromProto: CustomCall not implemented");
       break;
     }
     case HloOpcode::kDynamicSlice: {
