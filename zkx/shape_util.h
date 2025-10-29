@@ -249,6 +249,9 @@ class ShapeUtil {
   // f32[3,0,1] has a true rank of 2D.
   static int64_t TrueRank(const Shape& shape);
 
+  static ProgramShape MakeProgramShape(std::initializer_list<Shape> parameters,
+                                       Shape result);
+
   ////////////////////
   // Scalar-specific
 

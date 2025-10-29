@@ -323,6 +323,17 @@ bool ShapeUtil::FillNewShape(PrimitiveType element_type,
 }
 
 // static
+ProgramShape ShapeUtil::MakeProgramShape(
+    std::initializer_list<Shape> parameters, Shape result) {
+  ProgramShape program_shape;
+  for (const Shape& shape : parameters) {
+    *program_shape.add_parameters() = shape;
+  }
+  *program_shape.mutable_result() = std::move(result);
+  return program_shape;
+}
+
+// static
 Shape ShapeUtil::MakeShape(PrimitiveType element_type,
                            absl::Span<const int64_t> dimensions) {
   Shape shape;
