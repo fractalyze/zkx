@@ -307,6 +307,22 @@ class ShapeUtil {
   // Appends a shape to the given tuple.
   static void AppendShapeToTuple(const Shape& shape, Shape* tuple_shape);
 
+  // Update the dynamic dimension for a shape. This shape can be a nested tuple.
+  static void UpdateDynamicDimension(Shape* shape, ShapeIndexView index,
+                                     int64_t dim, bool is_dynamic);
+
+  // Appends a major dimension to the shape with the given bound.
+  static void AppendMajorDimension(int bound, Shape* shape);
+
+  // Prepends a major dimension sized `bound` to the shape.
+  static Shape PrependMajorDimension(int64_t bound, Shape shape);
+
+  // Appends a minor dimension to the shape with the given bound.
+  static void AppendMinorDimension(int bound, Shape* shape);
+
+  // Copy the dynamic dimensions property from one shape to another.
+  static void CopyDynamicDimensions(Shape* to, const Shape& from);
+
   // Returns an empty tuple shape. Can be used as a sentinel Shape value.
   static Shape MakeNil() { return MakeTupleShape({}); }
 
