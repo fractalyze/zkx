@@ -133,18 +133,18 @@ absl::StatusOr<Shape> ShapeInference::InferUnaryOpShape(HloOpcode opcode,
     // case HloOpcode::kClz:
     case HloOpcode::kInverse:
       if (!ShapeUtil::ElementIsField(shape)) {
-        return absl::InvalidArgumentError(absl::StrFormat(
-            "Expected element type in shape to be field for %s operation; "
-            "got %s.",
-            HloOpcodeString(opcode), PrimitiveType_Name(shape.element_type())));
+        return absl::InvalidArgumentError(
+            absl::StrFormat("Expected element type in shape to be field for "
+                            "inverse operation; got %s.",
+                            PrimitiveType_Name(shape.element_type())));
       }
       return shape;
     case HloOpcode::kNegate:
       if (!ShapeUtil::ElementIsIntegral(shape)) {
-        return absl::InvalidArgumentError(absl::StrFormat(
-            "Expected element type in shape to be integral for %s operation; "
-            "got %s.",
-            HloOpcodeString(opcode), PrimitiveType_Name(shape.element_type())));
+        return absl::InvalidArgumentError(
+            absl::StrFormat("Expected element type in shape to be integral for "
+                            "negate operation; got %s.",
+                            PrimitiveType_Name(shape.element_type())));
       }
       return shape;
       // clang-format off
