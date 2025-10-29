@@ -2472,8 +2472,13 @@ bool HloInstruction::has_to_apply() const {
     case HloOpcode::kCall:
     case HloOpcode::kMap:
     case HloOpcode::kReduce:
+    case HloOpcode::kReduceScatter:
     case HloOpcode::kScatter:
       return true;
+    case HloOpcode::kCustomCall:
+      // CustomCall can have a to_apply computation, but it is not required to
+      // have one.
+      return called_computations().size() == 1;
     default:
       return false;
   }
