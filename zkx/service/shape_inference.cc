@@ -1101,6 +1101,7 @@ absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
   return result;
 }
 
+// static
 absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
     const Shape& operand_shape, const Shape& output_shape,
     absl::Span<const int64_t> broadcast_dimensions) {
