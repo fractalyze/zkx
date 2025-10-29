@@ -83,7 +83,7 @@ message HloInstructionProto {
   int64 tuple_index = 13;
 
   // Dimensions present for some operations that require reshaping or
-  // broadcasting, including Reshape, Reduce, ReduceWindow, and Reverse.
+  // broadcasting, including Reshape, Reduce, and Reverse.
   repeated int64 dimensions = 14;
 
   // Describes the [begin, end) index range and stride for slices.

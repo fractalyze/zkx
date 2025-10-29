@@ -195,10 +195,6 @@ TEST_F(ShapeInferenceTest, VariadicOpTuplify) {
       ShapeUtil::Equal(*result, ShapeUtil::MakeTupleShape({s32_, u32_})));
 }
 
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: ShapeInference::InferSelectAndScatterShape
-// clang-format on
-
 TEST_F(ShapeInferenceTest, AllGatherStart) {
   const Shape operand = ShapeUtil::MakeShape(U32, {1, 8, 4});
   const Shape expected_shape = ShapeUtil::MakeTupleShape(
@@ -620,10 +616,6 @@ TEST_F(ShapeInferenceTest, BinOpBroadcastBadDimension) {
 
 // clang-format off
 // TODO(chokobole): Add tests. Dependency: HloOpcode::kSort
-// clang-format on
-
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: ShapeInference::InferTopKShape
 // clang-format on
 
 // clang-format off
@@ -1086,11 +1078,6 @@ TEST_F(ShapeInferenceTest, UnboundedSelectWithTupleUnsupported) {
               HasSubstr("Expected array argument for select pred, but got "
                         "(pred[2], pred[?])."));
 }
-
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferSelectAndScatterShape
-// clang-format on
-// TEST_F(ShapeInferenceTest, UnboundedSelectAndScatter) {
 
 // clang-format off
 // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kShiftLeft

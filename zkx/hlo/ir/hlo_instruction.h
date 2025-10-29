@@ -1730,10 +1730,6 @@ class HloInstruction {
     kBodyComputationIndex = 0,
     kConditionComputationIndex = 1,
 
-    // kSelectAndScatter computations.
-    kSelectComputationIndex = 0,
-    kScatterComputationIndex = 1,
-
     // kConditional computations.
     kTrueComputationIndex = 0,
     kFalseComputationIndex = 1,

@@ -61,16 +61,11 @@ CallContext GetInstructionCallContext(HloOpcode opcode) {
     case HloOpcode::kAllReduceStart:
     case HloOpcode::kMap:
     case HloOpcode::kReduce:
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kReduceWindow
-    // case HloOpcode::kReduceWindow:
     case HloOpcode::kScatter:
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSelectAndScatter
-    // case HloOpcode::kSelectAndScatter:
     // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort, HloOpcode::kTopK
+    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
     // clang-format on
     // case HloOpcode::kSort:
-    // case HloOpcode::kTopK:
     case HloOpcode::kFusion:
     case HloOpcode::kCustomCall:
       return CallContext::kEmbedded;

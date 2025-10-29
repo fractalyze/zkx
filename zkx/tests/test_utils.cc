@@ -51,8 +51,7 @@ ConstantType GetInitValue(const HloComputation& computation) {
   }
 }
 
-// Reduce, ReduceWindow, and SelectAndScatter ops may need a non-random
-// initialization value.
+// Reduce op may need a non-random initialization value.
 bool NeedsInitValue(const HloUse& use) {
   const HloInstruction* const instruction = use.instruction;
   const HloOpcode opcode = instruction->opcode();
