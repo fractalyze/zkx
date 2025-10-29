@@ -68,6 +68,9 @@ void StridedCopy(D* dest, int64_t dest_stride, const S* src, int64_t src_stride,
 absl::Status AddStatus(absl::Status prior, std::string_view context);
 absl::Status AppendStatus(absl::Status prior, std::string_view context);
 
+// Returns a PaddingConfig object that represents no padding for the given rank.
+PaddingConfig MakeNoPaddingConfig(int64_t rank);
+
 // Imports the templated FloorOfRatio math function from the TensorFlow
 // namespace, as it is very commonly used.
 template <typename T>

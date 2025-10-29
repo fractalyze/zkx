@@ -35,6 +35,18 @@ absl::Status AppendStatus(absl::Status prior, std::string_view context) {
                       absl::StrCat(prior.message(), ": ", context)};
 }
 
+PaddingConfig MakeNoPaddingConfig(int64_t rank) {
+  PaddingConfig padding_config;
+  for (int64_t dnum = 0; dnum < rank; ++dnum) {
+    auto dimension = padding_config.add_dimensions();
+    dimension->set_edge_padding_low(0);
+    dimension->set_edge_padding_high(0);
+    // TODO(chokobole): Do we need this? Dependency: interior_padding
+    // dimension->set_interior_padding(0);
+  }
+  return padding_config;
+}
+
 int64_t Product(absl::Span<const int64_t> xs) {
   return std::accumulate(xs.begin(), xs.end(), int64_t{1},
                          std::multiplies<int64_t>());
