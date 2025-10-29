@@ -227,6 +227,7 @@ zkx_cc_library(
         "//xla/tsl/platform:mem",
         "//xla/tsl/util:byte_swap_array",
         "//zkx:permutation_util",
+        "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/functional:function_ref",
         "@com_google_absl//absl/log:check",

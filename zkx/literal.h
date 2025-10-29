@@ -213,6 +213,12 @@ class LiteralBase {
   // Returns false if this literal is not array-shaped.
   bool IsAll(int8_t value) const;
 
+  // Determines if this literal consists entirely of the first element of the
+  // literal.
+  //
+  // Returns false if this literal is not an array.
+  bool IsAllFirst() const;
+
   // Returns the count of the elements in the array at the given shape index in
   // this literal.
   int64_t element_count(const ShapeIndex& index = {}) const {
@@ -404,6 +410,15 @@ class LiteralBase {
   // `permutation` = {2, 0, 1} returns a new literal of shape [4 x 3 x 8].
   // This literal must be an array.
   Literal Transpose(absl::Span<const int64_t> permutation) const;
+
+  // Creates a sub-array from this literal by extracting the indices
+  // [start_index, limit_index) of each dimension. The result literal has the
+  // same rank and layout as for the given literal. The number of indices in
+  // start_indices and limit_indices must be the rank of the literal, and the
+  // indices follow the order of the dimensions.
+  // This literal must be an array.
+  Literal Slice(absl::Span<const int64_t> start_indices,
+                absl::Span<const int64_t> limit_indices) const;
 
   // Returns true if the leaf arrays of the literal within the given shape index
   // are all determined.
