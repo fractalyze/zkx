@@ -189,6 +189,7 @@ absl::Status GatherComputationsByAllocationType(
           case HloOpcode::kReduce:
           case HloOpcode::kReduceScatter:
           case HloOpcode::kScatter:
+          case HloOpcode::kSort:
             // Map/reduce etc computations are always thread-local.
             worklist.push_back(std::make_pair(subcomputation, true));
             break;

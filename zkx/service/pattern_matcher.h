@@ -2502,6 +2502,7 @@ inline constexpr auto Op(HloInstruction** matched_inst) {
     return Op(matched_inst).WithOpcode(HloOpcode::k##NAME);          \
   }
 ZKX_NULLOP_PATTERN(Constant)
+ZKX_NULLOP_PATTERN(Iota)
 ZKX_NULLOP_PATTERN(Parameter)
 ZKX_NULLOP_PATTERN(PartitionId)
 ZKX_NULLOP_PATTERN(ReplicaId)
@@ -2529,6 +2530,7 @@ ZKX_NULLOP_PATTERN(ReplicaId)
         .WithOpcode(HloOpcode::k##NAME)                              \
         .WithOperand(0, std::forward<Arg>(arg));                     \
   }
+ZKX_UNOP_PATTERN(Abs)
 ZKX_UNOP_PATTERN(AllReduceStart)
 ZKX_UNOP_PATTERN(AllReduceDone)
 ZKX_UNOP_PATTERN(AllToAll)
@@ -2546,6 +2548,7 @@ ZKX_UNOP_PATTERN(GetTupleElement)
 ZKX_UNOP_PATTERN(Infeed)
 ZKX_UNOP_PATTERN(Inverse)
 ZKX_UNOP_PATTERN(Negate)
+ZKX_UNOP_PATTERN(Not)
 ZKX_UNOP_PATTERN(OptimizationBarrier)
 ZKX_UNOP_PATTERN(RaggedAllToAll)
 ZKX_UNOP_PATTERN(Recv)
@@ -2553,6 +2556,7 @@ ZKX_UNOP_PATTERN(RecvDone)
 ZKX_UNOP_PATTERN(Reshape)
 ZKX_UNOP_PATTERN(Reverse)
 ZKX_UNOP_PATTERN(SendDone)
+ZKX_UNOP_PATTERN(Sign)
 ZKX_UNOP_PATTERN(Slice)
 ZKX_UNOP_PATTERN(Transpose)
 ZKX_UNOP_PATTERN(While)
@@ -2595,6 +2599,7 @@ ZKX_UNOP_PATTERN(While)
         nullptr, std::forward<Lhs>(lhs), std::forward<Rhs>(rhs));          \
   }
 ZKX_COMMUTATIVE_BINOP_PATTERN(Add)
+ZKX_COMMUTATIVE_BINOP_PATTERN(And)
 ZKX_BINOP_PATTERN(Compare)
 ZKX_BINOP_PATTERN(Divide)
 ZKX_BINOP_PATTERN(Dot)
@@ -2604,9 +2609,16 @@ ZKX_COMMUTATIVE_BINOP_PATTERN(Minimum)
 ZKX_COMMUTATIVE_BINOP_PATTERN(Multiply)
 ZKX_BINOP_PATTERN(Msm)
 ZKX_BINOP_PATTERN(Outfeed)
+ZKX_COMMUTATIVE_BINOP_PATTERN(Or)
+ZKX_BINOP_PATTERN(Pad)
 ZKX_BINOP_PATTERN(Power)
+ZKX_BINOP_PATTERN(Remainder)
 ZKX_BINOP_PATTERN(Send)
 ZKX_BINOP_PATTERN(Subtract)
+ZKX_BINOP_PATTERN(ShiftLeft)
+ZKX_BINOP_PATTERN(ShiftRightArithmetic)
+ZKX_BINOP_PATTERN(ShiftRightLogical)
+ZKX_COMMUTATIVE_BINOP_PATTERN(Xor)
 #undef ZKX_COMMUTATIVE_BINOP_PATTERN
 #undef ZKX_BINOP_PATTERN
 
@@ -2633,6 +2645,7 @@ ZKX_BINOP_PATTERN(Subtract)
         .WithOperand(1, std::forward<Arg1>(arg1))                      \
         .WithOperand(2, std::forward<Arg2>(arg2));                     \
   }
+ZKX_TERNOP_PATTERN(Clamp);
 ZKX_TERNOP_PATTERN(RaggedDot);
 ZKX_TERNOP_PATTERN(Select);
 #undef ZKX_TERNOP_PATTERN
@@ -2694,6 +2707,7 @@ ZKX_VARIADIC_OP_PATTERN(Map)
 ZKX_VARIADIC_OP_PATTERN(Reduce);
 ZKX_VARIADIC_OP_PATTERN(ReduceScatter)
 ZKX_VARIADIC_OP_PATTERN(Scatter);
+ZKX_VARIADIC_OP_PATTERN(Sort);
 ZKX_VARIADIC_OP_PATTERN(Tuple);
 
 // CustomCall doesn't use the ZKX_VARIADIC_OP_PATTERN macro so that you can

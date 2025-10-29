@@ -67,6 +67,7 @@ namespace zkx {
 // - MatchReductionInstruction
 #define HLO_OPCODE_LIST(V)                                                     \
   /* go/keep-sorted start */                                                   \
+  V(kAbs, "abs", 1)                                                            \
   V(kAdd, "add", 2)                                                            \
   V(kAddDependency, "add-dependency", 2)                                       \
   V(kAfterAll, "after-all", kHloOpcodeIsVariadic)                              \
@@ -77,6 +78,7 @@ namespace zkx {
   V(kAllReduceDone, "all-reduce-done", 1)                                      \
   V(kAllReduceStart, "all-reduce-start", kHloOpcodeIsVariadic)                 \
   V(kAllToAll, "all-to-all", kHloOpcodeIsVariadic)                             \
+  V(kAnd, "and", 2)                                                            \
   V(kAsyncDone, "async-done", 1)                                               \
   V(kAsyncStart, "async-start", kHloOpcodeIsVariadic)                          \
   V(kAsyncUpdate, "async-update", 1)                                           \
@@ -84,6 +86,8 @@ namespace zkx {
   V(kBitcastConvert, "bitcast-convert", 1)                                     \
   V(kBroadcast, "broadcast", 1)                                                \
   V(kCall, "call", kHloOpcodeIsVariadic)                                       \
+  V(kClamp, "clamp", 3)                                                        \
+  V(kClz, "count-leading-zeros", 1)                                            \
   V(kCollectiveBroadcast, "collective-broadcast", kHloOpcodeIsVariadic)        \
   V(kCollectivePermute, "collective-permute", kHloOpcodeIsVariadic)            \
   V(kCollectivePermuteDone, "collective-permute-done", 1)                      \
@@ -109,6 +113,7 @@ namespace zkx {
   V(kGetDimensionSize, "get-dimension-size", 1)                                \
   V(kGetTupleElement, "get-tuple-element", 1)                                  \
   V(kInfeed, "infeed", 1)                                                      \
+  V(kIota, "iota", 0)                                                          \
   V(kInverse, "inverse", 1)                                                    \
   V(kMap, "map", kHloOpcodeIsVariadic)                                         \
   V(kMaximum, "maximum", 2)                                                    \
@@ -116,10 +121,14 @@ namespace zkx {
   V(kMsm, "msm", 2)                                                            \
   V(kMultiply, "multiply", 2)                                                  \
   V(kNegate, "negate", 1)                                                      \
+  V(kNot, "not", 1)                                                            \
   V(kOptimizationBarrier, "opt-barrier", 1)                                    \
+  V(kOr, "or", 2)                                                              \
   V(kOutfeed, "outfeed", 2)                                                    \
+  V(kPad, "pad", 2)                                                            \
   V(kParameter, "parameter", 0)                                                \
   V(kPartitionId, "partition-id", 0)                                           \
+  V(kPopulationCount, "popcnt", 1)                                             \
   V(kPower, "power", 2)                                                        \
   V(kRaggedAllToAll, "ragged-all-to-all", 6)                                   \
   V(kRaggedDot, "ragged-dot", 3)                                               \
@@ -127,6 +136,7 @@ namespace zkx {
   V(kRecvDone, "recv-done", 1)                                                 \
   V(kReduce, "reduce", kHloOpcodeIsVariadic)                                   \
   V(kReduceScatter, "reduce-scatter", kHloOpcodeIsVariadic)                    \
+  V(kRemainder, "remainder", 2)                                                \
   V(kReplicaId, "replica-id", 0)                                               \
   V(kReshape, "reshape", 1)                                                    \
   V(kReverse, "reverse", 1)                                                    \
@@ -135,11 +145,17 @@ namespace zkx {
   V(kSend, "send", 2)                                                          \
   V(kSendDone, "send-done", 1)                                                 \
   V(kSetDimensionSize, "set-dimension-size", 2)                                \
+  V(kShiftLeft, "shift-left", 2)                                               \
+  V(kShiftRightArithmetic, "shift-right-arithmetic", 2)                        \
+  V(kShiftRightLogical, "shift-right-logical", 2)                              \
+  V(kSign, "sign", 1)                                                          \
   V(kSlice, "slice", 1)                                                        \
+  V(kSort, "sort", kHloOpcodeIsVariadic)                                       \
   V(kSubtract, "subtract", 2)                                                  \
   V(kTranspose, "transpose", 1)                                                \
   V(kTuple, "tuple", kHloOpcodeIsVariadic)                                     \
   V(kWhile, "while", 1)                                                        \
+  V(kXor, "xor", 2)                                                            \
   /* go/keep-sorted end */
 
 // Upto 256 opcodes. Increase the base type if/when needed.
@@ -183,15 +199,12 @@ inline bool HloOpcodeIsAsync(HloOpcode opcode) {
 inline bool HloOpcodeIsBinaryCommutative(HloOpcode opcode) {
   switch (opcode) {
     case HloOpcode::kAdd:
+    case HloOpcode::kAnd:
     case HloOpcode::kMultiply:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAnd, HloOpcode::kOr, HloOpcode::kXor
-      // clang-format on
-      // case HloOpcode::kAnd:
-      // case HloOpcode::kOr:
-      // case HloOpcode::kXor:
+    case HloOpcode::kOr:
+    case HloOpcode::kXor:
       return true;
     default:
       return false;

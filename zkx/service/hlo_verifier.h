@@ -158,10 +158,10 @@ class ShapeVerifier : public DfsHloVisitor {
 
   absl::Status HandleElementwiseUnary(HloInstruction* hlo) override;
   absl::Status HandleElementwiseBinary(HloInstruction* hlo) override;
+  absl::Status HandleClamp(HloInstruction* clamp) override;
   absl::Status HandleSelect(HloInstruction* select) override;
   absl::Status HandleConcatenate(HloInstruction* concatenate) override;
-  // TODO(chokobole): Uncomment this. Dependency: HandleIota
-  // absl::Status HandleIota(HloInstruction* hlo) override;
+  absl::Status HandleIota(HloInstruction* hlo) override;
   absl::Status HandleConvert(HloInstruction* convert) override;
   absl::Status HandleBitcastConvert(HloInstruction* convert) override;
   absl::Status HandleCopy(HloInstruction* copy) override;
@@ -187,8 +187,7 @@ class ShapeVerifier : public DfsHloVisitor {
   absl::Status HandleOptimizationBarrier(HloInstruction* hlo) override;
   absl::Status HandleOutfeed(HloInstruction*) override;
   absl::Status HandleReverse(HloInstruction* reverse) override;
-  // TODO(chokobole): Uncomment this. Dependency: HandleSort
-  // absl::Status HandleSort(HloInstruction* hlo) override;
+  absl::Status HandleSort(HloInstruction* hlo) override;
   absl::Status HandleConstant(HloInstruction* constant) override;
   absl::Status HandleGetTupleElement(
       HloInstruction* get_tuple_element) override;
@@ -211,8 +210,7 @@ class ShapeVerifier : public DfsHloVisitor {
   absl::Status HandleReduceScatter(HloInstruction* hlo) override;
   absl::Status HandleWhile(HloInstruction* zkx_while) override;
   absl::Status HandleConditional(HloInstruction* conditional) override;
-  // TODO(chokobole): Uncomment this. Dependency: HandlePad
-  // absl::Status HandlePad(HloInstruction* pad) override;
+  absl::Status HandlePad(HloInstruction* pad) override;
   absl::Status HandleAsyncStart(HloInstruction* async_start) override;
   absl::Status HandleAsyncUpdate(HloInstruction* async_update) override;
   absl::Status HandleAsyncDone(HloInstruction* async_done) override;

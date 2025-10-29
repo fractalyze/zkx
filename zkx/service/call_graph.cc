@@ -64,10 +64,7 @@ CallContext GetInstructionCallContext(HloOpcode opcode) {
     case HloOpcode::kReduce:
     case HloOpcode::kReduceScatter:
     case HloOpcode::kScatter:
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
-    // clang-format on
-    // case HloOpcode::kSort:
+    case HloOpcode::kSort:
       return CallContext::kEmbedded;
     default:
       return CallContext::kNone;

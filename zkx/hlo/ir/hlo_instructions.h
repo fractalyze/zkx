@@ -53,8 +53,7 @@ class HloDimensionsInstruction : public HloInstruction {
       case HloOpcode::kConcatenate:
       case HloOpcode::kReduce:
       case HloOpcode::kReverse:
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
-      // case HloOpcode::kSort:
+      case HloOpcode::kSort:
       case HloOpcode::kTranspose:
         return true;
       default:

@@ -2000,6 +2000,7 @@ inline bool HloInstruction::MightHaveCalledComputations(HloOpcode opcode) {
     case HloOpcode::kReduce:
     case HloOpcode::kReduceScatter:
     case HloOpcode::kScatter:
+    case HloOpcode::kSort:
       return true;
     default:
       return false;

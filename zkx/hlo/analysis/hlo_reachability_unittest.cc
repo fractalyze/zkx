@@ -100,7 +100,7 @@ TEST_F(HloReachabilityTest, NonTrivialReachability) {
   //    | |       |
   //    add ..   negate
   //     |   .     |
-  //     |   .... inv
+  //     |   ... popcnt
   //     |         |
   //     +---+   +-+---+
   //         |   |     |
@@ -117,25 +117,25 @@ TEST_F(HloReachabilityTest, NonTrivialReachability) {
       r0u32, HloOpcode::kAdd, constant1, constant2));
   auto negate = builder.AddInstruction(
       HloInstruction::CreateUnary(r0u32, HloOpcode::kNegate, constant2));
-  auto inv = builder.AddInstruction(
-      HloInstruction::CreateUnary(r0u32, HloOpcode::kInverse, negate));
+  auto popcnt = builder.AddInstruction(
+      HloInstruction::CreateUnary(r0u32, HloOpcode::kPopulationCount, negate));
   auto mul = builder.AddInstruction(
-      HloInstruction::CreateBinary(r0u32, HloOpcode::kMultiply, add, inv));
+      HloInstruction::CreateBinary(r0u32, HloOpcode::kMultiply, add, popcnt));
   auto copy = builder.AddInstruction(
-      HloInstruction::CreateUnary(r0u32, HloOpcode::kCopy, inv));
+      HloInstruction::CreateUnary(r0u32, HloOpcode::kCopy, popcnt));
 
   auto module = CreateNewVerifiedModule();
   auto computation =
       module->AddEntryComputation(builder.Build(/*root_instruction=*/mul));
 
-  CHECK_OK(add->AddControlDependencyTo(inv));
+  CHECK_OK(add->AddControlDependencyTo(popcnt));
   auto reachability = HloReachabilityMap::Build(computation);
 
   EXPECT_TRUE(reachability->IsReachable(constant1, constant1));
   EXPECT_FALSE(reachability->IsReachable(constant1, constant2));
   EXPECT_TRUE(reachability->IsReachable(constant1, add));
   EXPECT_FALSE(reachability->IsReachable(constant1, negate));
-  EXPECT_TRUE(reachability->IsReachable(constant1, inv));
+  EXPECT_TRUE(reachability->IsReachable(constant1, popcnt));
   EXPECT_TRUE(reachability->IsReachable(constant1, mul));
   EXPECT_TRUE(reachability->IsReachable(constant1, copy));
 
@@ -143,23 +143,23 @@ TEST_F(HloReachabilityTest, NonTrivialReachability) {
   EXPECT_TRUE(reachability->IsReachable(constant2, constant2));
   EXPECT_TRUE(reachability->IsReachable(constant2, add));
   EXPECT_TRUE(reachability->IsReachable(constant2, negate));
-  EXPECT_TRUE(reachability->IsReachable(constant2, inv));
+  EXPECT_TRUE(reachability->IsReachable(constant2, popcnt));
   EXPECT_TRUE(reachability->IsReachable(constant2, mul));
   EXPECT_TRUE(reachability->IsReachable(constant2, copy));
 
-  EXPECT_FALSE(reachability->IsReachable(inv, constant1));
-  EXPECT_FALSE(reachability->IsReachable(inv, constant2));
-  EXPECT_FALSE(reachability->IsReachable(inv, add));
-  EXPECT_FALSE(reachability->IsReachable(inv, negate));
-  EXPECT_TRUE(reachability->IsReachable(inv, inv));
-  EXPECT_TRUE(reachability->IsReachable(inv, mul));
-  EXPECT_TRUE(reachability->IsReachable(inv, copy));
+  EXPECT_FALSE(reachability->IsReachable(popcnt, constant1));
+  EXPECT_FALSE(reachability->IsReachable(popcnt, constant2));
+  EXPECT_FALSE(reachability->IsReachable(popcnt, add));
+  EXPECT_FALSE(reachability->IsReachable(popcnt, negate));
+  EXPECT_TRUE(reachability->IsReachable(popcnt, popcnt));
+  EXPECT_TRUE(reachability->IsReachable(popcnt, mul));
+  EXPECT_TRUE(reachability->IsReachable(popcnt, copy));
 
   EXPECT_FALSE(reachability->IsReachable(mul, constant1));
   EXPECT_FALSE(reachability->IsReachable(mul, constant2));
   EXPECT_FALSE(reachability->IsReachable(mul, add));
   EXPECT_FALSE(reachability->IsReachable(mul, negate));
-  EXPECT_FALSE(reachability->IsReachable(mul, inv));
+  EXPECT_FALSE(reachability->IsReachable(mul, popcnt));
   EXPECT_TRUE(reachability->IsReachable(mul, mul));
   EXPECT_FALSE(reachability->IsReachable(mul, copy));
 
@@ -169,14 +169,14 @@ TEST_F(HloReachabilityTest, NonTrivialReachability) {
   EXPECT_FALSE(reachability->IsConnected(add, negate));
 
   // Remove the control dependency then update and verify the reachability map
-  ASSERT_TRUE(add->RemoveControlDependencyTo(inv).ok());
-  reachability->UpdateReachabilityThroughInstruction(inv);
+  ASSERT_TRUE(add->RemoveControlDependencyTo(popcnt).ok());
+  reachability->UpdateReachabilityThroughInstruction(popcnt);
 
   EXPECT_TRUE(reachability->IsReachable(constant1, constant1));
   EXPECT_FALSE(reachability->IsReachable(constant1, constant2));
   EXPECT_TRUE(reachability->IsReachable(constant1, add));
   EXPECT_FALSE(reachability->IsReachable(constant1, negate));
-  EXPECT_FALSE(reachability->IsReachable(constant1, inv));
+  EXPECT_FALSE(reachability->IsReachable(constant1, popcnt));
   EXPECT_TRUE(reachability->IsReachable(constant1, mul));
   EXPECT_FALSE(reachability->IsReachable(constant1, copy));
 
@@ -188,7 +188,7 @@ TEST_F(HloReachabilityTest, NonTrivialReachability) {
   EXPECT_TRUE(reachability->IsReachable(constant2, constant2));
   EXPECT_TRUE(reachability->IsReachable(constant2, add));
   EXPECT_FALSE(reachability->IsReachable(constant2, negate));
-  EXPECT_FALSE(reachability->IsReachable(constant2, inv));
+  EXPECT_FALSE(reachability->IsReachable(constant2, popcnt));
   EXPECT_TRUE(reachability->IsReachable(constant2, mul));
   EXPECT_FALSE(reachability->IsReachable(constant2, copy));
 }

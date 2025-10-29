@@ -452,21 +452,24 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       return absl::UnimplementedError(
           "HloInstruction::CreateFromProto: Reduce not implemented");
       break;
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
-    // case HloOpcode::kSort: {
-    //   TF_RET_CHECK(proto.operand_ids_size() >= 1)
-    //       << "Sort instruction should have at least 1 operand but has "
-    //       << proto.operand_ids_size();
-    //   TF_RET_CHECK(proto.dimensions().size() == 1)
-    //       << "Sort instruction should have 1 dimension";
-    //   TF_RET_CHECK(proto.called_computation_ids_size() == 1)
-    //       << "Sort instruction should one called computation but sees "
-    //       << proto.called_computation_ids_size();
-    //   auto sort_operands = all_operands();
-    //   instruction = CreateSort(shape, proto.dimensions(0), all_operands(),
-    //                            computations(0), proto.is_stable());
-    //   break;
-    // }
+    case HloOpcode::kSort: {
+      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateSort
+      //   TF_RET_CHECK(proto.operand_ids_size() >= 1)
+      //       << "Sort instruction should have at least 1 operand but has "
+      //       << proto.operand_ids_size();
+      //   TF_RET_CHECK(proto.dimensions().size() == 1)
+      //       << "Sort instruction should have 1 dimension";
+      //   TF_RET_CHECK(proto.called_computation_ids_size() == 1)
+      //       << "Sort instruction should one called computation but sees "
+      //       << proto.called_computation_ids_size();
+      //   auto sort_operands = all_operands();
+      //   instruction = CreateSort(shape, proto.dimensions(0), all_operands(),
+      //                            computations(0), proto.is_stable());
+      //   break;
+      return absl::UnimplementedError(
+          "HloInstruction::CreateFromProto: Sort not implemented");
+      break;
+    }
     case HloOpcode::kTranspose:
       // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateTranspose
       // instruction =
@@ -800,6 +803,14 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           "HloInstruction::CreateFromProto: CustomCall not implemented");
       break;
     }
+    case HloOpcode::kPad:
+      // TODO(chokobole): Uncomment this. Dependency: CreatePad
+      // TF_RET_CHECK(proto.has_padding_config());
+      // instruction =
+      //     CreatePad(shape, operands(0), operands(1), proto.padding_config());
+      // break;
+      return absl::UnimplementedError(
+          "HloInstruction::CreateFromProto: Pad not implemented");
     case HloOpcode::kDynamicSlice: {
       // TODO(chokobole): Uncomment this. Dependency: CreateDynamicSlice
       // std::vector<int64_t> slice_sizes(proto.dynamic_slice_sizes_size());
@@ -893,6 +904,15 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           "HloInstruction::CreateFromProto: Scatter not implemented");
       break;
     }
+    case HloOpcode::kIota:
+      // TODO(chokobole): Uncomment this. Dependency: CreateIota
+      // TF_RET_CHECK(proto.dimensions_size() == 1)
+      //     << "Iota instruction should have 1 dimension but sees "
+      //     << proto.dimensions_size();
+      // instruction = CreateIota(shape, proto.dimensions(0));
+      return absl::UnimplementedError(
+          "HloInstruction::CreateFromProto: Iota not implemented");
+      break;
     case HloOpcode::kDot: {
       int expected_operands =
           HloDotInstruction::kOperands + proto.dot_sparsity_size();
@@ -1199,15 +1219,20 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateUnary(
   // Only certain opcodes are supported with CreateUnary: opcodes of unary
   // instructions with no auxiliary fields.
   switch (opcode) {
+    case HloOpcode::kAbs:
     case HloOpcode::kAllGatherDone:
     case HloOpcode::kAllReduceDone:
     case HloOpcode::kBitcast:
     case HloOpcode::kCollectivePermuteDone:
+    case HloOpcode::kClz:
     case HloOpcode::kCopy:
     case HloOpcode::kCopyDone:
     case HloOpcode::kInverse:
     case HloOpcode::kNegate:
+    case HloOpcode::kNot:
     case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kPopulationCount:
+    case HloOpcode::kSign:
       return CreateNary(shape, opcode, {operand});
     default:
       LOG(FATAL) << "Invalid unary instruction opcode " << opcode;
@@ -1222,13 +1247,20 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBinary(
   // instructions with no auxiliary fields.
   switch (opcode) {
     case HloOpcode::kAdd:
+    case HloOpcode::kAnd:
     case HloOpcode::kDivide:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
     case HloOpcode::kMsm:
     case HloOpcode::kPower:
+    case HloOpcode::kOr:
+    case HloOpcode::kRemainder:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
     case HloOpcode::kSubtract:
+    case HloOpcode::kXor:
       break;
     default:
       LOG(FATAL) << "Invalid binary instruction opcode " << opcode;
@@ -1243,8 +1275,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateTernary(
   // Only certain opcodes are supported with CreateTernary: opcodes of ternary
   // instructions with no auxiliary fields.
   switch (opcode) {
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kClamp
-    // case HloOpcode::kClamp:
+    case HloOpcode::kClamp:
     case HloOpcode::kSelect:
       break;
     default:
@@ -1857,7 +1888,9 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kGetTupleElement:
     case HloOpcode::kMap:
     case HloOpcode::kInfeed:
+    case HloOpcode::kIota:
     case HloOpcode::kOutfeed:
+    case HloOpcode::kPad:
     case HloOpcode::kParameter:
     case HloOpcode::kRaggedAllToAll:
     case HloOpcode::kRaggedDot:
@@ -1872,35 +1905,49 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kSendDone:
     case HloOpcode::kSetDimensionSize:
     case HloOpcode::kSlice:
+    case HloOpcode::kSort:
     case HloOpcode::kTranspose:
       clone = CloneWithNewOperandsImpl(shape, new_operands, context);
       break;
     // Unary ops.
+    case HloOpcode::kAbs:
     case HloOpcode::kAllGatherDone:
     case HloOpcode::kAllReduceDone:
     case HloOpcode::kBitcast:
+    case HloOpcode::kClz:
     case HloOpcode::kCollectivePermuteDone:
     case HloOpcode::kCopy:
     case HloOpcode::kCopyDone:
     case HloOpcode::kInverse:
     case HloOpcode::kNegate:
+    case HloOpcode::kNot:
     case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kPopulationCount:
+    case HloOpcode::kSign:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateUnary(shape, opcode_, new_operands[0]);
       break;
     // Binary ops.
     case HloOpcode::kAdd:
+    case HloOpcode::kAnd:
     case HloOpcode::kDivide:
     case HloOpcode::kMultiply:
     case HloOpcode::kSubtract:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMsm:
+    case HloOpcode::kOr:
     case HloOpcode::kPower:
+    case HloOpcode::kRemainder:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
+    case HloOpcode::kXor:
       CHECK_EQ(new_operands.size(), 2);
       clone = CreateBinary(shape, opcode_, new_operands[0], new_operands[1]);
       break;
       // Ternary ops.
+    case HloOpcode::kClamp:
     case HloOpcode::kSelect:
       CHECK_EQ(new_operands.size(), 3);
       clone = CreateTernary(shape, opcode_, new_operands[0], new_operands[1],
@@ -2188,12 +2235,16 @@ bool HloInstruction::IdenticalSlowPath(
   switch (opcode()) {
     // The result of these instructions only depend upon their opcode and
     // operands.
+    case HloOpcode::kAbs:
     case HloOpcode::kAdd:
     case HloOpcode::kAllGatherDone:
     case HloOpcode::kAllReduceDone:
+    case HloOpcode::kAnd:
     case HloOpcode::kBitcast:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kCollectivePermuteDone:
+    case HloOpcode::kClamp:
+    case HloOpcode::kClz:
     case HloOpcode::kConvert:
     case HloOpcode::kCopy:
     case HloOpcode::kCopyDone:
@@ -2206,14 +2257,23 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
     case HloOpcode::kNegate:
+    case HloOpcode::kNot:
     case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kOr:
     case HloOpcode::kPartitionId:
+    case HloOpcode::kPopulationCount:
     case HloOpcode::kPower:
+    case HloOpcode::kRemainder:
     case HloOpcode::kReplicaId:
     case HloOpcode::kReshape:
     case HloOpcode::kSelect:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
+    case HloOpcode::kSign:
     case HloOpcode::kSubtract:
     case HloOpcode::kTuple:
+    case HloOpcode::kXor:
       return true;
 
     // This opcode has complex or special behavior so just return false.
@@ -2263,9 +2323,11 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kGetDimensionSize:
     case HloOpcode::kGetTupleElement:
     case HloOpcode::kInfeed:
+    case HloOpcode::kIota:
     case HloOpcode::kMap:
     case HloOpcode::kMsm:
     case HloOpcode::kOutfeed:
+    case HloOpcode::kPad:
     case HloOpcode::kParameter:
     case HloOpcode::kRaggedAllToAll:
     case HloOpcode::kRaggedDot:
@@ -2277,6 +2339,7 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kSend:
     case HloOpcode::kSendDone:
     case HloOpcode::kSlice:
+    case HloOpcode::kSort:
     case HloOpcode::kTranspose:
     case HloOpcode::kScatter:
     case HloOpcode::kSetDimensionSize:
@@ -2476,6 +2539,7 @@ bool HloInstruction::has_to_apply() const {
     case HloOpcode::kReduce:
     case HloOpcode::kReduceScatter:
     case HloOpcode::kScatter:
+    case HloOpcode::kSort:
       return true;
     case HloOpcode::kCustomCall:
       // CustomCall can have a to_apply computation, but it is not required to
@@ -2834,25 +2898,38 @@ std::string HloInstruction::ToString() const {
 bool HloInstruction::IsOpElementwise(HloOpcode opcode) {
   switch (opcode) {
     // Unary elementwise operations.
+    case HloOpcode::kAbs:
     case HloOpcode::kBitcastConvert:
+    case HloOpcode::kClz:
     case HloOpcode::kConvert:
     case HloOpcode::kCopy:
     case HloOpcode::kInverse:
     case HloOpcode::kNegate:
+    case HloOpcode::kNot:
+    case HloOpcode::kPopulationCount:
+    case HloOpcode::kSign:
       return true;
 
     // Binary elementwise operations, the same as in IsElementwiseBinary().
     case HloOpcode::kAdd:
+    case HloOpcode::kAnd:
     case HloOpcode::kCompare:
     case HloOpcode::kDivide:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
+    case HloOpcode::kOr:
     case HloOpcode::kPower:
+    case HloOpcode::kRemainder:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
     case HloOpcode::kSubtract:
+    case HloOpcode::kXor:
       return true;
 
     // Ternary elementwise operations.
+    case HloOpcode::kClamp:
     case HloOpcode::kSelect:
       return true;
 
@@ -3031,8 +3108,12 @@ template <typename HloInstructionPtr>
 absl::Status HloInstruction::Visit(
     DfsHloVisitorBase<HloInstructionPtr>* visitor) {
   switch (opcode_) {
+    case HloOpcode::kAbs:
+      return visitor->HandleAbs(this);
     case HloOpcode::kAdd:
       return visitor->HandleAdd(this);
+    case HloOpcode::kAnd:
+      return visitor->HandleAnd(this);
     case HloOpcode::kAddDependency:
       return visitor->HandleAddDependency(this);
     case HloOpcode::kAfterAll:
@@ -3065,6 +3146,10 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleBroadcast(this);
     case HloOpcode::kCall:
       return visitor->HandleCall(this);
+    case HloOpcode::kClamp:
+      return visitor->HandleClamp(this);
+    case HloOpcode::kClz:
+      return visitor->HandleClz(this);
     case HloOpcode::kCollectiveBroadcast:
       return visitor->HandleCollectiveBroadcast(this);
     case HloOpcode::kCollectivePermute:
@@ -3115,6 +3200,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleGetTupleElement(this);
     case HloOpcode::kInfeed:
       return visitor->HandleInfeed(this);
+    case HloOpcode::kIota:
+      return visitor->HandleIota(this);
     case HloOpcode::kInverse:
       return visitor->HandleInverse(this);
     case HloOpcode::kMap:
@@ -3129,16 +3216,24 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleMultiply(this);
     case HloOpcode::kNegate:
       return visitor->HandleNegate(this);
+    case HloOpcode::kNot:
+      return visitor->HandleNot(this);
     case HloOpcode::kOptimizationBarrier:
       return visitor->HandleOptimizationBarrier(this);
+    case HloOpcode::kOr:
+      return visitor->HandleOr(this);
     case HloOpcode::kOutfeed:
       return visitor->HandleOutfeed(this);
+    case HloOpcode::kPad:
+      return visitor->HandlePad(this);
     case HloOpcode::kParameter:
       return visitor->HandleParameter(this);
     case HloOpcode::kPartitionId:
       return visitor->HandlePartitionId(this);
     case HloOpcode::kPower:
       return visitor->HandlePower(this);
+    case HloOpcode::kPopulationCount:
+      return visitor->HandlePopulationCount(this);
     case HloOpcode::kRaggedAllToAll:
       return visitor->HandleRaggedAllToAll(this);
     case HloOpcode::kRaggedDot:
@@ -3151,6 +3246,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleReduce(this);
     case HloOpcode::kReduceScatter:
       return visitor->HandleReduceScatter(this);
+    case HloOpcode::kRemainder:
+      return visitor->HandleRemainder(this);
     case HloOpcode::kReplicaId:
       return visitor->HandleReplicaId(this);
     case HloOpcode::kReshape:
@@ -3167,8 +3264,18 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleSendDone(this);
     case HloOpcode::kSetDimensionSize:
       return visitor->HandleSetDimensionSize(this);
+    case HloOpcode::kShiftLeft:
+      return visitor->HandleShiftLeft(this);
+    case HloOpcode::kShiftRightArithmetic:
+      return visitor->HandleShiftRightArithmetic(this);
+    case HloOpcode::kShiftRightLogical:
+      return visitor->HandleShiftRightLogical(this);
+    case HloOpcode::kSign:
+      return visitor->HandleSign(this);
     case HloOpcode::kSlice:
       return visitor->HandleSlice(this);
+    case HloOpcode::kSort:
+      return visitor->HandleSort(this);
     case HloOpcode::kSubtract:
       return visitor->HandleSubtract(this);
     case HloOpcode::kTranspose:
@@ -3177,6 +3284,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleTuple(this);
     case HloOpcode::kWhile:
       return visitor->HandleWhile(this);
+    case HloOpcode::kXor:
+      return visitor->HandleXor(this);
     default:
       return absl::InternalError(absl::StrFormat(
           "Unhandled HloOpcode for DfsHloVisitor: %s. This should not happen - "

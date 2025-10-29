@@ -126,11 +126,22 @@ absl::StatusOr<Shape> ShapeInference::InferUnaryOpShape(HloOpcode opcode,
 
   DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(shape));
   switch (opcode) {
-      // TODO(chokobole): Uncomment this. Dependency: case HloOpcode::kAbs
-      // case HloOpcode::kAbs:
-
-      // TODO(chokobole): Uncomment this. Dependency: case HloOpcode::kClz
-    // case HloOpcode::kClz:
+    case HloOpcode::kAbs:
+      if (!ShapeUtil::ElementIsSigned(shape)) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Expected element type in shape to be signed integer for "
+            "abs operation; got %s.",
+            PrimitiveType_Name(shape.element_type())));
+      }
+      return shape;
+    case HloOpcode::kClz:
+      if (!ShapeUtil::ElementIsIntegral(shape)) {
+        return absl::InvalidArgumentError(
+            absl::StrFormat("Expected an integral element type in argument to "
+                            "count-leading-zeros operation; got %s.",
+                            PrimitiveType_Name(shape.element_type())));
+      }
+      return shape;
     case HloOpcode::kInverse:
       if (!ShapeUtil::ElementIsField(shape)) {
         return absl::InvalidArgumentError(
@@ -147,20 +158,31 @@ absl::StatusOr<Shape> ShapeInference::InferUnaryOpShape(HloOpcode opcode,
                             PrimitiveType_Name(shape.element_type())));
       }
       return shape;
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: case HloOpcode::kPopulationCount
-      // clang-format on
-      // case HloOpcode::kPopulationCount:
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: case HloOpcode::kSign
-      // clang-format on
-      // case HloOpcode::kSign:
-
-      // clang-format off
-      // TODO(chokobole): Uncomment this. Dependency: case HloOpcode::kNot
-      // clang-format on
-      // case HloOpcode::kNot:
-
+    case HloOpcode::kPopulationCount:
+      if (!ShapeUtil::ElementIsIntegral(shape)) {
+        return absl::InvalidArgumentError(
+            absl::StrFormat("Expected element type in shape to be integral for "
+                            "popcnt operation; got %s.",
+                            PrimitiveType_Name(shape.element_type())));
+      }
+      return shape;
+    case HloOpcode::kSign:
+      if (!ShapeUtil::ElementIsSigned(shape)) {
+        return absl::InvalidArgumentError(
+            absl::StrFormat("Expected element type in shape to be signed for "
+                            "sign operation; got %s.",
+                            PrimitiveType_Name(shape.element_type())));
+      }
+      return shape;
+    case HloOpcode::kNot:
+      if (shape.element_type() != PRED &&
+          !primitive_util::IsIntegralType(shape.element_type())) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Expected element type i shape to be predicate or integral for not "
+            "operation; got %s.",
+            PrimitiveType_Name(shape.element_type())));
+      }
+      return shape;
     default:
       return absl::InvalidArgumentError(absl::StrFormat(
           "Unknown operation for unary shape inference: \"%s\".",
@@ -671,6 +693,10 @@ absl::StatusOr<Shape> ShapeInference::InferBinaryOpShape(
     case HloOpcode::kSubtract:
     case HloOpcode::kPower:
     case HloOpcode::kDivide:
+    case HloOpcode::kRemainder:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
       if (lhs.element_type() == PRED || rhs.element_type() == PRED) {
         return absl::InvalidArgumentError(absl::StrFormat(
             "Expected element type in shape to be arithmetic type for "
@@ -680,12 +706,18 @@ absl::StatusOr<Shape> ShapeInference::InferBinaryOpShape(
       return InferElementwiseBinaryOpShape(opcode, lhs, rhs,
                                            broadcast_dimensions);
 
-      // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAnd, HloOpcode::kOr, HloOpcode::kXor
-    // clang-format on
-    // case HloOpcode::kAnd:
-    // case HloOpcode::kOr:
-    // case HloOpcode::kXor: {
+    case HloOpcode::kAnd:
+    case HloOpcode::kOr:
+    case HloOpcode::kXor:
+      if (lhs.element_type() != PRED &&
+          !primitive_util::IsIntegralType(lhs.element_type())) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Expected element type in shape to be predicate or integral for "
+            "operation %s; got %s.",
+            HloOpcodeString(opcode), PrimitiveType_Name(lhs.element_type())));
+      }
+      return InferElementwiseBinaryOpShape(opcode, lhs, rhs,
+                                           broadcast_dimensions);
     case HloOpcode::kCompare: {
       TF_ASSIGN_OR_RETURN(const Shape& shape,
                           InferElementwiseBinaryOpShape(opcode, lhs, rhs,
@@ -716,6 +748,8 @@ absl::StatusOr<Shape> ShapeInference::InferTernaryOpShape(HloOpcode opcode,
   DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(rhs));
   DCHECK_OK(ShapeUtil::ValidateShapeWithOptionalLayout(ehs));
   switch (opcode) {
+    case HloOpcode::kClamp:
+      return InferClampShape(lhs, rhs, ehs);
     case HloOpcode::kSelect:
       return InferSelectShape(lhs, rhs, ehs);
     default:
@@ -750,8 +784,24 @@ absl::StatusOr<Shape> ShapeInference::InferVariadicOpShape(
       }
       return result;
     }
-    // TODO(chokobole): Uncomment this. Dependency HloOpcode::kSort
-    // case HloOpcode::kSort: {
+    case HloOpcode::kSort: {
+      if (operand_shapes.size() == 1) {
+        return *operand_shapes[0];
+      } else {
+        for (int64_t operand = 1; operand < operand_shapes.size(); ++operand) {
+          if (!ShapeUtil::SameDimensions(*operand_shapes[0],
+                                         *operand_shapes[operand])) {
+            return absl::InvalidArgumentError(absl::StrFormat(
+                "Sort keys and values dimensions must match. "
+                "Keys shape is: %s\n, Values shape (operand index %lld) is: "
+                "%s.",
+                ShapeUtil::HumanString(*operand_shapes[0]), operand,
+                ShapeUtil::HumanString(*operand_shapes[operand])));
+          }
+        }
+        return ShapeUtil::MakeTupleShapeWithPtrs(operand_shapes);
+      }
+    }
     default:
       return absl::InvalidArgumentError(
           absl::StrFormat("Unknown operation %s.", HloOpcodeString(opcode)));
@@ -1106,6 +1156,36 @@ absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
   }
 
   return output_shape;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferClampShape(const Shape& min,
+                                                      const Shape& operand,
+                                                      const Shape& max) {
+  TF_RETURN_IF_ERROR(ExpectArray(min, "clamp min"));
+  TF_RETURN_IF_ERROR(ExpectArray(operand, "clamp operand"));
+  TF_RETURN_IF_ERROR(ExpectArray(max, "clamp max"));
+
+  // min, operand, and max must have compatible element types.
+  if (!ShapeUtil::SameElementType(min, operand) ||
+      !ShapeUtil::SameElementType(max, operand) ||
+      !ShapeUtil::SameElementType(min, max)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Clamp with incompatible element types: %s, %s, %s.",
+        ShapeUtil::HumanString(min), ShapeUtil::HumanString(operand),
+        ShapeUtil::HumanString(max)));
+  }
+
+  if ((!ShapeUtil::IsScalar(min) && !ShapeUtil::Compatible(min, operand)) ||
+      (!ShapeUtil::IsScalar(max) && !ShapeUtil::Compatible(max, operand)) ||
+      (!ShapeUtil::IsScalar(min) && !ShapeUtil::IsScalar(max) &&
+       !ShapeUtil::Compatible(min, max))) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Clamp with incompatible shapes: %s, %s, %s.",
+        ShapeUtil::HumanString(min), ShapeUtil::HumanString(operand),
+        ShapeUtil::HumanString(max)));
+  }
+  return operand;
 }
 
 // static

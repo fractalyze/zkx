@@ -664,10 +664,10 @@ absl::Status IrEmitterUnnested::EmitHloInstruction(
     case HloOpcode::kSendDone:
       return EmitSendDoneThunk(Cast<HloSendDoneInstruction>(instr));
 
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort.
-    // case HloOpcode::kSort:
-    // TODO(chokobole): Uncomment this. Dependency: HloSortInstruction.
-    // return EmitSort(Cast<HloSortInstruction>(instr));
+    case HloOpcode::kSort:
+      // TODO(chokobole): Uncomment this. Dependency: HloSortInstruction.
+      // return EmitSort(Cast<HloSortInstruction>(instr));
+      return absl::UnimplementedError("Not implemented for HloOpcode::kSort");
     case HloOpcode::kWhile:
       return EmitWhile(instr);
     case HloOpcode::kCopyStart:

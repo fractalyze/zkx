@@ -406,12 +406,16 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
       // clang-format on
       return absl::UnimplementedError(
           "HloToMlir not implemented for HloOpcode::kGather");
-    // TODO(chokobole): Uncomment this. Dependency: HloIotaInstruction
-    // case HloOpcode::kIota:
-    //   return EmitIota(instr, indices, builder);
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kPad
-    // case HloOpcode::kPad:
-    //   return EmitPad(instr, indices, operand_provider, builder);
+    case HloOpcode::kIota:
+      // TODO(chokobole): Uncomment this. Dependency: EmitIota
+      // return EmitIota(instr, indices, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kIota");
+    case HloOpcode::kPad:
+      // TODO(chokobole): Uncomment this. Dependency: EmitPad
+      // return EmitPad(instr, indices, operand_provider, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kPad");
     case HloOpcode::kDot:
       // TODO(chokobole): Implement this. Dependency: EmitDot
       // return EmitDot(instr, indices, operand_provider, builder);
@@ -453,11 +457,14 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
 
   SmallVector<mlir::NamedAttribute> attributes;
   switch (instr->opcode()) {
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAbs
-    // case HloOpcode::kAbs:
-    // return {MapHloOp<mhlo::AbsOp>(
-    //     PrimitiveTypeToMlirType(element_type, builder), arg_types, operands,
-    //     /*attributes=*/std::nullopt, builder)};
+    case HloOpcode::kAbs:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::AbsOp
+      // return {MapHloOp<mhlo::AbsOp>(
+      //     PrimitiveTypeToMlirType(element_type, builder), arg_types,
+      //     operands,
+      //     /*attributes=*/std::nullopt, builder)};
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kAbs");
     case HloOpcode::kAdd:
       if (element_type == PRED) {
         // TODO(chokobole): Uncomment this. Dependency: mhlo::OrOp
@@ -467,15 +474,21 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
             "type");
       }
       return MapElementwiseOp<mhlo::AddOp>(arg_types, operands, builder);
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAnd
-    // case HloOpcode::kAnd:
-    //   return MapElementwiseOp<mhlo::AndOp>(arg_types, operands, builder);
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kClamp
-    // case HloOpcode::kClamp:
-    //   return MapElementwiseOp<mhlo::ClampOp>(arg_types, operands, builder);
-    // TODO(chokobole): Uncomment this. Dependency: case HloOpcode::kClz
-    // case HloOpcode::kClz:
-    //   return MapElementwiseOp<mhlo::ClzOp>(arg_types, operands, builder);
+    case HloOpcode::kAnd:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::AndOp
+      // return MapElementwiseOp<mhlo::AndOp>(arg_types, operands, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kAnd");
+    case HloOpcode::kClamp:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::ClampOp
+      // return MapElementwiseOp<mhlo::ClampOp>(arg_types, operands, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kClamp");
+    case HloOpcode::kClz:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::ClzOp
+      // return MapElementwiseOp<mhlo::ClzOp>(arg_types, operands, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kClz");
     case HloOpcode::kCompare:
       // TODO(chokobole): Implement this. Dependency: EmitCompare
       // return EmitCompare(instr, arg_types, operands, builder);
@@ -523,66 +536,83 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
       return MapElementwiseOp<mhlo::MulOp>(arg_types, operands, builder);
     case HloOpcode::kNegate:
       return MapElementwiseOp<mhlo::NegOp>(arg_types, operands, builder);
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kNot
-    // case HloOpcode::kNot: {
-    //   if (element_type == PRED) {
-    //     auto zero =
-    //         builder.create<arith::ConstantIntOp>(builder.getI8Type(), 0);
-    //     Value result = builder.create<arith::ExtUIOp>(
-    //         builder.getI8Type(),
-    //         builder.create<arith::CmpIOp>(arith::CmpIPredicate::eq,
-    //         operands[0],
-    //                                       zero));
-    //     return {{result}};
-    //   }
-    //   return MapElementwiseOp<mhlo::NotOp>(arg_types, operands, builder);
-    // }
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kOr
-    // case HloOpcode::kOr:
-    //   return MapElementwiseOp<mhlo::OrOp>(arg_types, operands, builder);
-    // TODO(chokobole): Uncomment this. Dependency: kPopulationCount::kOr
-    // case HloOpcode::kPopulationCount:
-    //   return MapHloOp<mhlo::PopulationCountOp>(
-    //       PrimitiveTypeToMlirType(element_type, builder), arg_types,
-    //       operands,
-    //       /*attributes=*/std::nullopt, builder);
+    case HloOpcode::kNot: {
+      if (element_type == PRED) {
+        auto zero =
+            builder.create<arith::ConstantIntOp>(builder.getI8Type(), 0);
+        Value result = builder.create<arith::ExtUIOp>(
+            builder.getI8Type(),
+            builder.create<arith::CmpIOp>(arith::CmpIPredicate::eq, operands[0],
+                                          zero));
+        return {{result}};
+      }
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::NotOp
+      // return MapElementwiseOp<mhlo::NotOp>(arg_types, operands, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kNot");
+    }
+    case HloOpcode::kOr:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::OrOp
+      // return MapElementwiseOp<mhlo::OrOp>(arg_types, operands, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kOr");
+    case HloOpcode::kPopulationCount:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::PopulationCountOp
+      // return MapHloOp<mhlo::PopulationCountOp>(
+      //     PrimitiveTypeToMlirType(element_type, builder), arg_types,
+      //     operands,
+      //     /*attributes=*/std::nullopt, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kPopulationCount");
     case HloOpcode::kPower:
       return MapElementwiseOp<mhlo::PowOp>(arg_types, operands, builder);
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kRemainder
-    // case HloOpcode::kRemainder:
-    //   return MapElementwiseOp<mhlo::RemOp>(arg_types, operands, builder);
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSelect
-    // case HloOpcode::kSelect: {
-    //   operands[0] =
-    //   builder.createOrFold<arith::TruncIOp>(builder.getI1Type(),
-    //                                                       operands[0]);
-    //   return MapElementwiseOp<mhlo::SelectOp>(arg_types, operands, builder);
-    // }
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kShiftLeft
-    // case HloOpcode::kShiftLeft:
-    //   return MapElementwiseOp<mhlo::ShiftLeftOp>(arg_types, operands,
-    //   builder);
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kShiftRightArithmetic
-    // clang-format on
-    // case HloOpcode::kShiftRightArithmetic:
-    //   return MapElementwiseOp<mhlo::ShiftRightArithmeticOp>(arg_types,
-    //   operands, builder);
-    //
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kShiftRightLogical
-    // clang-format on
-    // case HloOpcode::kShiftRightLogical:
-    //   return MapElementwiseOp<mhlo::ShiftRightLogicalOp>(arg_types, operands,
-    //                                                      builder);
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSign
-    // case HloOpcode::kSign:
-    //   return MapElementwiseOp<mhlo::SignOp>(arg_types, operands, builder);
+    case HloOpcode::kRemainder:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::RemOp
+      // return MapElementwiseOp<mhlo::RemOp>(arg_types, operands, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kRemainder");
+    case HloOpcode::kSelect: {
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::SelectOp
+      // operands[0] =
+      // builder.createOrFold<arith::TruncIOp>(builder.getI1Type(),
+      //                                                     operands[0]);
+      // return MapElementwiseOp<mhlo::SelectOp>(arg_types, operands, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kSelect");
+    }
+    case HloOpcode::kShiftLeft:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::ShiftLeftOp
+      // return MapElementwiseOp<mhlo::ShiftLeftOp>(arg_types, operands,
+      // builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kShiftLeft");
+    case HloOpcode::kShiftRightArithmetic:
+      // clang-format off
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::ShiftRightArithmeticOp
+      // clang-format on
+      // return MapElementwiseOp<mhlo::ShiftRightArithmeticOp>(arg_types,
+      // operands,
+      //                                                       builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kShiftRightArithmetic");
+    case HloOpcode::kShiftRightLogical:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::ShiftRightLogicalOp
+      // return MapElementwiseOp<mhlo::ShiftRightLogicalOp>(arg_types, operands,
+      //                                                    builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kShiftRightLogical");
+    case HloOpcode::kSign:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::SignOp
+      // return MapElementwiseOp<mhlo::SignOp>(arg_types, operands, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kSign");
     case HloOpcode::kSubtract:
       return MapElementwiseOp<mhlo::SubtractOp>(arg_types, operands, builder);
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kXor
-    // case HloOpcode::kXor:
-    //   return MapElementwiseOp<mhlo::XorOp>(arg_types, operands, builder);
+    case HloOpcode::kXor:
+      // TODO(chokobole): Uncomment this. Dependency: mhlo::XorOp
+      // return MapElementwiseOp<mhlo::XorOp>(arg_types, operands, builder);
+      return absl::UnimplementedError(
+          "HloToMlir not implemented for HloOpcode::kXor");
     case HloOpcode::kBitcastConvert:
       // TODO(chokobole): Uncomment this. Dependency: mhlo::BitcastConvertOp
       // return MapHloOp<mhlo::BitcastConvertOp>(

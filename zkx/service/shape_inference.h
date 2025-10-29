@@ -181,6 +181,11 @@ class ShapeInference {
       HloOpcode operation, const Shape& lhs, const Shape& rhs,
       absl::Span<const int64_t> broadcast_dimensions);
 
+  // Helper for inferring the shape of Clamp ops.
+  static absl::StatusOr<Shape> InferClampShape(const Shape& min,
+                                               const Shape& operand,
+                                               const Shape& max);
+
   // Helper for inferring the shape of Select ops.
   static absl::StatusOr<Shape> InferSelectShape(const Shape& pred,
                                                 const Shape& on_true,

@@ -55,23 +55,22 @@ absl::StatusOr<ReductionKind> StringToReductionKind(
 // min/max. This works because pred is stored as an 8-bit int of value 0 or 1.
 std::optional<ReductionKind> MatchReductionInstruction(
     const HloInstruction* hlo) {
+  PrimitiveType type = hlo->shape().element_type();
   switch (hlo->opcode()) {
     case HloOpcode::kAdd:
       return ReductionKind::kSum;
+    case HloOpcode::kAnd:
+      return type == PRED ? std::optional<ReductionKind>(ReductionKind::kMin)
+                          : std::nullopt;
     case HloOpcode::kMultiply:
       return ReductionKind::kProduct;
     case HloOpcode::kMinimum:
       return ReductionKind::kMin;
     case HloOpcode::kMaximum:
       return ReductionKind::kMax;
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAnd
-    // case HloOpcode::kAnd:
-    //   return type == PRED ? std::optional<ReductionKind>(ReductionKind::MIN)
-    //                       : std::nullopt;
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kOr
-    // case HloOpcode::kOr:
-    //   return type == PRED ? std::optional<ReductionKind>(ReductionKind::MAX)
-    //                       : std::nullopt;
+    case HloOpcode::kOr:
+      return type == PRED ? std::optional<ReductionKind>(ReductionKind::kMax)
+                          : std::nullopt;
     default:
       return std::nullopt;
   }

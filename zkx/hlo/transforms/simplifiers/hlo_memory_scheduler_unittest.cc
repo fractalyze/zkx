@@ -54,7 +54,7 @@ class HloSchedulingTest : public HloHardwareIndependentTestBase {};
 TEST_F(HloSchedulingTest, LastUseScheduledFirst) {
   // Tests scheduling of the following HLO code:
   //
-  //   %inv = inverse(%param)
+  //   %popcnt = popcnt(%param)
   //   %negate = negate(%param)
   //   %add = add(%ab, %negate)
   //   %negate2 = negate(%negate)
@@ -66,13 +66,13 @@ TEST_F(HloSchedulingTest, LastUseScheduledFirst) {
   auto builder = HloComputation::Builder(TestName());
   auto param =
       builder.AddInstruction(HloInstruction::CreateParameter(0, vec, "param"));
-  auto inv = builder.AddInstruction(
-      HloInstruction::CreateUnary(vec, HloOpcode::kInverse, param));
+  auto popcnt = builder.AddInstruction(
+      HloInstruction::CreateUnary(vec, HloOpcode::kPopulationCount, param));
   auto negate = builder.AddInstruction(
       HloInstruction::CreateUnary(vec, HloOpcode::kNegate, param));
 
   auto add = builder.AddInstruction(
-      HloInstruction::CreateBinary(vec, HloOpcode::kAdd, inv, negate));
+      HloInstruction::CreateBinary(vec, HloOpcode::kAdd, popcnt, negate));
   auto negate2 = builder.AddInstruction(
       HloInstruction::CreateUnary(vec, HloOpcode::kNegate, negate));
   auto sub = builder.AddInstruction(

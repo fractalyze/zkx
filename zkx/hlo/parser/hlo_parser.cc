@@ -66,11 +66,15 @@ HloSchedule ScheduleFromInstructionOrder(HloModule* module) {
 
 bool CanInferShape(HloOpcode code) {
   switch (code) {
+    case HloOpcode::kAbs:
     case HloOpcode::kAdd:
     case HloOpcode::kAddDependency:
     case HloOpcode::kAfterAll:
+    case HloOpcode::kAnd:
     case HloOpcode::kBroadcast:
     case HloOpcode::kCall:
+    case HloOpcode::kClamp:
+    case HloOpcode::kClz:
     case HloOpcode::kCompare:
     case HloOpcode::kConcatenate:
     case HloOpcode::kConditional:
@@ -89,20 +93,31 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kMsm:
     case HloOpcode::kMultiply:
     case HloOpcode::kNegate:
+    case HloOpcode::kNot:
     case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kOr:
+    case HloOpcode::kPad:
     case HloOpcode::kPartitionId:
     case HloOpcode::kPower:
+    case HloOpcode::kPopulationCount:
     case HloOpcode::kRaggedDot:
     case HloOpcode::kReduce:
+    case HloOpcode::kRemainder:
     case HloOpcode::kReplicaId:
     case HloOpcode::kReverse:
     case HloOpcode::kScatter:
     case HloOpcode::kSelect:
     case HloOpcode::kSetDimensionSize:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
+    case HloOpcode::kSign:
+    case HloOpcode::kSort:
     case HloOpcode::kSubtract:
     case HloOpcode::kTranspose:
     case HloOpcode::kTuple:
     case HloOpcode::kWhile:
+    case HloOpcode::kXor:
       return true;
     // Technically the following ops do not require an explicit result shape,
     // but we made it so that we always write the shapes explicitly.
@@ -140,6 +155,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kCustomCall:
     case HloOpcode::kFusion:
     case HloOpcode::kInfeed:
+    case HloOpcode::kIota:
     case HloOpcode::kOutfeed:
     case HloOpcode::kParameter:
     case HloOpcode::kReshape:
@@ -1720,26 +1736,44 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return builder->AddInstruction(
           HloInstruction::CreateConstant(std::move(literal), *shape));
     }
+    case HloOpcode::kIota: {
+      // clang-format off
+      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateIota
+      // clang-format on
+      return nullptr;
+    }
     // Unary ops.
+    case HloOpcode::kAbs:
     case HloOpcode::kAllGatherDone:
     case HloOpcode::kAllReduceDone:
     case HloOpcode::kBitcast:
+    case HloOpcode::kClz:
     case HloOpcode::kCollectivePermuteDone:
     case HloOpcode::kCopy:
     case HloOpcode::kCopyDone:
     case HloOpcode::kInverse:
     case HloOpcode::kNegate:
-    case HloOpcode::kOptimizationBarrier: {
+    case HloOpcode::kNot:
+    case HloOpcode::kOptimizationBarrier:
+    case HloOpcode::kPopulationCount:
+    case HloOpcode::kSign: {
       return create_unary_instruction();
     }
     // Binary ops.
     case HloOpcode::kAdd:
+    case HloOpcode::kAnd:
     case HloOpcode::kDivide:
     case HloOpcode::kMultiply:
     case HloOpcode::kSubtract:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
-    case HloOpcode::kPower: {
+    case HloOpcode::kOr:
+    case HloOpcode::kPower:
+    case HloOpcode::kRemainder:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
+    case HloOpcode::kXor: {
       if ((!preset_operands &&
            !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
           !ParseAttributes(attrs, allow_attributes, shape)) {
@@ -1755,6 +1789,7 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           *shape, opcode, operands[0], operands[1]));
     }
     // Ternary ops.
+    case HloOpcode::kClamp:
     case HloOpcode::kSelect: {
       if ((!preset_operands &&
            !ParseOperands(&operands, builder, /*expected_size=*/3)) ||
@@ -2200,6 +2235,12 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return builder->AddInstruction(
           HloInstruction::CreateAddDependency(operands[0], operands[1]));
     }
+    case HloOpcode::kSort: {
+      // clang-format off
+      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateSort
+      // clang-format on
+      return nullptr;
+    }
     case HloOpcode::kTuple: {
       if ((!preset_operands &&
            !(shape.has_value()
@@ -2465,6 +2506,12 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
     case HloOpcode::kTranspose: {
       // clang-format off
       // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateTranspose
+      // clang-format on
+      return nullptr;
+    }
+    case HloOpcode::kPad: {
+      // clang-format off
+      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreatePad
       // clang-format on
       return nullptr;
     }
