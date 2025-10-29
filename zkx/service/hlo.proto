@@ -98,6 +98,10 @@ message HloInstructionProto {
   // ('start' is specified dynamically in the second operand of the operation).
   repeated int64 dynamic_slice_sizes = 20;
 
+  // The padding configuration that describes the edge padding and interior
+  // padding of this pad instruction. Only set for pad instructions.
+  PaddingConfig padding_config = 21;
+
   // Outfeed configuration information, only present for kOutfeed.
   bytes outfeed_config = 22;
 
