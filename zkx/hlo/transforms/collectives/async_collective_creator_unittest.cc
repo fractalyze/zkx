@@ -96,27 +96,24 @@ TEST_F(AsyncCollectiveCreatorTest, SplitsSingleAllGather) {
   EXPECT_EQ(start->opcode(), HloOpcode::kAllGatherStart);
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::HandleGetTupleElement
-// TEST_F(AsyncCollectiveCreatorTest, CombinedCollectivePermute) {
-//   constexpr std::string_view hlo_string = R"(
-//     HloModule test, entry_computation_layout={(u32[128]{0}, u32[128]{0})->u32[128]{0}}
-//     ENTRY %entry (param0: u32[128], param1: u32[128]) -> u32[128] {
-//       %param0 = u32[128]{0} parameter(0), sharding={maximal device=0}
-//       %param1 = u32[128]{0} parameter(1), sharding={maximal device=1}
-//       %collective-permute = (u32[128]{0}, u32[128]{0}) collective-permute(u32[128]{0} %param0, u32[128]{0} %param1), channel_id=1, source_target_pairs={{0,1}, {1,0}}
-//       %get-tuple-element = u32[128]{0} get-tuple-element((u32[128]{0}, u32[128]{0}) %collective-permute), index=0, sharding={maximal device=1}
-//       %get-tuple-element.1 = u32[128]{0} get-tuple-element((u32[128]{0}, u32[128]{0}) %collective-permute), index=1, sharding={maximal device=1}
-//       ROOT %add.1 = u32[128]{0} add(u32[128]{0} %get-tuple-element, u32[128]{0} %get-tuple-element.1), sharding={maximal device=1}
-//     }
-//     )";
+TEST_F(AsyncCollectiveCreatorTest, CombinedCollectivePermute) {
+  constexpr std::string_view hlo_string = R"(
+    HloModule test, entry_computation_layout={(u32[128]{0}, u32[128]{0})->u32[128]{0}}
+    ENTRY %entry (param0: u32[128], param1: u32[128]) -> u32[128] {
+      %param0 = u32[128]{0} parameter(0), sharding={maximal device=0}
+      %param1 = u32[128]{0} parameter(1), sharding={maximal device=1}
+      %collective-permute = (u32[128]{0}, u32[128]{0}) collective-permute(u32[128]{0} %param0, u32[128]{0} %param1), channel_id=1, source_target_pairs={{0,1}, {1,0}}
+      %get-tuple-element = u32[128]{0} get-tuple-element((u32[128]{0}, u32[128]{0}) %collective-permute), index=0, sharding={maximal device=1}
+      %get-tuple-element.1 = u32[128]{0} get-tuple-element((u32[128]{0}, u32[128]{0}) %collective-permute), index=1, sharding={maximal device=1}
+      ROOT %add.1 = u32[128]{0} add(u32[128]{0} %get-tuple-element, u32[128]{0} %get-tuple-element.1), sharding={maximal device=1}
+    }
+    )";
 
-//   TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> hlo_module,
-//                           ParseAndReturnVerifiedModule(hlo_string));
-//   AsyncCollectiveCreator::CollectiveCreatorConfig config;
-//   TF_ASSERT_OK(AsyncCollectiveCreator(config).Run(hlo_module.get()).status());
-// }
-// clang-format on
+  TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> hlo_module,
+                          ParseAndReturnVerifiedModule(hlo_string));
+  AsyncCollectiveCreator::CollectiveCreatorConfig config;
+  TF_ASSERT_OK(AsyncCollectiveCreator(config).Run(hlo_module.get()).status());
+}
 
 TEST_F(AsyncCollectiveCreatorTest, SplitsSingleCollectivePermute) {
   constexpr std::string_view hlo_string = R"(

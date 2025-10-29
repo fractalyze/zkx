@@ -236,43 +236,39 @@ TEST_F(TuplePointsToAnalysisTest, NestedTuple) {
       points_to_analysis_->GetPointsToSet(tuple).element({1}), {constant3});
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferGetTupleElementShape
-// clang-format on
-// TEST_F(TuplePointsToAnalysisTest, GetTupleElement) {
-//   // Create a nested tuple, then extract the inner tuple with
-//   GetTupleElement.
-//   // The points-to set of the GetTupleElement should be the same as the inner
-//   // tuple.
-//   auto builder = HloComputation::Builder(TestName());
-//   auto constant1 = builder.AddInstruction(
-//       HloInstruction::CreateConstant(LiteralUtil::CreateR0<uint32_t>(1)));
-//   auto constant2 = builder.AddInstruction(
-//       HloInstruction::CreateConstant(LiteralUtil::CreateR0<uint32_t>(2)));
-//   auto inner_tuple = builder.AddInstruction(
-//       HloInstruction::CreateTuple({constant1, constant2}));
+TEST_F(TuplePointsToAnalysisTest, GetTupleElement) {
+  // Create a nested tuple, then extract the inner tuple with GetTupleElement.
+  // The points-to set of the GetTupleElement should be the same as the inner
+  // tuple.
+  auto builder = HloComputation::Builder(TestName());
+  auto constant1 = builder.AddInstruction(
+      HloInstruction::CreateConstant(LiteralUtil::CreateR0<uint32_t>(1)));
+  auto constant2 = builder.AddInstruction(
+      HloInstruction::CreateConstant(LiteralUtil::CreateR0<uint32_t>(2)));
+  auto inner_tuple = builder.AddInstruction(
+      HloInstruction::CreateTuple({constant1, constant2}));
 
-//   auto constant3 = builder.AddInstruction(
-//       HloInstruction::CreateConstant(LiteralUtil::CreateR0<uint32_t>(3)));
-//   auto tuple = builder.AddInstruction(
-//       HloInstruction::CreateTuple({inner_tuple, constant3}));
+  auto constant3 = builder.AddInstruction(
+      HloInstruction::CreateConstant(LiteralUtil::CreateR0<uint32_t>(3)));
+  auto tuple = builder.AddInstruction(
+      HloInstruction::CreateTuple({inner_tuple, constant3}));
 
-//   auto get_tuple_element = builder.AddInstruction(
-//       HloInstruction::CreateGetTupleElement(inner_tuple->shape(), tuple, 0));
+  auto get_tuple_element = builder.AddInstruction(
+      HloInstruction::CreateGetTupleElement(inner_tuple->shape(), tuple, 0));
 
-//   BuildModuleAndRunAnalysis(builder.Build());
+  BuildModuleAndRunAnalysis(builder.Build());
 
-//   auto& points_to_set =
-//   points_to_analysis_->GetPointsToSet(get_tuple_element); EXPECT_EQ(3,
-//   points_to_set.size()); EXPECT_FALSE(points_to_set.IsAmbiguous());
-//   EXPECT_TRUE(points_to_set.IsDistinct());
-//   ExpectHasTopLevelBuffers(points_to_set.CreateFlattenedSet(),
-//                            {constant1, constant2, inner_tuple});
-//   ExpectHasTopLevelBuffers(points_to_set.element({}), {inner_tuple});
+  auto& points_to_set = points_to_analysis_->GetPointsToSet(get_tuple_element);
+  EXPECT_EQ(3, points_to_set.size());
+  EXPECT_FALSE(points_to_set.IsAmbiguous());
+  EXPECT_TRUE(points_to_set.IsDistinct());
+  ExpectHasTopLevelBuffers(points_to_set.CreateFlattenedSet(),
+                           {constant1, constant2, inner_tuple});
+  ExpectHasTopLevelBuffers(points_to_set.element({}), {inner_tuple});
 
-//   EXPECT_THAT(points_to_set.tuple_sources({}),
-//               UnorderedElementsAre(inner_tuple));
-// }
+  EXPECT_THAT(points_to_set.tuple_sources({}),
+              UnorderedElementsAre(inner_tuple));
+}
 
 TEST_F(TuplePointsToAnalysisTest, AddDependency) {
   auto builder = HloComputation::Builder(TestName());
@@ -794,33 +790,28 @@ class PointsToAnalysisTestBase : public HloHardwareIndependentTestBase {
 
 class DoesNotUseOperandBufferTest : public PointsToAnalysisTestBase {};
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferGetTupleElementShape
-// clang-format on
-// TEST_F(DoesNotUseOperandBufferTest, GetTupleElement) {
-//   auto builder = HloComputation::Builder(TestName());
+TEST_F(DoesNotUseOperandBufferTest, GetTupleElement) {
+  auto builder = HloComputation::Builder(TestName());
 
-//   Shape elem_shape = ShapeUtil::MakeShape(U32, {8});
-//   auto tuple = builder.AddInstruction(HloInstruction::CreateParameter(
-//       0, ShapeUtil::MakeTupleShape({elem_shape, elem_shape}), "tuple"));
-//   auto gte0 = builder.AddInstruction(
-//       HloInstruction::CreateGetTupleElement(elem_shape, tuple, 0));
-//   auto gte1 = builder.AddInstruction(
-//       HloInstruction::CreateGetTupleElement(elem_shape, tuple, 1));
-//   builder.AddInstruction(
-//       HloInstruction::CreateBinary(elem_shape, HloOpcode::kAdd, gte0, gte1));
+  Shape elem_shape = ShapeUtil::MakeShape(U32, {8});
+  auto tuple = builder.AddInstruction(HloInstruction::CreateParameter(
+      0, ShapeUtil::MakeTupleShape({elem_shape, elem_shape}), "tuple"));
+  auto gte0 = builder.AddInstruction(
+      HloInstruction::CreateGetTupleElement(elem_shape, tuple, 0));
+  auto gte1 = builder.AddInstruction(
+      HloInstruction::CreateGetTupleElement(elem_shape, tuple, 1));
+  builder.AddInstruction(
+      HloInstruction::CreateBinary(elem_shape, HloOpcode::kAdd, gte0, gte1));
 
-//   BuildModuleAndRunAnalysis(builder.Build());
+  BuildModuleAndRunAnalysis(builder.Build());
 
-//   // GetTupleElement instructions only access the top-level buffer of their
-//   // operand.
-//   EXPECT_TRUE(points_to_analysis_->DoesNotUseOperandBuffer(tuple, {0},
-//   gte0)); EXPECT_TRUE(points_to_analysis_->DoesNotUseOperandBuffer(tuple,
-//   {1}, gte1));
-//   EXPECT_FALSE(points_to_analysis_->DoesNotUseOperandBuffer(tuple, {},
-//   gte0)); EXPECT_FALSE(points_to_analysis_->DoesNotUseOperandBuffer(tuple,
-//   {}, gte1));
-// }
+  // GetTupleElement instructions only access the top-level buffer of their
+  // operand.
+  EXPECT_TRUE(points_to_analysis_->DoesNotUseOperandBuffer(tuple, {0}, gte0));
+  EXPECT_TRUE(points_to_analysis_->DoesNotUseOperandBuffer(tuple, {1}, gte1));
+  EXPECT_FALSE(points_to_analysis_->DoesNotUseOperandBuffer(tuple, {}, gte0));
+  EXPECT_FALSE(points_to_analysis_->DoesNotUseOperandBuffer(tuple, {}, gte1));
+}
 
 // clang-format off
 // TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateDynamicUpdateSlice
