@@ -26,3 +26,13 @@ zkx_cc_library(
         "@llvm-project//mlir:IR",
     ],
 )
+
+zkx_cc_library(
+    name = "hlo_utils",
+    srcs = ["hlo_utils.cc"],
+    hdrs = ["hlo_utils.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+    ],
+)
