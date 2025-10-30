@@ -71,6 +71,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "location_exporter",
+    srcs = ["location_exporter.cc"],
+    hdrs = ["location_exporter.h"],
+    deps = [
+        ":stack_frame_index_builder",
+        "//zkx:zkx_data_cc_proto",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "module_attributes_exporter",
     srcs = ["module_attributes_exporter.cc"],
     hdrs = ["module_attributes_exporter.h"],
