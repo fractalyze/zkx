@@ -20,6 +20,34 @@ limitations under the License.
 include "mlir/IR/EnumAttr.td"
 
 //===----------------------------------------------------------------------===//
+// ComparisonDirection enum definitions.
+//===----------------------------------------------------------------------===//
+
+// These mirror the ZKX ComparisonDirection enum.
+def MHLO_COMPARISON_DIRECTION_EQ : I32EnumAttrCase<"EQ", 0>;
+def MHLO_COMPARISON_DIRECTION_NE : I32EnumAttrCase<"NE", 1>;
+def MHLO_COMPARISON_DIRECTION_GE : I32EnumAttrCase<"GE", 2>;
+def MHLO_COMPARISON_DIRECTION_GT : I32EnumAttrCase<"GT", 3>;
+def MHLO_COMPARISON_DIRECTION_LE : I32EnumAttrCase<"LE", 4>;
+def MHLO_COMPARISON_DIRECTION_LT : I32EnumAttrCase<"LT", 5>;
+
+def MHLO_ComparisonDirection : I32EnumAttr<"ComparisonDirection",
+    "Which comparison operation to perform.",
+    [
+      MHLO_COMPARISON_DIRECTION_EQ,
+      MHLO_COMPARISON_DIRECTION_NE,
+      MHLO_COMPARISON_DIRECTION_GE,
+      MHLO_COMPARISON_DIRECTION_GT,
+      MHLO_COMPARISON_DIRECTION_LE,
+      MHLO_COMPARISON_DIRECTION_LT
+    ]> {
+  let genSpecializedAttr = 0;
+  let cppNamespace = "::mlir::mhlo";
+}
+
+def MHLO_ComparisonDirectionAttr : EnumAttr<MHLO_Dialect, MHLO_ComparisonDirection, "comparison_direction">;
+
+//===----------------------------------------------------------------------===//
 // FusionKind enum definitions.
 //===----------------------------------------------------------------------===//
 
