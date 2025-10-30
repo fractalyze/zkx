@@ -20,7 +20,7 @@ limitations under the License.
 include "mlir/IR/EnumAttr.td"
 
 //===----------------------------------------------------------------------===//
-// Comparison op definitions.
+// FusionKind enum definitions.
 //===----------------------------------------------------------------------===//
 
 def MHLO_LOOP_FUSION : I32EnumAttrCase<"kLoop", 0>;
