@@ -34,6 +34,17 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "stack_frame_index_builder",
+    srcs = ["stack_frame_index_builder.cc"],
+    hdrs = ["stack_frame_index_builder.h"],
+    deps = [
+        "//zkx/service:hlo_cc_proto",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "type_to_shape",
     srcs = ["type_to_shape.cc"],
     hdrs = ["type_to_shape.h"],
