@@ -18,6 +18,22 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "layout_util",
+    srcs = ["layout_util.cc"],
+    hdrs = ["layout_util.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/builder:zkx_builder",
+        "//zkx/hlo/ir:hlo_sharding",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "type_to_shape",
     srcs = ["type_to_shape.cc"],
     hdrs = ["type_to_shape.h"],
