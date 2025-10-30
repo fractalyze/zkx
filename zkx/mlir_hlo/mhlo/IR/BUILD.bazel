@@ -83,6 +83,20 @@ gentbl_cc_library(
     deps = [":hlo_ops_td_files"],
 )
 
+gentbl_cc_library(
+    name = "canonicalize_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-rewriters"],
+            "mhlo_canonicalize.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "mhlo_canonicalize.td",
+    deps = [":hlo_ops_td_files"],
+)
+
 zkx_cc_library(
     name = "mlir_hlo",
     srcs = [
