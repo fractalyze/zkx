@@ -777,10 +777,16 @@ LogicalResult TupleOp::inferReturnTypes(
 
 } // namespace mlir::mhlo
 
+using mlir::hlo::parsePairwiseOpType;
 using mlir::hlo::parseSameOperandsAndResultType;
+using mlir::hlo::parseSelectOpType;
 using mlir::hlo::parseTupleOpType;
+using mlir::hlo::parseVariadicSameOperandsAndResultType;
+using mlir::hlo::printPairwiseOpType;
 using mlir::hlo::printSameOperandsAndResultType;
+using mlir::hlo::printSelectOpType;
 using mlir::hlo::printTupleOpType;
+using mlir::hlo::printVariadicSameOperandsAndResultType;
 
 #define GET_OP_CLASSES
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.cc.inc"
