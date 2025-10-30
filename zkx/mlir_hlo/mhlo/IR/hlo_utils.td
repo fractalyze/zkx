@@ -23,8 +23,14 @@ include "mlir/IR/PatternBase.td"
 
 def NullArrayAttr : NativeCodeCall<"ArrayAttr()">;
 
+def CastIntElementsAttr : NativeCodeCall<"cast<DenseIntElementsAttr>($0)">;
+
 def NullDenseIntElementsAttr : NativeCodeCall<"DenseIntElementsAttr()">;
 
 def NullDenseI64ArrayAttr : NativeCodeCall<"DenseI64ArrayAttr()">;
+
+// Constraint that Attr has values [0, 1, ...].
+def IdentityBroadcastDims : AttrConstraint<
+    CPred<"hlo::isSequenceStartingWith0($_self)">>;
 
 #endif // ZKX_MLIR_HLO_MHLO_IR_HLO_UTILS_TD
