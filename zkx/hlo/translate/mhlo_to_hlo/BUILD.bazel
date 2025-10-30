@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -45,6 +45,17 @@ zkx_cc_library(
         "//zkx/hlo/ir:hlo_sharding",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_binary(
+    name = "operator_writer_gen",
+    srcs = ["operator_writer_gen.cc"],
+    deps = [
+        "@com_google_absl//absl/debugging:leak_check",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//llvm:TableGen",
+        "@llvm-project//mlir:TableGen",
     ],
 )
 
