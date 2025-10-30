@@ -18,6 +18,21 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "attribute_exporter",
+    srcs = ["attribute_exporter.cc"],
+    hdrs = ["attribute_exporter.h"],
+    deps = [
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo_sharding",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/service:hlo_cc_proto",
+        "@com_google_absl//absl/status:statusor",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "layout_util",
     srcs = ["layout_util.cc"],
     hdrs = ["layout_util.h"],
