@@ -48,6 +48,28 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "literal_exporter",
+    srcs = ["literal_exporter.cc"],
+    hdrs = ["literal_exporter.h"],
+    deps = [
+        ":type_to_shape",
+        "//zkx:array",
+        "//zkx:literal",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
 zkx_cc_binary(
     name = "operator_writer_gen",
     srcs = ["operator_writer_gen.cc"],
