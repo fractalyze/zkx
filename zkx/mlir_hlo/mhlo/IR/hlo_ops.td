@@ -64,7 +64,7 @@ def MHLO_ConstantOp : MHLO_Op<"constant",
 
     Example:
     ```mlir
-    %output = mhlo.constant dense<[[0.0, 1.0], [2.0, 3.0]]> : tensor<2x2xf32>
+    %output = mhlo.constant dense<[[0, 1], [2, 3]]> : tensor<2x2xi32>
     ```
   }];
   let arguments = (ins
@@ -131,7 +131,7 @@ def MHLO_ConvertOp : MHLO_UnaryElementwiseOp<"convert",
 
     Example:
     ```mlir
-    %result = mhlo.convert %operand : (tensor<3xi32>) -> tensor<3xcomplex<f32>>
+    %result = mhlo.convert %operand : (tensor<3xi32>) -> tensor<3xu32>
     ```
   }];
   let builders = [
@@ -227,7 +227,7 @@ def MHLO_DivOp : MHLO_BinaryElementwiseOp<"divide",
 
     Example:
     ```mlir
-    %result = mhlo.divide %lhs, %rhs : tensor<4xf32>
+    %result = mhlo.divide %lhs, %rhs : tensor<4xi32>
     ```
   }];
   let hasFolder = 1;
@@ -263,7 +263,7 @@ def MHLO_PowOp : MHLO_BinaryElementwiseOp<"power",
 
     Example:
     ```mlir
-    %result = mhlo.power %lhs, %rhs : tensor<6xf32>
+    %result = mhlo.power %lhs, %rhs : tensor<6xi32>
     ```
   }];
 }
@@ -302,7 +302,7 @@ def MHLO_TupleOp : MHLO_Op<"tuple", [Pure,
 
     Example:
     ```mlir
-    %result = mhlo.tuple %val0, %val1 : tuple<tensor<2xf32>, tuple<tensor<i32>>>
+    %result = mhlo.tuple %val0, %val1 : tuple<tensor<2xi32>, tuple<tensor<i32>>>
     ```
    }];
   let arguments = (ins Variadic<MHLO_TensorOrTokenOrTuple>:$val);
