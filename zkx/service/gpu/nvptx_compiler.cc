@@ -276,7 +276,7 @@ NVPTXCompiler::CompileTargetBinary(
   //     !options.is_autotuning_compilation);
   // TODO(chokobole): Uncomment this. Dependency: profiler
   // tsl::profiler::ScopedAnnotation annotation([&] {
-  //   return absl::StrFormat("XlaCompileGpuAsm:#module=%s#", module_name);
+  //   return absl::StrFormat("ZkxCompileGpuAsm:#module=%s#", module_name);
   // });
   // TODO(chokobole): Uncomment this. Dependency: profiler
   // tsl::profiler::TraceMe activity("PTX->CUBIN",
