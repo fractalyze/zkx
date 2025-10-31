@@ -2601,6 +2601,31 @@ HloDynamicUpdateSliceInstruction::HloDynamicUpdateSliceInstruction(
   }
 }
 
+HloIotaInstruction::HloIotaInstruction(const Shape& shape,
+                                       int64_t iota_dimension)
+    : HloInstruction(HloOpcode::kIota, shape),
+      iota_dimension_(iota_dimension) {}
+
+HloInstructionProto HloIotaInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.add_dimensions(iota_dimension());
+  return proto;
+}
+
+bool HloIotaInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloIotaInstruction&>(other);
+  return iota_dimension() == casted_other.iota_dimension();
+}
+
+std::unique_ptr<HloInstruction> HloIotaInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  return std::make_unique<HloIotaInstruction>(shape, iota_dimension());
+}
+
 HloDotInstruction::HloDotInstruction(
     const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
     const DotDimensionNumbers& dimension_numbers,

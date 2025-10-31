@@ -1830,6 +1830,39 @@ class HloDynamicUpdateSliceInstruction : public HloDynamicIndexInstruction {
   }
 };
 
+class HloIotaInstruction : public HloInstruction {
+ public:
+  explicit HloIotaInstruction(const Shape& shape, int64_t iota_dimension);
+
+  // Returns the dimension sizes or numbers associated with this instruction.
+  int64_t iota_dimension() const { return iota_dimension_; }
+  absl::Span<const int64_t> dimensions() const override {
+    return absl::MakeConstSpan(&iota_dimension_, 1);
+  }
+  // Returns a serialized representation of this instruction.
+  HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kIota;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  int64_t iota_dimension_;
+};
+
 class HloDotInstruction : public HloInstruction {
  public:
   static const int kOperands = 2;
