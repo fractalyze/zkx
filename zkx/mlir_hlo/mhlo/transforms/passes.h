@@ -30,6 +30,9 @@ namespace mlir::mhlo {
 // Pass to replace unsigned types with signless integers.
 std::unique_ptr<OperationPass<ModuleOp>> createConvertToSignlessPass();
 
+// Legalizes from the StableHLO dialect to the MHLO dialect.
+std::unique_ptr<OperationPass<ModuleOp>> createStablehloLegalizeToHloPass();
+
 #define GEN_PASS_REGISTRATION
 #include "zkx/mlir_hlo/mhlo/transforms/mhlo_passes.h.inc" // NOLINT(build/include)
 

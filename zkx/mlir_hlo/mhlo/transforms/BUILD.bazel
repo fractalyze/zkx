@@ -45,10 +45,30 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "map_stablehlo_to_hlo_op",
+    hdrs = ["map_stablehlo_to_hlo_op.h"],
+    deps = [
+        "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
+        "//zkx/mlir_hlo/stablehlo/dialect:stablehlo_ops",
+    ],
+)
+
+zkx_cc_library(
     name = "passes",
     hdrs = ["passes.h"],
     deps = [
         ":passes_inc_gen",
         "//zkx/mlir_hlo/mhlo/transforms/convert_to_signless:convert_to_signless_pass",
+        "//zkx/mlir_hlo/mhlo/transforms/stablehlo_legalize_to_hlo:stablehlo_legalize_to_hlo_pass",
+    ],
+)
+
+zkx_cc_library(
+    name = "rewriters",
+    hdrs = ["rewriters.h"],
+    deps = [
+        "//zkx/mlir_hlo/mhlo/transforms/stablehlo_legalize_to_hlo",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:TransformUtils",
     ],
 )
