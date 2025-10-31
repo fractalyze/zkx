@@ -620,6 +620,22 @@ mlir::AffineMap ComputeTransposeIndexingMap(
       mlir_context);
 }
 
+HloInstructionIndexing ComputeOutputToInputTransposeOpIndexing(
+    const HloTransposeInstruction* transpose, mlir::MLIRContext* mlir_context) {
+  mlir::AffineMap inverse_permutation = ComputeTransposeIndexingMap(
+      InversePermutation(transpose->dimensions()), mlir_context);
+  return HloInstructionIndexing::FromIndexingMaps({IndexingMap::FromTensorSizes(
+      inverse_permutation, transpose->shape().dimensions(), {})});
+}
+
+HloInstructionIndexing ComputeInputToOutputTransposeOpIndexing(
+    const HloTransposeInstruction* transpose, mlir::MLIRContext* mlir_context) {
+  mlir::AffineMap forward_permutation =
+      ComputeTransposeIndexingMap(transpose->dimensions(), mlir_context);
+  return HloInstructionIndexing::FromIndexingMaps({IndexingMap::FromTensorSizes(
+      forward_permutation, transpose->operand(0)->shape().dimensions(), {})});
+}
+
 }  // namespace
 
 IndexingMap GetBitcastMap(absl::Span<const int64_t> input_shape,
@@ -987,10 +1003,9 @@ HloInstructionIndexing ComputeOutputToInputIndexing(const HloInstruction* instr,
   if (auto slice = DynCast<HloSliceInstruction>(instr)) {
     return ComputeOutputToInputSliceOpIndexing(slice, ctx);
   }
-  // TODO(chokobole): Uncomment this. Dependency: HloTransposeInstruction
-  // if (auto transpose = DynCast<HloTransposeInstruction>(instr)) {
-  //   return ComputeOutputToInputTransposeOpIndexing(transpose, ctx);
-  // }
+  if (auto transpose = DynCast<HloTransposeInstruction>(instr)) {
+    return ComputeOutputToInputTransposeOpIndexing(transpose, ctx);
+  }
   LOG(ERROR) << "ComputeOutputToInputIndexing is not implemented for opcode "
              << instr->opcode();
   // If we cannot compute output-to-input indexing, we return std::nullopt for
@@ -1026,10 +1041,9 @@ HloInstructionIndexing ComputeInputToOutputIndexing(const HloInstruction* instr,
   if (auto reverse = DynCast<HloReverseInstruction>(instr)) {
     return ComputeReverseOpIndexing(reverse, ctx);
   }
-  // TODO(chokobole): Uncomment this. Dependency: HloTransposeInstruction
-  // if (auto transpose = DynCast<HloTransposeInstruction>(instr)) {
-  //   return ComputeInputToOutputTransposeOpIndexing(transpose, ctx);
-  // }
+  if (auto transpose = DynCast<HloTransposeInstruction>(instr)) {
+    return ComputeInputToOutputTransposeOpIndexing(transpose, ctx);
+  }
   if (auto slice = DynCast<HloSliceInstruction>(instr)) {
     return ComputeInputToOutputSliceOpIndexing(slice, ctx);
   }
