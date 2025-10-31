@@ -235,6 +235,15 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
   const auto computations = [&computation_map, &proto](int index) {
     return computation_map.at(proto.called_computation_ids(index));
   };
+  const auto all_computations = [&computation_map, &proto]() {
+    std::vector<HloComputation*> result(proto.called_computation_ids_size());
+    std::transform(proto.called_computation_ids().begin(),
+                   proto.called_computation_ids().end(), result.begin(),
+                   [&computation_map](int64_t computation_id) {
+                     return computation_map.at(computation_id);
+                   });
+    return result;
+  };
 
   TF_RET_CHECK(
       absl::c_all_of(proto.operand_ids(),
@@ -398,27 +407,23 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           CreateConcatenate(shape, all_operands(), proto.dimensions(0));
       break;
     case HloOpcode::kConditional: {
-      // TODO(chokobole): Uncomment this. Dependency: CreateConditional
-      // TF_RET_CHECK(proto.called_computation_ids_size() > 0)
-      //     << "conditional should have at least 1 called computation";
-      // if (operands(0)->shape().element_type() == PRED) {
-      //   TF_RET_CHECK(proto.called_computation_ids_size() == 2)
-      //       << "conditional should have exactly 2 called computations but got
-      //       "
-      //       << proto.called_computation_ids_size();
-      // }
-      // TF_RET_CHECK(proto.operand_ids_size() ==
-      //              proto.called_computation_ids_size() + 1)
-      //     << "conditional should have one branch_index operand plus one "
-      //        "operand per called computation but got "
-      //     << proto.operand_ids_size() << " operands for "
-      //     << proto.called_computation_ids_size() << " branch computations";
-      // auto cond_operands = all_operands();
-      // instruction =
-      //     CreateConditional(shape, cond_operands[0], all_computations(),
-      //                       absl::MakeSpan(cond_operands).subspan(1));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Conditional not implemented");
+      TF_RET_CHECK(proto.called_computation_ids_size() > 0)
+          << "conditional should have at least 1 called computation";
+      if (operands(0)->shape().element_type() == PRED) {
+        TF_RET_CHECK(proto.called_computation_ids_size() == 2)
+            << "conditional should have exactly 2 called computations but got "
+            << proto.called_computation_ids_size();
+      }
+      TF_RET_CHECK(proto.operand_ids_size() ==
+                   proto.called_computation_ids_size() + 1)
+          << "conditional should have one branch_index operand plus one "
+             "operand per called computation but got "
+          << proto.operand_ids_size() << " operands for "
+          << proto.called_computation_ids_size() << " branch computations";
+      auto cond_operands = all_operands();
+      instruction =
+          CreateConditional(shape, cond_operands[0], all_computations(),
+                            absl::MakeSpan(cond_operands).subspan(1));
       break;
     }
     case HloOpcode::kReduce:
@@ -2141,6 +2146,12 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
       break;
     case HloOpcode::kCall:
       clone = CreateCall(shape, new_operands, to_apply());
+      break;
+    case HloOpcode::kConditional:
+      CHECK_EQ(new_operands.size(), branch_count() + 1);
+      clone = CreateConditional(shape, new_operands[0],
+                                absl::MakeSpan(branch_computations()),
+                                new_operands.subspan(1));
       break;
     case HloOpcode::kConvert:
       CHECK_EQ(new_operands.size(), 1);

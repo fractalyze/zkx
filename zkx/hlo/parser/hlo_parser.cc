@@ -2772,10 +2772,64 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           shape, outfeed_input, outfeed_token, config ? *config : ""));
     }
     case HloOpcode::kConditional: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateConditional
-      // clang-format on
-      return nullptr;
+      std::optional<HloComputation*> true_computation;
+      std::optional<HloComputation*> false_computation;
+      std::optional<std::vector<HloComputation*>> branch_computations;
+      if (!preset_operands && !ParseOperands(&operands, builder)) {
+        return nullptr;
+      }
+      if (!ShapeUtil::IsScalar(operands[0]->shape())) {
+        TokenError("The first operand must be a scalar");
+        return nullptr;
+      }
+      const bool branch_index_is_bool =
+          operands[0]->shape().element_type() == PRED;
+      if (branch_index_is_bool) {
+        attrs["true_computation"] = {/*required=*/true, AttrTy::kHloComputation,
+                                     &true_computation};
+        attrs["false_computation"] = {
+            /*required=*/true, AttrTy::kHloComputation, &false_computation};
+      } else {
+        if (operands[0]->shape().element_type() != S32) {
+          TokenError("The first operand must be a scalar of PRED or S32");
+          return nullptr;
+        }
+        attrs["branch_computations"] = {/*required=*/true,
+                                        AttrTy::kBracedHloComputationList,
+                                        &branch_computations};
+      }
+      if (!ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (branch_index_is_bool) {
+        branch_computations.emplace({*true_computation, *false_computation});
+      }
+      if (branch_computations->empty() ||
+          operands.size() != branch_computations->size() + 1) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            absl::InlinedVector<ProgramShape, 2> branch_computation_shapes;
+            branch_computation_shapes.reserve(branch_computations->size());
+            for (auto* computation : *branch_computations) {
+              branch_computation_shapes.push_back(
+                  computation->ComputeProgramShape());
+            }
+            absl::InlinedVector<Shape, 2> branch_operand_shapes;
+            branch_operand_shapes.reserve(operands.size() - 1);
+            for (int i = 1; i < operands.size(); ++i) {
+              branch_operand_shapes.push_back(operands[i]->shape());
+            }
+            return ShapeInference::InferConditionalShape(
+                operands[0]->shape(), branch_computation_shapes,
+                branch_operand_shapes);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateConditional(
+          *shape, /*branch_index=*/operands[0],
+          absl::MakeSpan(*branch_computations),
+          absl::MakeSpan(operands).subspan(1)));
     }
     case HloOpcode::kCustomCall: {
       // clang-format off
