@@ -1599,6 +1599,13 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateRecvDone(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateReverse(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> dimensions) {
+  return std::make_unique<HloReverseInstruction>(shape, operand, dimensions);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateTuple(
     absl::Span<HloInstruction* const> elements) {
   std::vector<const Shape*> element_shapes;
