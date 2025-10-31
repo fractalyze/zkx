@@ -869,6 +869,9 @@ class HloInstruction {
   // when we plumb a primordial token from the entry computation.
   static std::unique_ptr<HloInstruction> CreateToken();
 
+  static std::unique_ptr<HloInstruction> CreateGetDimensionSize(
+      const Shape& shape, HloInstruction* operand, int64_t dimension);
+
   static std::unique_ptr<HloInstruction> CreateAddDependency(
       HloInstruction* data_operand, HloInstruction* token_operand);
 
