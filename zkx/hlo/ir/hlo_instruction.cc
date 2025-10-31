@@ -1643,6 +1643,14 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateSlice(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateConcatenate(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    int64_t dimension) {
+  return std::make_unique<HloConcatenateInstruction>(shape, operands,
+                                                     dimension);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateConvert(
     const Shape& shape, HloInstruction* operand) {
   auto instruction =

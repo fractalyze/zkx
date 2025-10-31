@@ -702,6 +702,12 @@ class HloInstruction {
       absl::Span<const int64_t> limit_indices,
       absl::Span<const int64_t> strides);
 
+  // Creates a concatenate instruction, where the operands are concatenated on
+  // the provided dimension.
+  static std::unique_ptr<HloInstruction> CreateConcatenate(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      int64_t dimension);
+
   // Creates a broadcast instruction.
   static std::unique_ptr<HloInstruction> CreateBroadcast(
       const Shape& shape, HloInstruction* operand,
