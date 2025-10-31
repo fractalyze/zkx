@@ -291,7 +291,7 @@ TEST_F(FunctionalHloRunnerTest, ShardedComputationUnderStreamCapture) {
   }
 
   // NOTE: debug_options sent to FunctionalHloRunner::LoadAndRunAndDump() get
-  // lost during the creating of XlaComputation from HloModuleProto in
+  // lost during the creating of ZkxComputation from HloModuleProto in
   // FunctionalHloRunner::Compile
   DebugOptions debug_options;
   FunctionalHloRunner::PreprocessingOptions preproc_options;

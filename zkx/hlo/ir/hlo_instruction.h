@@ -482,7 +482,7 @@ class HloInstruction {
   // operands must be equal to the size of one replica group.  Each replica must
   // appear in exactly one group.
   //
-  // Note that in addition to supporting this instruction, XlaBuilder also
+  // Note that in addition to supporting this instruction, ZkxBuilder also
   // supports a higher-level instruction which takes one input and slices it,
   // performs AllToAll and then concatenates the results into a single array.
   static std::unique_ptr<HloInstruction> CreateAllToAll(
