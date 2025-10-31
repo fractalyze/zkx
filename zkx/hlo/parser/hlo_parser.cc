@@ -2305,10 +2305,25 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           HloInstruction::CreateVariadic(*shape, HloOpcode::kTuple, operands));
     }
     case HloOpcode::kWhile: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateWhile
-      // clang-format on
-      return nullptr;
+      std::optional<HloComputation*> condition;
+      std::optional<HloComputation*> body;
+      attrs["condition"] = {/*required=*/true, AttrTy::kHloComputation,
+                            &condition};
+      attrs["body"] = {/*required=*/true, AttrTy::kHloComputation, &body};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferWhileShape(
+                condition.value()->ComputeProgramShape(),
+                body.value()->ComputeProgramShape(), operands[0]->shape());
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateWhile(
+          *shape, *condition, *body, /*init=*/operands[0]));
     }
     case HloOpcode::kRecv: {
       std::optional<int64_t> channel_id;

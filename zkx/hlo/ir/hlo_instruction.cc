@@ -1033,14 +1033,11 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
     default: {
       instruction = absl::WrapUnique(new HloInstruction(opcode, shape));
       if (instruction->opcode() == HloOpcode::kWhile) {
-        // TODO(chokobole): Uncomment this. Dependency: SetWhileCallInstruction
-        // TF_RET_CHECK(proto.called_computation_ids_size() == 2)
-        //     << "While should have 2 called computation but has "
-        //     << proto.called_computation_ids_size();
-        // computation_map.at(proto.called_computation_ids(0))
-        //     ->SetWhileCallInstruction(instruction.get());
-        return absl::UnimplementedError(
-            "HloInstruction::CreateFromProto: While not implemented");
+        TF_RET_CHECK(proto.called_computation_ids_size() == 2)
+            << "While should have 2 called computation but has "
+            << proto.called_computation_ids_size();
+        computation_map.at(proto.called_computation_ids(0))
+            ->SetWhileCallInstruction(instruction.get());
       }
 
       for (const int64_t operand_id : proto.operand_ids()) {
@@ -1050,10 +1047,7 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
         instruction->AppendComputation(computation_map.at(computation_id));
       }
       if (instruction->opcode() == HloOpcode::kWhile) {
-        // TODO(chokobole): Uncomment this. Dependency: SetWhileCallInstruction
-        // instruction->while_body()->SetWhileCallInstruction(instruction.get());
-        return absl::UnimplementedError(
-            "HloInstruction::CreateFromProto: While not implemented");
+        instruction->while_body()->SetWhileCallInstruction(instruction.get());
       }
 
       // clang-format off
@@ -2188,6 +2182,15 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
       clone = CreateTuple(new_operands);
       *clone->mutable_shape() = shape;
       break;
+    case HloOpcode::kWhile:
+      CHECK_EQ(new_operands.size(), 1);
+      clone =
+          CreateWhile(shape, while_condition(), while_body(), new_operands[0]);
+      // Repoint the while body back at the original while instruction.
+      // If a context was passed, the body will be cloned and the clone will
+      // point to the copied instruction.
+      while_body()->SetWhileCallInstruction(const_cast<HloInstruction*>(this));
+      break;
     default:
       CHECK(0) << "Unsupported opcode: " << opcode_;
   }
@@ -2205,12 +2208,9 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
                  ? context->module()->DeepCloneComputation(callee, context)
                  : callee;
     });
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloComputation::SetWhileCallInstruction
-    // clang-format on
-    // if (opcode() == HloOpcode::kWhile) {
-    //   clone->while_body()->SetWhileCallInstruction(clone.get());
-    // }
+    if (opcode() == HloOpcode::kWhile) {
+      clone->while_body()->SetWhileCallInstruction(clone.get());
+    }
   }
 
   if (!suffix.empty()) {
