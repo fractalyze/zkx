@@ -903,6 +903,21 @@ absl::Status HloModule::RemoveUnusedComputations() {
   return absl::OkStatus();
 }
 
+HloComputation* HloModule::DeepCloneComputation(HloComputation* computation,
+                                                HloCloneContext* context) {
+  HloComputation* new_computation;
+  if (context != nullptr) {
+    if ((new_computation = context->FindComputation(computation)) != nullptr) {
+      return new_computation;
+    }
+    new_computation =
+        AddEmbeddedComputation(computation->Clone(context->suffix(), context));
+  } else {
+    new_computation = AddEmbeddedComputation(computation->Clone(""));
+  }
+  return new_computation;
+}
+
 uint64_t HloModule::RandomNew64() const {
   absl::MutexLock l(&rng_mutex_);
   return rng_();
