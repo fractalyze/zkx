@@ -542,6 +542,30 @@ mlir::AffineMap ComputeReshapeIndexingMap(const Shape& input,
                               mlir_context);
 }
 
+HloInstructionIndexing ComputeOutputToInputReshapeOpIndexing(
+    const HloReshapeInstruction* reshape, mlir::MLIRContext* mlir_context) {
+  const Shape& input = reshape->operand(0)->shape();
+  const Shape& output = reshape->shape();
+
+  IndexingMap reshape_indexing_map = IndexingMap::FromTensorSizes(
+      ComputeReshapeIndexingMap(input, output, mlir_context),
+      output.dimensions(), {});
+  reshape_indexing_map.Simplify();
+  return HloInstructionIndexing::FromIndexingMaps({reshape_indexing_map});
+}
+
+HloInstructionIndexing ComputeInputToOutputReshapeOpIndexing(
+    const HloReshapeInstruction* reshape, mlir::MLIRContext* mlir_context) {
+  const Shape& input = reshape->operand(0)->shape();
+  const Shape& output = reshape->shape();
+
+  IndexingMap reshape_indexing_map = IndexingMap::FromTensorSizes(
+      ComputeReshapeIndexingMap(output, input, mlir_context),
+      input.dimensions(), {});
+  reshape_indexing_map.Simplify();
+  return HloInstructionIndexing::FromIndexingMaps({reshape_indexing_map});
+}
+
 HloInstructionIndexing ComputeReverseOpIndexing(
     const HloReverseInstruction* reverse, mlir::MLIRContext* mlir_context) {
   absl::flat_hash_set<int64_t> reverse_dims(reverse->dimensions().begin(),
@@ -993,10 +1017,9 @@ HloInstructionIndexing ComputeOutputToInputIndexing(const HloInstruction* instr,
   if (auto reduce = DynCast<HloReduceInstruction>(instr)) {
     return ComputeOutputToInputReduceOpIndexing(reduce, ctx);
   }
-  // TODO(chokobole): Uncomment this. Dependency: HloReshapeInstruction
-  // if (auto reshape = DynCast<HloReshapeInstruction>(instr)) {
-  // return ComputeOutputToInputReshapeOpIndexing(reshape, ctx);
-  // }
+  if (auto reshape = DynCast<HloReshapeInstruction>(instr)) {
+    return ComputeOutputToInputReshapeOpIndexing(reshape, ctx);
+  }
   if (auto reverse = DynCast<HloReverseInstruction>(instr)) {
     return ComputeReverseOpIndexing(reverse, ctx);
   }
@@ -1034,10 +1057,9 @@ HloInstructionIndexing ComputeInputToOutputIndexing(const HloInstruction* instr,
   if (auto reduce = DynCast<HloReduceInstruction>(instr)) {
     return ComputeInputToOutputReduceOpIndexing(reduce, input_id, ctx);
   }
-  // TODO(chokobole): Uncomment this. Dependency: HloReshapeInstruction
-  // if (auto reshape = DynCast<HloReshapeInstruction>(instr)) {
-  //   return ComputeInputToOutputReshapeOpIndexing(reshape, ctx);
-  // }
+  if (auto reshape = DynCast<HloReshapeInstruction>(instr)) {
+    return ComputeInputToOutputReshapeOpIndexing(reshape, ctx);
+  }
   if (auto reverse = DynCast<HloReverseInstruction>(instr)) {
     return ComputeReverseOpIndexing(reverse, ctx);
   }
