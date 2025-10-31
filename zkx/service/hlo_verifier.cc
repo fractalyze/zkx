@@ -972,8 +972,29 @@ absl::Status ShapeVerifier::HandleConstant(HloInstruction* constant) {
 }
 
 absl::Status ShapeVerifier::HandleIota(HloInstruction* hlo) {
-  // TODO(chokobole): Implement this. Dependency: HloIotaInstruction
-  return absl::UnimplementedError("HandleIota not supported");
+  auto* iota = Cast<HloIotaInstruction>(hlo);
+  if (!iota->shape().IsArray()) {
+    return absl::InternalError("Iota does not support non-array result.");
+  }
+  const int64_t rank = iota->shape().rank();
+  if (rank == 0) {
+    return absl::InternalError("Iota does not support scalars.");
+  }
+  int64_t iota_dimension = iota->iota_dimension();
+  if (iota_dimension >= rank || iota_dimension < 0) {
+    return absl::InternalError(
+        "The iota dimension cannot go beyond the operation rank or be "
+        "negative.");
+  }
+
+  PrimitiveType primitive_type = iota->shape().element_type();
+  if (!primitive_util::IsIntegralType(primitive_type)) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Only support iota of integral primitive types, got %s",
+                        PrimitiveType_Name(primitive_type)));
+  }
+
+  return absl::OkStatus();
 }
 
 absl::Status ShapeVerifier::HandleGetTupleElement(

@@ -109,14 +109,13 @@ RTVarOptimizationResult OptimizeRTVar(HLORTVar rt_var, int64_t symbol_index,
       return {result_expr, rt_var};
     }
 
-    // TODO(chokobole): Uncomment this. Dependency: HloIotaInstruction
-    // if (auto iota_expr = DynCast<HloIotaInstruction>(rt_var.hlo)) {
-    //   auto iota_dimension = iota_expr->iota_dimension();
-    //   CHECK(iota_dimension < rt_var.map.getNumResults());
-    //   return {
-    //       result_expr.replace(symbol,
-    //       rt_var.map.getResults()[iota_dimension]), rt_var};
-    // }
+    if (auto iota_expr = DynCast<HloIotaInstruction>(rt_var.hlo)) {
+      auto iota_dimension = iota_expr->iota_dimension();
+      CHECK(iota_dimension < rt_var.map.getNumResults());
+      return {
+          result_expr.replace(symbol, rt_var.map.getResults()[iota_dimension]),
+          rt_var};
+    }
 
     auto is_indexing_transformation = [](const HloInstruction* instr) {
       return instr->opcode() == HloOpcode::kBitcast ||
@@ -1332,10 +1331,9 @@ HloInstructionIndexing ComputeOutputToInputIndexing(const HloInstruction* instr,
   // if (auto gather = DynCast<HloGatherInstruction>(instr)) {
   //   return ComputeOutputToInputGatherOpIndexing(gather, ctx);
   // }
-  // TODO(chokobole): Uncomment this. Dependency: HloIotaInstruction
-  // if (auto iota = DynCast<HloIotaInstruction>(instr)) {
-  //   return HloInstructionIndexing{};
-  // }
+  if (HloIotaInstruction::ClassOf(instr)) {
+    return HloInstructionIndexing{};
+  }
   if (auto pad = DynCast<HloPadInstruction>(instr)) {
     return ComputeOutputToInputPadOpIndexing(pad, ctx);
   }
