@@ -2891,10 +2891,22 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           *shape, operands[0], (*dimensions)[0]));
     }
     case HloOpcode::kSetDimensionSize: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateSetDimensionSize
-      // clang-format on
-      return nullptr;
+      std::optional<std::vector<int64_t>> dimensions;
+      attrs["dimensions"] = {/*required=*/true, AttrTy::kBracedInt64List,
+                             &dimensions};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferSetDimensionSizeShape(
+                operands[0]->shape(), operands[1]->shape(), dimensions->at(0));
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateSetDimensionSize(
+          *shape, operands[0], operands[1], (*dimensions)[0]));
     }
   }
 }  // NOLINT(readability/fn_size)

@@ -951,12 +951,9 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           CreateGetDimensionSize(shape, operands(0), proto.dimensions(0));
       break;
     case HloOpcode::kSetDimensionSize:
-      // TODO(chokobole): Uncomment this. Dependency: CreateSetDimensionSize
-      // TF_RET_CHECK(proto.dimensions_size() == 1);
-      // instruction = CreateSetDimensionSize(shape, operands(0), operands(1),
-      //                                      proto.dimensions(0));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: SetDimensionSize not implemented");
+      TF_RET_CHECK(proto.dimensions_size() == 1);
+      instruction = CreateSetDimensionSize(shape, operands(0), operands(1),
+                                           proto.dimensions(0));
       break;
     case HloOpcode::kReshape: {
       int64_t inferred_dimension = -1;
