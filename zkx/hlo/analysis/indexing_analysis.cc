@@ -214,6 +214,95 @@ HloInstructionIndexing ComputeOutputToInputFusionOpIndexing(
   return fusion_indexing;
 }
 
+HloInstructionIndexing ComputeOutputToInputReduceOpIndexing(
+    const HloReduceInstruction* reduce, mlir::MLIRContext* mlir_context) {
+  absl::flat_hash_set<int64_t> reduce_dims_ids(reduce->dimensions().begin(),
+                                               reduce->dimensions().end());
+
+  const Shape& input_shape = reduce->operand(0)->shape();
+  const Shape& output_shape = GetOutputShape(reduce, 0);
+
+  std::vector<int64_t> parallel_dims_sizes;
+  int64_t output_dim_id = 0;
+  std::vector<mlir::AffineExpr> exprs;
+  exprs.reserve(input_shape.rank());
+  for (auto [input_dim_id, input_dim] :
+       llvm::enumerate(input_shape.dimensions())) {
+    if (reduce_dims_ids.contains(input_dim_id)) {
+      exprs.push_back(
+          getAffineSymbolExpr(parallel_dims_sizes.size(), mlir_context));
+      parallel_dims_sizes.push_back(input_dim);
+      continue;
+    }
+    exprs.push_back(getAffineDimExpr(output_dim_id++, mlir_context));
+  }
+  IndexingMap inputs_indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(output_shape.rank(), reduce_dims_ids.size(), exprs,
+                           mlir_context),
+      output_shape.dimensions(), parallel_dims_sizes);
+  IndexingMap inits_indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(output_shape.rank(), /*symbolCount=*/0, {},
+                           mlir_context),
+      output_shape.dimensions(), {});
+
+  HloInstructionIndexing instr_indexing;
+  instr_indexing.indexing_maps.resize(reduce->operand_count());
+  for (int64_t id = 0; id < reduce->input_count(); ++id) {
+    instr_indexing.indexing_maps[id].insert(inputs_indexing_map);
+  }
+  for (int64_t id = reduce->input_count(); id < reduce->operand_count(); ++id) {
+    instr_indexing.indexing_maps[id].insert(inits_indexing_map);
+  }
+  return instr_indexing;
+}
+
+HloInstructionIndexing ComputeInputToOutputReduceOpIndexing(
+    const HloReduceInstruction* reduce, int input_id,
+    mlir::MLIRContext* mlir_context) {
+  const Shape& output_shape = GetOutputShape(reduce, 0);
+  int64_t output_rank = output_shape.rank();
+
+  HloInstructionIndexing instr_indexing;
+  int arity = reduce->input_count();
+  instr_indexing.indexing_maps.resize(arity);
+  if (input_id >= arity) {
+    // This is an init value: it contributes to every output element.
+    std::vector<mlir::AffineExpr> inits_exprs;
+    inits_exprs.reserve(output_rank);
+    for (int sym = 0; sym < output_rank; ++sym) {
+      inits_exprs.push_back(getAffineSymbolExpr(sym, mlir_context));
+    }
+    IndexingMap inits_indexing_map = IndexingMap::FromTensorSizes(
+        mlir::AffineMap::get(0, /*symbolCount=*/output_rank, inits_exprs,
+                             mlir_context),
+        {}, output_shape.dimensions());
+    for (int64_t id = 0; id < arity; ++id) {
+      instr_indexing.indexing_maps[id].insert(inits_indexing_map);
+    }
+    return instr_indexing;
+  }
+
+  // This is a reduced value: it contributes to all output elements at the
+  // input element's indices with the reduced dimensions removed.
+  const Shape& input_shape = reduce->operand(input_id)->shape();
+  std::vector<mlir::AffineExpr> inputs_exprs;
+  inputs_exprs.reserve(output_rank);
+  for (auto [input_dim_id, input_dim] :
+       llvm::enumerate(input_shape.dimensions())) {
+    if (!absl::c_linear_search(reduce->dimensions(), input_dim_id)) {
+      inputs_exprs.push_back(getAffineDimExpr(input_dim_id, mlir_context));
+    }
+  }
+  IndexingMap inputs_indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(input_shape.rank(), /*symbolCount=*/0, inputs_exprs,
+                           mlir_context),
+      input_shape.dimensions(), {});
+  for (int64_t id = 0; id < arity; ++id) {
+    instr_indexing.indexing_maps[id].insert(inputs_indexing_map);
+  }
+  return instr_indexing;
+}
+
 HloInstructionIndexing ComputeOutputToInputDotOpIndexing(
     const HloDotInstruction* dot, mlir::MLIRContext* mlir_context) {
   CHECK_NE(dot, nullptr);
@@ -885,10 +974,9 @@ HloInstructionIndexing ComputeOutputToInputIndexing(const HloInstruction* instr,
   // if (auto pad = DynCast<HloPadInstruction>(instr)) {
   //   return ComputeOutputToInputPadOpIndexing(pad, ctx);
   // }
-  // TODO(chokobole): Uncomment this. Dependency: HloReduceInstruction
-  // if (auto reduce = DynCast<HloReduceInstruction>(instr)) {
-  //   return ComputeOutputToInputReduceOpIndexing(reduce, ctx);
-  // }
+  if (auto reduce = DynCast<HloReduceInstruction>(instr)) {
+    return ComputeOutputToInputReduceOpIndexing(reduce, ctx);
+  }
   // TODO(chokobole): Uncomment this. Dependency: HloReshapeInstruction
   // if (auto reshape = DynCast<HloReshapeInstruction>(instr)) {
   // return ComputeOutputToInputReshapeOpIndexing(reshape, ctx);
@@ -928,10 +1016,9 @@ HloInstructionIndexing ComputeInputToOutputIndexing(const HloInstruction* instr,
   if (auto concat = DynCast<HloConcatenateInstruction>(instr)) {
     return ComputeInputToOutputConcatenateOpIndexing(concat, input_id, ctx);
   }
-  // TODO(chokobole): Uncomment this. Dependency: HloReduceInstruction
-  // if (auto reduce = DynCast<HloReduceInstruction>(instr)) {
-  //   return ComputeInputToOutputReduceOpIndexing(reduce, input_id, ctx);
-  // }
+  if (auto reduce = DynCast<HloReduceInstruction>(instr)) {
+    return ComputeInputToOutputReduceOpIndexing(reduce, input_id, ctx);
+  }
   // TODO(chokobole): Uncomment this. Dependency: HloReshapeInstruction
   // if (auto reshape = DynCast<HloReshapeInstruction>(instr)) {
   //   return ComputeInputToOutputReshapeOpIndexing(reshape, ctx);
