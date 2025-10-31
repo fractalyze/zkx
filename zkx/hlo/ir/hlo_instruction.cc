@@ -1713,6 +1713,19 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBroadcast(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateDynamicReshape(
+    const Shape& shape, HloInstruction* data_operand,
+    absl::Span<HloInstruction* const> dim_sizes) {
+  CHECK_EQ(ShapeUtil::StaticExtentProduct(shape),
+           ShapeUtil::StaticExtentProduct(data_operand[0].shape()))
+      << "shape: " << ShapeUtil::HumanString(shape)
+      << " operand: " << ShapeUtil::HumanString(data_operand[0].shape());
+  CHECK_EQ(shape.rank(), dim_sizes.size());
+  return std::make_unique<HloDynamicReshapeInstruction>(shape, data_operand,
+                                                        dim_sizes);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateTranspose(
     const Shape& shape, HloInstruction* operand,
     absl::Span<const int64_t> dimensions) {
