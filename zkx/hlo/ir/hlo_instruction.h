@@ -708,6 +708,45 @@ class HloInstruction {
       const Shape& shape, absl::Span<HloInstruction* const> operands,
       int64_t dimension);
 
+  // Creates a reduce instruction, where the computation (given by the handle)
+  // is applied successively to every element in operand. For example, let f be
+  // the function to apply, which takes 2 arguments, an accumulator and the
+  // current value. Let init be an initial value (which is normally chosen to be
+  // the identity element for f, e.g. 0 if f is addition).
+  // Then the reduce HLO will compute:
+  // f(f(init, value0), value1), ...)
+  static std::unique_ptr<HloInstruction> CreateReduce(
+      const Shape& shape, HloInstruction* operand, HloInstruction* init_value,
+      absl::Span<const int64_t> dimensions_to_reduce,
+      HloComputation* reduce_computation);
+
+  // A more general, multiple-argument version of the above.
+  // The function to apply, f, now takes 2N arguments:
+  // [accumulator_0, accumulator_1, ..., accumulator_{N-1},
+  //  value_0, value_1, ..., value_{N-1}], and
+  // returns an N-tuple. The performed computation is (for
+  // commutative and associative f operators) equivalent to:
+  //
+  // f_1 = f(init_0, ...  init_{N-1},
+  //         input_0.value_0, ..., input_{N-1}.value_0)
+  // f_2 = f(f_1.tuple_element(0), ..., f_1.tuple_element(N-1),
+  //         input_0.value_1, ..., input_{N-1}.value_1)
+  // ...
+  static std::unique_ptr<HloInstruction> CreateReduce(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      absl::Span<HloInstruction* const> init_values,
+      absl::Span<const int64_t> dimensions_to_reduce,
+      HloComputation* reduce_computation);
+
+  // Helper version where the operands are given by a single instruction which
+  // either is a tuple of size `init_values`, or a single input, in which case
+  // size of `init_values` is one.
+  static std::unique_ptr<HloInstruction> CreateReduce(
+      const Shape& shape, HloInstruction* tuple_of_instructions,
+      absl::Span<HloInstruction* const> init_values,
+      absl::Span<const int64_t> dimensions_to_reduce,
+      HloComputation* reduce_computation);
+
   // Creates a broadcast instruction.
   static std::unique_ptr<HloInstruction> CreateBroadcast(
       const Shape& shape, HloInstruction* operand,
