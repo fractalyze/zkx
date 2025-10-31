@@ -20,3 +20,9 @@ def ConvertToSignlessPass : Pass<"convert-to-signless", "ModuleOp"> {
   let summary = "Pass to transform the IR to be on signless integers.";
   let constructor = "createConvertToSignlessPass()";
 }
+
+def StablehloLegalizeToHloPass : Pass<"stablehlo-legalize-to-hlo", "ModuleOp"> {
+  let summary = "Legalize StableHLO to HLO.";
+  let constructor = "createStablehloLegalizeToHloPass()";
+  let dependentDialects = ["mhlo::MhloDialect"];
+}
