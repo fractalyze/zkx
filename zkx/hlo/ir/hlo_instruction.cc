@@ -1702,6 +1702,14 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBroadcast(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreatePad(
+    const Shape& shape, HloInstruction* operand, HloInstruction* padding_value,
+    const PaddingConfig& padding_config) {
+  return std::make_unique<HloPadInstruction>(shape, operand, padding_value,
+                                             padding_config);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateReshape(
     const Shape& shape, HloInstruction* operand, int64_t inferred_dimension) {
   CHECK(operand->shape().is_unbounded_dynamic() ||
