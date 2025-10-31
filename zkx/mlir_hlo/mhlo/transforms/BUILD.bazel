@@ -61,6 +61,7 @@ zkx_cc_library(
         "//zkx/mlir_hlo/mhlo/transforms/convert_to_signless:convert_to_signless_pass",
         "//zkx/mlir_hlo/mhlo/transforms/prepare_for_export",
         "//zkx/mlir_hlo/mhlo/transforms/shape_legalize_to_hlo",
+        "//zkx/mlir_hlo/mhlo/transforms/sink_constants_to_control_flow",
         "//zkx/mlir_hlo/mhlo/transforms/stablehlo_legalize_to_hlo:stablehlo_legalize_to_hlo_pass",
         "//zkx/mlir_hlo/mhlo/transforms/symbolic_shape_optimization",
         "@llvm-project//mlir:FuncDialect",

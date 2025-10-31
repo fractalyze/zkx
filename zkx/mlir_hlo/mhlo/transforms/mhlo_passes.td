@@ -16,6 +16,51 @@ limitations under the License.
 
 include "mlir/Pass/PassBase.td"
 
+def SinkConstantsToControlFlowPass : Pass<"mhlo-sink-constants-to-control-flow", "func::FuncOp"> {
+  let summary = "Sink constants implicitly captured in control flow regions. This "
+    "is necessary to export to ZKX.";
+  let constructor = "createSinkConstantsToControlFlowPass()";
+  let description = [{
+    A pass that sinks constants implicitly captured in control flow regions. This
+    is necessary to export to ZKX, because ZKX's representation of control flow
+    doesn't have the notion of implicit capture.
+
+    For example given this function:
+
+    ```mlir
+      func @sink_const_to_sort(%arg0: tensor<16xu32>) {
+        %c0 = arith.constant dense<1.0> : tensor<u32>
+        %0 = "mhlo.sort"(%arg0) ( {
+        ^bb0(%arg1: tensor<u32>, %arg2: tensor<u32>):
+          %1 = "mhlo.divide"(%arg1, %c0) : (tensor<u32>, tensor<u32>) -> tensor<u32>
+          %2 = "mhlo.divide"(%arg2, %c0) : (tensor<u32>, tensor<u32>) -> tensor<u32>
+          %3 = "mhlo.compare"(%1, %2) {comparison_direction = "GT"} : (tensor<u32>, tensor<u32>) -> tensor<i1>
+          "mhlo.return"(%3) : (tensor<i1>) -> ()
+        }) {is_stable = true} : (tensor<16xu32>) -> tensor<16xi32>
+        return
+      }
+    ```
+
+    Observe how the arith.constant is moved into the region it's used in:
+
+    ```mlir
+      module  {
+        func @sink_const_to_sort(%arg0: tensor<16xu32>) {
+          %0 = "mhlo.sort"(%arg0) ( {
+          ^bb0(%arg1: tensor<u32>, %arg2: tensor<u32>):
+            %cst = arith.constant dense<1> : tensor<u32>
+            %1 = mhlo.divide %arg1, %cst : tensor<u32>
+            %2 = mhlo.divide %arg2, %cst : tensor<u32>
+            %3 = "mhlo.compare"(%1, %2) {comparison_direction = "GT"} : (tensor<u32>, tensor<u32>) -> tensor<i1>
+            "mhlo.return"(%3) : (tensor<i1>) -> ()
+          }) {is_stable = true} : (tensor<16xu32>) -> tensor<16xi32>
+          return
+        }
+      }
+    ```
+  }];
+}
+
 def SymbolicShapeOptimization : Pass<"symbolic-shape-optimization", "func::FuncOp"> {
   let summary = "Analyzes shapes and performs shape-related optimizations";
   let constructor = "createSymbolicShapeOptimizationPass()";
