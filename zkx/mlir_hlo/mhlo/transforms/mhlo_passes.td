@@ -16,6 +16,11 @@ limitations under the License.
 
 include "mlir/Pass/PassBase.td"
 
+def SymbolicShapeOptimization : Pass<"symbolic-shape-optimization", "func::FuncOp"> {
+  let summary = "Analyzes shapes and performs shape-related optimizations";
+  let constructor = "createSymbolicShapeOptimizationPass()";
+}
+
 def ConvertToSignlessPass : Pass<"convert-to-signless", "ModuleOp"> {
   let summary = "Pass to transform the IR to be on signless integers.";
   let constructor = "createConvertToSignlessPass()";

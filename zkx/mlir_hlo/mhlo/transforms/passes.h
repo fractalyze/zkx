@@ -28,6 +28,11 @@ namespace mlir::mhlo {
 #define GEN_PASS_DECL
 #include "zkx/mlir_hlo/mhlo/transforms/mhlo_passes.h.inc"
 
+// Creates a pass to analyze shapes and to use that information for
+// shape-related optimizations.
+std::unique_ptr<OperationPass<func::FuncOp>>
+createSymbolicShapeOptimizationPass();
+
 // Pass to replace unsigned types with signless integers.
 std::unique_ptr<OperationPass<ModuleOp>> createConvertToSignlessPass();
 
