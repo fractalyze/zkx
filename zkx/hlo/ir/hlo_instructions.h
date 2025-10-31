@@ -1811,6 +1811,25 @@ class HloDynamicSliceInstruction : public HloDynamicIndexInstruction {
   std::vector<int64_t> dynamic_slice_sizes_;
 };
 
+class HloDynamicUpdateSliceInstruction : public HloDynamicIndexInstruction {
+ public:
+  explicit HloDynamicUpdateSliceInstruction(const Shape& shape,
+                                            HloInstruction* operand,
+                                            HloInstruction* update,
+                                            HloInstruction* start_indices);
+  explicit HloDynamicUpdateSliceInstruction(
+      const Shape& shape, HloInstruction* operand, HloInstruction* update,
+      absl::Span<HloInstruction* const> start_indices);
+
+  int64_t first_index_operand_number() const override { return 2; }
+
+  const HloInstruction* update() const { return operand(1); }
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kDynamicUpdateSlice;
+  }
+};
+
 class HloDotInstruction : public HloInstruction {
  public:
   static const int kOperands = 2;
