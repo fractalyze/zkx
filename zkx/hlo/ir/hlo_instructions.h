@@ -1698,6 +1698,46 @@ class HloOutfeedInstruction : public HloInstruction {
   std::string outfeed_config_;
 };
 
+class HloPadInstruction : public HloInstruction {
+ public:
+  explicit HloPadInstruction(const Shape& shape, HloInstruction* operand,
+                             HloInstruction* padding_value,
+                             const PaddingConfig& padding_config);
+  // Returns the padding configuration for a pad node.
+  const PaddingConfig& padding_config() const { return padding_config_; }
+  PaddingConfig* mutable_padding_config() { return &padding_config_; }
+  // Returns the operand being padded.
+  const HloInstruction* padded_operand() const { return operand(0); }
+  HloInstruction* mutable_padded_operand() { return mutable_operand(0); }
+  // Returns the padding value.
+  const HloInstruction* padding_value() const { return operand(1); }
+  HloInstruction* mutable_padding_value() { return mutable_operand(1); }
+  // Returns a serialized representation of this instruction.
+  HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kPad;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  // The padding configuration that describes the edge padding of this pad
+  // instruction.
+  PaddingConfig padding_config_;
+};
+
 class HloDotInstruction : public HloInstruction {
  public:
   static const int kOperands = 2;

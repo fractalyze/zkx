@@ -2497,6 +2497,38 @@ std::unique_ptr<HloInstruction> HloOutfeedInstruction::CloneWithNewOperandsImpl(
       outfeed_shape(), new_operands[0], new_operands[1], outfeed_config());
 }
 
+HloPadInstruction::HloPadInstruction(const Shape& shape,
+                                     HloInstruction* operand,
+                                     HloInstruction* padding_value,
+                                     const PaddingConfig& padding_config)
+    : HloInstruction(HloOpcode::kPad, shape), padding_config_(padding_config) {
+  AppendOperand(operand);
+  AppendOperand(padding_value);
+}
+
+HloInstructionProto HloPadInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  *proto.mutable_padding_config() = padding_config_;
+  return proto;
+}
+
+bool HloPadInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloPadInstruction&>(other);
+  return protobuf_util::ProtobufEquals(padding_config(),
+                                       casted_other.padding_config());
+}
+
+std::unique_ptr<HloInstruction> HloPadInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), 2);
+  return std::make_unique<HloPadInstruction>(shape, new_operands[0],
+                                             new_operands[1], padding_config_);
+}
+
 HloDotInstruction::HloDotInstruction(
     const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
     const DotDimensionNumbers& dimension_numbers,

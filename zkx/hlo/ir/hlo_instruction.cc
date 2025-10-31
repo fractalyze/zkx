@@ -3863,6 +3863,14 @@ void HloInstruction::set_channel_id(const std::optional<int64_t>& channel_id) {
   return Cast<HloChannelInstruction>(this)->set_channel_id(channel_id);
 }
 
+const PaddingConfig& HloInstruction::padding_config() const {
+  return Cast<HloPadInstruction>(this)->padding_config();
+}
+
+PaddingConfig* HloInstruction::mutable_padding_config() {
+  return Cast<HloPadInstruction>(this)->mutable_padding_config();
+}
+
 const DotDimensionNumbers& HloInstruction::dot_dimension_numbers() const {
   return Cast<HloDotInstruction>(this)->dot_dimension_numbers();
 }

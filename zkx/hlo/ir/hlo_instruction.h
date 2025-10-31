@@ -1778,6 +1778,10 @@ class HloInstruction {
     original_value_ = original_value;
   }
 
+  // Delegates to HloPadInstruction::padding_config.
+  const PaddingConfig& padding_config() const;
+  PaddingConfig* mutable_padding_config();
+
   // Delegates to HloDotInstruction::dot_dimension_numbers().
   const DotDimensionNumbers& dot_dimension_numbers() const;
 
