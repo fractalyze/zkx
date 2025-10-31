@@ -1269,14 +1269,12 @@ absl::Status ShapeVerifier::HandleSlice(HloInstruction* slice) {
 }
 
 absl::Status ShapeVerifier::HandleDynamicSlice(HloInstruction* dynamic_slice) {
-  // TODO(chokobole): Uncomment this. Dependency: HloDynamicSliceInstruction
-  // return CheckShape(
-  //     dynamic_slice,
-  //     ShapeInference::InferDynamicSliceShape(
-  //         dynamic_slice->operand(0)->shape(),
-  //         Cast<HloDynamicSliceInstruction>(dynamic_slice)->index_shapes(),
-  //         dynamic_slice->dynamic_slice_sizes()));
-  return absl::UnimplementedError("HandleDynamicSlice not supported");
+  return CheckShape(
+      dynamic_slice,
+      ShapeInference::InferDynamicSliceShape(
+          dynamic_slice->operand(0)->shape(),
+          Cast<HloDynamicSliceInstruction>(dynamic_slice)->index_shapes(),
+          dynamic_slice->dynamic_slice_sizes()));
 }
 
 absl::Status ShapeVerifier::HandleDynamicUpdateSlice(
