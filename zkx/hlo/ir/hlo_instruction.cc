@@ -1003,57 +1003,48 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kCall: {
-      // TODO(chokobole): Uncomment this. Dependency: HloCallInstruction
-      // TF_RET_CHECK(proto.called_computation_ids_size() == 1)
-      //     << "Call should have 1 called computation but has "
-      //     << proto.called_computation_ids_size();
-      // TF_RET_CHECK(!proto.has_precision_config())
-      //     << instruction->opcode() << proto.name();
-      // TF_RET_CHECK(!proto.has_dot_dimension_numbers()) <<
-      // instruction->opcode();
+      TF_RET_CHECK(proto.called_computation_ids_size() == 1)
+          << "Call should have 1 called computation but has "
+          << proto.called_computation_ids_size();
+      TF_RET_CHECK(!proto.has_dot_dimension_numbers()) << instruction->opcode();
 
-      // if (proto.is_composite()) {
-      //   TF_RET_CHECK(proto.has_frontend_attributes())
-      //       << "A composite call op must have frontend attributes";
-      //   auto map = proto.frontend_attributes().map();
-      //   auto name = map.find("composite.name");
-      //   TF_RET_CHECK(name != map.end() && !name->second.empty())
-      //       << "A composite call op must have frontend attributes with key "
-      //          "composite.name whose value is non-empty";
+      if (proto.is_composite()) {
+        TF_RET_CHECK(proto.has_frontend_attributes())
+            << "A composite call op must have frontend attributes";
+        auto map = proto.frontend_attributes().map();
+        auto name = map.find("composite.name");
+        TF_RET_CHECK(name != map.end() && !name->second.empty())
+            << "A composite call op must have frontend attributes with key "
+               "composite.name whose value is non-empty";
 
-      //   auto attributes = map.find("composite.attributes");
-      //   TF_RET_CHECK(attributes == map.end() || !attributes->second.empty())
-      //       << "A composite call op must have frontend attributes with key "
-      //          "composite.attributes whose value is default: {} or
-      //          non-empty";
+        auto attributes = map.find("composite.attributes");
+        TF_RET_CHECK(attributes == map.end() || !attributes->second.empty())
+            << "A composite call op must have frontend attributes with key "
+               "composite.attributes whose value is default: {} or non-empty";
 
-      //   auto version_str = map.find("composite.version");
-      //   int64_t version = 0;
-      //   TF_RET_CHECK(
-      //       version_str == map.end() ||
-      //       (absl::SimpleAtoi(version_str->second, &version) && version >=
-      //       0))
-      //       << "A composite call op must have frontend attributes with a "
-      //          "composite.version whose value is a non-negative integer but "
-      //          "got: "
-      //       << version_str->second;
+        auto version_str = map.find("composite.version");
+        int64_t version = 0;
+        TF_RET_CHECK(
+            version_str == map.end() ||
+            (absl::SimpleAtoi(version_str->second, &version) && version >= 0))
+            << "A composite call op must have frontend attributes with a "
+               "composite.version whose value is a non-negative integer but "
+               "got: "
+            << version_str->second;
 
-      //   instruction = CreateCompositeCall(
-      //       shape, all_operands(),
-      //       computation_map.at(proto.called_computation_ids()[0]),
-      //       name->second, attributes == map.end() ? "{}" :
-      //       attributes->second, version);
-      //   instruction->set_output_to_operand_aliasing(
-      //       output_to_operand_aliasing());
-      // } else {
-      //   instruction = std::make_unique<HloCallInstruction>(
-      //       shape, all_operands(),
-      //       computation_map.at(proto.called_computation_ids()[0]));
-      //   instruction->set_output_to_operand_aliasing(
-      //       output_to_operand_aliasing());
-      // }
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Call not implemented");
+        instruction = CreateCompositeCall(
+            shape, all_operands(),
+            computation_map.at(proto.called_computation_ids()[0]), name->second,
+            attributes == map.end() ? "{}" : attributes->second, version);
+        instruction->set_output_to_operand_aliasing(
+            output_to_operand_aliasing());
+      } else {
+        instruction = std::make_unique<HloCallInstruction>(
+            shape, all_operands(),
+            computation_map.at(proto.called_computation_ids()[0]));
+        instruction->set_output_to_operand_aliasing(
+            output_to_operand_aliasing());
+      }
       break;
     }
     default: {
@@ -2084,6 +2075,9 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kBitcastConvert:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateBitcastConvert(shape, new_operands[0]);
+      break;
+    case HloOpcode::kCall:
+      clone = CreateCall(shape, new_operands, to_apply());
       break;
     case HloOpcode::kConvert:
       CHECK_EQ(new_operands.size(), 1);

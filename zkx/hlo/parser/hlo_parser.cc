@@ -2394,10 +2394,31 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           HloInstruction::CreateGetTupleElement(*shape, operands[0], *index));
     }
     case HloOpcode::kCall: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateCall
-      // clang-format on
-      return nullptr;
+      std::optional<HloComputation*> to_apply;
+      std::optional<bool> is_composite = false;
+      attrs["to_apply"] = {/*required=*/true, AttrTy::kHloComputation,
+                           &to_apply};
+      attrs["is_composite"] = {/*required=*/false, AttrTy::kBool,
+                               &is_composite};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            absl::InlinedVector<const Shape*, 2> arg_shapes;
+            arg_shapes.reserve(operands.size());
+            for (auto* operand : operands) {
+              arg_shapes.push_back(&operand->shape());
+            }
+            return ShapeInference::InferCallShape(
+                arg_shapes, to_apply.value()->ComputeProgramShape());
+          })) {
+        return nullptr;
+      }
+
+      auto call_op = HloInstruction::CreateCall(*shape, operands, *to_apply);
+      call_op->set_is_composite(is_composite.value());
+      return builder->AddInstruction(std::move(call_op));
     }
     case HloOpcode::kFft: {
       std::optional<FftType> fft_type;

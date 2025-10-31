@@ -128,7 +128,7 @@ TEST_F(SchedulePostprocessingTest, P2POpsNotChanged) {
 // clang-format on
 
 // clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateCall
+// TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateCustomCall
 // TEST_F(SchedulePostprocessingTest,
 //        AsynchronousOpsWithParallelNestedCustomcall) {
 //   constexpr std::string_view kHloString = R"(
