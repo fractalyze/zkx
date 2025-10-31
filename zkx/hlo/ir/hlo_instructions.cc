@@ -1274,6 +1274,59 @@ std::unique_ptr<HloInstruction> HloReshapeInstruction::CloneWithNewOperandsImpl(
                                                  inferred_dimension());
 }
 
+HloMapInstruction::HloMapInstruction(const Shape& shape,
+                                     absl::Span<HloInstruction* const> operands,
+                                     HloComputation* map_computation)
+    : HloInstruction(HloOpcode::kMap, shape) {
+  for (auto operand : operands) {
+    AppendOperand(operand);
+  }
+  AppendComputation(map_computation);
+  // TODO(b/65689298) Remove code below once Map is generalized to accept
+  // arbitrary map dimensions.
+  dimensions_.resize(shape.rank());
+  std::iota(dimensions_.begin(), dimensions_.end(), 0);
+}
+
+HloInstructionProto HloMapInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  for (int64_t dimension : dimensions_) {
+    proto.add_dimensions(dimension);
+  }
+  return proto;
+}
+
+bool HloMapInstruction::IsElementwiseImpl(
+    const std::optional<int64_t>& operand_idx) const {
+  if (!dimensions().empty()) {
+    // Check that the map is executed in elementwise compatible dimensions.
+    if (dimensions().size() != shape().dimensions_size()) {
+      return false;
+    }
+    for (int i = 0; i < dimensions().size(); ++i) {
+      if (dimensions()[i] != i) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool HloMapInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloMapInstruction&>(other);
+  return eq_computations(to_apply(), casted_other.to_apply()) &&
+         dimensions() == casted_other.dimensions();
+}
+
+std::unique_ptr<HloInstruction> HloMapInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  return std::make_unique<HloMapInstruction>(shape, new_operands, to_apply());
+}
+
 HloSliceInstruction::HloSliceInstruction(
     const Shape& shape, HloInstruction* operand,
     absl::Span<const int64_t> start_indices,

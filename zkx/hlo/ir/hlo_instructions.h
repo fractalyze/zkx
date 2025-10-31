@@ -1079,6 +1079,41 @@ class HloReshapeInstruction : public HloInstruction {
   int64_t inferred_dimension_;
 };
 
+class HloMapInstruction : public HloInstruction {
+ public:
+  explicit HloMapInstruction(const Shape& shape,
+                             absl::Span<HloInstruction* const> operands,
+                             HloComputation* map_computation);
+  // Returns the dimension sizes or numbers associated with this instruction.
+  absl::Span<const int64_t> dimensions() const override { return dimensions_; }
+
+  std::vector<int64_t>* mutable_dimensions() override { return &dimensions_; }
+  // Returns a serialized representation of this instruction.
+  HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kMap;
+  }
+
+ private:
+  bool IsElementwiseImpl(
+      const std::optional<int64_t>& operand_idx) const override;
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  std::vector<int64_t> dimensions_;
+};
+
 class HloSliceInstruction : public HloInstruction {
  public:
   explicit HloSliceInstruction(const Shape& shape, HloInstruction* operand,
