@@ -717,6 +717,12 @@ class HloInstruction {
       absl::Span<HloInstruction* const> start_indices,
       absl::Span<const int64_t> slice_sizes);
 
+  // Creates a dynamic update slice instruction, which updates a slice
+  // of 'operand' with 'update' and 'start_indices'.
+  static std::unique_ptr<HloInstruction> CreateDynamicUpdateSlice(
+      const Shape& shape, HloInstruction* operand, HloInstruction* update,
+      absl::Span<HloInstruction* const> start_indices);
+
   // Creates a concatenate instruction, where the operands are concatenated on
   // the provided dimension.
   static std::unique_ptr<HloInstruction> CreateConcatenate(

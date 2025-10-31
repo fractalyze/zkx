@@ -1669,6 +1669,14 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateDynamicSlice(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateDynamicUpdateSlice(
+    const Shape& shape, HloInstruction* operand, HloInstruction* update,
+    absl::Span<HloInstruction* const> start_indices) {
+  return std::make_unique<HloDynamicUpdateSliceInstruction>(
+      shape, operand, update, start_indices);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateConcatenate(
     const Shape& shape, absl::Span<HloInstruction* const> operands,
     int64_t dimension) {
