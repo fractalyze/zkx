@@ -687,33 +687,27 @@ class FusionPointsToAnalysisTest : public TuplePointsToAnalysisTest {
 //           \0 |2      /1
 //          DynamicUpdateSlice  // fused root.
 //
-// clang-format off
-// TODO(chokobole): Implement this. Dependency: HloInstruction::CreateDynamicUpdateSlice
-// clang-format on
-// TEST_F(FusionPointsToAnalysisTest, FusionParam0OneUser) {
-//   std::string hlo_str = R"(
-// HloModule FusionParam0OneUser
+TEST_F(FusionPointsToAnalysisTest, FusionParam0OneUser) {
+  std::string hlo_str = R"(
+  HloModule FusionParam0OneUser
 
-// %fused_computation (param_1.2: (u32[8], u32[3])) -> u32[8] {
-//   %param_1.2 = (u32[8]{0}, u32[3]{0}) parameter(0)
-//   %get-tuple-element.1 = u32[8]{0} get-tuple-element((u32[8]{0}, u32[3]{0})
-//   %param_1.2), index=0 %get-tuple-element.2 = u32[3]{0}
-//   get-tuple-element((u32[8]{0}, u32[3]{0}) %param_1.2), index=1 %constant.3 =
-//   u32[3]{0} constant({1, 1, 1}) %add.1 = u32[3]{0} add(u32[3]{0}
-//   %get-tuple-element.2, u32[3]{0} %constant.3) %constant.2 = s32[]
-//   constant(0) ROOT %dynamic-update-slice.1 = u32[8]{0}
-//   dynamic-update-slice(u32[8]{0} %get-tuple-element.1, u32[3]{0} %add.1,
-//   s32[] %constant.2)
-// }
+  %fused_computation (param_1.2: (u32[8], u32[3])) -> u32[8] {
+    %param_1.2 = (u32[8]{0}, u32[3]{0}) parameter(0)
+    %get-tuple-element.1 = u32[8]{0} get-tuple-element((u32[8]{0}, u32[3]{0}) %param_1.2), index=0
+    %get-tuple-element.2 = u32[3]{0} get-tuple-element((u32[8]{0}, u32[3]{0}) %param_1.2), index=1
+    %constant.3 = u32[3]{0} constant({1, 1, 1})
+    %add.1 = u32[3]{0} add(u32[3]{0} %get-tuple-element.2, u32[3]{0} %constant.3)
+    %constant.2 = s32[] constant(0)
+    ROOT %dynamic-update-slice.1 = u32[8]{0} dynamic-update-slice(u32[8]{0} %get-tuple-element.1, u32[3]{0} %add.1, s32[] %constant.2)
+  }
 
-// ENTRY %FusionParam0OneUser (param0: (u32[8], u32[3])) -> u32[8] {
-//   %param0 = (u32[8]{0}, u32[3]{0}) parameter(0)
-//   ROOT %fusion = u32[8]{0} fusion((u32[8]{0}, u32[3]{0}) %param0),
-//   kind=kLoop, calls=%fused_computation
-// }
-// )";
-//   Run(hlo_str, /*expected_num_users=*/1);
-// }
+  ENTRY %FusionParam0OneUser (param0: (u32[8], u32[3])) -> u32[8] {
+    %param0 = (u32[8]{0}, u32[3]{0}) parameter(0)
+    ROOT %fusion = u32[8]{0} fusion((u32[8]{0}, u32[3]{0}) %param0), kind=kLoop, calls=%fused_computation
+  }
+  )";
+  Run(hlo_str, /*expected_num_users=*/1);
+}
 
 // Tests the points-to set of tuple-shaped fusion parameter 0 and all GTE users.
 // Tests the alias set of tuple-shaped fusion parameter 0 at all shape indices.
@@ -737,34 +731,29 @@ class FusionPointsToAnalysisTest : public TuplePointsToAnalysisTest {
 //           |2 |0   |1
 //          DynamicUpdateSlice  // fused root.
 //
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateDynamicUpdateSlice
-// clang-format on
-// TEST_F(FusionPointsToAnalysisTest, FusionParam0TwoUsers) {
-//   std::string hlo_str = R"(
-// HloModule FusionParam0TwoUsers
+TEST_F(FusionPointsToAnalysisTest, FusionParam0TwoUsers) {
+  std::string hlo_str = R"(
+  HloModule FusionParam0TwoUsers
 
-// %fused_computation (param_1.2: (u32[8], u32[3])) -> u32[8] {
-//   %param_1.2 = (u32[8]{0}, u32[3]{0}) parameter(0)
-//   %get-tuple-element.1 = u32[8]{0} get-tuple-element((u32[8]{0}, u32[3]{0})
-//   %param_1.2), index=0 %get-tuple-element.2 = u32[3]{0}
-//   get-tuple-element((u32[8]{0}, u32[3]{0}) %param_1.2), index=1 %constant.3 =
-//   u32[3]{0} constant({1, 1, 1}) %add.1 = u32[3]{0} add(u32[3]{0}
-//   %get-tuple-element.2, u32[3]{0} %constant.3) %slice = u32[3]{0}
-//   slice(u32[8]{0} %get-tuple-element.1), slice={[0:3]} %add.2 = u32[3]{0}
-//   add(u32[3]{0} %add.1, u32[3]{0} %slice) %constant.2 = s32[] constant(0)
-//   ROOT %dynamic-update-slice.1 = u32[8]{0} dynamic-update-slice(u32[8]{0}
-//   %get-tuple-element.1, u32[3]{0} %add.2, s32[] %constant.2)
-// }
+  %fused_computation (param_1.2: (u32[8], u32[3])) -> u32[8] {
+    %param_1.2 = (u32[8]{0}, u32[3]{0}) parameter(0)
+    %get-tuple-element.1 = u32[8]{0} get-tuple-element((u32[8]{0}, u32[3]{0}) %param_1.2), index=0
+    %get-tuple-element.2 = u32[3]{0} get-tuple-element((u32[8]{0}, u32[3]{0}) %param_1.2), index=1
+    %constant.3 = u32[3]{0} constant({1, 1, 1})
+    %add.1 = u32[3]{0} add(u32[3]{0} %get-tuple-element.2, u32[3]{0} %constant.3)
+    %slice = u32[3]{0} slice(u32[8]{0} %get-tuple-element.1), slice={[0:3]}
+    %add.2 = u32[3]{0} add(u32[3]{0} %add.1, u32[3]{0} %slice)
+    %constant.2 = s32[] constant(0)
+    ROOT %dynamic-update-slice.1 = u32[8]{0} dynamic-update-slice(u32[8]{0} %get-tuple-element.1, u32[3]{0} %add.2, s32[] %constant.2)
+  }
 
-// ENTRY %FusionParam0TwoUsers (param0: (u32[8], u32[3])) -> u32[8] {
-//   %param0 = (u32[8]{0}, u32[3]{0}) parameter(0)
-//   ROOT %fusion = u32[8]{0} fusion((u32[8]{0}, u32[3]{0}) %param0),
-//   kind=kLoop, calls=%fused_computation
-// }
-// )";
-//   Run(hlo_str, /*expected_num_users=*/2);
-// }
+  ENTRY %FusionParam0TwoUsers (param0: (u32[8], u32[3])) -> u32[8] {
+    %param0 = (u32[8]{0}, u32[3]{0}) parameter(0)
+    ROOT %fusion = u32[8]{0} fusion((u32[8]{0}, u32[3]{0}) %param0), kind=kLoop, calls=%fused_computation
+  }
+  )";
+  Run(hlo_str, /*expected_num_users=*/2);
+}
 
 class PointsToAnalysisTestBase : public HloHardwareIndependentTestBase {
  protected:
@@ -813,42 +802,39 @@ TEST_F(DoesNotUseOperandBufferTest, GetTupleElement) {
   EXPECT_FALSE(points_to_analysis_->DoesNotUseOperandBuffer(tuple, {}, gte1));
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateDynamicUpdateSlice
-// clang-format on
-// TEST_F(DoesNotUseOperandBufferTest, FusedDynamicUpdateSlice) {
-//   auto builder = HloComputation::Builder(TestName());
+TEST_F(DoesNotUseOperandBufferTest, FusedDynamicUpdateSlice) {
+  auto builder = HloComputation::Builder(TestName());
 
-//   Shape data_shape = ShapeUtil::MakeShape(U32, {8});
-//   auto tuple = builder.AddInstruction(HloInstruction::CreateParameter(
-//       0, ShapeUtil::MakeTupleShape({data_shape, data_shape}), "tuple"));
-//   auto gte0 = builder.AddInstruction(
-//       HloInstruction::CreateGetTupleElement(data_shape, tuple, 0));
-//   auto gte1 = builder.AddInstruction(
-//       HloInstruction::CreateGetTupleElement(data_shape, tuple, 1));
+  Shape data_shape = ShapeUtil::MakeShape(U32, {8});
+  auto tuple = builder.AddInstruction(HloInstruction::CreateParameter(
+      0, ShapeUtil::MakeTupleShape({data_shape, data_shape}), "tuple"));
+  auto gte0 = builder.AddInstruction(
+      HloInstruction::CreateGetTupleElement(data_shape, tuple, 0));
+  auto gte1 = builder.AddInstruction(
+      HloInstruction::CreateGetTupleElement(data_shape, tuple, 1));
 
-//   // Create a DynamicUpdateSlice instruction of tuple element 1.
-//   auto starts = builder.AddInstruction(
-//       HloInstruction::CreateConstant(LiteralUtil::CreateR0<int32_t>(2)));
-//   auto update = builder.AddInstruction(HloInstruction::CreateConstant(
-//       LiteralUtil::CreateR1<float>({2.f, 2.f, 2.f})));
-//   auto dynamic_update_slice =
-//       builder.AddInstruction(HloInstruction::CreateDynamicUpdateSlice(
-//           data_shape, gte1, update, {starts}));
-//   builder.AddInstruction(
-//       HloInstruction::CreateTuple({gte0, dynamic_update_slice}));
+  // Create a DynamicUpdateSlice instruction of tuple element 1.
+  auto starts = builder.AddInstruction(
+      HloInstruction::CreateConstant(LiteralUtil::CreateR0<int32_t>(2)));
+  auto update = builder.AddInstruction(HloInstruction::CreateConstant(
+      LiteralUtil::CreateR1<uint32_t>({2, 2, 2})));
+  auto dynamic_update_slice =
+      builder.AddInstruction(HloInstruction::CreateDynamicUpdateSlice(
+          data_shape, gte1, update, {starts}));
+  builder.AddInstruction(
+      HloInstruction::CreateTuple({gte0, dynamic_update_slice}));
 
-//   BuildModule(builder.Build());
-//   auto fusion = computation_->CreateFusionInstruction(
-//       {dynamic_update_slice, starts, update, gte1},
-//       HloInstruction::FusionKind::kLoop);
-//   RunAnalysis();
+  BuildModule(builder.Build());
+  auto fusion = computation_->CreateFusionInstruction(
+      {dynamic_update_slice, starts, update, gte1},
+      HloInstruction::FusionKind::kLoop);
+  RunAnalysis();
 
-//   // The fusion instruction never uses tuple element 0, but does use
-//   element 1. EXPECT_TRUE(points_to_analysis_->DoesNotUseOperandBuffer(tuple,
-//   {0}, fusion)); EXPECT_FALSE(
-//       points_to_analysis_->DoesNotUseOperandBuffer(tuple, {1}, fusion));
-// }
+  // The fusion instruction never uses tuple element 0, but does use element 1.
+  EXPECT_TRUE(points_to_analysis_->DoesNotUseOperandBuffer(tuple, {0}, fusion));
+  EXPECT_FALSE(
+      points_to_analysis_->DoesNotUseOperandBuffer(tuple, {1}, fusion));
+}
 
 }  // namespace
 }  // namespace zkx

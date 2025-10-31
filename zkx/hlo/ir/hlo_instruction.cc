@@ -810,28 +810,22 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kDynamicUpdateSlice: {
-      // TODO(chokobole): Uncomment this. Dependency: CreateDynamicUpdateSlice
-      // TF_RET_CHECK(proto.operand_ids_size() >= 2)
-      //     << "DynamicUpdateSlice instruction should have at least 2 operands
-      //     "
-      //        "but sees "
-      //     << proto.operand_ids_size();
-      // // TODO(b/118437727): Old form, make the check unconditional.
-      // if (proto.operand_ids_size() != 3 || operands(2)->shape().rank() != 1)
-      // {
-      //   auto expected_operands = 2 + operands(0)->shape().rank();
-      //   TF_RET_CHECK(proto.operand_ids_size() == expected_operands)
-      //       << "DynamicUpdateSlice instruction should have "
-      //       << expected_operands << " operands, but has "
-      //       << proto.operand_ids_size();
-      // }
-      // const auto& operand_vector = all_operands();
-      // instruction =
-      //     CreateDynamicUpdateSlice(shape, operands(0), operands(1),
-      //                              absl::MakeSpan(operand_vector).subspan(2));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: DynamicUpdateSlice not "
-          "implemented");
+      TF_RET_CHECK(proto.operand_ids_size() >= 2)
+          << "DynamicUpdateSlice instruction should have at least 2 operands "
+             "but sees "
+          << proto.operand_ids_size();
+      // TODO(b/118437727): Old form, make the check unconditional.
+      if (proto.operand_ids_size() != 3 || operands(2)->shape().rank() != 1) {
+        auto expected_operands = 2 + operands(0)->shape().rank();
+        TF_RET_CHECK(proto.operand_ids_size() == expected_operands)
+            << "DynamicUpdateSlice instruction should have "
+            << expected_operands << " operands, but has "
+            << proto.operand_ids_size();
+      }
+      const auto& operand_vector = all_operands();
+      instruction =
+          CreateDynamicUpdateSlice(shape, operands(0), operands(1),
+                                   absl::MakeSpan(operand_vector).subspan(2));
       break;
     }
     case HloOpcode::kGather: {
@@ -2100,6 +2094,10 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kConvert:
       CHECK_EQ(new_operands.size(), 1);
       clone = CreateConvert(shape, new_operands[0]);
+      break;
+    case HloOpcode::kDynamicUpdateSlice:
+      clone = CreateDynamicUpdateSlice(shape, new_operands[0], new_operands[1],
+                                       new_operands.subspan(2));
       break;
     case HloOpcode::kPartitionId:
       CHECK_EQ(new_operands.size(), 0);

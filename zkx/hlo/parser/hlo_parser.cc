@@ -2649,10 +2649,22 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           *dynamic_slice_sizes));
     }
     case HloOpcode::kDynamicUpdateSlice: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateDynamicUpdateSlice
-      // clang-format on
-      return nullptr;
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (operands.size() < 2) {
+        TokenError("Expected at least two operands.");
+        return nullptr;
+      }
+      if (!(operands.size() == 3 && operands[2]->shape().rank() == 1) &&
+          operands.size() != 2 + operands[0]->shape().rank()) {
+        TokenError("Wrong number of operands.");
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateDynamicUpdateSlice(
+          *shape, /*operand=*/operands[0], /*update=*/operands[1],
+          /*start_indices=*/absl::MakeSpan(operands).subspan(2)));
     }
     case HloOpcode::kTranspose: {
       std::optional<std::vector<int64_t>> dimensions;
