@@ -812,6 +812,16 @@ class HloInstruction {
       absl::Span<HloInstruction* const> operands, HloComputation* compare,
       bool is_stable);
 
+  static std::unique_ptr<HloInstruction> CreateConditional(
+      const Shape& shape, HloInstruction* pred,
+      HloInstruction* true_computation_arg, HloComputation* true_computation,
+      HloInstruction* false_computation_arg, HloComputation* false_computation);
+
+  static std::unique_ptr<HloInstruction> CreateConditional(
+      const Shape& shape, HloInstruction* branch_index,
+      absl::Span<HloComputation* const> branch_computations,
+      absl::Span<HloInstruction* const> branch_computation_args);
+
   // Creates a fusion instruction. A fusion instruction contains one or more
   // fused instructions forming an expression with a single root
   // "fused_root". Additional instructions can be added to the fusion

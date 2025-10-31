@@ -1641,6 +1641,45 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateToken() {
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateConditional(
+    const Shape& shape, HloInstruction* pred,
+    HloInstruction* true_computation_arg, HloComputation* true_computation,
+    HloInstruction* false_computation_arg, HloComputation* false_computation) {
+  auto instruction =
+      absl::WrapUnique(new HloInstruction(HloOpcode::kConditional, shape));
+  instruction->AppendOperand(pred);
+  instruction->AppendOperand(true_computation_arg);
+  instruction->AppendOperand(false_computation_arg);
+  // In called_computations, the index of true_computation must be 0 and that
+  // of false computation must be 1, as defined by kTrueComputationIndex and
+  // kFalseComputationIndex.
+  instruction->AppendComputation(true_computation);
+  instruction->AppendComputation(false_computation);
+  // Set back pointer from computations to the conditional instruction.
+  true_computation->SetConditionalCallInstruction(instruction.get());
+  false_computation->SetConditionalCallInstruction(instruction.get());
+  return instruction;
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateConditional(
+    const Shape& shape, HloInstruction* branch_index,
+    absl::Span<HloComputation* const> branch_computations,
+    absl::Span<HloInstruction* const> branch_computation_args) {
+  auto instruction =
+      absl::WrapUnique(new HloInstruction(HloOpcode::kConditional, shape));
+  instruction->AppendOperand(branch_index);
+  CHECK_EQ(branch_computations.size(), branch_computation_args.size());
+  for (int i = 0; i < branch_computations.size(); ++i) {
+    instruction->AppendComputation(branch_computations[i]);
+    instruction->AppendOperand(branch_computation_args[i]);
+    // Set back pointer from the computation to the conditional instruction.
+    branch_computations[i]->SetConditionalCallInstruction(instruction.get());
+  }
+  return instruction;
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateSlice(
     const Shape& shape, HloInstruction* operand,
     absl::Span<const int64_t> start_indices,
