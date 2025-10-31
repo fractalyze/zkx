@@ -2200,14 +2200,11 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
   clone->SetAndSanitizeName(name());
   if (context != nullptr) {
     context->MapInstruction(this, clone.get());
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloModule::DeepCloneComputation
-    // clang-format on
-    // clone->ReplaceCalledComputations([&](HloComputation* callee) {
-    //   return callee->parent() != context->module()
-    //              ? context->module()->DeepCloneComputation(callee, context)
-    //              : callee;
-    // });
+    clone->ReplaceCalledComputations([&](HloComputation* callee) {
+      return callee->parent() != context->module()
+                 ? context->module()->DeepCloneComputation(callee, context)
+                 : callee;
+    });
     // clang-format off
     // TODO(chokobole): Uncomment this. Dependency: HloComputation::SetWhileCallInstruction
     // clang-format on
