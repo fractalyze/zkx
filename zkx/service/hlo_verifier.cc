@@ -1639,14 +1639,9 @@ absl::Status ShapeVerifier::HandleAddDependency(
 }
 
 absl::Status ShapeVerifier::HandleGetDimensionSize(HloInstruction* get_size) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloGetDimensionSizeInstruction
-  // clang-format on
-  // return CheckShape(get_size,
-  //                   ShapeInference::InferGetDimensionSizeShape(
-  //                       get_size->operand(0)->shape(),
-  //                       get_size->dimension()));
-  return absl::UnimplementedError("HandleSetDimensionSize not supported");
+  return CheckShape(get_size,
+                    ShapeInference::InferGetDimensionSizeShape(
+                        get_size->operand(0)->shape(), get_size->dimension()));
 }
 
 absl::Status ShapeVerifier::HandleSetDimensionSize(HloInstruction* set_size) {
