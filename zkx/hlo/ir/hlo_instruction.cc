@@ -1716,6 +1716,13 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBroadcast(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateTranspose(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> dimensions) {
+  return std::make_unique<HloTransposeInstruction>(shape, operand, dimensions);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateSort(
     const Shape& shape, int64_t dimension,
     absl::Span<HloInstruction* const> operands, HloComputation* compare,

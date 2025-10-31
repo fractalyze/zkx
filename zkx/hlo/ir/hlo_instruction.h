@@ -752,6 +752,11 @@ class HloInstruction {
       const Shape& shape, HloInstruction* operand,
       absl::Span<const int64_t> broadcast_dimensions);
 
+  // Creates a transpose instruction which permutes the operand dimensions.
+  static std::unique_ptr<HloInstruction> CreateTranspose(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<const int64_t> dimensions);
+
   // Creates a n-ary sort op with a 'compare' computation which is used for
   // comparisons in the sorting algorithm. 'compare' gets 2 * n parameters,
   // where parameters 2 * i and 2 * i + 1 are the values of the i-th operand at
