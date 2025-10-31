@@ -981,20 +981,17 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           "HloInstruction::CreateFromProto: SetDimensionSize not implemented");
       break;
     case HloOpcode::kReshape: {
-      // TODO(chokobole): Uncomment this. Dependency: CreateReshape
-      // int64_t inferred_dimension = -1;
-      // if (!proto.dimensions().empty()) {
-      //   inferred_dimension = proto.dimensions()[0];
-      // }
-      // TF_RET_CHECK(shape.IsArray() && operands(0)->shape().IsArray() &&
-      //              (operands(0)->shape().is_unbounded_dynamic() ||
-      //               ShapeUtil::StaticExtentProduct(shape) ==
-      //                   ShapeUtil::StaticExtentProduct(operands(0)->shape())))
-      //     << "shape: " << ShapeUtil::HumanString(shape)
-      //     << " operand: " << ShapeUtil::HumanString(operands(0)->shape());
-      // instruction = CreateReshape(shape, operands(0), inferred_dimension);
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Reshape not implemented");
+      int64_t inferred_dimension = -1;
+      if (!proto.dimensions().empty()) {
+        inferred_dimension = proto.dimensions()[0];
+      }
+      TF_RET_CHECK(shape.IsArray() && operands(0)->shape().IsArray() &&
+                   (operands(0)->shape().is_unbounded_dynamic() ||
+                    ShapeUtil::StaticExtentProduct(shape) ==
+                        ShapeUtil::StaticExtentProduct(operands(0)->shape())))
+          << "shape: " << ShapeUtil::HumanString(shape)
+          << " operand: " << ShapeUtil::HumanString(operands(0)->shape());
+      instruction = CreateReshape(shape, operands(0), inferred_dimension);
       break;
     }
     case HloOpcode::kDynamicReshape: {

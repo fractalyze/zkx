@@ -2214,10 +2214,16 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           absl::Span<HloInstruction* const>(operands).subspan(1)));
     }
     case HloOpcode::kReshape: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateReshape
-      // clang-format on
-      return nullptr;
+      std::optional<int64_t> inferred_dimension;
+      attrs["inferred_dimension"] = {/*required=*/false, AttrTy::kInt64,
+                                     &inferred_dimension};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateReshape(
+          *shape, operands[0], inferred_dimension.value_or(-1)));
     }
     case HloOpcode::kAfterAll: {
       if ((!preset_operands && !ParseOperands(&operands, builder)) ||
