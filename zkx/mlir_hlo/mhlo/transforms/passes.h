@@ -19,6 +19,7 @@ limitations under the License.
 
 #include <memory>
 
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
 
@@ -32,6 +33,10 @@ std::unique_ptr<OperationPass<ModuleOp>> createConvertToSignlessPass();
 
 // Legalizes from the StableHLO dialect to the MHLO dialect.
 std::unique_ptr<OperationPass<ModuleOp>> createStablehloLegalizeToHloPass();
+
+// Legalizes from the Shape dialect to the MHLO dialect.
+std::unique_ptr<OperationPass<func::FuncOp>>
+createShapeLegalizeToHloPass(bool legalizeConstraints = false);
 
 #define GEN_PASS_REGISTRATION
 #include "zkx/mlir_hlo/mhlo/transforms/mhlo_passes.h.inc" // NOLINT(build/include)
