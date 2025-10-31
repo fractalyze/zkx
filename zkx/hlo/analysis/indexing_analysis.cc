@@ -214,6 +214,70 @@ HloInstructionIndexing ComputeOutputToInputFusionOpIndexing(
   return fusion_indexing;
 }
 
+// TODO(chokobole): Do we need this? Dependency: interior_padding
+IndexingMap ComputeOutputToInputPadOpIndexingImpl(
+    absl::Span<const int64_t> output_dims,
+    absl::Span<const int64_t> padding_low,
+    absl::Span<const int64_t> padding_high,
+    // absl::Span<const int64_t> padding_interior,
+    mlir::MLIRContext* mlir_context) {
+  int64_t output_rank = output_dims.size();
+
+  std::vector<mlir::AffineExpr> exprs;
+  std::vector<std::pair<mlir::AffineExpr, Interval>> constraints;
+  std::vector<IndexingMap::Variable> dim_vars;
+  exprs.reserve(output_rank);
+  constraints.reserve(output_rank);
+  int64_t output_dim_id = 0;
+  for (const auto [output_dim, pad_low, pad_high /*, pad_interior*/] :
+       llvm::zip(output_dims, padding_low,
+                 padding_high /*, padding_interior*/)) {
+    mlir::AffineExpr dim_expr = getAffineDimExpr(output_dim_id, mlir_context);
+    dim_vars.push_back({IndexingMap::Variable{
+        std::max(int64_t{0}, pad_low),
+        std::min(output_dim - 1, output_dim - 1 - pad_high)}});
+    // if (pad_interior == 0) {
+    exprs.push_back(dim_expr - pad_low);
+    // } else {
+    //   exprs.push_back((dim_expr - pad_low).floorDiv(pad_interior + 1));
+    //   constraints.push_back(
+    //       {(dim_expr - pad_low) % (pad_interior + 1), Interval{0, 0}});
+    // }
+    ++output_dim_id;
+  }
+  return IndexingMap{
+      mlir::AffineMap::get(output_rank, /*symbolCount=*/0, exprs, mlir_context),
+      std::move(dim_vars),
+      /*range_vars = */ {},
+      /*rt_vars = */ {}, absl::MakeSpan(constraints)};
+}
+
+// TODO(chokobole): Do we need this? Dependency: interior_padding
+HloInstructionIndexing ComputeOutputToInputPadOpIndexing(
+    const HloPadInstruction* pad, mlir::MLIRContext* mlir_context) {
+  const Shape& output_shape = pad->shape();
+  int64_t rank = output_shape.rank();
+  llvm::SmallVector<int64_t> padding_low, padding_high;
+  padding_low.reserve(rank);
+  padding_high.reserve(rank);
+  // padding_interior.reserve(rank);
+  for (const auto& dim_config : pad->padding_config().dimensions()) {
+    padding_low.push_back(dim_config.edge_padding_low());
+    padding_high.push_back(dim_config.edge_padding_high());
+    // padding_interior.push_back(dim_config.interior_padding());
+  }
+  IndexingMap input_indexing_map = ComputeOutputToInputPadOpIndexingImpl(
+      output_shape.dimensions(), padding_low,
+      padding_high, /* padding_interior,*/
+      mlir_context);
+  IndexingMap padding_value_indexing_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(output_shape.rank(), /*symbolCount=*/0, {},
+                           mlir_context),
+      output_shape.dimensions(), /*symbol_upper_bounds=*/{});
+  return HloInstructionIndexing::FromIndexingMaps(
+      {input_indexing_map, padding_value_indexing_map});
+}
+
 HloInstructionIndexing ComputeOutputToInputReduceOpIndexing(
     const HloReduceInstruction* reduce, mlir::MLIRContext* mlir_context) {
   absl::flat_hash_set<int64_t> reduce_dims_ids(reduce->dimensions().begin(),
@@ -1010,10 +1074,9 @@ HloInstructionIndexing ComputeOutputToInputIndexing(const HloInstruction* instr,
   // if (auto iota = DynCast<HloIotaInstruction>(instr)) {
   //   return HloInstructionIndexing{};
   // }
-  // TODO(chokobole): Uncomment this. Dependency: HloPadInstruction
-  // if (auto pad = DynCast<HloPadInstruction>(instr)) {
-  //   return ComputeOutputToInputPadOpIndexing(pad, ctx);
-  // }
+  if (auto pad = DynCast<HloPadInstruction>(instr)) {
+    return ComputeOutputToInputPadOpIndexing(pad, ctx);
+  }
   if (auto reduce = DynCast<HloReduceInstruction>(instr)) {
     return ComputeOutputToInputReduceOpIndexing(reduce, ctx);
   }
