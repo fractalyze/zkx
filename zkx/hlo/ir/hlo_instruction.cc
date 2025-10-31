@@ -1720,6 +1720,15 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateBroadcast(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateSort(
+    const Shape& shape, int64_t dimension,
+    absl::Span<HloInstruction* const> operands, HloComputation* compare,
+    bool is_stable) {
+  return std::make_unique<HloSortInstruction>(shape, dimension, operands,
+                                              compare, is_stable);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateFusion(
     const Shape& shape, FusionKind fusion_kind, HloInstruction* fused_root,
     std::string_view prefix) {

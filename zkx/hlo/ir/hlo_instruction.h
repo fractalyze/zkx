@@ -752,6 +752,16 @@ class HloInstruction {
       const Shape& shape, HloInstruction* operand,
       absl::Span<const int64_t> broadcast_dimensions);
 
+  // Creates a n-ary sort op with a 'compare' computation which is used for
+  // comparisons in the sorting algorithm. 'compare' gets 2 * n parameters,
+  // where parameters 2 * i and 2 * i + 1 are the values of the i-th operand at
+  // specific index positions which should be compared, and should return a
+  // PRED. 'is_stable' specifies whether stable sorting is required.
+  static std::unique_ptr<HloInstruction> CreateSort(
+      const Shape& shape, int64_t dimension,
+      absl::Span<HloInstruction* const> operands, HloComputation* compare,
+      bool is_stable);
+
   // Creates a fusion instruction. A fusion instruction contains one or more
   // fused instructions forming an expression with a single root
   // "fused_root". Additional instructions can be added to the fusion
