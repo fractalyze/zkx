@@ -1127,6 +1127,37 @@ HloConcatenateInstruction::CloneWithNewOperandsImpl(
                                                      concatenate_dimension());
 }
 
+HloReduceInstruction::HloReduceInstruction(
+    const Shape& shape, absl::Span<HloInstruction* const> args,
+    absl::Span<const int64_t> dimensions_to_reduce,
+    HloComputation* reduce_computation)
+    : HloDimensionsInstruction(HloOpcode::kReduce, shape,
+                               dimensions_to_reduce) {
+  for (HloInstruction* arg : args) {
+    AppendOperand(arg);
+  }
+  AppendComputation(reduce_computation);
+}
+
+bool HloReduceInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloReduceInstruction&>(other);
+  // Reduction results are determined by the reduction dimension and the
+  // reduction computation.
+  return dimensions() == casted_other.dimensions() &&
+         eq_computations(to_apply(), casted_other.to_apply());
+}
+
+std::unique_ptr<HloInstruction> HloReduceInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size() % 2, 0);
+  return std::make_unique<HloReduceInstruction>(shape, new_operands,
+                                                dimensions(), to_apply());
+}
+
 HloSliceInstruction::HloSliceInstruction(
     const Shape& shape, HloInstruction* operand,
     absl::Span<const int64_t> start_indices,

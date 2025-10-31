@@ -938,6 +938,42 @@ class HloConcatenateInstruction : public HloDimensionsInstruction {
       HloCloneContext* context) const override;
 };
 
+class HloReduceInstruction : public HloDimensionsInstruction {
+ public:
+  explicit HloReduceInstruction(const Shape& shape,
+                                absl::Span<HloInstruction* const> args,
+                                absl::Span<const int64_t> dimensions_to_reduce,
+                                HloComputation* reduce_computation);
+
+  // Returns the number of input arrays (and, consequently, the number of
+  // init values) this reduce has.
+  int64_t input_count() const { return operand_count() / 2; }
+
+  // Returns the input tensors to be reduced.
+  absl::Span<HloInstruction* const> inputs() const {
+    return absl::MakeSpan(operands()).subspan(0, input_count());
+  }
+
+  // Returns the init values of the reduction.
+  absl::Span<HloInstruction* const> init_values() const {
+    return absl::MakeSpan(operands()).subspan(input_count(), operand_count());
+  }
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kReduce;
+  }
+
+ private:
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
+
 class HloSliceInstruction : public HloInstruction {
  public:
   explicit HloSliceInstruction(const Shape& shape, HloInstruction* operand,
