@@ -785,13 +785,10 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kPad:
-      // TODO(chokobole): Uncomment this. Dependency: CreatePad
-      // TF_RET_CHECK(proto.has_padding_config());
-      // instruction =
-      //     CreatePad(shape, operands(0), operands(1), proto.padding_config());
-      // break;
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Pad not implemented");
+      TF_RET_CHECK(proto.has_padding_config());
+      instruction =
+          CreatePad(shape, operands(0), operands(1), proto.padding_config());
+      break;
     case HloOpcode::kDynamicSlice: {
       // TODO(chokobole): Uncomment this. Dependency: CreateDynamicSlice
       // std::vector<int64_t> slice_sizes(proto.dynamic_slice_sizes_size());

@@ -188,6 +188,7 @@ class HloParserImpl : public HloParser {
   absl::StatusOr<StatisticsViz> ParseStatisticsVizOnly();
   absl::StatusOr<std::vector<bool>> ParseParameterReplicationOnly();
   absl::StatusOr<BoolList> ParseBooleanListOrSingleBooleanOnly();
+  absl::StatusOr<PaddingConfig> ParsePaddingConfigOnly();
   absl::StatusOr<std::vector<ReplicaGroup>> ParseReplicaGroupsOnly();
 
  private:
@@ -214,6 +215,7 @@ class HloParserImpl : public HloParser {
     kParameterReplication,
     kInstructionList,
     kSliceRanges,
+    kPaddingConfig,
     kMetadata,
     kFusionKind,
     kDomain,
@@ -428,6 +430,7 @@ class HloParserImpl : public HloParser {
   bool ParseComputationName(HloComputation** value);
   // Parses a list of names and finds the corresponding hlo instructions.
   bool ParseInstructionNames(std::vector<HloInstruction*>* instructions);
+  bool ParsePaddingConfig(PaddingConfig* padding);
   bool ParseMetadata(OpMetadata& metadata);
   bool ParseSingleOrListMetadata(std::vector<OpMetadata>& metadata);
   bool ParseOpShardingType(OpSharding::Type* type);
@@ -2654,10 +2657,21 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           HloInstruction::CreateTranspose(*shape, operands[0], *dimensions));
     }
     case HloOpcode::kPad: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreatePad
-      // clang-format on
-      return nullptr;
+      std::optional<PaddingConfig> padding;
+      attrs["padding"] = {/*required=*/true, AttrTy::kPaddingConfig, &padding};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/2)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferPadShape(
+                operands[0]->shape(), operands[1]->shape(), *padding);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreatePad(
+          *shape, operands[0], /*padding_value=*/operands[1], *padding));
     }
     case HloOpcode::kFusion: {
       std::optional<HloComputation*> fusion_computation;
@@ -4364,6 +4378,15 @@ bool HloParserImpl::ParseAttributeHelper(
         static_cast<std::optional<SliceRanges>*>(attr_out_ptr)->emplace(result);
         return true;
       }
+      case AttrTy::kPaddingConfig: {
+        PaddingConfig result;
+        if (!ParsePaddingConfig(&result)) {
+          return false;
+        }
+        static_cast<std::optional<PaddingConfig>*>(attr_out_ptr)
+            ->emplace(result);
+        return true;
+      }
       case AttrTy::kString: {
         std::string result;
         if (!ParseString(&result)) {
@@ -5395,6 +5418,32 @@ bool HloParserImpl::ParseDxD(const std::string& name,
   return TokenError("expects token type kInt or kDxD");
 }
 
+// This is the inverse zkx::ToString(PaddingConfig). The padding config string
+// looks like "0_0x3_3". The string is first separated by 'x', each
+// substring represents one PaddingConfigDimension. The substring is 3 (or 2)
+// numbers joined by '_'.
+bool HloParserImpl::ParsePaddingConfig(PaddingConfig* padding) {
+  if (lexer_.GetKind() != TokKind::kPad) {
+    return TokenError("expects padding config, e.g., '0_0_0x3_3_1'");
+  }
+  LocTy loc = lexer_.GetLoc();
+  std::string str = lexer_.GetStrVal();
+  for (const auto& padding_dim_str : absl::StrSplit(str, 'x')) {
+    std::vector<int64_t> padding_dim;
+    if (!SplitToInt64s(padding_dim_str, '_', &padding_dim) ||
+        (padding_dim.size() != 2 /* && padding_dim.size() != 3*/)) {
+      return Error(loc, "expects padding config pattern like 'low_high'");
+    }
+    auto* dim = padding->add_dimensions();
+    dim->set_edge_padding_low(padding_dim[0]);
+    dim->set_edge_padding_high(padding_dim[1]);
+    // TODO(chokobole): Do we need this? Dependency: interior_padding
+    // dim->set_interior_padding(padding_dim.size() == 3 ? padding_dim[2] : 0);
+  }
+  lexer_.Lex();
+  return true;
+}
+
 // original_value ::= original_value | '{' [shape_index] ',' original_array '}'
 // [',']
 bool HloParserImpl::ParseOriginalValue(
@@ -5881,6 +5930,20 @@ HloParserImpl::ParseReplicaGroupsOnly() {
   return replica_groups;
 }
 
+absl::StatusOr<PaddingConfig> HloParserImpl::ParsePaddingConfigOnly() {
+  lexer_.Lex();
+  PaddingConfig padding_config;
+  if (!ParsePaddingConfig(&padding_config)) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Syntax error:\n%s", GetError()));
+  }
+  if (lexer_.GetKind() != TokKind::kEof) {
+    return absl::InvalidArgumentError(
+        "Syntax error:\nExtra content after PaddingConfig");
+  }
+  return padding_config;
+}
+
 bool HloParserImpl::ParseSingleInstruction(HloModule* module) {
   if (create_missing_instruction_ != nullptr || !scoped_name_tables_.empty()) {
     LOG(FATAL) << "Parser state is not clean. Please do not call any other "
@@ -5982,6 +6045,11 @@ absl::StatusOr<std::vector<ReplicaGroup>> ParseReplicaGroupsOnly(
     std::string_view str) {
   HloParserImpl parser(str);
   return parser.ParseReplicaGroupsOnly();
+}
+
+absl::StatusOr<PaddingConfig> ParsePaddingConfig(std::string_view str) {
+  HloParserImpl parser(str);
+  return parser.ParsePaddingConfigOnly();
 }
 
 absl::StatusOr<Shape> ParseShape(std::string_view str) {

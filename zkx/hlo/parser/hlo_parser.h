@@ -93,6 +93,9 @@ absl::StatusOr<StatisticsViz> ParseStatisticsViz(std::string_view str);
 absl::StatusOr<std::vector<bool>> ParseParameterReplication(
     std::string_view str);
 
+// Parses the result of PaddingConfigToString(), e.g. "0_0x1_1".
+absl::StatusOr<PaddingConfig> ParsePaddingConfig(std::string_view str);
+
 // Parses and returns a Shape::ToString-format string.
 absl::StatusOr<Shape> ParseShape(std::string_view str);
 
