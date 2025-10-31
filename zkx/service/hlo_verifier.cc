@@ -1279,15 +1279,13 @@ absl::Status ShapeVerifier::HandleDynamicSlice(HloInstruction* dynamic_slice) {
 
 absl::Status ShapeVerifier::HandleDynamicUpdateSlice(
     HloInstruction* dynamic_update_slice) {
-  // TODO(chokobole): Uncomment this. Dependency: HloDynamicSliceInstruction
-  // return CheckShape(
-  //     dynamic_update_slice,
-  //     ShapeInference::InferDynamicUpdateSliceShape(
-  //         dynamic_update_slice->operand(0)->shape(),
-  //         dynamic_update_slice->operand(1)->shape(),
-  //         Cast<HloDynamicUpdateSliceInstruction>(dynamic_update_slice)
-  //             ->index_shapes()));
-  return absl::UnimplementedError("HandleDynamicSlice not supported");
+  return CheckShape(
+      dynamic_update_slice,
+      ShapeInference::InferDynamicUpdateSliceShape(
+          dynamic_update_slice->operand(0)->shape(),
+          dynamic_update_slice->operand(1)->shape(),
+          Cast<HloDynamicUpdateSliceInstruction>(dynamic_update_slice)
+              ->index_shapes()));
 }
 
 absl::Status ShapeVerifier::HandleTuple(HloInstruction* tuple) {

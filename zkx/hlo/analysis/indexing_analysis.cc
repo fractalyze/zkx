@@ -665,6 +665,54 @@ HloInstructionIndexing ComputeOutputToInputDynamicSliceOpIndexing(
   return HloInstructionIndexing::FromIndexingMaps(indexing_maps);
 }
 
+HloInstructionIndexing ComputeOutputToInputDynamicUpdateSliceOpIndexing(
+    const HloDynamicUpdateSliceInstruction* dus,
+    mlir::MLIRContext* mlir_context) {
+  const Shape& update_shape = dus->update()->shape();
+  const Shape& output_shape = dus->shape();
+  int64_t rank = output_shape.rank();
+
+  // operand: (d_0, ... d_{N-1}) -> (d_0, ... d_{N-1})
+  std::vector<mlir::AffineExpr> identity;
+  identity.reserve(rank);
+  for (int64_t dim = 0; dim < rank; ++dim) {
+    identity.push_back(getAffineDimExpr(dim, mlir_context));
+  }
+  IndexingMap operand_map = IndexingMap::FromTensorSizes(
+      mlir::AffineMap::get(/*dimCount=*/rank, /*symbolCount=*/0,
+                           /*results=*/identity, mlir_context),
+      output_shape.dimensions(), {});
+
+  // start_indices: (d_0, ... d_{N-1}) -> ()
+  mlir::AffineMap empty_results_affine_map = mlir::AffineMap::get(
+      /*dimCount=*/rank, /*symbolCount=*/0, /*results=*/{}, mlir_context);
+  IndexingMap start_indices_map = IndexingMap::FromTensorSizes(
+      empty_results_affine_map, output_shape.dimensions(), {});
+
+  // update: (d_0 - s_0, ..., d_{N-1} - s_{N-1})
+  std::vector<mlir::AffineExpr> exprs;
+  exprs.reserve(rank);
+  std::vector<HLORTVar> rt_vars;
+  rt_vars.reserve(rank);
+  for (auto [dim, slice_size] : llvm::enumerate(update_shape.dimensions())) {
+    exprs.push_back(getAffineDimExpr(dim, mlir_context) -
+                    getAffineSymbolExpr(dim, mlir_context));
+    Interval feasible_values{0, output_shape.dimensions(dim) - slice_size};
+    rt_vars.push_back(HLORTVar{feasible_values, dus->operand(2 + dim),
+                               empty_results_affine_map});
+  }
+  IndexingMap update_map = FoldRTVarsAndConstructIndexingMap(
+      mlir::AffineMap::get(/*dimCount=*/rank, /*symbolCount=*/rank,
+                           /*results=*/exprs, mlir_context),
+      operand_map.GetDimVars(), std::move(rt_vars));
+
+  std::vector<IndexingMap> indexing_maps(dus->operand_count(),
+                                         start_indices_map);
+  indexing_maps[0] = std::move(operand_map);
+  indexing_maps[1] = std::move(update_map);
+  return HloInstructionIndexing::FromIndexingMaps(indexing_maps);
+}
+
 // Computes strides for a shape.
 std::vector<int64_t> ComputeStrides(absl::Span<const int64_t> dims) {
   int rank = static_cast<int>(dims.size());
@@ -1274,12 +1322,9 @@ HloInstructionIndexing ComputeOutputToInputIndexing(const HloInstruction* instr,
   if (auto dynamic_slice = DynCast<HloDynamicSliceInstruction>(instr)) {
     return ComputeOutputToInputDynamicSliceOpIndexing(dynamic_slice, ctx);
   }
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloDynamicUpdateSliceInstruction
-  // clang-format on
-  // if (auto dus = DynCast<HloDynamicUpdateSliceInstruction>(instr)) {
-  //   return ComputeOutputToInputDynamicUpdateSliceOpIndexing(dus, ctx);
-  // }
+  if (auto dus = DynCast<HloDynamicUpdateSliceInstruction>(instr)) {
+    return ComputeOutputToInputDynamicUpdateSliceOpIndexing(dus, ctx);
+  }
   if (auto fusion = DynCast<HloFusionInstruction>(instr)) {
     return ComputeOutputToInputFusionOpIndexing(fusion, output_id, ctx);
   }
