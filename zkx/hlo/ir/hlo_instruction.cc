@@ -1133,6 +1133,12 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateConstant(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateIota(
+    const Shape& shape, int64_t iota_dimension) {
+  return std::make_unique<HloIotaInstruction>(shape, iota_dimension);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateConstant(
     Literal literal, const Shape& shape) {
   return std::make_unique<HloConstantInstruction>(std::move(literal), shape);
