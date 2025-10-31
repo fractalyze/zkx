@@ -391,14 +391,11 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
                                              proto.dimensions().end()));
       break;
     case HloOpcode::kConcatenate:
-      // TODO(chokobole): Uncomment this. Dependency: CreateConcatenate
-      // TF_RET_CHECK(proto.dimensions_size() == 1)
-      //     << "Concatenate instruction should have 1 dimension but sees "
-      //     << proto.dimensions_size();
-      // instruction =
-      //     CreateConcatenate(shape, all_operands(), proto.dimensions(0));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Concatenate not implemented");
+      TF_RET_CHECK(proto.dimensions_size() == 1)
+          << "Concatenate instruction should have 1 dimension but sees "
+          << proto.dimensions_size();
+      instruction =
+          CreateConcatenate(shape, all_operands(), proto.dimensions(0));
       break;
     case HloOpcode::kConditional: {
       // TODO(chokobole): Uncomment this. Dependency: CreateConditional

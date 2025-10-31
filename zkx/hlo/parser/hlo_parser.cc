@@ -2456,10 +2456,27 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           *shape, operands[0], *broadcast_dimensions));
     }
     case HloOpcode::kConcatenate: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateConcatenate
-      // clang-format on
-      return nullptr;
+      std::optional<std::vector<int64_t>> dimensions;
+      attrs["dimensions"] = {/*required=*/true, AttrTy::kBracedInt64List,
+                             &dimensions};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape) ||
+          dimensions->size() != 1) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            absl::InlinedVector<const Shape*, 2> arg_shapes;
+            arg_shapes.reserve(operands.size());
+            for (auto* operand : operands) {
+              arg_shapes.push_back(&operand->shape());
+            }
+            return ShapeInference::InferConcatOpShape(arg_shapes,
+                                                      dimensions->at(0));
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateConcatenate(
+          *shape, operands, dimensions->at(0)));
     }
     case HloOpcode::kMap: {
       // clang-format off
