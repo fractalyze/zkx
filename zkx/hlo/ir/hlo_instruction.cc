@@ -873,13 +873,10 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kIota:
-      // TODO(chokobole): Uncomment this. Dependency: CreateIota
-      // TF_RET_CHECK(proto.dimensions_size() == 1)
-      //     << "Iota instruction should have 1 dimension but sees "
-      //     << proto.dimensions_size();
-      // instruction = CreateIota(shape, proto.dimensions(0));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Iota not implemented");
+      TF_RET_CHECK(proto.dimensions_size() == 1)
+          << "Iota instruction should have 1 dimension but sees "
+          << proto.dimensions_size();
+      instruction = CreateIota(shape, proto.dimensions(0));
       break;
     case HloOpcode::kDot: {
       int expected_operands =

@@ -1740,10 +1740,16 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           HloInstruction::CreateConstant(std::move(literal), *shape));
     }
     case HloOpcode::kIota: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateIota
-      // clang-format on
-      return nullptr;
+      std::optional<int64_t> iota_dimension;
+      attrs["iota_dimension"] = {/*required=*/true, AttrTy::kInt64,
+                                 &iota_dimension};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/0)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateIota(*shape, *iota_dimension));
     }
     // Unary ops.
     case HloOpcode::kAbs:
