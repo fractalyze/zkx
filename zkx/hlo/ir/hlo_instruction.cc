@@ -3673,10 +3673,9 @@ int64_t HloInstruction::concatenate_dimension() const {
 }
 
 int64_t HloInstruction::dimension() const {
-  // TODO(chokobole): Uncomment this. Dependency: HloSetDimensionSizeInstruction
-  // if (auto set_size = DynCast<HloSetDimensionSizeInstruction>(this)) {
-  //   return set_size->dimension();
-  // }
+  if (auto set_size = DynCast<HloSetDimensionSizeInstruction>(this)) {
+    return set_size->dimension();
+  }
   return Cast<HloGetDimensionSizeInstruction>(this)->dimension();
 }
 
