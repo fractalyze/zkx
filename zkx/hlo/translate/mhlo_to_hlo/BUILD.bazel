@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_binary", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
@@ -84,6 +85,55 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "mlir_hlo_to_hlo",
+    srcs = [
+        "mlir_hlo_to_hlo.cc",
+        "operator_writers.inc",
+    ],
+    hdrs = ["mlir_hlo_to_hlo.h"],
+    deps = [
+        ":attribute_exporter",
+        ":layout_util",
+        ":literal_exporter",
+        ":location_exporter",
+        ":module_attributes_exporter",
+        ":operator_writer_inc",
+        ":stack_frame_index_builder",
+        ":type_to_shape",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:comparison_util",
+        "//zkx:debug_options_flags",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/builder:zkx_builder",
+        "//zkx/hlo/builder:zkx_computation",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/mlir:mlir_utils",
+        "//zkx/mlir/utils:error_util",
+        "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
+        "//zkx/mlir_hlo/mhlo/transforms:passes",
+        "//zkx/mlir_hlo/stablehlo/dialect:base",
+        "//zkx/service:hlo_module_config",
+        "//zkx/service/gpu:backend_configs_cc_proto",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:ShapeDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:TransformUtils",
+    ],
+)
+
+zkx_cc_library(
     name = "module_attributes_exporter",
     srcs = ["module_attributes_exporter.cc"],
     hdrs = ["module_attributes_exporter.h"],
@@ -107,6 +157,14 @@ zkx_cc_binary(
         "@llvm-project//llvm:TableGen",
         "@llvm-project//mlir:TableGen",
     ],
+)
+
+gentbl_cc_library(
+    name = "operator_writer_inc",
+    tbl_outs = [([], "operator_writers.inc")],
+    tblgen = ":operator_writer_gen",
+    td_file = "//zkx/mlir_hlo/mhlo/IR:hlo_ops.td",
+    deps = ["//zkx/mlir_hlo/mhlo/IR:hlo_ops_td_files"],
 )
 
 zkx_cc_library(
