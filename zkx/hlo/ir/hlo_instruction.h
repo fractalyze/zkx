@@ -872,6 +872,10 @@ class HloInstruction {
   static std::unique_ptr<HloInstruction> CreateGetDimensionSize(
       const Shape& shape, HloInstruction* operand, int64_t dimension);
 
+  static std::unique_ptr<HloInstruction> CreateSetDimensionSize(
+      const Shape& shape, HloInstruction* operand, HloInstruction* val,
+      int64_t dimension);
+
   static std::unique_ptr<HloInstruction> CreateAddDependency(
       HloInstruction* data_operand, HloInstruction* token_operand);
 

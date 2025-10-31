@@ -1713,6 +1713,14 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateGetDimensionSize(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateSetDimensionSize(
+    const Shape& shape, HloInstruction* operand, HloInstruction* val,
+    int64_t dimension) {
+  return std::make_unique<HloSetDimensionSizeInstruction>(shape, operand, val,
+                                                          dimension);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreatePad(
     const Shape& shape, HloInstruction* operand, HloInstruction* padding_value,
     const PaddingConfig& padding_config) {
