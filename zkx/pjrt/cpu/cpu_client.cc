@@ -31,7 +31,6 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/thunk.h"
 #include "zkx/backends/cpu/runtime/thunk_executor.h"
 #include "zkx/debug_options_flags.h"
-#include "zkx/literal_util.h"
 #include "zkx/pjrt/host_callback.h"
 #include "zkx/pjrt/host_memory_spaces.h"
 #include "zkx/pjrt/utils.h"
