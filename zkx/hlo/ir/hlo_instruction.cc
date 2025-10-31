@@ -790,27 +790,23 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           CreatePad(shape, operands(0), operands(1), proto.padding_config());
       break;
     case HloOpcode::kDynamicSlice: {
-      // TODO(chokobole): Uncomment this. Dependency: CreateDynamicSlice
-      // std::vector<int64_t> slice_sizes(proto.dynamic_slice_sizes_size());
-      // absl::c_copy(proto.dynamic_slice_sizes(), slice_sizes.begin());
-      // TF_RET_CHECK(proto.operand_ids_size() >= 1)
-      //     << "DynamicSlice instruction should have at least 1 operands but "
-      //        "sees "
-      //     << proto.operand_ids_size();
-      // // TODO(b/118437727): Old form, make the check unconditional.
-      // if (proto.operand_ids_size() != 2 || operands(1)->shape().rank() != 1)
-      // {
-      //   auto expected_operands = 1 + operands(0)->shape().rank();
-      //   TF_RET_CHECK(proto.operand_ids_size() == expected_operands)
-      //       << "DynamicSlice instruction should have " << expected_operands
-      //       << " operands, but has " << proto.operand_ids_size();
-      // }
-      // const auto& operand_vector = all_operands();
-      // instruction = CreateDynamicSlice(
-      //     shape, operands(0), absl::MakeSpan(operand_vector).subspan(1),
-      //     slice_sizes);
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: DynamicSlice not implemented");
+      std::vector<int64_t> slice_sizes(proto.dynamic_slice_sizes_size());
+      absl::c_copy(proto.dynamic_slice_sizes(), slice_sizes.begin());
+      TF_RET_CHECK(proto.operand_ids_size() >= 1)
+          << "DynamicSlice instruction should have at least 1 operands but "
+             "sees "
+          << proto.operand_ids_size();
+      // TODO(b/118437727): Old form, make the check unconditional.
+      if (proto.operand_ids_size() != 2 || operands(1)->shape().rank() != 1) {
+        auto expected_operands = 1 + operands(0)->shape().rank();
+        TF_RET_CHECK(proto.operand_ids_size() == expected_operands)
+            << "DynamicSlice instruction should have " << expected_operands
+            << " operands, but has " << proto.operand_ids_size();
+      }
+      const auto& operand_vector = all_operands();
+      instruction = CreateDynamicSlice(
+          shape, operands(0), absl::MakeSpan(operand_vector).subspan(1),
+          slice_sizes);
       break;
     }
     case HloOpcode::kDynamicUpdateSlice: {

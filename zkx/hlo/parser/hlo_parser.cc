@@ -2627,10 +2627,26 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           slice_ranges->strides));
     }
     case HloOpcode::kDynamicSlice: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateDynamicSlice
-      // clang-format on
-      return nullptr;
+      std::optional<std::vector<int64_t>> dynamic_slice_sizes;
+      attrs["dynamic_slice_sizes"] = {
+          /*required=*/true, AttrTy::kBracedInt64List, &dynamic_slice_sizes};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (operands.empty()) {
+        TokenError("Expected at least one operand.");
+        return nullptr;
+      }
+      if (!(operands.size() == 2 && operands[1]->shape().rank() == 1) &&
+          operands.size() != 1 + operands[0]->shape().rank()) {
+        TokenError("Wrong number of operands.");
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateDynamicSlice(
+          *shape, /*operand=*/operands[0],
+          /*start_indices=*/absl::MakeSpan(operands).subspan(1),
+          *dynamic_slice_sizes));
     }
     case HloOpcode::kDynamicUpdateSlice: {
       // clang-format off
