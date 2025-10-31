@@ -752,6 +752,12 @@ class HloInstruction {
       const Shape& shape, HloInstruction* operand,
       absl::Span<const int64_t> broadcast_dimensions);
 
+  // Creates a reshape instruction, where the operand is flattened row-major
+  // order and then reshaped to the given result shape.
+  static std::unique_ptr<HloInstruction> CreateReshape(
+      const Shape& shape, HloInstruction* operand,
+      int64_t inferred_dimension = -1);
+
   // Creates a dynamic reshape instruction. Similar to reshape but dynamic
   // dimensions sizes are provided as additional variadic arguments.
   //
