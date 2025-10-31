@@ -1955,6 +1955,39 @@ class HloGetDimensionSizeInstruction : public HloInstruction {
   int64_t dimension_;
 };
 
+class HloSetDimensionSizeInstruction : public HloInstruction {
+ public:
+  explicit HloSetDimensionSizeInstruction(const Shape& shape,
+                                          HloInstruction* operand,
+                                          HloInstruction* val,
+                                          int64_t dimension);
+
+  // Returns the dimension sizes or numbers associated with this instruction.
+  int64_t dimension() const { return dimension_; }
+  // Returns a serialized representation of this instruction.
+  HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kSetDimensionSize;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  int64_t dimension_;
+};
+
 }  // namespace zkx
 
 #endif  // ZKX_HLO_IR_HLO_INSTRUCTIONS_H_

@@ -2721,4 +2721,39 @@ HloGetDimensionSizeInstruction::CloneWithNewOperandsImpl(
       shape, new_operands[0], dimension());
 }
 
+HloSetDimensionSizeInstruction::HloSetDimensionSizeInstruction(
+    const Shape& shape, HloInstruction* operand, HloInstruction* val,
+    int64_t dimension)
+    : HloInstruction(HloOpcode::kSetDimensionSize, shape),
+      dimension_(dimension) {
+  AppendOperand(operand);
+  AppendOperand(val);
+}
+
+HloInstructionProto HloSetDimensionSizeInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.add_dimensions(dimension());
+  return proto;
+}
+
+bool HloSetDimensionSizeInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+    /*eq_computations*/) const {
+  const auto& casted_other =
+      static_cast<const HloSetDimensionSizeInstruction&>(other);
+  return dimension() == casted_other.dimension();
+}
+
+std::unique_ptr<HloInstruction>
+HloSetDimensionSizeInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* /*context*/) const {
+  if (new_operands.size() != 2) {
+    LOG(FATAL) << "expects 2 operand";
+  }
+  return std::make_unique<HloSetDimensionSizeInstruction>(
+      shape, new_operands[0], new_operands[1], dimension());
+}
+
 }  // namespace zkx
