@@ -331,6 +331,13 @@ class HloInstruction {
       const Shape& shape, HloOpcode opcode,
       absl::Span<HloInstruction* const> operands);
 
+  // Creates a map instruction, where the computation (given by the handle) is
+  // applied element-wise to every element in operands (across the operands,
+  // at a given index)
+  static std::unique_ptr<HloInstruction> CreateMap(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* map_computation);
+
   // Creates an FFT op, of the type indicated by fft_type.
   static std::unique_ptr<HloInstruction> CreateFft(
       const Shape& shape, absl::Span<HloInstruction* const> operands,

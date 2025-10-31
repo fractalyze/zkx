@@ -1272,6 +1272,13 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateVariadic(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateMap(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* map_computation) {
+  return std::make_unique<HloMapInstruction>(shape, operands, map_computation);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateFft(
     const Shape& shape, absl::Span<HloInstruction* const> operands,
     FftType fft_type, int64_t fft_length, bool fft_do_bit_reverse) {
