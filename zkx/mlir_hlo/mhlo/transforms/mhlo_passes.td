@@ -26,3 +26,17 @@ def StablehloLegalizeToHloPass : Pass<"stablehlo-legalize-to-hlo", "ModuleOp"> {
   let constructor = "createStablehloLegalizeToHloPass()";
   let dependentDialects = ["mhlo::MhloDialect"];
 }
+
+def PrepareForExportPass : Pass<"zkx-prepare-for-export", "mlir::func::FuncOp"> {
+  let summary = "Prepare for ZKX export";
+
+  let description = [{
+    This pass transforms functions in preparation for exporting to ZKX. This
+
+    * converts splat constants to constants and broadcasts to reduce size of
+      and speedup the creation of the generated proto during export.
+
+    Note: The result of this pass need not be a module in canonical form and
+    canonicalization may undo transformations.
+  }];
+}
