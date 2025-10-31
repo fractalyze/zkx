@@ -2244,6 +2244,63 @@ absl::Status HloFusionInstruction::DeduplicateFusionOperands() {
   return absl::OkStatus();
 }
 
+HloCallInstruction::HloCallInstruction(const Shape& shape,
+                                       HloInstruction* called_computation_root)
+    : HloCallableInstruction(HloOpcode::kCall, shape) {
+  CHECK(called_computation_root != nullptr);
+  SetAndSanitizeName(HloOpcodeString(opcode()));
+  set_parent(called_computation_root->parent());
+  set_metadata(called_computation_root->metadata());
+  CloneAndAppendInstructionIntoCalledComputation(called_computation_root);
+}
+
+HloCallInstruction::HloCallInstruction(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* called_computation)
+    : HloCallableInstruction(HloOpcode::kCall, shape, operands,
+                             called_computation) {}
+
+HloCallInstruction::HloCallInstruction(const Shape& shape,
+                                       HloInstruction* decomposition_root,
+                                       const std::string& name,
+                                       const std::string& attributes,
+                                       int64_t version)
+    : HloCallableInstruction(HloOpcode::kCall, shape, name, attributes,
+                             version) {
+  CHECK(decomposition_root != nullptr);
+  SetAndSanitizeName(HloOpcodeString(opcode()));
+
+  FrontendAttributes frontend_attributes;
+  frontend_attributes.mutable_map()->insert({"composite.name", name});
+  frontend_attributes.mutable_map()->insert(
+      {"composite.attributes", attributes});
+  frontend_attributes.mutable_map()->insert(
+      {"composite.version", std::to_string(version)});
+
+  add_frontend_attributes(frontend_attributes);
+  set_is_composite(true);
+  set_parent(decomposition_root->parent());
+  set_metadata(decomposition_root->metadata());
+  CloneAndAppendInstructionIntoCalledComputation(decomposition_root);
+}
+
+HloCallInstruction::HloCallInstruction(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* decomposition, const std::string& name,
+    const std::string& attributes, int64_t version)
+    : HloCallableInstruction(HloOpcode::kCall, shape, operands, decomposition,
+                             name, attributes, version) {
+  FrontendAttributes frontend_attributes;
+  frontend_attributes.mutable_map()->insert({"composite.name", name});
+  frontend_attributes.mutable_map()->insert(
+      {"composite.attributes", attributes});
+  frontend_attributes.mutable_map()->insert(
+      {"composite.version", std::to_string(version)});
+
+  add_frontend_attributes(frontend_attributes);
+  set_is_composite(true);
+}
+
 HloParameterInstruction::HloParameterInstruction(int64_t parameter_number,
                                                  const Shape& shape,
                                                  std::string_view name)

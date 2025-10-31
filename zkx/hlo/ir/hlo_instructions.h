@@ -1487,6 +1487,34 @@ class HloFusionInstruction : public HloCallableInstruction {
   FusionKind fusion_kind_;
 };
 
+class HloCallInstruction : public HloCallableInstruction {
+ public:
+  HloCallInstruction(const Shape& shape,
+                     HloInstruction* called_computation_root);
+
+  HloCallInstruction(const Shape& shape,
+                     absl::Span<HloInstruction* const> operands,
+                     HloComputation* called_computation);
+
+  HloCallInstruction(const Shape& shape, HloInstruction* decomposition_root,
+                     const std::string& name, const std::string& attributes,
+                     int64_t version);
+
+  HloCallInstruction(const Shape& shape,
+                     absl::Span<HloInstruction* const> operands,
+                     HloComputation* decomposition, const std::string& name,
+                     const std::string& attributes, int64_t version);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kCall;
+  }
+
+ protected:
+  std::string default_called_computation_name() const override {
+    return "called_computation";
+  }
+};
+
 class HloParameterInstruction : public HloInstruction {
  public:
   explicit HloParameterInstruction(int64_t parameter_number, const Shape& shape,
