@@ -115,7 +115,7 @@ zkx_cc_library(
     srcs = ["command_buffer_kernels.cc"],
     hdrs = ["command_buffer_kernels.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -198,7 +198,7 @@ zkx_cc_library(
     srcs = ["cuda_command_buffer.cc"],
     hdrs = ["cuda_command_buffer.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -245,7 +245,7 @@ zkx_cc_library(
     srcs = ["cuda_context.cc"],
     hdrs = ["cuda_context.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -266,7 +266,7 @@ zkx_cc_library(
     srcs = ["cuda_diagnostics.cc"],
     hdrs = ["cuda_diagnostics.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -287,7 +287,7 @@ zkx_cc_library(
     srcs = ["cuda_event.cc"],
     hdrs = ["cuda_event.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -308,7 +308,7 @@ zkx_cc_library(
     srcs = ["cuda_executor.cc"],
     hdrs = ["cuda_executor.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -373,7 +373,7 @@ zkx_cc_library(
     srcs = ["cuda_kernel.cc"],
     hdrs = ["cuda_kernel.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -399,7 +399,7 @@ zkx_cc_library(
     srcs = ["cuda_platform.cc"],
     hdrs = ["cuda_platform.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -435,7 +435,7 @@ zkx_cc_library(
     srcs = ["cuda_status.cc"],
     hdrs = ["cuda_status.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -451,7 +451,7 @@ zkx_cc_library(
     srcs = ["cuda_stream.cc"],
     hdrs = ["cuda_stream.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -486,7 +486,7 @@ zkx_cc_library(
     srcs = ["cuda_timer.cc"],
     hdrs = ["cuda_timer.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -535,7 +535,7 @@ cuda_library(
     srcs = ["delay_kernel_cuda.cu.cc"],
     hdrs = ["delay_kernel.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -761,7 +761,7 @@ zkx_cc_library(
     srcs = ["tma_util.cc"],
     hdrs = ["tma_util.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [

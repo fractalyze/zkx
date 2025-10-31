@@ -36,7 +36,7 @@ zkx_cc_library(
     srcs = ["nvptx_backend.cc"],
     hdrs = ["nvptx_backend.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
