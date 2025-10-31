@@ -898,8 +898,67 @@ absl::Status ShapeVerifier::HandleReverse(HloInstruction* reverse) {
 }
 
 absl::Status ShapeVerifier::HandleSort(HloInstruction* hlo) {
-  // TODO(chokobole): Implement this. Dependency: HloSortInstruction
-  return absl::UnimplementedError("HandleSort not supported");
+  HloSortInstruction* sort = Cast<HloSortInstruction>(hlo);
+  if (sort->operand_count() < 1) {
+    return absl::InternalError(
+        absl::StrFormat("Expected at least 1 operand for sort instruction: %s",
+                        sort->ToString()));
+  }
+  HloComputation* compare = sort->to_apply();
+
+  // Check that the 'compare' computation returns a PRED.
+  Shape compare_shape = compare->root_instruction()->shape();
+  if (!ShapeUtil::Compatible(compare_shape, ShapeUtil::MakeShape(PRED, {}))) {
+    return absl::InternalError(absl::StrFormat(
+        "The Sort compare computation shape does not lead to a scalar "
+        "predicate shape: %s",
+        StringifyShape(compare_shape)));
+  }
+
+  // Check that the number of parameters of the 'compare' computation is
+  // correct.
+  TF_RETURN_IF_ERROR(
+      CheckParameterCount(sort, compare, sort->operand_count() * 2));
+
+  // Verify that the operands of the compare computation have the correct scalar
+  // shapes.
+  for (int64_t parameter_idx = 0; parameter_idx < compare->num_parameters();
+       ++parameter_idx) {
+    int64_t operand_idx = parameter_idx / 2;
+    Shape expected_scalar_shape = ShapeUtil::MakeShape(
+        sort->operand(operand_idx)->shape().element_type(), {});
+    Shape actual_parameter_shape =
+        compare->parameter_instruction(parameter_idx)->shape();
+    if (!ShapeUtil::Compatible(expected_scalar_shape, actual_parameter_shape)) {
+      return absl::InternalError(absl::StrFormat(
+          "Expected the %lld-th parameter of the compare computation of sort "
+          "to have shape %s, but got %s",
+          parameter_idx, StringifyShape(expected_scalar_shape),
+          StringifyShape(actual_parameter_shape)));
+    }
+  }
+
+  // Verify that all operand shapes have the same dimensions.
+  for (int64_t operand = 1; operand < sort->operand_count(); ++operand) {
+    if (!ShapeUtil::SameDimensions(sort->operand(0)->shape(),
+                                   sort->operand(operand)->shape())) {
+      return absl::InternalError(absl::StrFormat(
+          "Expected sort to have to have the same dimensions for all operands. "
+          "First operand shape is: %s\n, shape (operand index %lld) is: %s",
+          StringifyShape(sort->operand(0)->shape()), operand,
+          StringifyShape(sort->operand(operand)->shape())));
+    }
+  }
+
+  // Verify the sort_dimension.
+  if (sort->sort_dimension() >= sort->operand(0)->shape().rank()) {
+    return absl::InternalError(absl::StrFormat(
+        "Expected the sort_dimension %d of sort to be smaller than the rank %d "
+        "of the operand(s).",
+        sort->sort_dimension(), sort->shape().rank()));
+  }
+
+  return CheckVariadicShape(sort);
 }
 
 absl::Status ShapeVerifier::HandleConstant(HloInstruction* constant) {
