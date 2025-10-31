@@ -385,13 +385,10 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
           CreateRecvDone(operands(0), channel_id, proto.is_host_transfer());
       break;
     case HloOpcode::kReverse:
-      // TODO(chokobole): Uncomment this. Dependency: CreateReverse
-      // instruction =
-      //     CreateReverse(shape, operands(0),
-      //                   std::vector<int64_t>(proto.dimensions().begin(),
-      //                                        proto.dimensions().end()));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Reverse not implemented");
+      instruction =
+          CreateReverse(shape, operands(0),
+                        std::vector<int64_t>(proto.dimensions().begin(),
+                                             proto.dimensions().end()));
       break;
     case HloOpcode::kConcatenate:
       // TODO(chokobole): Uncomment this. Dependency: CreateConcatenate

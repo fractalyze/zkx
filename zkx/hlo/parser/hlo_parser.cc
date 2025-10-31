@@ -2474,10 +2474,22 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kReverse: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateReverse
-      // clang-format on
-      return nullptr;
+      std::optional<std::vector<int64_t>> dimensions;
+      attrs["dimensions"] = {/*required=*/true, AttrTy::kBracedInt64List,
+                             &dimensions};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferReverseShape(operands[0]->shape(),
+                                                     *dimensions);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateReverse(*shape, operands[0], *dimensions));
     }
     case HloOpcode::kSlice: {
       std::optional<SliceRanges> slice_ranges;
