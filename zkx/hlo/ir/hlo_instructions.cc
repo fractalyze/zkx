@@ -1200,6 +1200,29 @@ std::unique_ptr<HloInstruction> HloSortInstruction::CloneWithNewOperandsImpl(
       shape, dimensions_[0], new_operands, to_apply(), is_stable());
 }
 
+HloTransposeInstruction::HloTransposeInstruction(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> dimensions)
+    : HloDimensionsInstruction(HloOpcode::kTranspose, shape, dimensions) {
+  AppendOperand(operand);
+}
+
+bool HloTransposeInstruction::IsRank2Transpose() const {
+  return dimensions() == std::vector<int64_t>({1, 0}) &&
+         shape().dimensions_size() == 2 &&
+         std::equal(shape().dimensions().begin(), shape().dimensions().end(),
+                    operand(0)->shape().dimensions().rbegin());
+}
+
+std::unique_ptr<HloInstruction>
+HloTransposeInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), 1);
+  return std::make_unique<HloTransposeInstruction>(shape, new_operands[0],
+                                                   dimensions());
+}
+
 HloSliceInstruction::HloSliceInstruction(
     const Shape& shape, HloInstruction* operand,
     absl::Span<const int64_t> start_indices,

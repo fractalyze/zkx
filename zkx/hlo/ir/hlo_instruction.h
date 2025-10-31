@@ -1576,6 +1576,9 @@ class HloInstruction {
   // Delegates to HloConcatenateInstruction::concatenate_dimension.
   virtual int64_t concatenate_dimension() const;
 
+  // Returns whether this instruction does a rank-2 transposition.
+  bool IsRank2Transpose() const;
+
   // Delegates to HloSliceInstruction::slice_start.
   int64_t slice_starts(int64_t dimension) const;
   const std::vector<int64_t>& slice_starts() const;

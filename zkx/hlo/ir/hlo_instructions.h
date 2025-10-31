@@ -1011,6 +1011,24 @@ class HloSortInstruction : public HloDimensionsInstruction {
   bool is_stable_;
 };
 
+class HloTransposeInstruction : public HloDimensionsInstruction {
+ public:
+  explicit HloTransposeInstruction(const Shape& shape, HloInstruction* operand,
+                                   absl::Span<const int64_t> dimensions);
+  // Returns whether this instruction does a rank-2 transposition.
+  bool IsRank2Transpose() const;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kTranspose;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
+
 class HloSliceInstruction : public HloInstruction {
  public:
   explicit HloSliceInstruction(const Shape& shape, HloInstruction* operand,
