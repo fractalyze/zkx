@@ -756,6 +756,14 @@ class HloComputation {
 
   [[deprecated(
       "This is broken. Use CallGraph::GetComputationCallers() instead")]]
+  void SetWhileCallInstruction(HloInstruction* while_call_instruction) {
+    CHECK(while_call_instruction != nullptr);
+    CHECK(while_call_instruction->opcode() == HloOpcode::kWhile);
+    SetInstruction(while_call_instruction, InstructionType::kWhile);
+  }
+
+  [[deprecated(
+      "This is broken. Use CallGraph::GetComputationCallers() instead")]]
   void SetConditionalCallInstruction(
       HloInstruction* conditional_call_instruction) {
     CHECK_NE(conditional_call_instruction, nullptr);

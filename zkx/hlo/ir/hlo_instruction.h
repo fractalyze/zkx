@@ -812,6 +812,16 @@ class HloInstruction {
       absl::Span<HloInstruction* const> operands, HloComputation* compare,
       bool is_stable);
 
+  // Creates a while instruction, given a condition computation, a body
+  // computation, and the initial value for the input of the computations. For
+  // example, shape: S32, condition: i -> i < 1000, body: i -> i * 2, init: 1
+  // corresponds to the C code below.
+  // int32_t i = 1; int32_t result = while(i < 1000) { i = i * 2 }
+  static std::unique_ptr<HloInstruction> CreateWhile(const Shape& shape,
+                                                     HloComputation* condition,
+                                                     HloComputation* body,
+                                                     HloInstruction* init);
+
   static std::unique_ptr<HloInstruction> CreateConditional(
       const Shape& shape, HloInstruction* pred,
       HloInstruction* true_computation_arg, HloComputation* true_computation,

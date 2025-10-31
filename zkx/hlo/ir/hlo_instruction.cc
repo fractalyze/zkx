@@ -1646,6 +1646,21 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateToken() {
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateWhile(
+    const Shape& shape, HloComputation* condition, HloComputation* body,
+    HloInstruction* init) {
+  auto instruction =
+      absl::WrapUnique(new HloInstruction(HloOpcode::kWhile, shape));
+  instruction->AppendOperand(init);
+  // Body comes before condition computation in the vector.
+  instruction->AppendComputation(body);
+  instruction->AppendComputation(condition);
+  // Set back pointer from body computation to the while call instruction.
+  body->SetWhileCallInstruction(instruction.get());
+  return instruction;
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateConditional(
     const Shape& shape, HloInstruction* pred,
     HloInstruction* true_computation_arg, HloComputation* true_computation,
