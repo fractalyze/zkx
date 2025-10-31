@@ -1158,6 +1158,48 @@ std::unique_ptr<HloInstruction> HloReduceInstruction::CloneWithNewOperandsImpl(
                                                 dimensions(), to_apply());
 }
 
+HloSortInstruction::HloSortInstruction(
+    const Shape& shape, int64_t dimension,
+    absl::Span<HloInstruction* const> operands, HloComputation* compare,
+    bool is_stable)
+    : HloDimensionsInstruction(HloOpcode::kSort, shape, {dimension}),
+      is_stable_(is_stable) {
+  for (auto* value : operands) {
+    AppendOperand(value);
+  }
+  AppendComputation(compare);
+}
+
+HloInstructionProto HloSortInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  for (int64_t dimension : dimensions_) {
+    proto.add_dimensions(dimension);
+  }
+  proto.set_is_stable(is_stable());
+  return proto;
+}
+
+bool HloSortInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloSortInstruction&>(other);
+  if (dimensions() != casted_other.dimensions()) {
+    return false;
+  }
+  if (is_stable() != casted_other.is_stable()) {
+    return false;
+  }
+  return eq_computations(to_apply(), other.to_apply());
+}
+
+std::unique_ptr<HloInstruction> HloSortInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  return std::make_unique<HloSortInstruction>(
+      shape, dimensions_[0], new_operands, to_apply(), is_stable());
+}
+
 HloSliceInstruction::HloSliceInstruction(
     const Shape& shape, HloInstruction* operand,
     absl::Span<const int64_t> start_indices,
