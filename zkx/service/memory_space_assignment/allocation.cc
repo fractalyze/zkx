@@ -759,20 +759,14 @@ absl::Status SlicedCopyAllocation::SliceDetail::CreateAsyncSlice(
     }
   }
 
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateSlice
-  // clang-format on
-  // HloInstruction* slice = parent.AddInstruction(
-  //     HloInstruction::CreateSlice(slice_decision.sizing.slice_shape,
-  //     &producer,
-  //                                 start_indices, limit_indices, strides));
-  // TF_ASSIGN_OR_RETURN(copy_done, parent.CreateAsyncInstructions(
-  //                                    slice, {ShapeUtil::MakeShape(S32,
-  //                                    {})}));
-  // copy_start = copy_done->mutable_operand(0);
+  HloInstruction* slice = parent.AddInstruction(
+      HloInstruction::CreateSlice(slice_decision.sizing.slice_shape, &producer,
+                                  start_indices, limit_indices, strides));
+  TF_ASSIGN_OR_RETURN(copy_done, parent.CreateAsyncInstructions(
+                                     slice, {ShapeUtil::MakeShape(S32, {})}));
+  copy_start = copy_done->mutable_operand(0);
 
-  // return absl::OkStatus();
-  return absl::UnimplementedError("");
+  return absl::OkStatus();
 }
 
 bool SlicedCopyAllocation::operator==(const Allocation& other) const {
