@@ -1738,6 +1738,79 @@ class HloPadInstruction : public HloInstruction {
   PaddingConfig padding_config_;
 };
 
+class HloDynamicIndexInstruction : public HloInstruction {
+ public:
+  explicit HloDynamicIndexInstruction(HloOpcode opcode, const Shape& shape)
+      : HloInstruction(opcode, shape) {}
+  virtual int64_t first_index_operand_number() const = 0;
+
+  // Returns a subspan of operands which represent the start indices.
+  absl::Span<HloInstruction* const> index_operands() const {
+    return absl::MakeSpan(operands()).subspan(first_index_operand_number());
+  }
+
+  // Returns the shapes of the index operands.
+  std::vector<Shape> index_shapes() const {
+    std::vector<Shape> shapes;
+    auto indices = index_operands();
+    for (const HloInstruction* index : indices) {
+      shapes.push_back(index->shape());
+    }
+    return shapes;
+  }
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kDynamicSlice ||
+           hlo->opcode() == HloOpcode::kDynamicUpdateSlice;
+  }
+};
+
+class HloDynamicSliceInstruction : public HloDynamicIndexInstruction {
+ public:
+  explicit HloDynamicSliceInstruction(const Shape& shape,
+                                      HloInstruction* operand,
+                                      HloInstruction* start_indices,
+                                      absl::Span<const int64_t> slice_sizes);
+  explicit HloDynamicSliceInstruction(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<HloInstruction* const> start_indices,
+      absl::Span<const int64_t> slice_sizes);
+  // Old methods kept for smooth subclassing transition END.
+  // Returns the size of the slice in the given dimension for a dynamic
+  // slice node.
+  int64_t slice_sizes(int64_t dimension) const {
+    return dynamic_slice_sizes_[dimension];
+  }
+  const std::vector<int64_t>& dynamic_slice_sizes() const {
+    return dynamic_slice_sizes_;
+  }
+  // Returns a serialized representation of this instruction.
+  HloInstructionProto ToProto() const override;
+
+  int64_t first_index_operand_number() const override { return 1; }
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kDynamicSlice;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  // Describes the [start, start + size) range size for a dynamic slice
+  // ('start' is specified dynamically in the second operand of the operation).
+  std::vector<int64_t> dynamic_slice_sizes_;
+};
+
 class HloDotInstruction : public HloInstruction {
  public:
   static const int kOperands = 2;

@@ -1788,6 +1788,12 @@ class HloInstruction {
   const PaddingConfig& padding_config() const;
   PaddingConfig* mutable_padding_config();
 
+  // Delegates to HloDynamicSliceInstruction::slice_sizes.
+  int64_t slice_sizes(int64_t dimension) const;
+
+  // Delegates to HloDynamicSliceInstruction::dynamic_slice_sizes.
+  const std::vector<int64_t>& dynamic_slice_sizes() const;
+
   // Delegates to HloDotInstruction::dot_dimension_numbers().
   const DotDimensionNumbers& dot_dimension_numbers() const;
 

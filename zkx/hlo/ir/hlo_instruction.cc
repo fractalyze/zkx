@@ -3876,6 +3876,14 @@ PaddingConfig* HloInstruction::mutable_padding_config() {
   return Cast<HloPadInstruction>(this)->mutable_padding_config();
 }
 
+int64_t HloInstruction::slice_sizes(int64_t dimension) const {
+  return Cast<HloDynamicSliceInstruction>(this)->slice_sizes(dimension);
+}
+
+const std::vector<int64_t>& HloInstruction::dynamic_slice_sizes() const {
+  return Cast<HloDynamicSliceInstruction>(this)->dynamic_slice_sizes();
+}
+
 const DotDimensionNumbers& HloInstruction::dot_dimension_numbers() const {
   return Cast<HloDotInstruction>(this)->dot_dimension_numbers();
 }

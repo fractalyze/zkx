@@ -2529,6 +2529,58 @@ std::unique_ptr<HloInstruction> HloPadInstruction::CloneWithNewOperandsImpl(
                                              new_operands[1], padding_config_);
 }
 
+HloDynamicSliceInstruction::HloDynamicSliceInstruction(
+    const Shape& shape, HloInstruction* operand, HloInstruction* start_indices,
+    absl::Span<const int64_t> slice_sizes)
+    : HloDynamicIndexInstruction(HloOpcode::kDynamicSlice, shape),
+      dynamic_slice_sizes_(slice_sizes.begin(), slice_sizes.end()) {
+  AppendOperand(operand);
+  AppendOperand(start_indices);
+}
+
+HloDynamicSliceInstruction::HloDynamicSliceInstruction(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<HloInstruction* const> start_indices,
+    absl::Span<const int64_t> slice_sizes)
+    : HloDynamicIndexInstruction(HloOpcode::kDynamicSlice, shape),
+      dynamic_slice_sizes_(slice_sizes.begin(), slice_sizes.end()) {
+  AppendOperand(operand);
+  for (HloInstruction* index : start_indices) {
+    AppendOperand(index);
+  }
+}
+
+HloInstructionProto HloDynamicSliceInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  for (int64_t slice_size : dynamic_slice_sizes_) {
+    proto.add_dynamic_slice_sizes(slice_size);
+  }
+  return proto;
+}
+
+bool HloDynamicSliceInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other =
+      static_cast<const HloDynamicSliceInstruction&>(other);
+  return dynamic_slice_sizes() == casted_other.dynamic_slice_sizes();
+}
+
+std::unique_ptr<HloInstruction>
+HloDynamicSliceInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  if (new_operands.size() == 2 && new_operands[1]->shape().rank() == 1) {
+    // TODO(b/118437727): Old form, remove this path.
+    return std::make_unique<HloDynamicSliceInstruction>(
+        shape, new_operands[0], new_operands[1], dynamic_slice_sizes_);
+  } else {
+    return std::make_unique<HloDynamicSliceInstruction>(
+        shape, new_operands[0], new_operands.subspan(1), dynamic_slice_sizes_);
+  }
+}
+
 HloDotInstruction::HloDotInstruction(
     const Shape& shape, HloInstruction* lhs, HloInstruction* rhs,
     const DotDimensionNumbers& dimension_numbers,
