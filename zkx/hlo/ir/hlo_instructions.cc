@@ -1426,10 +1426,8 @@ bool HloConstantInstruction::IdenticalSlowPath(
     const HloInstruction& other,
     absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
         eq_computations) const {
-  // TODO(chokobole): Uncomment this. Dependency: HloSliceInstruction
-  // const auto& other_slice = static_cast<const HloSliceInstruction&>(other);
-  // return literal() == other_slice.literal();
-  return false;
+  const auto& casted_other = static_cast<const HloConstantInstruction&>(other);
+  return literal() == casted_other.literal();
 }
 
 std::unique_ptr<HloInstruction>
