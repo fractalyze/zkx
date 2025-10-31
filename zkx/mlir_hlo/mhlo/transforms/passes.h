@@ -28,6 +28,11 @@ namespace mlir::mhlo {
 #define GEN_PASS_DECL
 #include "zkx/mlir_hlo/mhlo/transforms/mhlo_passes.h.inc"
 
+// Sinks constants implicitly captured in control flow regions. This is
+// necessary to export to ZKX.
+std::unique_ptr<OperationPass<func::FuncOp>>
+createSinkConstantsToControlFlowPass();
+
 // Creates a pass to analyze shapes and to use that information for
 // shape-related optimizations.
 std::unique_ptr<OperationPass<func::FuncOp>>
