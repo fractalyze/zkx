@@ -709,6 +709,14 @@ class HloInstruction {
       absl::Span<const int64_t> limit_indices,
       absl::Span<const int64_t> strides);
 
+  // Creates a slice instruction, where the first operand is sliced by
+  // start indices specified in the second operand, and by size specified in
+  // 'slice_sizes'.
+  static std::unique_ptr<HloInstruction> CreateDynamicSlice(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<HloInstruction* const> start_indices,
+      absl::Span<const int64_t> slice_sizes);
+
   // Creates a concatenate instruction, where the operands are concatenated on
   // the provided dimension.
   static std::unique_ptr<HloInstruction> CreateConcatenate(
