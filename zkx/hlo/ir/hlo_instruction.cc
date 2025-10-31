@@ -998,17 +998,14 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kDynamicReshape: {
-      // TODO(chokobole): Uncomment this. Dependency: CreateDynamicReshape
-      // TF_RET_CHECK(shape.IsArray() && operands(0)->shape().IsArray() &&
-      //              ShapeUtil::StaticExtentProduct(shape) ==
-      //                  ShapeUtil::StaticExtentProduct(operands(0)->shape()))
-      //     << "shape: " << ShapeUtil::HumanString(shape)
-      //     << " operand: " << ShapeUtil::HumanString(operands(0)->shape());
-      // const auto& operand_vector = all_operands();
-      // instruction = CreateDynamicReshape(
-      //     shape, operands(0), absl::MakeSpan(operand_vector).subspan(1));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: DynamicReshape not implemented");
+      TF_RET_CHECK(shape.IsArray() && operands(0)->shape().IsArray() &&
+                   ShapeUtil::StaticExtentProduct(shape) ==
+                       ShapeUtil::StaticExtentProduct(operands(0)->shape()))
+          << "shape: " << ShapeUtil::HumanString(shape)
+          << " operand: " << ShapeUtil::HumanString(operands(0)->shape());
+      const auto& operand_vector = all_operands();
+      instruction = CreateDynamicReshape(
+          shape, operands(0), absl::MakeSpan(operand_vector).subspan(1));
       break;
     }
     case HloOpcode::kCall: {

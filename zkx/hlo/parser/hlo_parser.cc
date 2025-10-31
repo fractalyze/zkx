@@ -2205,10 +2205,13 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return builder->AddInstruction(HloInstruction::CreatePartitionId());
     }
     case HloOpcode::kDynamicReshape: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateDynamicReshape
-      // clang-format on
-      return nullptr;
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateDynamicReshape(
+          *shape, operands[0],
+          absl::Span<HloInstruction* const>(operands).subspan(1)));
     }
     case HloOpcode::kReshape: {
       // clang-format off
