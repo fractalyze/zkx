@@ -38,6 +38,8 @@ limitations under the License.
 
 namespace zkx {
 
+using MemorySpaceColor = int;
+
 // Returns the num_replicas, num_partitions and device assignment given a
 // ExecutableBuildOptions and whether we want a portable executable.
 absl::Status ParseDeviceAssignmentCompileOptions(
@@ -57,11 +59,56 @@ absl::Status DetermineArgumentLayoutsFromCompileOptions(
     ExecutableBuildOptions* build_options,
     std::vector<const Shape*>* argument_layout_pointers);
 
+// Returns the LayoutMode for each argument of the main function in the
+// module. Checks for the "mhlo.layout_mode" attr, and if not present, assumes
+// LayoutMode::Mode::kDefault.
+absl::StatusOr<std::vector<LayoutMode>> GetArgLayoutModes(
+    mlir::ModuleOp module);
 // Returns the LayoutMode for each output of the main function in the
 // module. Checks for the "mhlo.layout_mode" attr, and if not present, assumes
 // LayoutMode::Mode::kDefault.
 absl::StatusOr<std::vector<LayoutMode>> GetOutputLayoutModes(
     mlir::ModuleOp module);
+
+// Returns the memory space for each argument of the computations. Checks
+// for the "mhlo.memory_kind" frontend attribute, and if not present, assumes 0.
+absl::StatusOr<std::vector<MemorySpaceColor>> GetArgMemoryKinds(
+    mlir::ModuleOp module);
+// Returns the memory space for each output of the computations. Checks for
+// the "mhlo.memory_kind" frontend attribute, and if not present, assumes 0.
+absl::StatusOr<std::vector<MemorySpaceColor>> GetOutputMemoryKinds(
+    mlir::ModuleOp module);
+
+// Returns zkx shape with layout set to reflect the given layout mode.
+absl::StatusOr<Shape> LayoutModeTosShape(
+    const LayoutMode& layout_mode, const Shape& unsharded_shape,
+    const Shape& sharded_shape, MemorySpaceColor memory_space,
+    std::function<absl::StatusOr<Shape>(Shape)>
+        choose_compact_layout_for_shape_function);
+
+// Returns (arg shapes, output shape) with properly-set Layouts that can
+// be passed to XLA to reflect arg_layout_modes and out_layout_modes.
+absl::StatusOr<std::pair<std::vector<Shape>, Shape>> LayoutModesToZkxShapes(
+    const ZkxComputation& computation, std::vector<LayoutMode> arg_layout_modes,
+    std::vector<LayoutMode> out_layout_modes,
+    const std::vector<MemorySpaceColor>& arg_memory_spaces,
+    const std::vector<MemorySpaceColor>& out_memory_spaces,
+    std::function<absl::StatusOr<Shape>(Shape)>
+        choose_compact_layout_for_shape_function);
+
+// Generates useful data structures for communicating desired layouts to XLA:
+// * Returns a vector of argument zkx::Shapes with properly-set Layouts
+// * Returns vector of pointers to those Shapes to create HloModuleConfig
+// * Modifies `build_options` to have the correct result_layout set or unset
+absl::StatusOr<std::pair<std::vector<Shape>, std::vector<const Shape*>>>
+LayoutModesToZkx(const ZkxComputation& computation,
+                 std::vector<LayoutMode> arg_layout_modes,
+                 std::vector<LayoutMode> out_layout_modes,
+                 const std::vector<MemorySpaceColor>& arg_memory_spaces,
+                 const std::vector<MemorySpaceColor>& out_memory_spaces,
+                 std::function<absl::StatusOr<Shape>(Shape)>
+                     choose_compact_layout_for_shape_function,
+                 ExecutableBuildOptions& build_options);
 
 // Return max parallelism level.
 int DefaultThreadPoolSize();
