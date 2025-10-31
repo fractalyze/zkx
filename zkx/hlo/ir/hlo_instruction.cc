@@ -444,21 +444,17 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       }
       break;
     case HloOpcode::kSort: {
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateSort
-      //   TF_RET_CHECK(proto.operand_ids_size() >= 1)
-      //       << "Sort instruction should have at least 1 operand but has "
-      //       << proto.operand_ids_size();
-      //   TF_RET_CHECK(proto.dimensions().size() == 1)
-      //       << "Sort instruction should have 1 dimension";
-      //   TF_RET_CHECK(proto.called_computation_ids_size() == 1)
-      //       << "Sort instruction should one called computation but sees "
-      //       << proto.called_computation_ids_size();
-      //   auto sort_operands = all_operands();
-      //   instruction = CreateSort(shape, proto.dimensions(0), all_operands(),
-      //                            computations(0), proto.is_stable());
-      //   break;
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Sort not implemented");
+      TF_RET_CHECK(proto.operand_ids_size() >= 1)
+          << "Sort instruction should have at least 1 operand but has "
+          << proto.operand_ids_size();
+      TF_RET_CHECK(proto.dimensions().size() == 1)
+          << "Sort instruction should have 1 dimension";
+      TF_RET_CHECK(proto.called_computation_ids_size() == 1)
+          << "Sort instruction should one called computation but sees "
+          << proto.called_computation_ids_size();
+      auto sort_operands = all_operands();
+      instruction = CreateSort(shape, proto.dimensions(0), all_operands(),
+                               computations(0), proto.is_stable());
       break;
     }
     case HloOpcode::kTranspose:

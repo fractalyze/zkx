@@ -2236,10 +2236,32 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           HloInstruction::CreateAddDependency(operands[0], operands[1]));
     }
     case HloOpcode::kSort: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateSort
-      // clang-format on
-      return nullptr;
+      std::optional<std::vector<int64_t>> dimensions;
+      attrs["dimensions"] = {/*required=*/true, AttrTy::kBracedInt64List,
+                             &dimensions};
+      std::optional<bool> is_stable = false;
+      attrs["is_stable"] = {/*required=*/false, AttrTy::kBool, &is_stable};
+      std::optional<HloComputation*> to_apply;
+      attrs["to_apply"] = {/*required=*/true, AttrTy::kHloComputation,
+                           &to_apply};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape) ||
+          dimensions->size() != 1) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            absl::InlinedVector<const Shape*, 2> arg_shapes;
+            arg_shapes.reserve(operands.size());
+            for (auto* operand : operands) {
+              arg_shapes.push_back(&operand->shape());
+            }
+            return ShapeInference::InferVariadicOpShape(opcode, arg_shapes);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateSort(*shape, dimensions->at(0), operands,
+                                     to_apply.value(), is_stable.value()));
     }
     case HloOpcode::kTuple: {
       if ((!preset_operands &&
