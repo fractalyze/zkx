@@ -2485,10 +2485,41 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kReduce: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateReduce
-      // clang-format on
-      return nullptr;
+      std::optional<HloComputation*> reduce_computation;
+      attrs["to_apply"] = {/*required=*/true, AttrTy::kHloComputation,
+                           &reduce_computation};
+      std::optional<std::vector<int64_t>> dimensions_to_reduce;
+      attrs["dimensions"] = {/*required=*/true, AttrTy::kBracedInt64List,
+                             &dimensions_to_reduce};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (operands.size() % 2) {
+        TokenError(absl::StrCat("expects an even number of operands, but has ",
+                                operands.size(), " operands"));
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            absl::InlinedVector<const Shape*, 2> arg_shapes;
+            arg_shapes.reserve(operands.size());
+            for (auto* operand : operands) {
+              arg_shapes.push_back(&operand->shape());
+            }
+            return ShapeInference::InferReduceShape(
+                arg_shapes, *dimensions_to_reduce,
+                reduce_computation.value()->ComputeProgramShape());
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(HloInstruction::CreateReduce(
+          *shape, /*operands=*/
+          absl::Span<HloInstruction* const>(operands).subspan(
+              0, operands.size() / 2),
+          /*init_values=*/
+          absl::Span<HloInstruction* const>(operands).subspan(operands.size() /
+                                                              2),
+          *dimensions_to_reduce, *reduce_computation));
     }
     case HloOpcode::kReverse: {
       std::optional<std::vector<int64_t>> dimensions;

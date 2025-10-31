@@ -422,29 +422,26 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kReduce:
-      // TODO(chokobole): Uncomment this. Dependency: CreateReduce
-      // TF_RET_CHECK(proto.operand_ids_size() % 2 == 0)
-      //     << "Reduce instruction should have an even number of operands but "
-      //        "sees "
-      //     << proto.operand_ids_size();
-      // TF_RET_CHECK(proto.called_computation_ids_size() == 1)
-      //     << "Reduce instruction should have 1 called computation but sees "
-      //     << proto.called_computation_ids_size();
-      // {
-      //   const auto reduce_operands = all_operands();
-      //   auto inputs = absl::MakeSpan(reduce_operands)
-      //                     .subspan(0, reduce_operands.size() / 2);
-      //   auto init_values =
-      //       absl::MakeSpan(reduce_operands)
-      //           .subspan(reduce_operands.size() / 2, reduce_operands.size());
-      //   instruction =
-      //       CreateReduce(shape, inputs, init_values,
-      //                    std::vector<int64_t>(proto.dimensions().begin(),
-      //                                         proto.dimensions().end()),
-      //                    computations(0));
-      // }
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Reduce not implemented");
+      TF_RET_CHECK(proto.operand_ids_size() % 2 == 0)
+          << "Reduce instruction should have an even number of operands but "
+             "sees "
+          << proto.operand_ids_size();
+      TF_RET_CHECK(proto.called_computation_ids_size() == 1)
+          << "Reduce instruction should have 1 called computation but sees "
+          << proto.called_computation_ids_size();
+      {
+        const auto reduce_operands = all_operands();
+        auto inputs = absl::MakeSpan(reduce_operands)
+                          .subspan(0, reduce_operands.size() / 2);
+        auto init_values =
+            absl::MakeSpan(reduce_operands)
+                .subspan(reduce_operands.size() / 2, reduce_operands.size());
+        instruction =
+            CreateReduce(shape, inputs, init_values,
+                         std::vector<int64_t>(proto.dimensions().begin(),
+                                              proto.dimensions().end()),
+                         computations(0));
+      }
       break;
     case HloOpcode::kSort: {
       // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateSort
