@@ -1859,6 +1859,36 @@ bool HloInstruction::HasSideEffect() const {
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCall(
+    const Shape& shape, HloInstruction* called_computation_root) {
+  return std::make_unique<HloCallInstruction>(shape, called_computation_root);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCall(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* computation) {
+  return std::make_unique<HloCallInstruction>(shape, operands, computation);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCompositeCall(
+    const Shape& shape, HloInstruction* decomposition_root,
+    const std::string& name, const std::string& attributes, int64_t version) {
+  return std::make_unique<HloCallInstruction>(shape, decomposition_root, name,
+                                              attributes, version);
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateCompositeCall(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* decomposition, const std::string& name,
+    const std::string& attributes, int64_t version) {
+  return std::make_unique<HloCallInstruction>(shape, operands, decomposition,
+                                              name, attributes, version);
+}
+
+// static
 bool HloInstruction::IsThreadIncluded(
     std::string_view execution_thread,
     const absl::flat_hash_set<std::string_view>& execution_threads_set) {

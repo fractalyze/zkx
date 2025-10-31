@@ -801,6 +801,26 @@ class HloInstruction {
       absl::Span<HloInstruction* const> operands,
       HloComputation* fusion_computation, std::string_view prefix = "");
 
+  // Creates a call instruction that applies the given computation on the given
+  // operands. "shape" is the resultant shape.
+  static std::unique_ptr<HloInstruction> CreateCall(
+      const Shape& shape, HloInstruction* called_computation_root);
+
+  static std::unique_ptr<HloInstruction> CreateCall(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* computation);
+
+  // Creates a composite call instruction that applies the given computation on
+  // the given operands. "shape" is the resultant shape.
+  static std::unique_ptr<HloInstruction> CreateCompositeCall(
+      const Shape& shape, HloInstruction* decomposition_root,
+      const std::string& name, const std::string& attributes, int64_t version);
+
+  static std::unique_ptr<HloInstruction> CreateCompositeCall(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* decomposition, const std::string& name,
+      const std::string& attributes, int64_t version);
+
   // Creates a tuple instruction with the given elements. This is a convenience
   // wrapper around CreateVariadic.
   static std::unique_ptr<HloInstruction> CreateTuple(
