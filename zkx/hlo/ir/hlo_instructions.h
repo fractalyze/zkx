@@ -1052,6 +1052,33 @@ class HloDynamicReshapeInstruction : public HloInstruction {
   }
 };
 
+class HloReshapeInstruction : public HloInstruction {
+ public:
+  explicit HloReshapeInstruction(const Shape& shape, HloInstruction* operand,
+                                 int64_t inferred_dimension);
+  int64_t inferred_dimension() const { return inferred_dimension_; }
+  HloInstructionProto ToProto() const override;
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kReshape;
+  }
+
+ private:
+  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
+  // void PrintExtraAttributesImpl(AttributePrinter& printer,
+  //                               const HloPrintOptions& options) const
+  //                               override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+  int64_t inferred_dimension_;
+};
+
 class HloSliceInstruction : public HloInstruction {
  public:
   explicit HloSliceInstruction(const Shape& shape, HloInstruction* operand,

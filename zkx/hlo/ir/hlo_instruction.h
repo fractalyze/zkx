@@ -1589,6 +1589,9 @@ class HloInstruction {
   // Delegates to HloConcatenateInstruction::concatenate_dimension.
   virtual int64_t concatenate_dimension() const;
 
+  // Delegates to HloReshapeInstruction::inferred_dimension.
+  int64_t inferred_dimension() const;
+
   // Returns whether this instruction does a rank-2 transposition.
   bool IsRank2Transpose() const;
 
