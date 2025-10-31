@@ -98,10 +98,8 @@ auto& kUnsupportedOps = *absl::IgnoreLeak(new llvm::DenseSet<HloOpcode>{
     //  HloOpcode::kRngBitGenerator,
     //  HloOpcode::kRngGetAndUpdateState,
     HloOpcode::kScatter, HloOpcode::kSend, HloOpcode::kSendDone,
-    HloOpcode::kSetDimensionSize,
-    // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
-    //  HloOpcode::kSort,
-    HloOpcode::kWhile, HloOpcode::kConditional, HloOpcode::kCall});
+    HloOpcode::kSetDimensionSize, HloOpcode::kSort, HloOpcode::kWhile,
+    HloOpcode::kConditional, HloOpcode::kCall});
 
 absl::StatusOr<Value> GetSingleOperandValue(
     const OperandProvider& operand_provider, const HloInstruction* instr,

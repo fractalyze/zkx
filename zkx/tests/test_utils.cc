@@ -234,10 +234,9 @@ absl::StatusOr<Literal> CreateLiteralForConstrainedUses(
         constant_type = GetInitValue(*use->to_apply());
         break;
 
-        // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
-        // case HloOpcode::kSort:
-        //   no_duplicates = true;
-        //   break;
+      case HloOpcode::kSort:
+        no_duplicates = true;
+        break;
 
       default:
         return absl::UnimplementedError(absl::StrFormat(
