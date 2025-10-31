@@ -67,6 +67,19 @@ td_library(
     ],
 )
 
+cc_library(
+    name = "register",
+    srcs = ["Register.cpp"],
+    hdrs = ["Register.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":stablehlo_ops",
+        ":vhlo_ops",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
 gentbl_cc_library(
     name = "stablehlo_attrs_inc_gen",
     strip_include_prefix = ".",
