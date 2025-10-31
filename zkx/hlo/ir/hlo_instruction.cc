@@ -470,13 +470,10 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
                                                proto.dimensions().end()));
       break;
     case HloOpcode::kMap:
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateMap
-      // TF_RET_CHECK(proto.called_computation_ids_size() == 1)
-      //     << "Map instruction should have 1 called computation but sees "
-      //     << proto.called_computation_ids_size();
-      // instruction = CreateMap(shape, all_operands(), computations(0));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Map not implemented");
+      TF_RET_CHECK(proto.called_computation_ids_size() == 1)
+          << "Map instruction should have 1 called computation but sees "
+          << proto.called_computation_ids_size();
+      instruction = CreateMap(shape, all_operands(), computations(0));
       break;
     case HloOpcode::kSlice: {
       std::vector<int64_t> slice_starts, slice_limits, slice_strides;

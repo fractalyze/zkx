@@ -2510,10 +2510,30 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
           *shape, operands, dimensions->at(0)));
     }
     case HloOpcode::kMap: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateMap
-      // clang-format on
-      return nullptr;
+      std::optional<HloComputation*> to_apply;
+      attrs["to_apply"] = {/*required=*/true, AttrTy::kHloComputation,
+                           &to_apply};
+      std::optional<std::vector<int64_t>> dimensions;
+      attrs["dimensions"] = {/*required=*/false, AttrTy::kBracedInt64List,
+                             &dimensions};
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            absl::InlinedVector<const Shape*, 2> arg_shapes;
+            arg_shapes.reserve(operands.size());
+            for (auto* operand : operands) {
+              arg_shapes.push_back(&operand->shape());
+            }
+            return ShapeInference::InferMapShape(
+                arg_shapes, to_apply.value()->ComputeProgramShape(),
+                *dimensions);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateMap(*shape, operands, *to_apply));
     }
     case HloOpcode::kReduce: {
       std::optional<HloComputation*> reduce_computation;
