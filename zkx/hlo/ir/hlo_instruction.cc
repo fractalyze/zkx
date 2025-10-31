@@ -458,13 +458,10 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kTranspose:
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::CreateTranspose
-      // instruction =
-      //     CreateTranspose(shape, operands(0),
-      //                     std::vector<int64_t>(proto.dimensions().begin(),
-      //                                          proto.dimensions().end()));
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Transpose not implemented");
+      instruction =
+          CreateTranspose(shape, operands(0),
+                          std::vector<int64_t>(proto.dimensions().begin(),
+                                               proto.dimensions().end()));
       break;
     case HloOpcode::kBroadcast:
       instruction =
