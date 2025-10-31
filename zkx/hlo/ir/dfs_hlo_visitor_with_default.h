@@ -60,6 +60,9 @@ class DfsHloVisitorWithDefaultBase
     return DefaultAction(hlo);
   }
 
+  absl::Status HandleClamp(HloInstructionPtr clamp) override {
+    return DefaultAction(clamp);
+  }
   absl::Status HandleConcatenate(HloInstructionPtr concatenate) override {
     return DefaultAction(concatenate);
   }
@@ -135,8 +138,14 @@ class DfsHloVisitorWithDefaultBase
   absl::Status HandleReverse(HloInstructionPtr reverse) override {
     return DefaultAction(reverse);
   }
+  absl::Status HandleSort(HloInstructionPtr sort) override {
+    return DefaultAction(sort);
+  }
   absl::Status HandleConstant(HloInstructionPtr constant) override {
     return DefaultAction(constant);
+  }
+  absl::Status HandleIota(HloInstructionPtr iota) override {
+    return DefaultAction(iota);
   }
   absl::Status HandleGetTupleElement(
       HloInstructionPtr get_tuple_element) override {
@@ -178,6 +187,9 @@ class DfsHloVisitorWithDefaultBase
   }
   absl::Status HandleBroadcast(HloInstructionPtr broadcast) override {
     return DefaultAction(broadcast);
+  }
+  absl::Status HandlePad(HloInstructionPtr pad) override {
+    return DefaultAction(pad);
   }
   absl::Status HandleDynamicReshape(
       HloInstructionPtr dynamic_reshape) override {

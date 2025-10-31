@@ -52,9 +52,8 @@ bool MayPreventVectorization(const HloFusionAdaptor& fusion) {
   static constexpr int kMaxConcatArgumentsForUnrolling = 10;
   return HloAnyOf(fusion, [&](auto node) {
     switch (node.opcode()) {
-      // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
-      // case HloOpcode::kSort:
       case HloOpcode::kDot:
+      case HloOpcode::kSort:
         return true;
       case HloOpcode::kConcatenate:
         return node.instruction().operand_count() >

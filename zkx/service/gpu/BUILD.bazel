@@ -590,6 +590,10 @@ zkx_cc_library(
     name = "nvptx_compiler",
     srcs = ["nvptx_compiler.cc"],
     hdrs = ["nvptx_compiler.h"],
+    tags = [
+        "cuda_only",
+        "gpu",
+    ],
     deps = [
         ":buffer_sharing",
         ":gpu_compiler",
@@ -623,6 +627,10 @@ zkx_cc_library(
 zkx_cc_library(
     name = "nvptx_compiler_registerer",
     srcs = ["nvptx_compiler_registerer.cc"],
+    tags = [
+        "cuda_only",
+        "gpu",
+    ],
     deps = [
         ":nvptx_compiler",
         "//zkx/service:compiler",

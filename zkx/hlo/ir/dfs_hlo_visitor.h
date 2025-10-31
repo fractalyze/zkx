@@ -73,6 +73,7 @@ class DfsHloVisitorBase {
   virtual absl::Status HandleElementwiseUnary(HloInstructionPtr hlo);
   virtual absl::Status HandleElementwiseBinary(HloInstructionPtr hlo);
 
+  virtual absl::Status HandleClamp(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleSelect(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleMaximum(HloInstructionPtr hlo) {
     return HandleElementwiseBinary(hlo);
@@ -132,14 +133,50 @@ class DfsHloVisitorBase {
   virtual absl::Status HandleDivide(HloInstructionPtr hlo) {
     return HandleElementwiseBinary(hlo);
   }
+  virtual absl::Status HandleRemainder(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
+  }
   virtual absl::Status HandleSubtract(HloInstructionPtr hlo) {
     return HandleElementwiseBinary(hlo);
+  }
+  virtual absl::Status HandleAbs(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
   }
   virtual absl::Status HandleInverse(HloInstructionPtr hlo) {
     return HandleElementwiseUnary(hlo);
   }
+  virtual absl::Status HandleSign(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
+  }
   virtual absl::Status HandleNegate(HloInstructionPtr hlo) {
     return HandleElementwiseUnary(hlo);
+  }
+  virtual absl::Status HandleClz(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
+  }
+  virtual absl::Status HandleAnd(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
+  }
+  virtual absl::Status HandleNot(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
+  }
+  virtual absl::Status HandleOr(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
+  }
+  virtual absl::Status HandleXor(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
+  }
+  virtual absl::Status HandlePopulationCount(HloInstructionPtr hlo) {
+    return HandleElementwiseUnary(hlo);
+  }
+  virtual absl::Status HandleShiftLeft(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
+  }
+  virtual absl::Status HandleShiftRightArithmetic(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
+  }
+  virtual absl::Status HandleShiftRightLogical(HloInstructionPtr hlo) {
+    return HandleElementwiseBinary(hlo);
   }
 
   virtual absl::Status HandleDomain(HloInstructionPtr hlo) {
@@ -164,6 +201,7 @@ class DfsHloVisitorBase {
   virtual absl::Status HandleFusion(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleGather(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleGetTupleElement(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleIota(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleMap(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleParameter(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleReduce(HloInstructionPtr hlo) = 0;
@@ -171,10 +209,13 @@ class DfsHloVisitorBase {
   virtual absl::Status HandleReverse(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleScatter(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleSlice(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleSort(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleTranspose(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleTuple(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleWhile(HloInstructionPtr hlo) = 0;
   /* go/keep-sorted end */
+
+  virtual absl::Status HandlePad(HloInstructionPtr hlo) = 0;
 
   virtual absl::Status HandleAsyncStart(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleAsyncUpdate(HloInstructionPtr hlo) = 0;

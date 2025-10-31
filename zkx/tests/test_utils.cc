@@ -51,8 +51,7 @@ ConstantType GetInitValue(const HloComputation& computation) {
   }
 }
 
-// Reduce, ReduceWindow, and SelectAndScatter ops may need a non-random
-// initialization value.
+// Reduce op may need a non-random initialization value.
 bool NeedsInitValue(const HloUse& use) {
   const HloInstruction* const instruction = use.instruction;
   const HloOpcode opcode = instruction->opcode();
@@ -138,17 +137,15 @@ std::vector<HloInstruction*> FindConstrainedUses(
                                                   treat_gte_as_data_formatting);
         constrained_uses.insert(constrained_uses.end(), converted_uses.begin(),
                                 converted_uses.end());
+      } else if (opcode == HloOpcode::kSort &&
+                 instruction->operand_count() >= 2 && op_num == 0) {
+        // Operand 0 of sort is the array of keys used for key/value
+        // (two-operand) kSort instructions. Since sort stability is not
+        // guaranteed, constrain keys of key-value sort not to have
+        // duplicates, since otherwise the value order may legitimately
+        // differ.
+        constrained_uses.push_back(instruction);
       }
-      // TODO(chokobole): Uncomment this. HloOpcode::kSort
-      // else if (opcode == HloOpcode::kSort &&
-      //            instruction->operand_count() >= 2 && op_num == 0) {
-      //   // Operand 0 of sort is the array of keys used for key/value
-      //   // (two-operand) kSort instructions. Since sort stability is not
-      //   // guaranteed, constrain keys of key-value sort not to have
-      //   // duplicates, since otherwise the value order may legitimately
-      //   // differ.
-      //   constrained_uses.push_back(instruction);
-      // }
     }
   }
 

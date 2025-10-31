@@ -1730,10 +1730,6 @@ class HloInstruction {
     kBodyComputationIndex = 0,
     kConditionComputationIndex = 1,
 
-    // kSelectAndScatter computations.
-    kSelectComputationIndex = 0,
-    kScatterComputationIndex = 1,
-
     // kConditional computations.
     kTrueComputationIndex = 0,
     kFalseComputationIndex = 1,
@@ -1999,11 +1995,12 @@ inline bool HloInstruction::MightHaveCalledComputations(HloOpcode opcode) {
     case HloOpcode::kAllReduce:
     case HloOpcode::kAllReduceStart:
     case HloOpcode::kCall:
+    case HloOpcode::kCustomCall:
     case HloOpcode::kMap:
     case HloOpcode::kReduce:
     case HloOpcode::kReduceScatter:
     case HloOpcode::kScatter:
-    case HloOpcode::kCustomCall:
+    case HloOpcode::kSort:
       return true;
     default:
       return false;

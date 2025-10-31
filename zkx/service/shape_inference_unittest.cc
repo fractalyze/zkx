@@ -183,9 +183,104 @@ TEST_F(ShapeInferenceTest, SelectPreservesElementSize) {
   ASSERT_TRUE(ShapeUtil::Equal(*inferred_shape, int4_shape));
 }
 
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: HloOpcode::kClamp
-// clang-format on
+TEST_F(ShapeInferenceTest, ClampAllMatrix) {
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, matrix_64_48_,
+                                          matrix_64_48_, matrix_64_48_);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(matrix_64_48_, *inferred_shape));
+}
+
+TEST_F(ShapeInferenceTest, ClampAllScalar) {
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, u32_, u32_, u32_);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(u32_, *inferred_shape));
+}
+
+TEST_F(ShapeInferenceTest, ClampMinScalar) {
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, u32_,
+                                          matrix_64_48_, matrix_64_48_);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(matrix_64_48_, *inferred_shape));
+}
+
+TEST_F(ShapeInferenceTest, ClampMaxScalar) {
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, matrix_64_48_,
+                                          matrix_64_48_, u32_);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(matrix_64_48_, *inferred_shape));
+}
+
+TEST_F(ShapeInferenceTest, ClampOperandScalar) {
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, matrix_64_48_,
+                                          u32_, matrix_64_48_);
+  ASSERT_FALSE(inferred_shape.ok());
+  ASSERT_THAT(inferred_shape.status().message(),
+              HasSubstr("Clamp with incompatible shapes"));
+}
+
+TEST_F(ShapeInferenceTest, ClampMinMatrix) {
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, matrix_64_48_,
+                                          u32_, u32_);
+  ASSERT_FALSE(inferred_shape.ok());
+  ASSERT_THAT(inferred_shape.status().message(),
+              HasSubstr("Clamp with incompatible shapes"));
+}
+
+TEST_F(ShapeInferenceTest, ClampMaxMatrix) {
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, u32_, u32_,
+                                          matrix_64_48_);
+  ASSERT_FALSE(inferred_shape.ok());
+  ASSERT_THAT(inferred_shape.status().message(),
+              HasSubstr("Clamp with incompatible shapes"));
+}
+
+TEST_F(ShapeInferenceTest, ClampOperandMatrix) {
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, u32_,
+                                          matrix_64_48_, u32_);
+  ASSERT_TRUE(inferred_shape.status().ok());
+  ASSERT_TRUE(ShapeUtil::Equal(matrix_64_48_, *inferred_shape));
+}
+
+TEST_F(ShapeInferenceTest, ClampBadShapes) {
+  // Type mismatch
+  ASSERT_FALSE(
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, s32_, u32_, u32_)
+          .ok());
+  ASSERT_FALSE(
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, u32_, s32_, u32_)
+          .ok());
+  ASSERT_FALSE(
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, u32_, u32_, s32_)
+          .ok());
+  // Dimension mismatch
+  ASSERT_FALSE(ShapeInference::InferTernaryOpShape(
+                   HloOpcode::kClamp, vector_64_, vector_32_, vector_32_)
+                   .ok());
+  ASSERT_FALSE(ShapeInference::InferTernaryOpShape(
+                   HloOpcode::kClamp, vector_32_, vector_64_, vector_32_)
+                   .ok());
+  ASSERT_FALSE(ShapeInference::InferTernaryOpShape(
+                   HloOpcode::kClamp, vector_32_, vector_32_, vector_64_)
+                   .ok());
+  // Dimension mismatch, where one operand is a scalar
+  ASSERT_FALSE(ShapeInference::InferTernaryOpShape(HloOpcode::kClamp,
+                                                   vector_64_, vector_32_, u32_)
+                   .ok());
+  ASSERT_FALSE(ShapeInference::InferTernaryOpShape(HloOpcode::kClamp,
+                                                   vector_64_, u32_, vector_32_)
+                   .ok());
+  ASSERT_FALSE(ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, u32_,
+                                                   vector_64_, vector_32_)
+                   .ok());
+}
 
 TEST_F(ShapeInferenceTest, VariadicOpTuplify) {
   const absl::StatusOr<Shape> result =
@@ -194,10 +289,6 @@ TEST_F(ShapeInferenceTest, VariadicOpTuplify) {
   ASSERT_TRUE(
       ShapeUtil::Equal(*result, ShapeUtil::MakeTupleShape({s32_, u32_})));
 }
-
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: ShapeInference::InferSelectAndScatterShape
-// clang-format on
 
 TEST_F(ShapeInferenceTest, AllGatherStart) {
   const Shape operand = ShapeUtil::MakeShape(U32, {1, 8, 4});
@@ -618,13 +709,39 @@ TEST_F(ShapeInferenceTest, BinOpBroadcastBadDimension) {
 // TODO(chokobole): Add tests. Dependency: ShapeInference::InferSliceShape
 // clang-format on
 
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: HloOpcode::kSort
-// clang-format on
+TEST_F(ShapeInferenceTest, BadSort) {
+  const Shape keys = ShapeUtil::MakeShape(U32, {4});
+  const Shape values = ShapeUtil::MakeShape(U32, {5});
+  const absl::StatusOr<Shape> statusor =
+      ShapeInference::InferVariadicOpShape(HloOpcode::kSort, {&keys, &values});
+  EXPECT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(), HasSubstr("dimensions must match"))
+      << statusor.status();
+}
 
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: ShapeInference::InferTopKShape
-// clang-format on
+TEST_F(ShapeInferenceTest, BadSortValuesMismatch) {
+  const Shape keys = ShapeUtil::MakeShape(U32, {4});
+  const Shape values_good = ShapeUtil::MakeShape(U32, {4});
+  const Shape values_bad = ShapeUtil::MakeShape(U32, {5});
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferVariadicOpShape(
+      HloOpcode::kSort, {&keys, &values_good, &values_bad});
+  EXPECT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(), HasSubstr("dimensions must match"))
+      << statusor.status();
+}
+
+TEST_F(ShapeInferenceTest, SortManyValues) {
+  const Shape keys = ShapeUtil::MakeShape(U32, {4});
+  const Shape values_s32 = ShapeUtil::MakeShape(S32, {4});
+  const Shape values_u32 = ShapeUtil::MakeShape(U32, {4});
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferVariadicOpShape(
+      HloOpcode::kSort, {&keys, &values_s32, &values_u32});
+  EXPECT_TRUE(statusor.status().ok());
+  const Shape inferred_shape = *statusor;
+  EXPECT_TRUE(ShapeUtil::Compatible(
+      inferred_shape,
+      ShapeUtil::MakeTupleShape({keys, values_s32, values_u32})));
+}
 
 // clang-format off
 // TODO(chokobole): Add tests. Dependency: ShapeInference::InferGatherShape
@@ -717,10 +834,24 @@ TEST_F(ShapeInferenceTest, UnboundedAllToAllTupleUnsupported) {
       HasSubstr("AllToAllTuple does not support unbounded dynamic shapes"));
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAnd
-// clang-format on
-// TEST_P(UnboundedLogicalOpShapeInferenceTest, UnboundedAnd) {
+TEST_P(UnboundedLogicalOpShapeInferenceTest, UnboundedAnd) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam().lhs));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape(GetParam().rhs));
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferBinaryOpShape(HloOpcode::kAnd, lhs, rhs,
+                                         GetParam().broadcast_dimensions);
+  if (inferred_shape.ok()) {
+    TF_ASSERT_OK_AND_ASSIGN(const Shape expected,
+                            ParseShape(GetParam().expected));
+    EXPECT_TRUE(ShapeUtil::Equal(*inferred_shape, expected))
+        << "inferred: " << ShapeUtil::HumanString(*inferred_shape)
+        << " expected: " << ShapeUtil::HumanString(expected);
+  } else {
+    ASSERT_TRUE(GetParam().error_message.has_value());
+    EXPECT_THAT(inferred_shape.status().message(),
+                HasSubstr(*GetParam().error_message));
+  }
+}
 
 // clang-format off
 // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferBitcastConvertShape
@@ -735,9 +866,34 @@ TEST_F(ShapeInferenceTest, UnboundedAllToAllTupleUnsupported) {
 // TODO(chokobole): Add tests. Dependency: ShapeInference::InferCallShape
 // clang-format on
 
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: HloOpcode::kClamp
-// clang-format on
+TEST_P(UnboundedClampOpShapeInferenceTest, UnboundedClamp) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam()[0]));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape(GetParam()[1]));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape ehs, ParseShape(GetParam()[2]));
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, lhs, rhs, ehs);
+  if (inferred_shape.ok()) {
+    TF_ASSERT_OK_AND_ASSIGN(const Shape expected, ParseShape(GetParam()[3]));
+    EXPECT_TRUE(ShapeUtil::Equal(*inferred_shape, expected))
+        << "inferred: " << ShapeUtil::HumanString(*inferred_shape)
+        << " expected: " << ShapeUtil::HumanString(expected);
+  } else {
+    EXPECT_EQ(inferred_shape.status().message(), GetParam()[4]);
+  }
+}
+
+TEST_F(ShapeInferenceTest, UnboundedClampWithTuple) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape("(u32[2], u32[?])"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape("(u32[?], u32[2])"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape ehs, ParseShape("(u32[2], u32[?])"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape expected, ParseShape("(u32[?], u32[2])"));
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferTernaryOpShape(HloOpcode::kClamp, lhs, rhs, ehs);
+  EXPECT_THAT(
+      inferred_shape.status().message(),
+      HasSubstr(
+          "Expected array argument for clamp min, but got (u32[2], u32[?])."));
+}
 
 TEST_F(ShapeInferenceTest, UnboundedCollectiveBroadcast) {
   TF_ASSERT_OK_AND_ASSIGN(const Shape operand, ParseShape("u32[?, 10]"));
@@ -995,15 +1151,46 @@ TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedMul) {
   }
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment comment. Dependency: HloOpcode::kOr
-// clang-format on
-// TEST_P(UnboundedLogicalOpShapeInferenceTest, UnboundedOr) {
+TEST_P(UnboundedLogicalOpShapeInferenceTest, UnboundedOr) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam().lhs));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape(GetParam().rhs));
+  const absl::StatusOr<Shape> inferred_shape =
+      ShapeInference::InferBinaryOpShape(HloOpcode::kOr, lhs, rhs,
+                                         GetParam().broadcast_dimensions);
+  if (inferred_shape.ok()) {
+    TF_ASSERT_OK_AND_ASSIGN(const Shape expected,
+                            ParseShape(GetParam().expected));
+    EXPECT_TRUE(ShapeUtil::Equal(*inferred_shape, expected))
+        << "inferred: " << ShapeUtil::HumanString(*inferred_shape)
+        << " expected: " << ShapeUtil::HumanString(expected);
+  } else {
+    ASSERT_TRUE(GetParam().error_message.has_value());
+    EXPECT_THAT(inferred_shape.status().message(),
+                HasSubstr(*GetParam().error_message));
+  }
+}
 
-// clang-format off
-// TODO(chokobole): Uncomment comment. Dependency: ShapeInference::InferPadShape
-// clang-format on
-// TEST_F(ShapeInferenceTest, UnboundedPad) {
+TEST_F(ShapeInferenceTest, UnboundedPad) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape operand, ParseShape("u32[?, 10]"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape padding_value, ParseShape("u32[]"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape expected, ParseShape("u32[?, 21]"));
+
+  // TODO(chokobole): Uncomment this. Dependency: Paddingconfig
+  // PaddingConfig padding_config;
+  // for (int i = 0; i < 2; i++) {
+  //   const auto dimension = padding_config.add_dimensions();
+  //   dimension->set_edge_padding_low(1);
+  //   dimension->set_edge_padding_high(1);
+  //   dimension->set_interior_padding(1);
+  // }
+
+  // TF_ASSERT_OK_AND_ASSIGN(
+  //     const Shape inferred_shape,
+  //     ShapeInference::InferPadShape(operand, padding_value, padding_config));
+  // EXPECT_TRUE(ShapeUtil::Equal(inferred_shape, expected))
+  //     << "inferred: " << ShapeUtil::HumanString(inferred_shape)
+  //     << " expected: " << ShapeUtil::HumanString(expected);
+}
 
 TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedPow) {
   TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam().lhs));
@@ -1040,10 +1227,24 @@ TEST_F(ShapeInferenceTest, UnboundedReduceScatter) {
       << " expected: " << ShapeUtil::HumanString(expected);
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloOpcode::kRemainder
-// clang-format on
-// TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedRemainder) {
+TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedRemainder) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam().lhs));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape(GetParam().rhs));
+  const absl::StatusOr<Shape> inferred_status =
+      ShapeInference::InferBinaryOpShape(HloOpcode::kRemainder, lhs, rhs,
+                                         GetParam().broadcast_dimensions);
+  if (inferred_status.ok()) {
+    TF_ASSERT_OK_AND_ASSIGN(const Shape expected,
+                            ParseShape(GetParam().expected));
+    EXPECT_TRUE(ShapeUtil::Equal(*inferred_status, expected))
+        << "inferred: " << ShapeUtil::HumanString(*inferred_status)
+        << " expected: " << ShapeUtil::HumanString(expected);
+  } else {
+    ASSERT_TRUE(GetParam().error_message.has_value());
+    EXPECT_THAT(inferred_status.status().message(),
+                HasSubstr(*GetParam().error_message));
+  }
+}
 
 // clang-format off
 // TODO(chokobole): Add tests. Dependency: ShapeInference::InferReshapeShape
@@ -1087,35 +1288,78 @@ TEST_F(ShapeInferenceTest, UnboundedSelectWithTupleUnsupported) {
                         "(pred[2], pred[?])."));
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferSelectAndScatterShape
-// clang-format on
-// TEST_F(ShapeInferenceTest, UnboundedSelectAndScatter) {
+TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedShiftLeft) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam().lhs));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape(GetParam().rhs));
+  const absl::StatusOr<Shape> inferred_status =
+      ShapeInference::InferBinaryOpShape(HloOpcode::kShiftLeft, lhs, rhs,
+                                         GetParam().broadcast_dimensions);
+  if (inferred_status.ok()) {
+    TF_ASSERT_OK_AND_ASSIGN(const Shape expected,
+                            ParseShape(GetParam().expected));
+    EXPECT_TRUE(ShapeUtil::Equal(*inferred_status, expected))
+        << "inferred: " << ShapeUtil::HumanString(*inferred_status)
+        << " expected: " << ShapeUtil::HumanString(expected);
+  } else {
+    ASSERT_TRUE(GetParam().error_message.has_value());
+    EXPECT_THAT(inferred_status.status().message(),
+                HasSubstr(*GetParam().error_message));
+  }
+}
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloOpcode::kShiftLeft
-// clang-format on
-// TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedShiftLeft) {
+TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedShiftRightArithmetic) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam().lhs));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape(GetParam().rhs));
+  const absl::StatusOr<Shape> inferred_status =
+      ShapeInference::InferBinaryOpShape(HloOpcode::kShiftRightArithmetic, lhs,
+                                         rhs, GetParam().broadcast_dimensions);
+  if (inferred_status.ok()) {
+    TF_ASSERT_OK_AND_ASSIGN(const Shape expected,
+                            ParseShape(GetParam().expected));
+    EXPECT_TRUE(ShapeUtil::Equal(*inferred_status, expected))
+        << "inferred: " << ShapeUtil::HumanString(*inferred_status)
+        << " expected: " << ShapeUtil::HumanString(expected);
+  } else {
+    ASSERT_TRUE(GetParam().error_message.has_value());
+    EXPECT_THAT(inferred_status.status().message(),
+                HasSubstr(*GetParam().error_message));
+  }
+}
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloOpcode::kShiftRightArithmetic
-// clang-format on
-// TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedShiftRightArithmetic) {
-
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloOpcode::kShiftRightLogical
-// clang-format on
-// TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedShiftRightLogical) {
+TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedShiftRightLogical) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam().lhs));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape(GetParam().rhs));
+  const absl::StatusOr<Shape> inferred_status =
+      ShapeInference::InferBinaryOpShape(HloOpcode::kShiftRightLogical, lhs,
+                                         rhs, GetParam().broadcast_dimensions);
+  if (inferred_status.ok()) {
+    TF_ASSERT_OK_AND_ASSIGN(const Shape expected,
+                            ParseShape(GetParam().expected));
+    EXPECT_TRUE(ShapeUtil::Equal(*inferred_status, expected))
+        << "inferred: " << ShapeUtil::HumanString(*inferred_status)
+        << " expected: " << ShapeUtil::HumanString(expected);
+  } else {
+    ASSERT_TRUE(GetParam().error_message.has_value());
+    EXPECT_THAT(inferred_status.status().message(),
+                HasSubstr(*GetParam().error_message));
+  }
+}
 
 // clang-format off
 // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferSliceShape
 // clang-format on
 // TEST_F(ShapeInferenceTest, UnboundedSlice) {
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSort
-// clang-format on
-// TEST_F(ShapeInferenceTest, UnboundedSort) {
+TEST_F(ShapeInferenceTest, UnboundedSort) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape operand, ParseShape("u32[?, 10]"));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape expected, ParseShape("u32[?, 10]"));
+  TF_ASSERT_OK_AND_ASSIGN(
+      const Shape inferred_shape,
+      ShapeInference::InferVariadicOpShape(HloOpcode::kSort, {&operand}));
+  EXPECT_TRUE(ShapeUtil::Equal(inferred_shape, expected))
+      << "inferred: " << ShapeUtil::HumanString(inferred_shape)
+      << " expected: " << ShapeUtil::HumanString(expected);
+}
 
 TEST_P(UnboundedBinaryOpShapeInferenceTest, UnboundedSub) {
   TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam().lhs));
@@ -1163,10 +1407,54 @@ TEST_F(ShapeInferenceTest, UnboundedTuple) {
 // clang-format on
 // TEST_F(ShapeInferenceTest, UnboundedWhile) {
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloOpcode::kXor
-// clang-format on
-// TEST_P(UnboundedLogicalOpShapeInferenceTest, UnboundedXor) {
+TEST_P(UnboundedLogicalOpShapeInferenceTest, UnboundedXor) {
+  TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam().lhs));
+  TF_ASSERT_OK_AND_ASSIGN(const Shape rhs, ParseShape(GetParam().rhs));
+  const absl::StatusOr<Shape> inferred_status =
+      ShapeInference::InferBinaryOpShape(HloOpcode::kXor, lhs, rhs,
+                                         GetParam().broadcast_dimensions);
+  if (inferred_status.ok()) {
+    TF_ASSERT_OK_AND_ASSIGN(const Shape expected,
+                            ParseShape(GetParam().expected));
+    EXPECT_TRUE(ShapeUtil::Equal(*inferred_status, expected))
+        << "inferred: " << ShapeUtil::HumanString(*inferred_status)
+        << " expected: " << ShapeUtil::HumanString(expected);
+  } else {
+    ASSERT_TRUE(GetParam().error_message.has_value());
+    EXPECT_THAT(inferred_status.status().message(),
+                HasSubstr(*GetParam().error_message));
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(UnboundedDynamism,
+                         UnboundedLogicalOpShapeInferenceTest,
+                         ::testing::ValuesIn<BinaryOpTestCase>(
+                             {// LHS | RHS | bdims | Res
+                              // 1   | ?   | []    | ?
+                              {"s32[1]", "s32[?]", {}, "s32[?]"},
+                              // ?   | 1   | []    | ?
+                              {"s32[?]", "s32[1]", {}, "s32[?]"},
+                              // 2   | ?   | []    | 2
+                              {"s32[2]", "s32[?]", {}, "s32[2]"},
+                              // ?   | 2   | []    | 2
+                              {"s32[?]", "s32[2]", {}, "s32[2]"},
+                              // <=2 | ?   | []    | <=2
+                              {"s32[<=2]", "s32[?]", {}, "s32[<=2]"},
+                              // ?   | <=2 | []    | <=2
+                              {"s32[?]", "s32[<=2]", {}, "s32[<=2]"},
+                              // ?   | ?   | []    | ?
+                              {"s32[?]", "s32[?]", {}, "s32[?]"},
+                              // 1   | ?,3 | [0]   | ?,3
+                              {"s32[1]", "s32[?,3]", zero_array, "s32[?,3]"},
+                              // 2   | ?,3 | [0]   | err
+                              {"s32[2]", "s32[?,3]", zero_array, "",
+                               kBroadcastDimensionMismatchErrorMessage},
+                              // ?,2 | ?,3 | []    | err
+                              {"s32[?,2]",
+                               "s32[?,3]",
+                               {},
+                               "",
+                               kIncompatibleBinaryOpShapeErrorMessage}}));
 
 INSTANTIATE_TEST_SUITE_P(UnboundedDynamism, UnboundedBinaryOpShapeInferenceTest,
                          ::testing::ValuesIn<BinaryOpTestCase>(
@@ -1228,6 +1516,45 @@ INSTANTIATE_TEST_SUITE_P(UnboundedDynamism,
                                kIncompatibleBinaryOpShapeErrorMessage}}));
 
 INSTANTIATE_TEST_SUITE_P(
+    UnboundedDynamism, UnboundedClampOpShapeInferenceTest,
+    ::testing::Values(
+        // MIN shape | OPERAND shape | MAX shape  | Result
+        // []        | [?]           | []         | [?]
+        std::vector<std::string>({"u32[]", "u32[?]", "u32[]", "u32[?]", ""}),
+        // []        | [?]           | [X]        | [?]
+        std::vector<std::string>({"u32[]", "u32[?]", "u32[2]", "u32[?]", ""}),
+        // []        | [?]           | [<=B]      | [?]
+        std::vector<std::string>({"u32[]", "u32[?]", "u32[<=2]", "u32[?]", ""}),
+        // [X]       | [?]           | [X]        | [?]
+        std::vector<std::string>({"u32[2]", "u32[?]", "u32[2]", "u32[?]", ""}),
+        // [?]       | [X]           | [X]        | [X]
+        std::vector<std::string>({"u32[?]", "u32[2]", "u32[2]", "u32[2]", ""}),
+        // [?]       | [<=B]         | [?]        | [<=B]
+        std::vector<std::string>({"u32[?]", "u32[<=2]", "u32[?]", "u32[<=2]",
+                                  ""}),
+        // [<=B]     | [?]           | [<=B]      | [?]
+        std::vector<std::string>({"u32[<=2]", "u32[?]", "u32[<=2]", "u32[?]",
+                                  ""}),
+        // [?]       | [?]           | [?]        | [?]
+        std::vector<std::string>({"u32[?]", "u32[?]", "u32[?]", "u32[?]", ""}),
+        // [?]       | []            | [?]        | error
+        std::vector<std::string>(
+            {"u32[?]", "u32[]", "u32[?]", "",
+             "Clamp with incompatible shapes: u32[?], u32[], u32[?]."}),
+        // A[]       | B[?]          | B[?]       | error
+        std::vector<std::string>(
+            {"s32[]", "u32[?]", "u32[?]", "",
+             "Clamp with incompatible element types: s32[], u32[?], u32[?]."}),
+        // [X]       | [<=B]         | [X]        | error
+        std::vector<std::string>(
+            {"u32[3]", "u32[<=2]", "u32[3]", "",
+             "Clamp with incompatible shapes: u32[3], u32[<=2], u32[3]."}),
+        // [X]       | [?]           | [Y]        | error
+        std::vector<std::string>(
+            {"u32[2]", "u32[?]", "u32[3]", "",
+             "Clamp with incompatible shapes: u32[2], u32[?], u32[3]."})));
+
+INSTANTIATE_TEST_SUITE_P(
     UnboundedDynamism, UnboundedSelectOpShapeInferenceTest,
     ::testing::Values(
         // PRED shape | ON_TRUE shape | ON_FALSE shape  | Result
@@ -1276,19 +1603,14 @@ INSTANTIATE_TEST_SUITE_P(
                                   "Operands to select must be the same shape; "
                                   "got u32[?] and u32[]."})));
 
-INSTANTIATE_TEST_SUITE_P(
-    UnboundedDynamism, UnboundedUnaryOpShapeInferenceTest,
-    ::testing::ValuesIn<UnaryOpTestCase>({
-        // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAbs
-        //   {"u32[?]", "u32[?]", HloOpcode::kAbs},
-        {"u32[?]", "u32[?]", HloOpcode::kNegate},
-        // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kAbs
-        //  {"s32[?]", "s32[?]", HloOpcode::kNot},
-        // TODO(chokobole): Uncomment this. Dependency:
-        // HloOpcode::kPopulationCount
-        //  {"u32[?]", "u32[?]", HloOpcode::kPopulationCount},
-        // TODO(chokobole): Uncomment this. Dependency: HloOpcode::kSign
-        //  {"u32[?]", "u32[?]", HloOpcode::kSign},
-    }));
+INSTANTIATE_TEST_SUITE_P(UnboundedDynamism, UnboundedUnaryOpShapeInferenceTest,
+                         ::testing::ValuesIn<UnaryOpTestCase>({
+                             {"s32[?]", "s32[?]", HloOpcode::kAbs},
+                             {"u32[?]", "u32[?]", HloOpcode::kClz},
+                             {"u32[?]", "u32[?]", HloOpcode::kNegate},
+                             {"s32[?]", "s32[?]", HloOpcode::kNot},
+                             {"u32[?]", "u32[?]", HloOpcode::kPopulationCount},
+                             {"s32[?]", "s32[?]", HloOpcode::kSign},
+                         }));
 
 }  // namespace zkx

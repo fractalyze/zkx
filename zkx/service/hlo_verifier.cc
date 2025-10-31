@@ -170,6 +170,10 @@ absl::Status ShapeVerifier::HandleElementwiseBinary(HloInstruction* hlo) {
   return CheckBinaryShape(hlo);
 }
 
+absl::Status ShapeVerifier::HandleClamp(HloInstruction* clamp) {
+  return CheckTernaryShape(clamp);
+}
+
 absl::Status ShapeVerifier::HandleSelect(HloInstruction* select) {
   return CheckTernaryShape(select);
 }
@@ -911,6 +915,11 @@ absl::Status ShapeVerifier::HandleReverse(HloInstruction* reverse) {
   return absl::UnimplementedError("HandleReverse not supported");
 }
 
+absl::Status ShapeVerifier::HandleSort(HloInstruction* hlo) {
+  // TODO(chokobole): Implement this. Dependency: HloSortInstruction
+  return absl::UnimplementedError("HandleSort not supported");
+}
+
 absl::Status ShapeVerifier::HandleConstant(HloInstruction* constant) {
   if (!Cast<HloConstantInstruction>(constant)->HasLiteral()) {
     return absl::InternalError(
@@ -919,6 +928,11 @@ absl::Status ShapeVerifier::HandleConstant(HloInstruction* constant) {
   }
   return CheckShape(constant, constant->literal().shape(),
                     /*only_compare_minor_to_major_in_layout=*/true);
+}
+
+absl::Status ShapeVerifier::HandleIota(HloInstruction* hlo) {
+  // TODO(chokobole): Implement this. Dependency: HloIotaInstruction
+  return absl::UnimplementedError("HandleIota not supported");
 }
 
 absl::Status ShapeVerifier::HandleGetTupleElement(
@@ -1316,6 +1330,15 @@ absl::Status ShapeVerifier::HandleConditional(HloInstruction* conditional) {
         conditional->branch_computation(j)->root_instruction()->shape()));
   }
   return absl::OkStatus();
+}
+
+absl::Status ShapeVerifier::HandlePad(HloInstruction* pad) {
+  // TODO(chokobole): Implement this. Dependency: ShapeInference::InferPadShape
+  // return CheckShape(pad,
+  // ShapeInference::InferPadShape(pad->operand(0)->shape(),
+  //                                                      pad->operand(1)->shape(),
+  //                                                      pad->padding_config()));
+  return absl::UnimplementedError("HandlePad not supported");
 }
 
 namespace {

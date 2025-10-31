@@ -38,9 +38,7 @@ bool IsNopInstruction(const HloInstruction& hlo) {
   HloOpcode op = hlo.opcode();
   return op == HloOpcode::kGetTupleElement || op == HloOpcode::kBitcast ||
          op == HloOpcode::kConstant || op == HloOpcode::kParameter ||
-         op == HloOpcode::kBroadcast ||
-         // TODO (chokobole): Uncomment this. Dependency: HloOpcode::kIota
-         //  op == HloOpcode::kIota ||
+         op == HloOpcode::kBroadcast || op == HloOpcode::kIota ||
          hlo.IsEffectiveBitcast() ||
          (op == HloOpcode::kTuple && hlo.user_count() == 1 &&
           hlo.users().front()->opcode() == HloOpcode::kWhile);

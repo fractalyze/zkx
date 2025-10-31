@@ -7,7 +7,7 @@ zkx_cc_library(
     testonly = True,
     hdrs = ["cuda_kernel_emitter_test.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -23,7 +23,7 @@ zkx_cc_library(
     testonly = True,
     hdrs = ["field_test.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -81,7 +81,7 @@ zkx_cc_library(
     testonly = True,
     hdrs = ["group_test.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -99,7 +99,7 @@ zkx_cc_library(
     testonly = True,
     hdrs = ["int_test.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -118,7 +118,7 @@ zkx_cc_unittest(
     name = "cuda_kernel_emitter_field_unittest",
     srcs = ["cuda_kernel_emitter_field_unittest.cc"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [":field_test"],
@@ -129,7 +129,7 @@ zkx_cc_unittest(
     timeout = "moderate",
     srcs = ["cuda_kernel_emitter_g1_unittest.cc"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [":group_test"],
@@ -140,7 +140,7 @@ zkx_cc_unittest(
     timeout = "moderate",
     srcs = ["cuda_kernel_emitter_g2_unittest.cc"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [":group_test"],
@@ -150,7 +150,7 @@ zkx_cc_unittest(
     name = "cuda_kernel_emitter_int_unittest",
     srcs = ["cuda_kernel_emitter_int_unittest.cc"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [":int_test"],

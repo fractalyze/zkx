@@ -1,3 +1,4 @@
+load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda_is_configured")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
@@ -36,7 +37,7 @@ zkx_cc_library(
     srcs = ["nvptx_backend.cc"],
     hdrs = ["nvptx_backend.h"],
     tags = [
-        "cuda-only",
+        "cuda_only",
         "gpu",
     ],
     deps = [
@@ -69,6 +70,10 @@ zkx_cc_library(
     name = "nvptx_libdevice_path",
     srcs = ["default/nvptx_libdevice_path.cc"],
     hdrs = ["nvptx_libdevice_path.h"],
+    tags = [
+        "cuda_only",
+        "gpu",
+    ],
     deps = [
         ":nvptx_utils",
         "//xla/tsl/platform:cuda_root_path",
@@ -98,6 +103,10 @@ zkx_cc_library(
     name = "nvptx_utils",
     srcs = ["nvptx_utils.cc"],
     hdrs = ["nvptx_utils.h"],
+    tags = [
+        "cuda_only",
+        "gpu",
+    ],
     deps = [
         "//xla/tsl/platform:cuda_root_path",
         "@com_google_absl//absl/strings",
@@ -115,18 +124,20 @@ zkx_cc_unittest(
     name = "llvm_gpu_backend_unittests",
     srcs = [
         "load_ir_module_unittest.cc",
+        "utils_unittest.cc",
+    ] + if_cuda_is_configured([
         "nvptx_backend_unittest.cc",
         "nvptx_utils_unittest.cc",
-        "utils_unittest.cc",
-    ],
+    ]),
     data = ["tests_data/saxpy.ll"],
     deps = [
         ":load_ir_module",
-        ":nvptx_backend",
-        ":nvptx_utils",
         ":utils",
         "//xla/tsl/platform:path",
         "//xla/tsl/platform:test_util",
         "@com_google_absl//absl/strings",
-    ],
+    ] + if_cuda_is_configured([
+        ":nvptx_backend",
+        ":nvptx_utils",
+    ]),
 )
