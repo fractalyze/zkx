@@ -17,17 +17,25 @@
 namespace zkx::cpu {
 
 template <typename T>
-class IntScalarBinaryTest : public CpuKernelEmitterTest {
+class BaseIntTest {
+ protected:
   using UnsignedT =
       std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
 
+  static T GetRandomValue() {
+    return absl::bit_cast<T>(base::Uniform<UnsignedT>());
+  }
+};
+
+template <typename T>
+class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
  public:
   void SetUp() override {
     CpuKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<T>());
-    x_ = absl::bit_cast<T>(base::Uniform<UnsignedT>());
-    y_ = absl::bit_cast<T>(base::Uniform<UnsignedT>());
+    x_ = BaseIntTest<T>::GetRandomValue();
+    y_ = BaseIntTest<T>::GetRandomValue();
     literals_.push_back(LiteralUtil::CreateR0<T>(x_));
     literals_.push_back(LiteralUtil::CreateR0<T>(y_));
   }
@@ -91,7 +99,7 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
     //      because -min(T) is not representable.
     while (y_ == 0 || (std::is_signed_v<T> && y_ == -1 &&
                        x_ == std::numeric_limits<T>::min())) {
-      y_ = absl::bit_cast<T>(base::Uniform<UnsignedT>());
+      y_ = BaseIntTest<T>::GetRandomValue();
       literals_[1] = LiteralUtil::CreateR0<T>(y_);
     }
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ / y_);
@@ -103,11 +111,9 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename T>
-class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
+class IntR2TensorBinaryTest : public BaseIntTest<T>,
+                              public CpuKernelEmitterTest {
  public:
-  using UnsignedT =
-      std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
-
   constexpr static int64_t M = 2;
   constexpr static int64_t N = 3;
 
@@ -117,11 +123,11 @@ class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
         primitive_util::NativeToPrimitiveType<T>());
     x_ = base::CreateVector(M, []() {
       return base::CreateVector(
-          N, []() { return absl::bit_cast<T>(base::Uniform<UnsignedT>()); });
+          N, []() { return BaseIntTest<T>::GetRandomValue(); });
     });
     y_ = base::CreateVector(M, []() {
       return base::CreateVector(
-          N, []() { return absl::bit_cast<T>(base::Uniform<UnsignedT>()); });
+          N, []() { return BaseIntTest<T>::GetRandomValue(); });
     });
     Array2D<T> x_array(M, N);
     Array2D<T> y_array(M, N);
@@ -168,11 +174,8 @@ class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename T>
-class IntTest : public CpuKernelEmitterTest {
+class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
  public:
-  using UnsignedT =
-      std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
-
   void SetUp() override {
     CpuKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
@@ -194,7 +197,7 @@ class IntTest : public CpuKernelEmitterTest {
                                  x_typename_, N, E - S, S, E);
 
     auto x = base::CreateVector(
-        N, []() { return absl::bit_cast<T>(base::Uniform<UnsignedT>()); });
+        N, []() { return BaseIntTest<T>::GetRandomValue(); });
     literals_.push_back(LiteralUtil::CreateR1<T>(x));
     expected_literal_ = LiteralUtil::CreateR1<T>(
         base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
