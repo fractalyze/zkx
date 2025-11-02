@@ -28,6 +28,34 @@ class BaseIntTest {
 };
 
 template <typename T>
+class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CpuKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<T>());
+    x_ = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR0<T>(x_));
+  }
+
+ protected:
+  void SetUpNegate() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] negate(%x)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(-x_);
+  }
+
+ private:
+  T x_;
+};
+
+template <typename T>
 class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
  public:
   void SetUp() override {

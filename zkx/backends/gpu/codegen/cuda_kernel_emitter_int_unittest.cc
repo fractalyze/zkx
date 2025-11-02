@@ -4,9 +4,16 @@
 
 namespace zkx::gpu {
 
-// TODO(chokobole): Add tests for convert and negate.
+// TODO(chokobole): Add tests for convert.
 
 using IntTypes = testing::Types<int32_t, uint32_t>;
+TYPED_TEST_SUITE(IntScalarUnaryTest, IntTypes);
+
+TYPED_TEST(IntScalarUnaryTest, Negate) {
+  this->SetUpNegate();
+  this->RunAndVerify();
+}
+
 TYPED_TEST_SUITE(IntScalarBinaryTest, IntTypes);
 
 TYPED_TEST(IntScalarBinaryTest, Add) {

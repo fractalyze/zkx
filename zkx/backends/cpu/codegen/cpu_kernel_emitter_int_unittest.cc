@@ -4,9 +4,20 @@
 
 namespace zkx::cpu {
 
-// TODO(chokobole): Add tests for convert and negate.
+// TODO(chokobole): Add tests for convert.
 
 using IntTypes = testing::Types<int32_t, uint32_t>;
+TYPED_TEST_SUITE(IntScalarUnaryTest, IntTypes);
+
+TYPED_TEST(IntScalarUnaryTest, Negate) {
+  if (std::is_signed_v<TypeParam>) {
+    this->SetUpNegate();
+    this->RunAndVerify();
+  } else {
+    GTEST_SKIP() << "Skipping test for unsigned type";
+  }
+}
+
 TYPED_TEST_SUITE(IntScalarBinaryTest, IntTypes);
 
 TYPED_TEST(IntScalarBinaryTest, Add) {
