@@ -17,6 +17,7 @@
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkx/service/llvm_ir/llvm_util.h"
 #include "zkx/shape.h"
+#include "zkx/shape_util.h"
 #include "zkx/zkx_data.pb.h"
 
 namespace zkx::mlir_utils {

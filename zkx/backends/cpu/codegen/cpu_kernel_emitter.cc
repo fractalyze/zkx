@@ -702,8 +702,15 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
-  return absl::UnimplementedError(absl::StrFormat(
-      "Unhandled unary integer op: %s", HloOpcodeString(instr->opcode())));
+  switch (instr->opcode()) {
+    case HloOpcode::kNegate:
+      return b.create<mlir::arith::SubIOp>(
+          b.create<mlir::arith::ConstantOp>(b.getZeroAttr(value.getType())),
+          value);
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled unary integer op: %s", HloOpcodeString(instr->opcode())));
+  }
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
