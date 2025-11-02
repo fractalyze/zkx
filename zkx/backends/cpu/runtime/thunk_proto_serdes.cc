@@ -40,7 +40,6 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/reduce_scatter_thunk.h"
 #include "zkx/backends/cpu/runtime/resource_use.h"
 #include "zkx/service/collective_ops_utils.h"
-#include "zkx/util.h"
 
 namespace zkx::cpu {
 namespace {

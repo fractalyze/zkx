@@ -3,7 +3,6 @@
 #include "absl/base/optimization.h"
 #include "absl/log/log.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"

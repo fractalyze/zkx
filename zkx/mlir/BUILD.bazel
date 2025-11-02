@@ -21,7 +21,6 @@ zkx_cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LLVMCommonConversion",
-        "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:SparseTensorDialect",
         "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",
         "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
