@@ -29,8 +29,8 @@ TYPED_TEST(IntScalarBinaryTest, Add) {
   this->RunAndVerify();
 }
 
-TYPED_TEST(IntScalarBinaryTest, Sub) {
-  this->SetUpSub();
+TYPED_TEST(IntScalarBinaryTest, Div) {
+  this->SetUpDiv();
   this->RunAndVerify();
 }
 
@@ -39,12 +39,12 @@ TYPED_TEST(IntScalarBinaryTest, Mul) {
   this->RunAndVerify();
 }
 
-TYPED_TEST(IntScalarBinaryTest, Div) {
-  this->SetUpDiv();
+// TODO(chokobole): Add tests for power.
+
+TYPED_TEST(IntScalarBinaryTest, Sub) {
+  this->SetUpSub();
   this->RunAndVerify();
 }
-
-// TODO(chokobole): Add tests for power.
 
 TYPED_TEST_SUITE(IntR2TensorBinaryTest, IntTypes);
 

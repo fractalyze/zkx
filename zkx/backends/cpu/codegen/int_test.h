@@ -122,32 +122,6 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ + y_);
   }
 
-  void SetUpSub() {
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $0[] subtract(%x, %y)
-      }
-    )",
-                                 x_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<T>(x_ - y_);
-  }
-
-  void SetUpMul() {
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $0[] multiply(%x, %y)
-      }
-    )",
-                                 x_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<T>(x_ * y_);
-  }
-
   void SetUpDiv() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {
@@ -171,6 +145,32 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
       literals_[1] = LiteralUtil::CreateR0<T>(y_);
     }
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ / y_);
+  }
+
+  void SetUpMul() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] multiply(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_ * y_);
+  }
+
+  void SetUpSub() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] subtract(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_ - y_);
   }
 
  private:

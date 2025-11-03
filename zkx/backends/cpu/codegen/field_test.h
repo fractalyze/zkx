@@ -104,32 +104,6 @@ class FieldScalarBinaryTest : public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<F>(x_ + y_);
   }
 
-  void SetUpSub() {
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $0[] subtract(%x, %y)
-      }
-    )",
-                                 x_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<F>(x_ - y_);
-  }
-
-  void SetUpMul() {
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $0[] multiply(%x, %y)
-      }
-    )",
-                                 x_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<F>(x_ * y_);
-  }
-
   void SetUpDiv() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {
@@ -145,6 +119,19 @@ class FieldScalarBinaryTest : public CpuKernelEmitterTest {
     } else {
       expected_literal_ = LiteralUtil::CreateR0<F>(*(x_ / y_));
     }
+  }
+
+  void SetUpMul() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] multiply(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_ * y_);
   }
 
   void SetUpPow() {
@@ -174,6 +161,19 @@ class FieldScalarBinaryTest : public CpuKernelEmitterTest {
     )",
                                  x_typename_);
     expected_status_code_ = absl::StatusCode::kInvalidArgument;
+  }
+
+  void SetUpSub() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] subtract(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_ - y_);
   }
 
  private:

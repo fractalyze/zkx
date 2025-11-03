@@ -27,13 +27,13 @@ TYPED_TEST(GroupScalarBinaryTest, Double) {
   this->RunAndVerify();
 }
 
-TYPED_TEST(GroupScalarBinaryTest, Sub) {
-  this->SetUpSub();
+TYPED_TEST(GroupScalarBinaryTest, ScalarMul) {
+  this->SetUpScalarMul();
   this->RunAndVerify();
 }
 
-TYPED_TEST(GroupScalarBinaryTest, ScalarMul) {
-  this->SetUpScalarMul();
+TYPED_TEST(GroupScalarBinaryTest, Sub) {
+  this->SetUpSub();
   this->RunAndVerify();
 }
 

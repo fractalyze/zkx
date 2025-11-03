@@ -33,8 +33,8 @@ TYPED_TEST(IntScalarBinaryTest, Add) {
   this->RunAndVerify();
 }
 
-TYPED_TEST(IntScalarBinaryTest, Sub) {
-  this->SetUpSub();
+TYPED_TEST(IntScalarBinaryTest, Div) {
+  this->SetUpDiv();
   this->RunAndVerify();
 }
 
@@ -43,8 +43,8 @@ TYPED_TEST(IntScalarBinaryTest, Mul) {
   this->RunAndVerify();
 }
 
-TYPED_TEST(IntScalarBinaryTest, Div) {
-  this->SetUpDiv();
+TYPED_TEST(IntScalarBinaryTest, Sub) {
+  this->SetUpSub();
   this->RunAndVerify();
 }
 

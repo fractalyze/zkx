@@ -103,19 +103,6 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ + x_);
   }
 
-  void SetUpSub() {
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $1[] subtract(%x, %y)
-      }
-    )",
-                                 x_typename_, ret_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ - y_);
-  }
-
   void SetUpScalarMul() {
     hlo_text_ = absl::Substitute(
         R"(
@@ -134,6 +121,19 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
     auto x = ScalarField::Random();
     literals_[0] = LiteralUtil::CreateR0<ScalarField>(x);
     expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x * y_);
+  }
+
+  void SetUpSub() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $1[] subtract(%x, %y)
+      }
+    )",
+                                 x_typename_, ret_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ - y_);
   }
 
  private:
