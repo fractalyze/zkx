@@ -224,4 +224,26 @@ llvm::SmallVector<mlir::Type> ShapeToMlirTypes(const Shape& shape,
   return types;
 }
 
+mlir::arith::CmpIPredicate CreateMlirArithCmpIPredicate(
+    ComparisonDirection direction, bool is_signed) {
+  switch (direction) {
+    case ComparisonDirection::kEq:
+      return mlir::arith::CmpIPredicate::eq;
+    case ComparisonDirection::kNe:
+      return mlir::arith::CmpIPredicate::ne;
+    case ComparisonDirection::kLt:
+      return is_signed ? mlir::arith::CmpIPredicate::slt
+                       : mlir::arith::CmpIPredicate::ult;
+    case ComparisonDirection::kLe:
+      return is_signed ? mlir::arith::CmpIPredicate::sle
+                       : mlir::arith::CmpIPredicate::ule;
+    case ComparisonDirection::kGt:
+      return is_signed ? mlir::arith::CmpIPredicate::sgt
+                       : mlir::arith::CmpIPredicate::ugt;
+    case ComparisonDirection::kGe:
+      return is_signed ? mlir::arith::CmpIPredicate::sge
+                       : mlir::arith::CmpIPredicate::uge;
+  }
+}
+
 }  // namespace zkx::mlir_utils

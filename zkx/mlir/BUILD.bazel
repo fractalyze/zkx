@@ -18,6 +18,7 @@ zkx_cc_library(
     srcs = ["mlir_utils.cc"],
     hdrs = ["mlir_utils.h"],
     deps = [
+        "//zkx:comparison_util",
         "//zkx:primitive_util",
         "//zkx:shape_util",
         "//zkx:zkx_data_cc_proto",
