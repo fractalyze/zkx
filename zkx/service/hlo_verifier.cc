@@ -183,34 +183,21 @@ absl::Status ShapeVerifier::HandleConcatenate(HloInstruction* concatenate) {
   for (const HloInstruction* operand : concatenate->operands()) {
     operand_shapes.push_back(&operand->shape());
   }
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferConcatOpShape
-  // clang-format on
-  // return CheckShape(concatenate,
-  //                   ShapeInference::InferConcatOpShape(
-  //                       operand_shapes,
-  //                       concatenate->concatenate_dimension()));
-  return absl::UnimplementedError("HandleConcatenate not supported");
+  return CheckShape(concatenate,
+                    ShapeInference::InferConcatOpShape(
+                        operand_shapes, concatenate->concatenate_dimension()));
 }
 
 absl::Status ShapeVerifier::HandleConvert(HloInstruction* convert) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferConvertShape
-  // clang-format on
-  // return CheckShape(convert, ShapeInference::InferConvertShape(
-  //                                convert->operand(0)->shape(),
-  //                                convert->shape().element_type()));
-  return absl::UnimplementedError("HandleConvert not supported");
+  return CheckShape(convert, ShapeInference::InferConvertShape(
+                                 convert->operand(0)->shape(),
+                                 convert->shape().element_type()));
 }
 
 absl::Status ShapeVerifier::HandleBitcastConvert(HloInstruction* convert) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferConvertShape
-  // clang-format on
-  // return CheckShape(convert, ShapeInference::InferBitcastConvertShape(
-  //                                convert->operand(0)->shape(),
-  //                                convert->shape().element_type()));
-  return absl::UnimplementedError("HandleBitcastConvert not supported");
+  return CheckShape(convert, ShapeInference::InferBitcastConvertShape(
+                                 convert->operand(0)->shape(),
+                                 convert->shape().element_type()));
 }
 
 absl::Status ShapeVerifier::HandleCopy(HloInstruction* copy) {
@@ -905,14 +892,9 @@ bool ShapeVerifier::HasCompatibleElementTypes(const Shape& shape_0,
 }
 
 absl::Status ShapeVerifier::HandleReverse(HloInstruction* reverse) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferReverseShape
-  // clang-format on
-  // return CheckShape(
-  //     reverse,
-  //     ShapeInference::InferReverseShape(reverse->operand(0)->shape(),
-  //                                                reverse->dimensions()));
-  return absl::UnimplementedError("HandleReverse not supported");
+  return CheckShape(
+      reverse, ShapeInference::InferReverseShape(reverse->operand(0)->shape(),
+                                                 reverse->dimensions()));
 }
 
 absl::Status ShapeVerifier::HandleSort(HloInstruction* hlo) {
@@ -937,15 +919,31 @@ absl::Status ShapeVerifier::HandleIota(HloInstruction* hlo) {
 
 absl::Status ShapeVerifier::HandleGetTupleElement(
     HloInstruction* get_tuple_element) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferGetTupleElementShape
-  // clang-format on
-  // return CheckShape(get_tuple_element,
-  //                   ShapeInference::InferGetTupleElementShape(
-  //                       get_tuple_element->operand(0)->shape(),
-  //                       get_tuple_element->tuple_index()));
-  return absl::UnimplementedError("HandleGetTupleElement not supported");
+  return CheckShape(get_tuple_element,
+                    ShapeInference::InferGetTupleElementShape(
+                        get_tuple_element->operand(0)->shape(),
+                        get_tuple_element->tuple_index()));
 }
+
+namespace {
+
+absl::Status SameElementTypesForOperandsAndToApplyParameters(
+    const HloInstruction& instruction, int64_t num_operands_to_check) {
+  const ProgramShape& to_apply = instruction.to_apply()->ComputeProgramShape();
+  for (int i = 0; i < num_operands_to_check; ++i) {
+    const Shape& parameter_shape = to_apply.parameters(i);
+    const Shape& operand_shape = instruction.operands()[i]->shape();
+    if (!ShapeUtil::SameElementType(parameter_shape, operand_shape)) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Shape mismatch between to_apply computation"
+                          " parameter and operand %d in %s.",
+                          i, instruction.ToString()));
+    }
+  }
+  return absl::OkStatus();
+}
+
+}  // namespace
 
 absl::Status ShapeVerifier::HandleReduce(HloInstruction* reduce) {
   if (reduce->operand_count() % 2 != 0) {
@@ -958,17 +956,13 @@ absl::Status ShapeVerifier::HandleReduce(HloInstruction* reduce) {
   for (const HloInstruction* operand : reduce->operands()) {
     operand_shapes.push_back(&operand->shape());
   }
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferReduceShape
-  // clang-format on
-  // TF_RETURN_IF_ERROR(
-  //     CheckShape(reduce, ShapeInference::InferReduceShape(
-  //                            operand_shapes, reduce->dimensions(),
-  //                            reduce->to_apply()->ComputeProgramShape())));
+  TF_RETURN_IF_ERROR(
+      CheckShape(reduce, ShapeInference::InferReduceShape(
+                             operand_shapes, reduce->dimensions(),
+                             reduce->to_apply()->ComputeProgramShape())));
 
-  // return SameElementTypesForOperandsAndToApplyParameters(
-  //     *reduce, reduce->operand_count());
-  return absl::UnimplementedError("HandleReduce not supported");
+  return SameElementTypesForOperandsAndToApplyParameters(
+      *reduce, reduce->operand_count());
 }
 
 absl::Status ShapeVerifier::HandleBitcast(HloInstruction* bitcast) {
@@ -1037,14 +1031,9 @@ absl::Status ShapeVerifier::HandleReshape(HloInstruction* reshape) {
 }
 
 absl::Status ShapeVerifier::HandleTranspose(HloInstruction* transpose) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferTransposeShape
-  // clang-format on
-  // return CheckShape(
-  //     transpose, ShapeInference::InferTransposeShape(
-  //                    transpose->operand(0)->shape(),
-  //                    transpose->dimensions()));
-  return absl::UnimplementedError("HandleTranspose not supported");
+  return CheckShape(
+      transpose, ShapeInference::InferTransposeShape(
+                     transpose->operand(0)->shape(), transpose->dimensions()));
 }
 
 absl::Status ShapeVerifier::HandleParameter(HloInstruction* hlo) {
@@ -1214,14 +1203,10 @@ absl::Status ShapeVerifier::HandleCustomCall(HloInstruction* instruction) {
 }
 
 absl::Status ShapeVerifier::HandleSlice(HloInstruction* slice) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferSliceShape
-  // clang-format on
-  // return CheckShape(slice,
-  //                   ShapeInference::InferSliceShape(
-  //                       slice->operand(0)->shape(), slice->slice_starts(),
-  //                       slice->slice_limits(), slice->slice_strides()));
-  return absl::UnimplementedError("HandleSlice not supported");
+  return CheckShape(slice,
+                    ShapeInference::InferSliceShape(
+                        slice->operand(0)->shape(), slice->slice_starts(),
+                        slice->slice_limits(), slice->slice_strides()));
 }
 
 absl::Status ShapeVerifier::HandleDynamicSlice(HloInstruction* dynamic_slice) {
@@ -1264,16 +1249,13 @@ absl::Status ShapeVerifier::HandleMap(HloInstruction* map) {
   std::vector<int64_t> map_dims(max_operand_rank);
   std::iota(map_dims.begin(), map_dims.end(), 0);
 
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferMapShape
-  // TF_RETURN_IF_ERROR(CheckShape(
-  //     map,
-  //     ShapeInference::InferMapShape(
-  //         operand_shapes, map->to_apply()->ComputeProgramShape(),
-  //         map_dims)));
+  TF_RETURN_IF_ERROR(CheckShape(
+      map,
+      ShapeInference::InferMapShape(
+          operand_shapes, map->to_apply()->ComputeProgramShape(), map_dims)));
 
-  // return SameElementTypesForOperandsAndToApplyParameters(*map,
-  //                                                        map->operand_count());
-  return absl::UnimplementedError("HandleMap not supported");
+  return SameElementTypesForOperandsAndToApplyParameters(*map,
+                                                         map->operand_count());
 }
 
 absl::Status ShapeVerifier::HandleWhile(HloInstruction* zkx_while) {
@@ -1333,7 +1315,7 @@ absl::Status ShapeVerifier::HandleConditional(HloInstruction* conditional) {
 }
 
 absl::Status ShapeVerifier::HandlePad(HloInstruction* pad) {
-  // TODO(chokobole): Implement this. Dependency: ShapeInference::InferPadShape
+  // TODO(chokobole): Implement this. Dependency: HloPadInstruction
   // return CheckShape(pad,
   // ShapeInference::InferPadShape(pad->operand(0)->shape(),
   //                                                      pad->operand(1)->shape(),
@@ -1582,7 +1564,7 @@ absl::Status ShapeVerifier::HandleAddDependency(
 
 absl::Status ShapeVerifier::HandleGetDimensionSize(HloInstruction* get_size) {
   // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferGetDimensionSizeShape
+  // TODO(chokobole): Uncomment this. Dependency: HloGetDimensionSizeInstruction
   // clang-format on
   // return CheckShape(get_size,
   //                   ShapeInference::InferGetDimensionSizeShape(
@@ -1593,7 +1575,7 @@ absl::Status ShapeVerifier::HandleGetDimensionSize(HloInstruction* get_size) {
 
 absl::Status ShapeVerifier::HandleSetDimensionSize(HloInstruction* set_size) {
   // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferSetDimensionSizeShape
+  // TODO(chokobole): Uncomment this. Dependency: HloGetDimensionSizeInstruction
   // clang-format on
   // return CheckShape(set_size,
   //                   ShapeInference::InferSetDimensionSizeShape(

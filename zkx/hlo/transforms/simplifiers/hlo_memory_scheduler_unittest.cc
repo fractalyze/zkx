@@ -51,6 +51,25 @@ namespace {
 
 class HloSchedulingTest : public HloHardwareIndependentTestBase {};
 
+int64_t PeakMemoryUseOfEntryComputation(
+    HloModule* module, LogicalBuffer::SizeFunction size_function) {
+  CHECK(module->has_entry_computation());
+  CHECK(module->has_schedule());
+
+  std::unique_ptr<HloAliasAnalysis> alias_analysis =
+      HloAliasAnalysis::Run(module).value();
+
+  const HloSchedule& schedule = module->schedule();
+
+  HloComputation* computation = module->entry_computation();
+  const HloInstructionSequence& sequence = schedule.sequence(computation);
+  return HeapSimulator::Run(
+             std::make_unique<NoFragmentationStatsHeap<HloValue>>(),
+             *computation, sequence, *alias_analysis, size_function)
+      .value()
+      .heap_size;
+}
+
 TEST_F(HloSchedulingTest, LastUseScheduledFirst) {
   // Tests scheduling of the following HLO code:
   //
@@ -111,65 +130,61 @@ TEST_F(HloSchedulingTest, LastUseScheduledFirst) {
   EXPECT_FALSE(module->has_schedule());
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferGetTupleElementShape
-// clang-format on
-// TEST_F(HloSchedulingTest, ListSchedulerHandlesAliasing) {
-//   const char* module_str = R"(
-// HloModule test_aliasing_module
+TEST_F(HloSchedulingTest, ListSchedulerHandlesAliasing) {
+  const char* module_str = R"(
+HloModule test_aliasing_module
 
-// ENTRY root {
-//   param = s32[1000] parameter(0)
-//   p0 = s32[1000] copy(param)
-//   p1 = s32[1000] copy(param)
-//   t = (s32[1000], s32[1000]) tuple(p0, p1)
-//   a = s32[1000] get-tuple-element(t), index=0
-//   b = s32[1000] get-tuple-element(t), index=1
-//   c = s32[1000] add(a, b)
-//   d = s32[1000] add(c, b)
-//   e = s32[1000] add(c, c)
-//   f = s32[1000] add(e, e)
-//   ROOT result = (s32[1000], s32[1000], s32[1000]) tuple(d, e, f)
-// })";
+ENTRY root {
+  param = s32[1000] parameter(0)
+  p0 = s32[1000] copy(param)
+  p1 = s32[1000] copy(param)
+  t = (s32[1000], s32[1000]) tuple(p0, p1)
+  a = s32[1000] get-tuple-element(t), index=0
+  b = s32[1000] get-tuple-element(t), index=1
+  c = s32[1000] add(a, b)
+  d = s32[1000] add(c, b)
+  e = s32[1000] add(c, c)
+  f = s32[1000] add(e, e)
+  ROOT result = (s32[1000], s32[1000], s32[1000]) tuple(d, e, f)
+})";
 
-//   TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
-//                           ParseAndReturnVerifiedModule(module_str));
+  TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
+                          ParseAndReturnVerifiedModule(module_str));
 
-//   auto size_fn = [](const BufferValue& buffer) {
-//     return ShapeUtil::ByteSizeOf(buffer.shape(), /*pointer_size=*/8);
-//   };
-//   int64_t peak_memory;
-//   TF_ASSERT_OK_AND_ASSIGN(
-//       HloSchedule schedule,
-//       ScheduleModule(module.get(), size_fn,
-//                      ComputationSchedulerToModuleScheduler(ListMemoryScheduler),
-//                      /*execution_threads=*/{}, &peak_memory));
-//   TF_ASSERT_OK(module->set_schedule(std::move(schedule)));
-//   // Verify that all instructions are in the sequence.
-//   const std::vector<HloInstruction*>& sequence =
-//       schedule.sequence(module->entry_computation()).instructions();
-//   EXPECT_EQ(module->entry_computation()->instruction_count(),
-//   sequence.size());
+  auto size_fn = [](const BufferValue& buffer) {
+    return ShapeUtil::ByteSizeOf(buffer.shape(), /*pointer_size=*/8);
+  };
+  int64_t peak_memory;
+  TF_ASSERT_OK_AND_ASSIGN(
+      HloSchedule schedule,
+      ScheduleModule(module.get(), size_fn,
+                     ComputationSchedulerToModuleScheduler(ListMemoryScheduler),
+                     /*execution_threads=*/{}, &peak_memory));
+  HloSchedule schedule_copy = schedule;
+  TF_ASSERT_OK(module->set_schedule(std::move(schedule_copy)));
+  // Verify that all instructions are in the sequence.
+  const std::vector<HloInstruction*>& sequence =
+      schedule.sequence(module->entry_computation()).instructions();
+  EXPECT_EQ(module->entry_computation()->instruction_count(), sequence.size());
 
-//   absl::flat_hash_map<std::string, const HloInstruction*>
-//   instructions_by_name; for (const HloInstruction* instruction : sequence) {
-//     instructions_by_name[instruction->name()] = instruction;
-//   }
+  absl::flat_hash_map<std::string, const HloInstruction*> instructions_by_name;
+  for (const HloInstruction* instruction : sequence) {
+    instructions_by_name[instruction->name()] = instruction;
+  }
 
-//   // The first instruction should be the parameter and the last the root.
-//   EXPECT_EQ(instructions_by_name.at("param"), sequence.front());
-//   EXPECT_EQ(instructions_by_name.at("result"), sequence.back());
+  // The first instruction should be the parameter and the last the root.
+  EXPECT_EQ(instructions_by_name.at("param"), sequence.front());
+  EXPECT_EQ(instructions_by_name.at("result"), sequence.back());
 
-//   // Instructions "d" and "e" will both be schedulable at the same time, but
-//   // instruction "d" allows us to free the buffer of "p1", so the list
-//   scheduler
-//   // should prefer it.
-//   SequentialHloOrdering ordering(schedule);
-//   EXPECT_TRUE(ordering.ExecutesBefore(instructions_by_name.at("d"),
-//                                       instructions_by_name.at("e")));
-//   EXPECT_EQ(PeakMemoryUseOfEntryComputation(module.get(), size_fn),
-//             peak_memory);
-// }
+  // Instructions "d" and "e" will both be schedulable at the same time, but
+  // instruction "d" allows us to free the buffer of "p1", so the list scheduler
+  // should prefer it.
+  SequentialHloOrdering ordering(schedule);
+  EXPECT_TRUE(ordering.ExecutesBefore(instructions_by_name.at("d"),
+                                      instructions_by_name.at("e")));
+  EXPECT_EQ(PeakMemoryUseOfEntryComputation(module.get(), size_fn),
+            peak_memory);
+}
 
 TEST_F(HloSchedulingTest, HostSendDoneSchedule) {
   const char* const module_str = R"(
@@ -212,108 +227,100 @@ ENTRY entry {
             absl::c_find(sequence, instructions_by_name.at("n1")));
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferGetTupleElementShape
-// clang-format on
-// TEST_F(HloSchedulingTest, TuplesAreAccountedCorrectly) {
-//   auto builder = HloComputation::Builder(TestName());
-//   const Shape r1u32 = ShapeUtil::MakeShape(U32, {6});
+TEST_F(HloSchedulingTest, TuplesAreAccountedCorrectly) {
+  auto builder = HloComputation::Builder(TestName());
+  const Shape r1u32 = ShapeUtil::MakeShape(U32, {6});
 
-//   // Wrap lit in abs because constants are considered free by
-//   // IgnoreInstruction, and it skews the accounting.
-//   auto lit = builder.AddInstruction(HloInstruction::CreateConstant(
-//       LiteralUtil::CreateR1<uint32_t>({1, 1, 1, 1, 1, 1})));
-//   auto neg_const = builder.AddInstruction(
-//       HloInstruction::CreateUnary(r1u32, HloOpcode::kNegate, lit));
+  // Wrap lit in abs because constants are considered free by
+  // IgnoreInstruction, and it skews the accounting.
+  auto lit = builder.AddInstruction(HloInstruction::CreateConstant(
+      LiteralUtil::CreateR1<uint32_t>({1, 1, 1, 1, 1, 1})));
+  auto neg_const = builder.AddInstruction(
+      HloInstruction::CreateUnary(r1u32, HloOpcode::kNegate, lit));
 
-//   auto neg_abs1 = builder.AddInstruction(
-//       HloInstruction::CreateUnary(r1u32, HloOpcode::kNegate, neg_const));
-//   auto tuple = builder.AddInstruction(HloInstruction::CreateTuple(
-//       absl::Span<HloInstruction* const>({neg_abs1})));
-//   auto tuple_elm = builder.AddInstruction(
-//       HloInstruction::CreateGetTupleElement(r1u32, tuple, 0));
+  auto neg_abs1 = builder.AddInstruction(
+      HloInstruction::CreateUnary(r1u32, HloOpcode::kNegate, neg_const));
+  auto tuple = builder.AddInstruction(HloInstruction::CreateTuple(
+      absl::Span<HloInstruction* const>({neg_abs1})));
+  auto tuple_elm = builder.AddInstruction(
+      HloInstruction::CreateGetTupleElement(r1u32, tuple, 0));
 
-//   auto neg_abs2 = builder.AddInstruction(
-//       HloInstruction::CreateUnary(r1u32, HloOpcode::kNegate, neg_const));
+  auto neg_abs2 = builder.AddInstruction(
+      HloInstruction::CreateUnary(r1u32, HloOpcode::kNegate, neg_const));
 
-//   builder.AddInstruction(HloInstruction::CreateBinary(r1u32, HloOpcode::kAdd,
-//                                                       tuple_elm, neg_abs2));
+  builder.AddInstruction(HloInstruction::CreateBinary(r1u32, HloOpcode::kAdd,
+                                                      tuple_elm, neg_abs2));
 
-//   auto module = CreateNewVerifiedModule();
-//   module->AddEntryComputation(builder.Build());
-//   TF_ASSERT_OK_AND_ASSIGN(
-//       HloSchedule schedule,
-//       ScheduleModule(
-//           module.get(),
-//           [](const BufferValue& buffer) {
-//             return ShapeUtil::ByteSizeOf(buffer.shape(), 1);
-//           },
-//           ComputationSchedulerToModuleScheduler(ListMemoryScheduler)));
+  auto module = CreateNewVerifiedModule();
+  module->AddEntryComputation(builder.Build());
+  TF_ASSERT_OK_AND_ASSIGN(
+      HloSchedule schedule,
+      ScheduleModule(
+          module.get(),
+          [](const BufferValue& buffer) {
+            return ShapeUtil::ByteSizeOf(buffer.shape(), 1);
+          },
+          ComputationSchedulerToModuleScheduler(ListMemoryScheduler)));
 
-//   // Verify that all instructions are in the sequence.
-//   EXPECT_EQ(module->entry_computation()->instruction_count(),
-//             schedule.sequence(module->entry_computation()).size());
-//   SequentialHloOrdering ordering(schedule);
-//   // tuple allocates the tuple buffer and doesn't free anything.
-//   // abs_abs2 uses the same buffer for input/output, so its bytes-freed is 0.
-//   // abs_abs2 should be scheduled before tuple by List.
-//   EXPECT_TRUE(ordering.ExecutesBefore(neg_abs2, tuple));
-// }
+  // Verify that all instructions are in the sequence.
+  EXPECT_EQ(module->entry_computation()->instruction_count(),
+            schedule.sequence(module->entry_computation()).size());
+  SequentialHloOrdering ordering(schedule);
+  // tuple allocates the tuple buffer and doesn't free anything.
+  // abs_abs2 uses the same buffer for input/output, so its bytes-freed is 0.
+  // abs_abs2 should be scheduled before tuple by List.
+  EXPECT_TRUE(ordering.ExecutesBefore(neg_abs2, tuple));
+}
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferGetTupleElementShape
-// clang-format on
-// TEST_F(HloSchedulingTest, MultiOutputFusionAccountedCorrectly) {
-//   const Shape r1u32 = ShapeUtil::MakeShape(U32, {5});
-//   HloComputation::Builder builder(TestName());
+TEST_F(HloSchedulingTest, MultiOutputFusionAccountedCorrectly) {
+  const Shape r1u32 = ShapeUtil::MakeShape(U32, {5});
+  HloComputation::Builder builder(TestName());
 
-//   auto c1 = builder.AddInstruction(HloInstruction::CreateConstant(
-//       LiteralUtil::CreateR1<uint32_t>({1, 1, 1, 1, 1})));
-//   auto c2 = builder.AddInstruction(HloInstruction::CreateConstant(
-//       LiteralUtil::CreateR1<uint32_t>({1, 2, 3, 4, 5})));
-//   auto c3 = builder.AddInstruction(HloInstruction::CreateConstant(
-//       LiteralUtil::CreateR1<uint32_t>({0, 2, 4, 6, 8})));
+  auto c1 = builder.AddInstruction(HloInstruction::CreateConstant(
+      LiteralUtil::CreateR1<uint32_t>({1, 1, 1, 1, 1})));
+  auto c2 = builder.AddInstruction(HloInstruction::CreateConstant(
+      LiteralUtil::CreateR1<uint32_t>({1, 2, 3, 4, 5})));
+  auto c3 = builder.AddInstruction(HloInstruction::CreateConstant(
+      LiteralUtil::CreateR1<uint32_t>({0, 2, 4, 6, 8})));
 
-//   auto add = builder.AddInstruction(
-//       HloInstruction::CreateBinary(r1u32, HloOpcode::kAdd, c1, c2));
-//   auto mul = builder.AddInstruction(
-//       HloInstruction::CreateBinary(r1u32, HloOpcode::kMultiply, add, c3));
-//   auto tuple = builder.AddInstruction(HloInstruction::CreateTuple({add,
-//   mul}));
+  auto add = builder.AddInstruction(
+      HloInstruction::CreateBinary(r1u32, HloOpcode::kAdd, c1, c2));
+  auto mul = builder.AddInstruction(
+      HloInstruction::CreateBinary(r1u32, HloOpcode::kMultiply, add, c3));
+  auto tuple = builder.AddInstruction(HloInstruction::CreateTuple({add, mul}));
 
-//   auto tuple_elm = builder.AddInstruction(
-//       HloInstruction::CreateGetTupleElement(r1u32, tuple, 0));
+  auto tuple_elm = builder.AddInstruction(
+      HloInstruction::CreateGetTupleElement(r1u32, tuple, 0));
 
-//   auto neg = builder.AddInstruction(
-//       HloInstruction::CreateUnary(r1u32, HloOpcode::kNegate, c3));
+  auto clz = builder.AddInstruction(
+      HloInstruction::CreateUnary(r1u32, HloOpcode::kClz, c3));
 
-//   builder.AddInstruction(
-//       HloInstruction::CreateBinary(r1u32, HloOpcode::kAdd, tuple_elm, neg));
+  builder.AddInstruction(
+      HloInstruction::CreateBinary(r1u32, HloOpcode::kAdd, tuple_elm, clz));
 
-//   auto module = CreateNewVerifiedModule();
-//   auto* computation = module->AddEntryComputation(builder.Build());
+  auto module = CreateNewVerifiedModule();
+  auto* computation = module->AddEntryComputation(builder.Build());
 
-//   auto fusion = computation->CreateFusionInstruction(
-//       {tuple, mul, add}, HloInstruction::FusionKind::kLoop);
+  auto fusion = computation->CreateFusionInstruction(
+      {tuple, mul, add}, HloInstruction::FusionKind::kLoop);
 
-//   TF_ASSERT_OK_AND_ASSIGN(
-//       HloSchedule schedule,
-//       ScheduleModule(
-//           module.get(),
-//           [](const BufferValue& buffer) {
-//             return ShapeUtil::ByteSizeOf(buffer.shape(), 2);
-//           },
-//           ComputationSchedulerToModuleScheduler(ListMemoryScheduler)));
+  TF_ASSERT_OK_AND_ASSIGN(
+      HloSchedule schedule,
+      ScheduleModule(
+          module.get(),
+          [](const BufferValue& buffer) {
+            return ShapeUtil::ByteSizeOf(buffer.shape(), 2);
+          },
+          ComputationSchedulerToModuleScheduler(ListMemoryScheduler)));
 
-//   // Verify that all instructions are in the sequence.
-//   EXPECT_EQ(module->entry_computation()->instruction_count(),
-//             schedule.sequence(module->entry_computation()).size());
-//   SequentialHloOrdering ordering(schedule);
-//   // fusion allocates memory for the tuple elements and doesn't free
-//   anything,
-//   // so it's more expensive than exp.
-//   EXPECT_TRUE(ordering.ExecutesBefore(neg, fusion));
-// }
+  // Verify that all instructions are in the sequence.
+  EXPECT_EQ(module->entry_computation()->instruction_count(),
+            schedule.sequence(module->entry_computation()).size());
+  SequentialHloOrdering ordering(schedule);
+  // fusion allocates memory for the tuple elements and doesn't free anything,
+  // so it's more expensive than exp.
+  EXPECT_TRUE(ordering.ExecutesBefore(clz, fusion));
+}
 
 // clang-format off
 // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateWhile

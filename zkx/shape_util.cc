@@ -323,6 +323,17 @@ bool ShapeUtil::FillNewShape(PrimitiveType element_type,
 }
 
 // static
+ProgramShape ShapeUtil::MakeProgramShape(
+    std::initializer_list<Shape> parameters, Shape result) {
+  ProgramShape program_shape;
+  for (const Shape& shape : parameters) {
+    *program_shape.add_parameters() = shape;
+  }
+  *program_shape.mutable_result() = std::move(result);
+  return program_shape;
+}
+
+// static
 Shape ShapeUtil::MakeShape(PrimitiveType element_type,
                            absl::Span<const int64_t> dimensions) {
   Shape shape;
@@ -506,6 +517,73 @@ Shape ShapeUtil::MakeTokenShape() {
 void ShapeUtil::AppendShapeToTuple(const Shape& shape, Shape* tuple_shape) {
   DCHECK_OK(ValidateShapeWithOptionalLayout(shape));
   *tuple_shape->add_tuple_shapes() = shape;
+}
+
+// static
+void ShapeUtil::UpdateDynamicDimension(Shape* shape, ShapeIndexView index,
+                                       int64_t dim, bool is_dynamic) {
+  if (index.empty()) {
+    CHECK(!shape->IsTuple());
+    shape->set_dynamic_dimension(dim, is_dynamic);
+    return;
+  }
+
+  UpdateDynamicDimension(shape->mutable_tuple_shapes(index.front()),
+                         index.subspan(1), dim, is_dynamic);
+}
+
+// static
+void ShapeUtil::AppendMajorDimension(int bound, Shape* shape) {
+  CHECK(LayoutUtil::IsDenseArray(*shape));
+  if (shape->has_layout()) {
+    shape->mutable_layout()->add_minor_to_major(shape->rank());
+  }
+  shape->add_dimensions(bound);
+  DCHECK_OK(ValidateShape(*shape));
+}
+
+// static
+Shape ShapeUtil::PrependMajorDimension(int64_t bound, Shape shape) {
+  Shape new_shape(shape.element_type(), {}, {}, {});
+  new_shape.add_dimensions(bound);
+  for (const int64_t dim : shape.dimensions()) {
+    new_shape.add_dimensions(dim);
+  }
+  if (shape.has_layout()) {
+    for (const int64_t dim : shape.layout().minor_to_major()) {
+      new_shape.mutable_layout()->add_minor_to_major(dim + 1);
+    }
+    new_shape.mutable_layout()->add_minor_to_major(0);
+  }
+  return new_shape;
+}
+
+// static
+void ShapeUtil::AppendMinorDimension(int bound, Shape* shape) {
+  CHECK(LayoutUtil::IsDenseArray(*shape));
+  shape->add_dimensions(bound);
+  if (shape->has_layout()) {
+    // Append an empty field to the layout.
+    shape->mutable_layout()->add_minor_to_major(0);
+    // Shift by one position all values in the layout in the major direction.
+    for (int dim_idx = shape->layout().minor_to_major_size() - 2; dim_idx >= 0;
+         --dim_idx) {
+      int layout_idx = shape->layout().minor_to_major(dim_idx);
+      shape->mutable_layout()->set_minor_to_major(dim_idx + 1, layout_idx);
+    }
+    // Insert the newly added dimension at the minor-most position.
+    shape->mutable_layout()->set_minor_to_major(0, shape->rank() - 1);
+  }
+  DCHECK_OK(ValidateShape(*shape));
+}
+
+// static
+void ShapeUtil::CopyDynamicDimensions(Shape* to, const Shape& from) {
+  CHECK_EQ(to->rank(), from.rank());
+  for (int64_t i = 0; i < from.rank(); ++i) {
+    to->set_dynamic_dimension(i, from.is_dynamic_dimension(i));
+  }
+  DCHECK_OK(ValidateShape(*to));
 }
 
 // static

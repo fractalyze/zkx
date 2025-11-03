@@ -84,6 +84,23 @@ enum PrimitiveType {
   BN254_G2_XYZZ_STD = 32;
 }
 
+// Describes the padding configuration for Pad operation. The padding amount on
+// both edges as well as between the elements are specified for each dimension.
+message PaddingConfig {
+  // Describes the padding configuration for a dimension.
+  message PaddingConfigDimension {
+    // Padding amount on the low-end (next to the index 0). May be negative.
+    int64 edge_padding_low = 1;
+
+    // Padding amount on the high-end (next to the highest index). May be
+    // negative.
+    int64 edge_padding_high = 2;
+  }
+
+  // The padding configuration for all dimensions.
+  repeated PaddingConfigDimension dimensions = 1;
+}
+
 // A DimLevelType indicates the encoding method for a dimension in an array.
 // The semantics of this field are identical to those of the MLIR SparseTensor
 // dialect.

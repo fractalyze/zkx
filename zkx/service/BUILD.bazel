@@ -831,6 +831,7 @@ zkx_cc_library(
     hdrs = ["shape_inference.h"],
     deps = [
         "//xla/tsl/platform:errors",
+        "//zkx:permutation_util",
         "//zkx:shape_util",
         "//zkx:zkx_data_cc_proto",
         "//zkx/hlo/ir:hlo",

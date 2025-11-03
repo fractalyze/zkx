@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "zkx/service/shape_inference.h"
 
+#include <set>
+
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/log/check.h"
@@ -23,9 +25,16 @@ limitations under the License.
 
 #include "xla/tsl/platform/errors.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
+#include "zkx/permutation_util.h"
+#include "zkx/shape_util.h"
 
 namespace zkx {
 namespace {
+
+// Returns true if no element is present in slice more than once.
+bool AllUnique(absl::Span<const int64_t> slice) {
+  return std::set<int64_t>(slice.begin(), slice.end()).size() == slice.size();
+}
 
 // Checks whether the given dimension size `size` is unbounded dynamic size.
 bool IsUnboundedDynamicSize(int64_t size) {
@@ -48,10 +57,145 @@ absl::Status ExpectArray(const Shape& shape, std::string_view op_type) {
   return absl::OkStatus();
 }
 
+absl::Status VerifyReducerShape(
+    const ProgramShape& reducer_shape,
+    absl::Span<const Shape* const> init_value_shapes,
+    absl::Span<const PrimitiveType> input_element_types, int64_t inputs) {
+  if (reducer_shape.parameters_size() != inputs * 2) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Reduction function must take %d parameters, but "
+                        "takes %d parameter(s).",
+                        inputs * 2, reducer_shape.parameters_size()));
+  }
+
+  const Shape& accumulator_shape = reducer_shape.result();
+  std::vector<const Shape*> accumulator_subshapes;
+  if (accumulator_shape.IsArray()) {
+    if (inputs != 1) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Reduction function must produce a tuple with %d elements, but "
+          "produces a scalar",
+          inputs));
+    }
+    accumulator_subshapes.push_back(&accumulator_shape);
+  } else if (accumulator_shape.IsTuple()) {
+    if (ShapeUtil::TupleElementCount(accumulator_shape) != inputs) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Reduction function must produce a tuple with %d elements, but has "
+          "%d elements",
+          inputs, ShapeUtil::TupleElementCount(accumulator_shape)));
+    }
+    for (const Shape& element_shape : accumulator_shape.tuple_shapes()) {
+      accumulator_subshapes.push_back(&element_shape);
+    }
+  } else {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Reduction function must produce a scalar or tuple of scalars, but has "
+        "shape: %s",
+        ShapeUtil::HumanString(accumulator_shape)));
+  }
+
+  for (const Shape* element_shape : accumulator_subshapes) {
+    if (element_shape->rank() != 0) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Reduction function must return a scalar or tuple of scalars but "
+          "returns shape: %s",
+          ShapeUtil::HumanString(accumulator_shape)));
+    }
+  }
+
+  for (int64_t i = 0; i < inputs; ++i) {
+    // Check that the accumulator can be passed in as the first argument.
+    // Note: comparing here and below with Compatible since we don't care about
+    // layout in scalars - see b/26668201 for a longer-term vision.
+    if (!ShapeUtil::Compatible(*accumulator_subshapes[i],
+                               reducer_shape.parameters(i))) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Reduction function's %d-th parameter shape differs from the "
+          "result shape: %s vs %s",
+          i, ShapeUtil::HumanString(reducer_shape.parameters(i)),
+          ShapeUtil::HumanString(*accumulator_subshapes[i])));
+    }
+    // Check that init_value's shapes are suitable for reducer_shape.
+    if (!ShapeUtil::Compatible(*accumulator_subshapes[i],
+                               *init_value_shapes[i])) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Reduction function's accumulator shape at index %d differs from "
+          "the init_value shape: %s vs %s",
+          i, ShapeUtil::HumanString(*accumulator_subshapes[i]),
+          ShapeUtil::HumanString(*init_value_shapes[i])));
+    }
+    // Check that the inputs can be passed in as the non-accumulator arguments.
+    const Shape input_element_shape =
+        ShapeUtil::MakeShape(input_element_types[i], {});
+    if (!ShapeUtil::Compatible(input_element_shape,
+                               reducer_shape.parameters(inputs + i))) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Reduction function's %d-th parameter shape differs from the "
+          "input type element type: %s vs %s",
+          inputs + i,
+          ShapeUtil::HumanString(reducer_shape.parameters(inputs + i)),
+          ShapeUtil::HumanString(input_element_shape)));
+    }
+    // Check that the accumulator and inputs to the reducer function match.
+    // If the accumulator is scalar, it must have the same type as the inputs
+    // (up to fp precision). If it is a tuple, then the k-th element of the
+    // tuple must have the same type as the K-th input (again, up to fp
+    // precision.)
+    if (!ShapeUtil::Compatible(*accumulator_subshapes[i],
+                               reducer_shape.parameters(inputs + i))) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Reduction function's %d-th parameter shape must "
+          "match the result shape, but got %s vs %s.",
+          inputs + i,
+          ShapeUtil::HumanString(reducer_shape.parameters(inputs + i)),
+          ShapeUtil::HumanString(*accumulator_subshapes[i])));
+    }
+  }
+
+  return absl::OkStatus();
+}
+
 // Encapsulates inferred dimension size and bound size.
 struct DimAndBound {
   int64_t dimension, bound;
 };
+
+// Inference rules to concat dimensions with bounds (lhs/rhs are commutative):
+//       Dim of lhs     Dim of rhs      Infer
+//  c0:  X              Y               X+Y
+//  c1:  X              ?               ?
+//  c2:  X              <=B             <=X+B
+//  c3:  ?              ?               ?
+//. c4:  ?              <=B             ?
+//  c5:  <=B            <=C             <=B+C
+// Note:
+// A HLO static dimension size `X` is expressed as size=X, and bound=?
+// A bounded dynamic dimension size `<=X` is be expressed as size=X, and bound=?
+// A unbounded dynamic dimension size, `?`, is expressed as size=?, and bound=?
+DimAndBound InferConcatenatedDimAndBound(int64_t left_size, int64_t right_size,
+                                         int64_t left_bound,
+                                         int64_t right_bound) {
+  bool is_left_static_dim = !IsUnboundedDynamicSize(left_size);
+  bool is_right_static_dim = !IsUnboundedDynamicSize(right_size);
+  bool is_left_static_bound = !IsUnboundedDynamicSize(left_bound);
+  bool is_right_static_bound = !IsUnboundedDynamicSize(right_bound);
+  int64_t inferred_size = Shape::kUnboundedSize;
+  int64_t inferred_bound = Shape::kUnboundedSize;
+
+  if (is_left_static_dim && is_right_static_dim) {
+    inferred_size = left_size + right_size;
+  }
+  if (is_left_static_bound || is_right_static_bound) {
+    int64_t leftBoundOrSize = is_left_static_bound ? left_bound : left_size;
+    int64_t rightBoundOrSize = is_right_static_bound ? right_bound : right_size;
+    if (!IsUnboundedDynamicSize(leftBoundOrSize) &&
+        !IsUnboundedDynamicSize(rightBoundOrSize)) {
+      inferred_bound = leftBoundOrSize + rightBoundOrSize;
+    }
+  }
+  return {inferred_size, inferred_bound};
+}
 
 // Inference rules to merge dimensions with bounds (lhs/rhs are commutative):
 //       Dim of lhs     Dim of rhs      Infer
@@ -188,6 +332,231 @@ absl::StatusOr<Shape> ShapeInference::InferUnaryOpShape(HloOpcode opcode,
           "Unknown operation for unary shape inference: \"%s\".",
           HloOpcodeString(opcode)));
   }
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferConcatOpShape(
+    absl::Span<const Shape* const> arg_shapes, const int64_t dimension) {
+  if (arg_shapes.empty()) {
+    return absl::InvalidArgumentError(
+        "Concatenate expects at least one argument.");
+  }
+  if (dimension < 0 || dimension >= arg_shapes[0]->rank()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Concatenate dimension out of bounds: %d.", dimension));
+  }
+  const Shape* arg_shape = nullptr;
+  PrimitiveType element_type = PRIMITIVE_TYPE_INVALID;
+  for (const Shape* shape : arg_shapes) {
+    TF_RETURN_IF_ERROR(ExpectArray(*shape, "operand of concatenation"));
+    if (!arg_shape) {
+      arg_shape = shape;
+      element_type = arg_shape->element_type();
+      continue;
+    }
+    if (arg_shape->rank() != shape->rank()) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Cannot concatenate arrays with different ranks: %d (%s) vs %d "
+          "(%s).",
+          arg_shape->rank(), ShapeUtil::HumanString(*arg_shape), shape->rank(),
+          ShapeUtil::HumanString(*shape)));
+    }
+    if (!ShapeUtil::SameElementType(*arg_shape, *shape)) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Cannot concatenate arrays with different element types: %s vs %s.",
+          PrimitiveType_Name(arg_shape->element_type()),
+          PrimitiveType_Name(shape->element_type())));
+    }
+    for (int64_t dimension_number = 0; dimension_number < arg_shape->rank();
+         ++dimension_number) {
+      if (!CompatibleDimensionSizes(arg_shape->dimensions(dimension_number),
+                                    shape->dimensions(dimension_number))) {
+        if (dimension_number == dimension) {
+          continue;  // It's okay to differ in the dimension we're
+                     // concatenating.
+        }
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Cannot concatenate arrays that differ in dimensions other than "
+            "the one being concatenated. Dimension %d in both shapes must be "
+            "equal (or compatible): %s vs %s.",
+            dimension_number, ShapeUtil::HumanString(*arg_shape),
+            ShapeUtil::HumanString(*shape)));
+      }
+    }
+    element_type = ShapeUtil::HigherPrecisionElementType(*shape, *arg_shape);
+  }
+
+  // Infer the most specific (size, bound) of all dimensions of the return type
+  int64_t rank = arg_shape->rank();
+  std::vector<int64_t> inferred_sizes(rank, Shape::kUnboundedSize);
+  std::vector<int64_t> inferred_bounds(rank, Shape::kUnboundedSize);
+  // Note: for the concatenate dimension, 0 should be the identity element:
+  // Any dim size can keep unchanged when concatenated with 0
+  inferred_sizes[dimension] = 0;
+
+  for (const Shape* shape : arg_shapes) {
+    for (int dim = 0; dim < rank; ++dim) {
+      DimAndBound inferred_dim_and_bound;
+
+      int64_t dimension_size = shape->dimensions(dim);
+      int64_t leftSize = inferred_sizes[dim];
+      int64_t rightSize = dimension_size;
+      int64_t leftBound = inferred_bounds[dim];
+      int64_t rightBound = shape->is_dynamic_dimension(dim)
+                               ? dimension_size
+                               : Shape::kUnboundedSize;
+      if (dim == dimension) {
+        inferred_dim_and_bound = InferConcatenatedDimAndBound(
+            leftSize, rightSize, leftBound, rightBound);
+      } else {
+        TF_ASSIGN_OR_RETURN(
+            inferred_dim_and_bound,
+            InferMostSpecificDimAndBound(dim, leftSize, rightSize, leftBound,
+                                         rightBound));
+      }
+      inferred_sizes[dim] = inferred_dim_and_bound.dimension;
+      inferred_bounds[dim] = inferred_dim_and_bound.bound;
+    }
+  }
+
+  Shape result = ShapeUtil::MakeShape(element_type, inferred_sizes);
+  for (int64_t i = 0; i < inferred_bounds.size(); ++i) {
+    if (!IsUnboundedDynamicSize(inferred_bounds[i]) ||
+        IsUnboundedDynamicSize(inferred_sizes[i])) {
+      result.set_dynamic_dimension(i, true);
+    }
+  }
+  return result;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferConvertShape(
+    const Shape& operand_shape, PrimitiveType new_element_type) {
+  if (!operand_shape.IsArray() ||
+      !primitive_util::IsArrayType(new_element_type)) {
+    // Note: we may want to support tuple conversions via this operation in the
+    // future, by recursing into the tuple elements to check all sub-conversions
+    // are valid. For now we just reject them, though.
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Convert does not allow non-arrays, so cannot convert from %s to %s.",
+        ShapeUtil::HumanString(operand_shape),
+        PrimitiveType_Name(new_element_type)));
+  }
+
+  return ShapeUtil::ChangeElementType(operand_shape, new_element_type);
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferBitcastConvertShape(
+    const Shape& operand_shape, PrimitiveType new_element_type) {
+  auto old_element_type = operand_shape.element_type();
+  if (!operand_shape.IsArray() ||
+      !primitive_util::IsArrayType(new_element_type)) {
+    // Note: we may want to support tuple conversions via this operation in the
+    // future, by recursing into the tuple elements to check all sub-conversions
+    // are valid. For now we just reject them, though.
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Cannot convert from or to tuple type; requested conversion: %s => %s.",
+        ShapeUtil::HumanString(operand_shape),
+        PrimitiveType_Name(new_element_type)));
+  }
+
+  int input_bitwidth = primitive_util::BitWidth(old_element_type);
+  int output_bitwidth = primitive_util::BitWidth(new_element_type);
+  if (std::max(input_bitwidth, output_bitwidth) %
+          std::min(input_bitwidth, output_bitwidth) !=
+      0) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Cannot bitcast types with undivisible bit-widths: %s => %s.",
+        PrimitiveType_Name(old_element_type),
+        PrimitiveType_Name(new_element_type)));
+  }
+  int ratio = std::max(output_bitwidth, input_bitwidth) /
+              std::min(output_bitwidth, input_bitwidth);
+
+  Shape new_shape = operand_shape;
+  new_shape.set_element_type(new_element_type);
+  if (input_bitwidth > output_bitwidth) {
+    ShapeUtil::AppendMinorDimension(ratio, &new_shape);
+  } else if (input_bitwidth < output_bitwidth) {
+    int last_dimension_idx = operand_shape.dimensions_size() - 1;
+    if (operand_shape.dimensions_size() < 1 ||
+        operand_shape.dimensions(last_dimension_idx) != ratio) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Last dimension of input shape=%d is not equal to ratio of "
+          "bit-widths=%d "
+          "for bitcast-convert from %s to %s",
+          operand_shape.dimensions(last_dimension_idx), ratio,
+          ShapeUtil::HumanString(operand_shape),
+          PrimitiveType_Name(new_element_type)));
+    }
+    new_shape.DeleteDimension(last_dimension_idx);
+  }
+  return new_shape;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferPadShape(
+    const Shape& operand_shape, const Shape& padding_value_shape,
+    const PaddingConfig& padding_config) {
+  if (!operand_shape.IsArray()) {
+    return absl::InvalidArgumentError(
+        "Pad operation does not support tuple-shape operands.");
+  }
+  if (!ShapeUtil::IsScalar(padding_value_shape)) {
+    return absl::InvalidArgumentError(
+        "Pad operation does not support non-scalar padding values.");
+  }
+  if (operand_shape.rank() != padding_config.dimensions_size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "The rank of the operand and the padding configuration do not match: "
+        "%s vs %s.",
+        ShapeUtil::HumanString(operand_shape),
+        padding_config.ShortDebugString()));
+  }
+  if (!ShapeUtil::SameElementType(operand_shape, padding_value_shape)) {
+    return absl::InvalidArgumentError(
+        "The element types of the operands to Pad do not match.");
+  }
+  // TODO(chokobole): Do we need this? Dependency: interior_padding
+  // if (absl::c_any_of(padding_config.dimensions(),
+  //                    [](const PaddingConfig::PaddingConfigDimension& p) {
+  //                      return p.interior_padding() < 0;
+  //                    })) {
+  //   return absl::InvalidArgumentError(
+  //       absl::StrFormat("Interior padding cannot be negative: %s",
+  //                       padding_config.ShortDebugString()));
+  // }
+
+  if (!padding_value_shape.is_static()) {
+    return absl::InvalidArgumentError("Dynamic padding value is not supported");
+  }
+
+  std::vector<int64_t> dimensions(operand_shape.rank());
+  std::vector<bool> is_dynamic(operand_shape.rank());
+  for (int64_t i = 0; i < operand_shape.dimensions_size(); ++i) {
+    const auto& p = padding_config.dimensions(i);
+    if (operand_shape.is_unbounded_dynamic_dimension(i)) {
+      dimensions[i] = Shape::kUnboundedSize;
+    } else {
+      // TODO(chokobole): Do we need this? Dependency: interior_padding
+      // dimensions[i] = operand_shape.dimensions(i) + p.edge_padding_low() +
+      //                 p.edge_padding_high() +
+      //                 std::max<int64_t>(operand_shape.dimensions(i) - 1, 0LL)
+      //                 * p.interior_padding();
+      dimensions[i] = operand_shape.dimensions(i) + p.edge_padding_low() +
+                      p.edge_padding_high();
+      if (dimensions[i] < 0) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Padding result in negative size for dimension %d", i));
+      }
+    }
+    is_dynamic[i] = operand_shape.is_dynamic_dimension(i);
+  }
+
+  return ShapeUtil::MakeShape(
+      ShapeUtil::HigherPrecisionElementType(operand_shape, padding_value_shape),
+      dimensions, is_dynamic);
 }
 
 // Current DotDimensionNumbers Requirements:
@@ -659,6 +1028,27 @@ absl::StatusOr<Shape> ShapeInference::InferElementwiseBinaryOpShape(
 }
 
 // static
+absl::StatusOr<std::optional<Shape>> ShapeInference::InferScalarBroadcastShape(
+    absl::Span<const Shape> shapes) {
+  // The shape is not scalar, it may have unbounded/bounded dynamic
+  // dimensions. Inferring the proper shape per op is out of scope of this
+  // function.
+  std::optional<Shape> broadcasted_shape;
+  for (const Shape& shape : shapes) {
+    if (!shape.IsArray() || shape.rank() == 0) continue;
+    if (!broadcasted_shape.has_value()) {
+      broadcasted_shape = shape;
+    }
+    // TODO(jpienaar): The case where we need to compute the broadcasted
+    // shape by considering multiple of the shapes is not implemented.
+    // Consider reusing "getBroadcastedType" from mlir/Dialect/Traits.h.
+    TF_RET_CHECK(ShapeUtil::SameDimensions(broadcasted_shape.value(), shape))
+        << "Unimplemented implicit broadcast.";
+  }
+  return broadcasted_shape;
+}
+
+// static
 absl::StatusOr<Shape> ShapeInference::InferBinaryOpShape(
     HloOpcode opcode, const HloInstruction* lhs, const HloInstruction* rhs) {
   return InferBinaryOpShape(opcode, lhs->shape(), rhs->shape(),
@@ -806,6 +1196,99 @@ absl::StatusOr<Shape> ShapeInference::InferVariadicOpShape(
       return absl::InvalidArgumentError(
           absl::StrFormat("Unknown operation %s.", HloOpcodeString(opcode)));
   }
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferMapShape(
+    absl::Span<const Shape* const> arg_shapes, const ProgramShape& to_apply,
+    absl::Span<const int64_t> dimensions) {
+  if (arg_shapes.empty()) {
+    return absl::InvalidArgumentError("Map expects at least one argument.");
+  }
+
+  // All arguments must have the same shape ignoring the element types.
+  const Shape* arg_shape = arg_shapes[0];
+  for (size_t i = 1; i < arg_shapes.size(); ++i) {
+    TF_RETURN_IF_ERROR(ExpectArray(*arg_shapes[i], "operand of map"));
+
+    if (ShapeUtil::CompatibleIgnoringElementType(*arg_shapes[i], *arg_shape)) {
+      continue;
+    }
+    if (ShapeUtil::SameElementType(*arg_shapes[i], *arg_shape)) {
+      if (ShapeUtil::IsScalar(*arg_shapes[i])) {
+        continue;
+      }
+      if (ShapeUtil::IsScalar(*arg_shape)) {
+        arg_shape = arg_shapes[i];
+        continue;
+      }
+    }
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Map operation requires all operands to have the same shape; got: %s.",
+        absl::StrJoin(arg_shapes, ", ",
+                      [](std::string* out, const Shape* shape) {
+                        absl::StrAppend(out, ShapeUtil::HumanString(*shape));
+                      })));
+  }
+
+  // Check that dimensions.size == arg_shape.dimensions_size() (we currently
+  // only support mapping across all dimensions: i.e. scalar map functions).
+  if (dimensions.size() != arg_shape->dimensions_size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Map applied to a subset of dimensions currently not supported: "
+        "arg_dimension_size: %d, requested_map_dimensions_size: %u.",
+        arg_shape->dimensions_size(), dimensions.size()));
+  }
+
+  // Check that requested map dimensions numbers are monotonically increasing.
+  for (int i = 0; i < dimensions.size(); ++i) {
+    if (dimensions[i] != i) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Map requires monotonically increasing dimension numbers; got: %s.",
+          absl::StrJoin(dimensions, ", ")));
+    }
+  }
+
+  // The applied function's arity equals the number of arguments.
+  if (arg_shapes.size() != to_apply.parameters_size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Map applied function arity must match number of arguments; got: "
+        "arity: %d, arguments: %u.",
+        to_apply.parameters_size(), arg_shapes.size()));
+  }
+
+  // The parameters should all be scalars, and the output too.
+  const Shape& output_shape = to_apply.result();
+  if (!ShapeUtil::IsScalar(output_shape)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Mapped computation's result has to be a scalar; got: %s.",
+        ShapeUtil::HumanString(output_shape)));
+  }
+
+  for (int i = 0; i < to_apply.parameters_size(); ++i) {
+    const Shape& parameter_shape = to_apply.parameters(i);
+
+    if (!ShapeUtil::IsScalar(parameter_shape)) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Mapped computation's parameter has to be a scalar; "
+                          "got parameter %d shape: %s.",
+                          i, ShapeUtil::HumanString(parameter_shape)));
+    }
+
+    if (!ShapeUtil::SameElementType(parameter_shape, *arg_shapes[i])) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Mapped computation's parameter type has to match argument element "
+          "type; got parameter %d shape: %s, argument shape: %s.",
+          i, ShapeUtil::HumanString(parameter_shape),
+          ShapeUtil::HumanString(*arg_shape)));
+    }
+  }
+
+  return ShapeUtil::MakeShape(
+      output_shape.element_type(), arg_shape->dimensions(),
+      /*dynamic_dimensions=*/
+      std::vector<bool>(arg_shape->dynamic_dimensions().begin(),
+                        arg_shape->dynamic_dimensions().end()));
 }
 
 // static
@@ -1070,6 +1553,619 @@ absl::StatusOr<Shape> ShapeInference::InferCollectivePermuteDoneShape(
 }
 
 // static
+absl::StatusOr<Shape> ShapeInference::InferReduceShape(
+    absl::Span<const Shape* const> arg_shapes,
+    absl::Span<const int64_t> dimensions_to_reduce,
+    const ProgramShape& to_apply) {
+  if (arg_shapes.empty()) {
+    return absl::InvalidArgumentError(
+        "Reduce must have at least 2 arguments, has 0");
+  }
+  if (arg_shapes.size() % 2) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Reduce must have an even number of arguments, has %lu",
+                        arg_shapes.size()));
+  }
+  int64_t num_reduced_args = arg_shapes.size() / 2;
+  auto reduced_args = arg_shapes.subspan(0, num_reduced_args);
+  // Check that all of the reduced tensors have the same dimensions. The element
+  // types may be different.
+  for (int64_t i = 1; i < num_reduced_args; ++i) {
+    if (!ShapeUtil::SameDimensions(*reduced_args[0], *reduced_args[i])) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "All reduced tensors must have compatible dimension. Tensor at index "
+          "0 has shape %s, and tensor at index %d has shape %s.",
+          ShapeUtil::HumanString(*reduced_args[0]), i,
+          ShapeUtil::HumanString(*reduced_args[i])));
+    }
+  }
+  // Check that the dimensions to reduce are in-bounds for the given shape.
+  // We've already verified all reduced tensors have the same dimensions, so it
+  // doesn't matter which one we choose.
+  const Shape& arg = *reduced_args[0];
+  for (int64_t dimension : dimensions_to_reduce) {
+    if (dimension >= arg.rank() || dimension < 0) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Reducing out-of-bounds dimension %d in shape %s.",
+                          dimension, ShapeUtil::HumanString(arg)));
+    }
+  }
+
+  auto init_values = arg_shapes.subspan(num_reduced_args, arg_shapes.size());
+  std::vector<PrimitiveType> element_types;
+  element_types.reserve(reduced_args.size());
+  for (const Shape* arg : reduced_args) {
+    element_types.push_back(arg->element_type());
+  }
+  TF_RETURN_IF_ERROR(VerifyReducerShape(to_apply, init_values, element_types,
+                                        num_reduced_args));
+
+  absl::flat_hash_set<int64_t> dimensions_to_reduce_set;
+  for (int64_t dim_to_reduce : dimensions_to_reduce) {
+    if (!dimensions_to_reduce_set.insert(dim_to_reduce).second) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Duplicate reduction dimension: %d", dim_to_reduce));
+    }
+  }
+
+  std::vector<int64_t> new_dimensions;
+  std::vector<bool> new_is_dynamic;
+  for (int i = 0; i < arg.rank(); ++i) {
+    if (dimensions_to_reduce_set.find(i) == dimensions_to_reduce_set.end()) {
+      new_dimensions.push_back(arg.dimensions(i));
+      new_is_dynamic.push_back(arg.is_dynamic_dimension(i));
+    }
+  }
+
+  if (ShapeUtil::IsScalar(to_apply.result())) {
+    return ShapeUtil::MakeShape(to_apply.result().element_type(),
+                                new_dimensions, new_is_dynamic);
+  } else {
+    std::vector<Shape> result_subshapes;
+    const auto& tuple_shapes = to_apply.result().tuple_shapes();
+    result_subshapes.reserve(tuple_shapes.size());
+    for (const Shape& subshape : tuple_shapes) {
+      result_subshapes.push_back(ShapeUtil::MakeShape(
+          subshape.element_type(), new_dimensions, new_is_dynamic));
+    }
+    return ShapeUtil::MakeTupleShape(result_subshapes);
+  }
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferGetDimensionSizeShape(
+    const Shape& shape, int64_t dimension) {
+  if (dimension < 0 || dimension >= shape.rank()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "GetDimensionSize dimension out of bounds: %d.", dimension));
+  }
+
+  // TODO(b/119580730): Remove this restriction when very large dimension size
+  // is needed.
+  if (shape.dimensions(dimension) > std::numeric_limits<int32_t>::max()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "GetDimensionSize's input shape is %s, the %dth dimension exceeds the "
+        "INT_MAX limit.",
+        ShapeUtil::HumanString(shape), dimension));
+  }
+
+  return ShapeUtil::MakeShape(S32, {});
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferSetDimensionSizeShape(
+    const Shape& shape, const Shape& val_shape, int64_t dimension) {
+  if (dimension < 0 || dimension >= shape.rank()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "SetDimensionSize dimension out of bounds: %d.", dimension));
+  }
+
+  if (val_shape.rank() != 0 || val_shape.element_type() != S32) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("SetDimensionSize's value has to be S32 scalar, got %s",
+                        val_shape.ToString()));
+  }
+  // TODO(b/119580730): Remove this restriction when very large dimension size
+  // is needed.
+  if (shape.dimensions(dimension) > std::numeric_limits<int32_t>::max()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "SetDimensionSize's input shape is %s, the %dth dimension exceeds the "
+        "INT_MAX limit.",
+        ShapeUtil::HumanString(shape), dimension));
+  }
+
+  Shape result = shape;
+  result.set_dynamic_dimension(dimension, true);
+  return result;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferSliceShape(
+    const Shape& arg, absl::Span<const int64_t> starts,
+    absl::Span<const int64_t> limits, absl::Span<const int64_t> strides) {
+  auto error = [&](const std::string& message) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "%s in slice operation; argument shape: %s; starts: {%s}; limits: "
+        "{%s}; strides: {%s}.",
+        message, ShapeUtil::HumanString(arg), absl::StrJoin(starts, ","),
+        absl::StrJoin(limits, ","), absl::StrJoin(strides, ",")));
+  };
+  TF_RETURN_IF_ERROR(ExpectArray(arg, "operand of slice"));
+  VLOG(2) << absl::StrFormat(
+      "slicing shape %s starts={%s} limits={%s}", ShapeUtil::HumanString(arg),
+      absl::StrJoin(starts, ", "), absl::StrJoin(limits, ", "));
+
+  if (starts.size() != limits.size()) {
+    return error(absl::StrFormat("slice start and limit sizes differ: %u vs %u",
+                                 starts.size(), limits.size()));
+  }
+
+  if (starts.size() != strides.size()) {
+    return error(
+        absl::StrFormat("slice start and strides sizes differ: %u vs %u",
+                        starts.size(), strides.size()));
+  }
+
+  if (starts.size() != arg.rank()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Slice index count does not match argument rank: %u vs %d.",
+        starts.size(), arg.rank()));
+  }
+
+  std::vector<int64_t> sizes;
+  const auto starts_size = starts.size();
+  sizes.reserve(starts_size);
+  for (int64_t dimension = 0; dimension < starts_size; ++dimension) {
+    int64_t start_index = starts[dimension];
+    int64_t limit_index = limits[dimension];
+    int64_t stride = strides[dimension];
+    if (start_index < 0) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Negative start index to slice: %d.", start_index));
+    }
+    int64_t dimension_size = arg.dimensions(dimension);
+    if (!arg.is_unbounded_dynamic_dimension(dimension) &&
+        limit_index > dimension_size) {
+      return error(absl::StrFormat(
+          "limit index (%d) must be less than or equal to dimension "
+          "size (%d)",
+          limit_index, dimension_size));
+    }
+    VLOG(2) << absl::StrFormat("starts[%d] = %d", dimension, start_index);
+    VLOG(2) << absl::StrFormat("limits[%d] = %d", dimension, limit_index);
+    if (start_index > limit_index) {
+      return error(
+          absl::StrFormat("limit index (%d) must be greater or equal to "
+                          "start index (%d) in slice with positive stride",
+                          limit_index, start_index));
+    }
+    if (stride <= 0) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Stride (%d) must be positive.", stride));
+    }
+    sizes.push_back((limit_index - start_index + stride - 1) / stride);
+  }
+
+  std::vector<bool> is_dynamic(arg.rank());
+  for (int64_t i = 0; i < arg.dimensions_size(); ++i) {
+    // Slicing 1 out of a dynamic dimension eliminates the dynamic dimension.
+    if (sizes[i] == 1) {
+      continue;
+    }
+    is_dynamic[i] = arg.is_bounded_dynamic_dimension(i);
+  }
+
+  return ShapeUtil::MakeShape(arg.element_type(), sizes, is_dynamic);
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferDynamicSliceShape(
+    const Shape& operand_shape, absl::Span<const Shape> start_index_shapes,
+    absl::Span<const int64_t> slice_sizes, bool allow_scalar_indices) {
+  TF_RETURN_IF_ERROR(ExpectArray(operand_shape, "operand of dynamic slice"));
+  auto number_of_indices = start_index_shapes.size();
+  // TODO(b/118437727): Remove this path.
+  if (!allow_scalar_indices ||
+      (number_of_indices >= 1 && start_index_shapes[0].rank() == 1)) {
+    if (number_of_indices != 1) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic slice should have exactly 1 index operand, has %d.",
+          number_of_indices));
+    }
+
+    const Shape& start_indices_shape = start_index_shapes[0];
+    VLOG(2) << absl::StrFormat(
+        "slicing shape %s at dynamic start_indices %s with slice_sizes={%s}",
+        ShapeUtil::HumanString(operand_shape),
+        ShapeUtil::HumanString(start_indices_shape),
+        StrJoin(slice_sizes, ", "));
+
+    TF_RETURN_IF_ERROR(
+        ExpectArray(start_indices_shape, "start indices of dynamic slice"));
+
+    if (start_indices_shape.rank() != 1) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic slice start indices of rank %d must be rank1.",
+          start_indices_shape.rank()));
+    }
+
+    if (!ShapeUtil::ElementIsIntegral(start_indices_shape)) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic slice start indices must be of integral type."));
+    }
+
+    const int64_t start_num_dims = start_indices_shape.dimensions(0);
+    if (operand_shape.rank() != start_num_dims) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic slice start number of dimensions %d (%s) must match rank "
+          "%d of slice input (%s).",
+          start_num_dims, ShapeUtil::HumanString(start_indices_shape),
+          operand_shape.rank(), ShapeUtil::HumanString(operand_shape)));
+    }
+  } else {
+    VLOG(2) << absl::StrFormat("slicing shape %s a with slice_sizes={%s}",
+                               ShapeUtil::HumanString(operand_shape),
+                               StrJoin(slice_sizes, ", "));
+
+    if (operand_shape.rank() != number_of_indices) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic slice start number of dimensions %d must match rank "
+          "%d of slice input (%s).",
+          number_of_indices, operand_shape.rank(),
+          ShapeUtil::HumanString(operand_shape)));
+    }
+
+    if (number_of_indices > 0) {
+      const Shape& first_index_shape = start_index_shapes[0];
+      if (!ShapeUtil::IsScalar(first_index_shape)) {
+        return absl::InvalidArgumentError(
+            absl::StrFormat("Dynamic slice indices must be scalar, not %s.",
+                            ShapeUtil::HumanString(first_index_shape)));
+      }
+      if (!ShapeUtil::ElementIsIntegral(first_index_shape)) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Dynamic slice start indices must be of integral type."));
+      }
+      for (const Shape& index_shape : start_index_shapes) {
+        if (!ShapeUtil::Compatible(first_index_shape, index_shape)) {
+          return absl::InvalidArgumentError(absl::StrFormat(
+              "Dynamic slice start indices must all have the same shape, got "
+              "mismatching indices with shapes %s and %s.",
+              ShapeUtil::HumanString(first_index_shape),
+              ShapeUtil::HumanString(index_shape)));
+        }
+      }
+    }
+  }
+
+  if (slice_sizes.size() != operand_shape.rank()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Dynamic slice index count does not match argument rank: %u vs %d.",
+        slice_sizes.size(), operand_shape.rank()));
+  }
+
+  for (int64_t dim = 0; dim < slice_sizes.size(); ++dim) {
+    const int64_t input_dim_size = operand_shape.dimensions(dim);
+    const int64_t slice_dim_size = slice_sizes[dim];
+    if (slice_dim_size < 0) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Negative size index to dynamic slice: %d.", slice_dim_size));
+    }
+    if (!IsUnboundedDynamicSize(input_dim_size) &&
+        slice_dim_size > input_dim_size) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Slice dim size %d greater than dynamic slice dimension: %d.",
+          slice_dim_size, input_dim_size));
+    }
+    VLOG(2) << absl::StrFormat("slice_sizes[%d] = %d", dim, slice_dim_size);
+  }
+
+  Shape result =
+      ShapeUtil::MakeShape(operand_shape.element_type(), slice_sizes);
+
+  for (int64_t dimension = 0; dimension < operand_shape.rank(); ++dimension) {
+    if (operand_shape.is_dynamic_dimension(dimension) &&
+        slice_sizes[dimension] > 1 &&
+        slice_sizes[dimension] == operand_shape.dimensions(dimension)) {
+      result.set_dynamic_dimension(dimension, true);
+    }
+  }
+
+  return result;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferDynamicUpdateSliceShape(
+    const Shape& operand_shape, const Shape& update_shape,
+    absl::Span<const Shape> start_index_shapes, bool allow_scalar_indices) {
+  TF_RETURN_IF_ERROR(
+      ExpectArray(operand_shape, "operand of dynamic update slice"));
+  TF_RETURN_IF_ERROR(
+      ExpectArray(update_shape, "update of dynamic update slice"));
+
+  auto number_of_indices = start_index_shapes.size();
+  // TODO(b/118437727): Remove this path.
+  if (!allow_scalar_indices ||
+      (number_of_indices >= 1 && start_index_shapes[0].rank() == 1)) {
+    if (number_of_indices != 1) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic update slice should have exactly 1 index operand, has %d.",
+          number_of_indices));
+    }
+    const Shape& start_indices_shape = start_index_shapes[0];
+    TF_RETURN_IF_ERROR(ExpectArray(start_indices_shape,
+                                   "start indices of dynamic update slice"));
+
+    VLOG(2) << absl::StrFormat(
+        "updating slice of shape %s at dynamic start_indices %s with update "
+        "shape %s",
+        ShapeUtil::HumanString(operand_shape),
+        ShapeUtil::HumanString(start_indices_shape),
+        ShapeUtil::HumanString(update_shape));
+
+    if (start_indices_shape.rank() != 1) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic update slice start indices of rank %d must be rank1.",
+          start_indices_shape.rank()));
+    }
+
+    if (!ShapeUtil::ElementIsIntegral(start_indices_shape)) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic update slice start indices must be of integral type."));
+    }
+
+    const int64_t start_num_dims = start_indices_shape.dimensions(0);
+    if (operand_shape.rank() != start_num_dims) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic update slice start number of dimensions %d (%s) must match "
+          "rank %d of slice input (%s).",
+          start_num_dims, ShapeUtil::HumanString(start_indices_shape),
+          operand_shape.rank(), ShapeUtil::HumanString(operand_shape)));
+    }
+  } else {
+    VLOG(2) << absl::StrFormat(
+        "updating slice of shape %s with update shape %s",
+        ShapeUtil::HumanString(operand_shape),
+        ShapeUtil::HumanString(update_shape));
+
+    if (operand_shape.rank() != number_of_indices) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Dynamic update slice start number of dimensions %d must match "
+          "rank %d of slice input (%s).",
+          number_of_indices, operand_shape.rank(),
+          ShapeUtil::HumanString(operand_shape)));
+    }
+
+    if (number_of_indices > 0) {
+      const Shape& first_index_shape = start_index_shapes[0];
+      if (!ShapeUtil::IsScalar(first_index_shape)) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Dynamic update slice indices must be scalar, not %s.",
+            ShapeUtil::HumanString(first_index_shape)));
+      }
+      if (!ShapeUtil::ElementIsIntegral(first_index_shape)) {
+        return absl::InvalidArgumentError(
+            "Dynamic update slice start indices must be of integral type.");
+      }
+      for (const Shape& index_shape : start_index_shapes) {
+        if (!ShapeUtil::Compatible(first_index_shape, index_shape)) {
+          return absl::InvalidArgumentError(absl::StrFormat(
+              "Dynamic update slice start indices must all have the same "
+              "shape, got mismatching indices with shapes %s and %s.",
+              ShapeUtil::HumanString(first_index_shape),
+              ShapeUtil::HumanString(index_shape)));
+        }
+      }
+    }
+  }
+
+  if (update_shape.rank() != operand_shape.rank()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Dynamic update slice update rank does not match argument rank: "
+        "%d vs %d.",
+        update_shape.rank(), operand_shape.rank()));
+  }
+
+  if (!ShapeUtil::SameElementType(operand_shape, update_shape)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Dynamic update slice update element type does not match argument. "
+        "operand.element_type: %s vs update.element_type: %s.",
+        PrimitiveType_Name(operand_shape.element_type()),
+        PrimitiveType_Name(update_shape.element_type())));
+  }
+
+  for (int64_t dim = 0; dim < operand_shape.rank(); ++dim) {
+    const int64_t input_dim_size = operand_shape.dimensions(dim);
+    const int64_t update_dim_size = update_shape.dimensions(dim);
+    if (!IsUnboundedDynamicSize(update_dim_size) && update_dim_size < 0) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Size index %d to dynamic update slice must be >= 0.",
+                          update_dim_size));
+    }
+    if (update_dim_size > input_dim_size) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Update dim size %d greater than dynamic slice dimension: %d.",
+          update_dim_size, input_dim_size));
+    }
+    VLOG(2) << absl::StrFormat("update_sizes[%d] = %d", dim, update_dim_size);
+  }
+
+  auto result_shape = operand_shape;
+
+  // If any of the operand shape is dynamic, the result dimension is also
+  // dynamic.
+  // If update shape is dynamic, only propagate dynamic dimension to result if
+  // the update is a full update (update_shape[i] == operand_shape[i]).
+  for (int64_t i = 0; i < update_shape.rank(); ++i) {
+    if (operand_shape.is_dynamic_dimension(i)) {
+      result_shape.set_dynamic_dimension(i, true);
+    }
+
+    if (update_shape.is_dynamic_dimension(i) &&
+        update_shape.dimensions(i) == operand_shape.dimensions(i)) {
+      // When update/replace a full dimension, propagate dynamic dimension to
+      // the result.
+      result_shape.set_dynamic_dimension(i, true);
+    }
+  }
+
+  return result_shape;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferReverseShape(
+    const Shape& operand_shape, absl::Span<const int64_t> dimensions) {
+  TF_RETURN_IF_ERROR(ExpectArray(operand_shape, "operand of reverse"));
+  if (!AllUnique(dimensions)) {
+    return absl::InvalidArgumentError(
+        "a dimension number is duplicated in reverse");
+  }
+  for (int64_t dimension : dimensions) {
+    if (dimension >= operand_shape.rank() || dimension < 0) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "One of the reverse dimensions (%d) is out-of-bounds in shape %s.",
+          dimension, ShapeUtil::HumanString(operand_shape)));
+    }
+  }
+  return operand_shape;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferGetTupleElementShape(
+    const Shape& arg, int64_t index) {
+  if (!arg.IsTuple()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Cannot infer shape: attempting to index into non-tuple: %s.",
+        ShapeUtil::HumanString(arg)));
+  }
+
+  if (index < 0 || index >= arg.tuple_shapes_size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Cannot infer shape: attempt to index out of tuple bounds: %d "
+        ">= %d in shape %s.",
+        index, arg.tuple_shapes_size(), ShapeUtil::HumanString(arg)));
+  }
+
+  return arg.tuple_shapes(index);
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferWhileShape(
+    const ProgramShape& condition, const ProgramShape& body,
+    const Shape& init) {
+  // Check the number of parameters for given computations.
+  if (condition.parameters_size() != 1) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Condition must take 1 arguments; got %d.",
+                        condition.parameters_size()));
+  }
+  if (body.parameters_size() != 1) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Body must take 1 arguments; got %d.", body.parameters_size()));
+  }
+
+  auto shape_string = [&]() {
+    return absl::StrFormat(
+        "Condition: %s; body: %s; init: %s.", ShapeUtil::HumanString(condition),
+        ShapeUtil::HumanString(body), ShapeUtil::HumanString(init));
+  };
+
+  // Check the shapes of computation parameters and return types.
+  if (!ShapeUtil::Compatible(condition.result(),
+                             ShapeUtil::MakeShape(PRED, {}))) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Condition must return a boolean; got %s.", shape_string()));
+  }
+  if (!ShapeUtil::Compatible(body.result(), condition.parameters(0)) ||
+      !ShapeUtil::Compatible(body.result(), body.parameters(0)) ||
+      !ShapeUtil::Compatible(body.result(), init)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "The parameter of condition and body, the result of the body, and init "
+        "must all have the same shape; got %s.",
+        shape_string()));
+  }
+
+  return init;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferConditionalShape(
+    const Shape& branch_index,
+    absl::Span<const ProgramShape> branch_computations,
+    absl::Span<const Shape> branch_operands) {
+  if (!ShapeUtil::Compatible(branch_index, ShapeUtil::MakeShape(PRED, {})) &&
+      !ShapeUtil::Compatible(branch_index, ShapeUtil::MakeShape(S32, {}))) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("branch_index must be bool or int32_t; got %s.",
+                        ShapeUtil::HumanString(branch_index)));
+  }
+  if (branch_index.element_type() == PRED) {
+    TF_RET_CHECK(2 == branch_computations.size());
+  } else {
+    TF_RET_CHECK(!branch_computations.empty());
+  }
+  TF_RET_CHECK(branch_computations.size() == branch_operands.size());
+  Shape result = branch_computations[0].result();
+  for (int j = 0; j < branch_computations.size(); ++j) {
+    if (branch_computations[j].parameters_size() != 1) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("branch computation %d must take 1 argument; got %d.",
+                          j, branch_computations[j].parameters_size()));
+    }
+    if (!ShapeUtil::Compatible(branch_computations[j].parameters(0),
+                               branch_operands[j])) {
+      auto shape_string = [&]() {
+        return absl::StrFormat("operand: %s; computation: %s",
+                               ShapeUtil::HumanString(branch_operands[j]),
+                               ShapeUtil::HumanString(branch_computations[j]));
+      };
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "branch operand %d must match the shape of the only parameter of "
+          "branch computation %d: got %s.",
+          j, j, shape_string()));
+    }
+
+    if (!ShapeUtil::Compatible(branch_computations[0].result(),
+                               branch_computations[j].result())) {
+      auto shape_string = [&]() {
+        return absl::StrFormat(
+            "branch 0 computation result: %s; branch %d computation result: %s",
+            ShapeUtil::HumanString(branch_computations[0].result()), j,
+            ShapeUtil::HumanString(branch_computations[j].result()));
+      };
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "the result of branch 0 computation and branch %d computation must "
+          "have the same shape: got %s.",
+          j, shape_string()));
+    }
+  }
+  // For each subshape, If any of the branch is dynamic, we say result is
+  // dynamic:
+  //
+  //   true_branch  (s32[<=4])
+  //   false_branch (s32[4])
+  //
+  // Result is s32[<=4].
+  ShapeUtil::ForEachMutableSubshape(
+      &result, [&](Shape* subshape, const ShapeIndex& index) {
+        if (!subshape->IsArray()) {
+          return;
+        }
+        for (int j = 0; j < branch_computations.size(); ++j) {
+          auto branch_subshape =
+              ShapeUtil::GetSubshape(branch_computations[j].result(), index);
+          for (int64_t i = 0; i < branch_subshape.rank(); ++i) {
+            if (branch_subshape.is_dynamic_dimension(i)) {
+              subshape->set_dynamic_dimension(i, true);
+            }
+          }
+        }
+      });
+
+  return result;
+}
+
+// static
 absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
     const Shape& operand, absl::Span<const int64_t> broadcast_sizes) {
   // This method is used to infer shape for zkx::BroadcastInDim.
@@ -1101,6 +2197,7 @@ absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
   return result;
 }
 
+// static
 absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
     const Shape& operand_shape, const Shape& output_shape,
     absl::Span<const int64_t> broadcast_dimensions) {
@@ -1156,6 +2253,217 @@ absl::StatusOr<Shape> ShapeInference::InferBroadcastShape(
   }
 
   return output_shape;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferDynamicReshapeShape(
+    const Shape& operand, absl::Span<const Shape* const> dim_size_shapes,
+    absl::Span<const int64_t> new_size_bounds,
+    const std::vector<bool>& dims_are_dynamic) {
+  if (new_size_bounds.size() != dims_are_dynamic.size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "DynamicReshape has to have the same number of elements in new_sizes "
+        "(%d) and dims_are_dynamic (%d)",
+        new_size_bounds.size(), dims_are_dynamic.size()));
+  }
+
+  for (const Shape* dim_size_shape : dim_size_shapes) {
+    if (dim_size_shape->element_type() != S32 && dim_size_shape->rank() != 0) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "DynamicReshape's dim size has to be scalar S32, got (%s): ",
+          dim_size_shape->ToString()));
+    }
+  }
+
+  Shape inferred_shape = ShapeUtil::MakeShape(
+      operand.element_type(), new_size_bounds, dims_are_dynamic);
+  if (ShapeUtil::ElementsIn(operand) != ShapeUtil::ElementsIn(inferred_shape)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Reshape operation has mismatched element counts: from=%d (%s) "
+        "to=%d (%s).",
+        ShapeUtil::ElementsIn(operand), ShapeUtil::HumanString(operand),
+        ShapeUtil::ElementsIn(inferred_shape),
+        ShapeUtil::HumanString(inferred_shape)));
+  }
+  return inferred_shape;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferReshapeShape(
+    const Shape& operand, absl::Span<const int64_t> dimensions,
+    absl::Span<const int64_t> new_sizes, int64_t inferred_dimension) {
+  TF_RETURN_IF_ERROR(ExpectArray(operand, "reshape"));
+  Shape inferred_shape =
+      ShapeUtil::MakeShape(operand.element_type(), new_sizes);
+  VLOG(3) << "Reshape inferred shape: "
+          << ShapeUtil::HumanString(inferred_shape);
+
+  TF_RET_CHECK(!inferred_shape.is_unbounded_dynamic())
+      << "Reshaping with unbounded result shape is not supported.";
+  if (operand.is_unbounded_dynamic()) {
+    TF_RET_CHECK(!operand.is_bounded_dynamic())
+        << "Reshape operand with bounded and unbounded dynamism not supported.";
+    return inferred_shape;
+  }
+
+  if (ShapeUtil::ElementsIn(operand) != ShapeUtil::ElementsIn(inferred_shape)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Reshape operation has mismatched element counts: from=%d (%s) "
+        "to=%d (%s).",
+        ShapeUtil::ElementsIn(operand), ShapeUtil::HumanString(operand),
+        ShapeUtil::ElementsIn(inferred_shape),
+        ShapeUtil::HumanString(inferred_shape)));
+  }
+
+  std::vector<int64_t> indices(operand.rank());
+  std::iota(indices.begin(), indices.end(), 0);
+  if (dimensions.size() != operand.rank() ||
+      !std::is_permutation(dimensions.begin(), dimensions.end(),
+                           indices.begin())) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Reshape dimensions [%s] are not a permutation of the operand "
+        "dimensions (operand shape is %s).",
+        StrJoin(dimensions, ","), ShapeUtil::HumanString(operand)));
+  }
+
+  // Propagate dynamic dimension.
+  auto common_factors = CommonFactors(operand.dimensions(), new_sizes);
+  for (int64_t input_dim = 0; input_dim < operand.rank(); ++input_dim) {
+    if (!operand.is_dynamic_dimension(input_dim)) {
+      continue;
+    }
+
+    std::string reshape_debug_str = absl::StrFormat(
+        "output: %s, input: %s, input_dim: "
+        "%lld",
+        ShapeUtil::HumanString(inferred_shape), ShapeUtil::HumanString(operand),
+        input_dim);
+
+    int64_t input_dim_start = -1;
+    int64_t input_dim_end = -1;
+    int64_t output_dim_start = -1;
+    int64_t output_dim_end = -1;
+    // Find common_factors that the input_dim belongs to.
+    for (int64_t i = 0; i < common_factors.size() - 1; ++i) {
+      auto start = common_factors[i];
+      auto end = common_factors[i + 1];
+      if (input_dim >= start.first && input_dim < end.first) {
+        input_dim_start = start.first;
+        input_dim_end = end.first;
+        output_dim_start = start.second;
+        output_dim_end = end.second;
+        break;
+      }
+    }
+    if ((input_dim_end - input_dim_start) > 1 &&
+        (output_dim_end - output_dim_start) > 1) {
+      // We don't support the case when a dynamic dimension is both combined
+      // with and split into other dimensions:
+      //
+      //  [x, yz]
+      //     | Reshape
+      //  [xy, z]
+      return absl::UnimplementedError(absl::StrFormat(
+          "Dynamic input dimension to reshape that is both split and "
+          "combined is not supported: %s",
+          reshape_debug_str));
+    }
+
+    for (auto common_factor : common_factors) {
+      //
+      // For reshapes like:
+      //  [<=5]
+      //    | Reshape
+      //  [1, 5]
+      //
+      //  The input dynamic dimension can go into either dynamic dimensions.
+      //  However, the return value of common factors only returns
+      //  input: 5
+      //  output: 5
+      //
+      //  We need to expand common factor to include degenerated output
+      //  dimensions:
+      //  input: 5
+      //  output: 1, 5
+      //
+      //  such that in the logic later on we can consider both dimensions as
+      //  candidate.
+      if (common_factor.first == input_dim_start) {
+        output_dim_start = std::min(output_dim_start, common_factor.second);
+      }
+      if (common_factor.first == input_dim_end) {
+        output_dim_end = std::max(output_dim_end, common_factor.second);
+      }
+    }
+
+    // Calculate output dynamic reshape dimension.
+    int64_t output_dynamic_dimension = -1;
+
+    if (operand.dimensions(input_dim) == 1 && !new_sizes.empty()) {
+      // If dynamic dimension is size 1, it can only be most-major or
+      // most-minor.
+      if (input_dim == 0) {
+        output_dynamic_dimension = 0;
+      }
+      if (input_dim == operand.rank() - 1) {
+        output_dynamic_dimension = new_sizes.size() - 1;
+      }
+
+      if (output_dynamic_dimension == -1) {
+        return absl::UnimplementedError(absl::StrFormat(
+            "Dynamic degenerated dimension that's not most-minor nor "
+            "most-major is not supported: %s",
+            reshape_debug_str));
+      }
+    }
+
+    if (output_dynamic_dimension == -1 &&
+        output_dim_end - output_dim_start == 1) {
+      // Only one possible output dimension.
+      output_dynamic_dimension = output_dim_start;
+    }
+    if (output_dynamic_dimension == -1 &&
+        output_dim_end - output_dim_start > 1) {
+      // Multiple outputs can be dynamic, use "inferred_dimension" to tie-break.
+      output_dynamic_dimension = inferred_dimension;
+    }
+
+    if (output_dynamic_dimension != -1) {
+      // TODO(yunxing): Turn this into a CHECK.
+      inferred_shape.set_dynamic_dimension(output_dynamic_dimension, true);
+    } else {
+      std::vector<int64_t> output_non_degenerated;
+      output_non_degenerated.reserve(output_dim_end);
+      for (int64_t i = output_dim_start; i < output_dim_end; ++i) {
+        if (new_sizes[i] != 1) {
+          output_non_degenerated.push_back(i);
+        }
+      }
+      if (output_non_degenerated.size() == 1) {
+        inferred_shape.set_dynamic_dimension(output_non_degenerated[0], true);
+      }
+    }
+  }
+
+  return inferred_shape;
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferTransposeShape(
+    const Shape& operand, absl::Span<const int64_t> dimensions) {
+  TF_RETURN_IF_ERROR(ExpectArray(operand, "transpose"));
+
+  if (dimensions.size() != operand.rank() || !IsPermutation(dimensions)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Transpose dimensions [%s] are not a permutation of the operand "
+        "dimensions (operand shape is %s).",
+        StrJoin(dimensions, ","), ShapeUtil::HumanString(operand)));
+  }
+
+  // Permute(dimensions,input) computes output[dimensions[i]]=input[i]. However,
+  // we need output[i]=input[dimensions[i]] which is
+  // Permute(Inverse(dimensions),input).
+  return ShapeUtil::PermuteDimensions(dimensions, operand);
 }
 
 // static
@@ -1248,6 +2556,40 @@ absl::StatusOr<Shape> ShapeInference::InferSelectShape(const Shape& pred,
         on_true.layout().element_size_in_bits());
   }
   return std::move(result);
+}
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferCallShape(
+    absl::Span<const Shape* const> arg_shapes, const ProgramShape& to_apply) {
+  // The applied function's arity equals the number of arguments.
+  if (arg_shapes.size() != to_apply.parameters_size()) {
+    std::string computation_signature = ShapeUtil::HumanString(to_apply);
+    std::string argument_shapes =
+        StrJoin(arg_shapes, ", ", [](std::string* out, const Shape* shape) {
+          absl::StrAppend(out, ShapeUtil::HumanString(*shape));
+        });
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Call applied function arity must match number of arguments; got: "
+        "arity: %d, arguments: %u; computation signature: %s; argument "
+        "shapes: [%s].",
+        to_apply.parameters_size(), arg_shapes.size(), computation_signature,
+        argument_shapes));
+  }
+
+  // All arguments must be compatible with the program shape.
+  for (int i = 0; i < arg_shapes.size(); ++i) {
+    const Shape& arg_shape = *arg_shapes[i];
+    const Shape& param_shape = to_apply.parameters(i);
+    if (!ShapeUtil::Compatible(arg_shape, param_shape)) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Call parameter must match argument; got parameter %d shape: %s, "
+          "argument shape: %s.",
+          i, ShapeUtil::HumanString(param_shape),
+          ShapeUtil::HumanString(arg_shape)));
+    }
+  }
+
+  return to_apply.result();
 }
 
 }  // namespace zkx
