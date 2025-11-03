@@ -39,6 +39,46 @@ class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
   }
 
  protected:
+  void SetUpConvertUp() {
+    using DstType =
+        typename std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;
+    static_assert(sizeof(T) < sizeof(DstType),
+                  "T must be smaller than DstType");
+    std::string_view dst_typename = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<DstType>());
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $1[] convert(%x)
+      }
+    )",
+                                 x_typename_, dst_typename);
+
+    expected_literal_ =
+        LiteralUtil::CreateR0<DstType>(static_cast<DstType>(x_));
+  }
+
+  void SetUpConvertDown() {
+    using DstType =
+        typename std::conditional_t<std::is_signed_v<T>, int16_t, uint16_t>;
+    static_assert(sizeof(T) > sizeof(DstType), "T must be larger than DstType");
+    std::string_view dst_typename = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<DstType>());
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $1[] convert(%x)
+      }
+    )",
+                                 x_typename_, dst_typename);
+    expected_literal_ =
+        LiteralUtil::CreateR0<DstType>(static_cast<DstType>(x_));
+  }
+
   void SetUpNegate() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {

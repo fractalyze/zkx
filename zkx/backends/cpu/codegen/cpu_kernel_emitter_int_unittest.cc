@@ -4,10 +4,18 @@
 
 namespace zkx::cpu {
 
-// TODO(chokobole): Add tests for convert.
-
 using IntTypes = testing::Types<int32_t, uint32_t>;
 TYPED_TEST_SUITE(IntScalarUnaryTest, IntTypes);
+
+TYPED_TEST(IntScalarUnaryTest, ConvertUp) {
+  this->SetUpConvertUp();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarUnaryTest, ConvertDown) {
+  this->SetUpConvertDown();
+  this->RunAndVerify();
+}
 
 TYPED_TEST(IntScalarUnaryTest, Negate) {
   if (std::is_signed_v<TypeParam>) {
