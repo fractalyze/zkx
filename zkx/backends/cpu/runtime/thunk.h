@@ -72,6 +72,7 @@ class Thunk {
     kAllToAll,
     kCollectivePermute,
     kCopy,
+    kConditional,
     kInfeed,
     kKernel,
     kOutfeed,

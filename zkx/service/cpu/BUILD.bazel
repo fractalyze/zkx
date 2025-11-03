@@ -283,6 +283,7 @@ zkx_cc_library(
         "//zkx/backends/cpu/runtime:all_reduce_thunk",
         "//zkx/backends/cpu/runtime:all_to_all_thunk",
         "//zkx/backends/cpu/runtime:collective_permute_thunk",
+        "//zkx/backends/cpu/runtime:conditional_thunk",
         "//zkx/backends/cpu/runtime:copy_thunk",
         "//zkx/backends/cpu/runtime:infeed_thunk",
         "//zkx/backends/cpu/runtime:kernel_thunk",

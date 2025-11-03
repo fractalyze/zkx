@@ -107,6 +107,11 @@ message CollectiveThunkProto {
   }
 }
 
+message ConditionalThunkProto {
+  repeated ThunkSequenceProto branch_sequences = 1;
+  BufferAllocationSliceProto branch_index_buffer = 2;
+}
+
 message KernelThunkProto {
   message ThreadDim {
     int64 x = 1;
@@ -156,6 +161,7 @@ message ThunkProto {
   string kind = 1;
   InfoProto info = 2;
   oneof impl {
+    ConditionalThunkProto conditional_thunk = 4;
     KernelThunkProto kernel_thunk = 11;
     CopyThunkProto copy_thunk = 12;
     InfeedThunkProto infeed_thunk = 14;
