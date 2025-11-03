@@ -804,6 +804,11 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     // TODO(jingyue): add the "nsw" attribute for signed types.
     case HloOpcode::kAdd:
       return b.create<mlir::arith::AddIOp>(lhs_value, rhs_value);
+    case HloOpcode::kCompare:
+      return b.create<mlir::arith::CmpIOp>(
+          mlir_utils::CreateMlirArithCmpIPredicate(
+              instr->comparison_direction(), is_signed),
+          lhs_value, rhs_value);
     case HloOpcode::kDivide: {
       if (is_signed) {
         return b.create<mlir::arith::DivSIOp>(lhs_value, rhs_value);
@@ -830,6 +835,11 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::field::AddOp>(lhs_value, rhs_value);
+    case HloOpcode::kCompare:
+      return b.create<mlir::zkir::field::CmpOp>(
+          mlir_utils::CreateMlirArithCmpIPredicate(
+              instr->comparison_direction(), false),
+          lhs_value, rhs_value);
     case HloOpcode::kDivide: {
       auto inv = b.create<mlir::zkir::field::InverseOp>(rhs_value);
       return b.create<mlir::zkir::field::MulOp>(lhs_value, inv);
@@ -873,6 +883,17 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
       return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
                                                          rhs_value);
       break;
+    case HloOpcode::kCompare:
+      if (instr->comparison_direction() != ComparisonDirection::kEq &&
+          instr->comparison_direction() != ComparisonDirection::kNe) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Unsupported comparison direction for EC points: %s",
+            ComparisonDirectionToString(instr->comparison_direction())));
+      }
+      return b.create<mlir::zkir::elliptic_curve::CmpOp>(
+          mlir_utils::CreateMlirArithCmpIPredicate(
+              instr->comparison_direction(), false),
+          lhs_value, rhs_value);
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::elliptic_curve::ScalarMulOp>(
           ret_type, lhs_value, rhs_value);
@@ -1315,6 +1336,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
     case HloOpcode::kAdd:
+    case HloOpcode::kCompare:
     case HloOpcode::kSubtract:
     case HloOpcode::kMultiply:
     case HloOpcode::kPower:

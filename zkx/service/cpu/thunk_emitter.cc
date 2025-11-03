@@ -169,6 +169,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
 
     case HloOpcode::kAdd:
     case HloOpcode::kBroadcast:
+    case HloOpcode::kCompare:
     case HloOpcode::kConvert:
     case HloOpcode::kDivide:
     case HloOpcode::kDot:
