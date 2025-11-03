@@ -106,6 +106,7 @@ zkx_cc_library(
     deps = [
         ":primitive_util",
         ":zkx_data_cc_proto",
+        "//zkx/base:random",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/log",

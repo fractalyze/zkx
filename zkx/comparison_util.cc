@@ -20,6 +20,8 @@ limitations under the License.
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 
+#include "zkx/base/random.h"
+
 namespace zkx {
 namespace {
 
@@ -207,6 +209,14 @@ std::string Comparison::ToString(std::string prefix1, std::string prefix2,
   return absl::StrCat(prefix1, ComparisonDirectionToString(dir_), prefix2,
                       ComparisonPrimitiveTypeToString(primitive_type_), prefix3,
                       ComparisonOrderToString(order_));
+}
+
+ComparisonDirection RandomComparisonDirection() {
+  return static_cast<ComparisonDirection>(base::Uniform<uint8_t>() % 6);
+}
+
+ComparisonDirection RandomEqualityComparisonDirection() {
+  return static_cast<ComparisonDirection>(base::Uniform<uint8_t>() % 2);
 }
 
 }  // namespace zkx

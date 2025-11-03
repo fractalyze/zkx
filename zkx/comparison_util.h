@@ -200,6 +200,9 @@ inline bool operator!=(const Comparison& a, const Comparison& b) {
   return !(a == b);
 }
 
+ComparisonDirection RandomComparisonDirection();
+ComparisonDirection RandomEqualityComparisonDirection();
+
 }  // namespace zkx
 
 #endif  // ZKX_COMPARISON_UTIL_H_
