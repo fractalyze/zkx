@@ -29,6 +29,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/kernel_thunk.h"
 #include "zkx/backends/cpu/runtime/outfeed_thunk.h"
 #include "zkx/backends/cpu/runtime/reduce_scatter_thunk.h"
+#include "zkx/backends/cpu/runtime/while_thunk.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
 #include "zkx/cpu_function_runtime.h"
 #include "zkx/hlo/ir/hlo_casting_utils.h"
@@ -166,6 +167,8 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     // sequences for branches and loops.
     case HloOpcode::kConditional:
       return EmitConditionThunk(instr);
+    case HloOpcode::kWhile:
+      return EmitWhileThunk(instr);
 
     case HloOpcode::kAdd:
     case HloOpcode::kBroadcast:
@@ -427,6 +430,30 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitConditionThunk(
 
   return ThunkSequence::Of<ConditionalThunk>(
       ThunkInfo(instruction), branch_index_buffer, std::move(branches));
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitWhileThunk(
+    const HloInstruction* instruction) {
+  HloInstruction* cond = instruction->while_condition()->root_instruction();
+  TF_ASSIGN_OR_RETURN(auto cond_buffer, GetAllocationSlice(cond));
+
+  TF_ASSIGN_OR_RETURN(ThunkSequence cond_thunk,
+                      EmitHloComputation(instruction->while_condition()));
+  TF_ASSIGN_OR_RETURN(ThunkSequence body_thunk,
+                      EmitHloComputation(instruction->while_body()));
+
+  // Check if while loop has a statically known trip count.
+  TF_ASSIGN_OR_RETURN(auto loop_config,
+                      instruction->backend_config<WhileLoopBackendConfig>());
+
+  std::optional<int64_t> trip_count;
+  if (loop_config.has_known_trip_count()) {
+    trip_count = loop_config.known_trip_count().n();
+  }
+
+  return ThunkSequence::Of<WhileThunk>(ThunkInfo(instruction), cond_buffer,
+                                       std::move(cond_thunk),
+                                       std::move(body_thunk), trip_count);
 }
 
 absl::StatusOr<ThunkSequence> ThunkEmitter::EmitCopyThunk(

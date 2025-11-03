@@ -77,6 +77,7 @@ class Thunk {
     kKernel,
     kOutfeed,
     kReduceScatter,
+    kWhile,
   };
 
   struct Info {

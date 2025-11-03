@@ -112,6 +112,13 @@ message ConditionalThunkProto {
   BufferAllocationSliceProto branch_index_buffer = 2;
 }
 
+message WhileThunkProto {
+  ThunkSequenceProto cond_sequence = 1;
+  ThunkSequenceProto body_sequence = 2;
+  Int64Optional trip_count = 3;
+  BufferAllocationSliceProto cond_buffer = 4;
+}
+
 message KernelThunkProto {
   message ThreadDim {
     int64 x = 1;
@@ -166,6 +173,7 @@ message ThunkProto {
     CopyThunkProto copy_thunk = 12;
     InfeedThunkProto infeed_thunk = 14;
     OutfeedThunkProto outfeed_thunk = 15;
+    WhileThunkProto while_thunk = 10;
     CollectiveThunkProto collective_thunk = 18;
   }
 }

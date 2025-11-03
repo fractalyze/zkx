@@ -44,6 +44,8 @@ std::string_view Thunk::KindToString(Kind kind) {
       return "outfeed";
     case Kind::kReduceScatter:
       return "reduce-scatter";
+    case Kind::kWhile:
+      return "while";
     case Kind::kUnknown:
       return "unknown";
   }

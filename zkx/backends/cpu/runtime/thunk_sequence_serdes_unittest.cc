@@ -45,6 +45,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/thunk_executor.h"
 #include "zkx/backends/cpu/runtime/thunk_proto_serdes.h"
 #include "zkx/backends/cpu/runtime/thunk_testlib.h"
+#include "zkx/backends/cpu/runtime/while_thunk.h"
 #include "zkx/literal.h"
 #include "zkx/literal_util.h"
 #include "zkx/service/buffer_assignment.h"
@@ -80,6 +81,7 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
                         CreateConditionalThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateInfeedThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateOutfeedThunk());
+    TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateWhileThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateKernelThunk());
     return thunk_sequence;
   }
@@ -343,6 +345,25 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
         OutfeedThunk::OutfeedResources());
   }
 
+  absl::StatusOr<std::unique_ptr<Thunk>> CreateWhileThunk() {
+    ThunkSequence cond_sequence;
+    TF_ASSIGN_OR_RETURN(cond_sequence.emplace_back(), CreateAllGatherThunk());
+    ThunkSequence body_sequence;
+    TF_ASSIGN_OR_RETURN(body_sequence.emplace_back(), CreateAllGatherThunk());
+    TF_ASSIGN_OR_RETURN(body_sequence.emplace_back(), CreateAllReduceThunk());
+    TF_ASSIGN_OR_RETURN(body_sequence.emplace_back(), CreateAllToAllThunk());
+
+    AddBufferAllocations(1);
+    return WhileThunk::Create(
+        Thunk::Info(),
+        /*cond_buffer=*/
+        CreateBufferAllocationSlice(
+            buffer_allocations_[buffer_allocations_.size() - 1]),
+        /*cond_sequence=*/std::move(cond_sequence),
+        /*body_sequence=*/std::move(body_sequence),
+        /*trip_count=*/1);
+  }
+
   absl::StatusOr<std::unique_ptr<Thunk>> CreateKernelThunk() {
     AddBufferAllocations(2);
     return KernelThunk::Create(
@@ -557,6 +578,24 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
                          });
   }
 
+  bool VerifyWhileThunkEquality(const WhileThunk& thunk_1,
+                                const WhileThunk& thunk_2) {
+    return VerifySliceEquality(thunk_1.cond_buffer(), thunk_2.cond_buffer()) &&
+           absl::c_equal(thunk_1.cond_executor().thunk_sequence(),
+                         thunk_2.cond_executor().thunk_sequence(),
+                         [this](const std::unique_ptr<Thunk>& thunk_1,
+                                const std::unique_ptr<Thunk>& thunk_2) {
+                           return VerifyThunkEquality(*thunk_1, *thunk_2);
+                         }) &&
+           absl::c_equal(thunk_1.body_executor().thunk_sequence(),
+                         thunk_2.body_executor().thunk_sequence(),
+                         [this](const std::unique_ptr<Thunk>& thunk_1,
+                                const std::unique_ptr<Thunk>& thunk_2) {
+                           return VerifyThunkEquality(*thunk_1, *thunk_2);
+                         }) &&
+           thunk_1.trip_count() == thunk_2.trip_count();
+  }
+
   bool VerifyKernelThunkEquality(const KernelThunkBase& thunk_1,
                                  const KernelThunkBase& thunk_2) {
     return thunk_1.kernel_name() == thunk_2.kernel_name() &&
@@ -624,6 +663,10 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
         return VerifyOutfeedThunkEquality(
             static_cast<const OutfeedThunk&>(thunk_1),
             static_cast<const OutfeedThunk&>(thunk_2));
+      case Thunk::Kind::kWhile:
+        return VerifyWhileThunkEquality(
+            static_cast<const WhileThunk&>(thunk_1),
+            static_cast<const WhileThunk&>(thunk_2));
       case Thunk::Kind::kKernel:
         return VerifyKernelThunkEquality(
             static_cast<const KernelThunkBase&>(thunk_1),
