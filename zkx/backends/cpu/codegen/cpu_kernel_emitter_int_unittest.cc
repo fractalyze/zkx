@@ -33,6 +33,11 @@ TYPED_TEST(IntScalarBinaryTest, Add) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, Compare) {
+  this->SetUpCompare();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarBinaryTest, Div) {
   this->SetUpDiv();
   this->RunAndVerify();

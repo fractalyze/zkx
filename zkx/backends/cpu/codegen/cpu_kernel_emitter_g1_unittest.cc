@@ -22,6 +22,11 @@ TYPED_TEST(GroupScalarBinaryTest, Add) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(GroupScalarBinaryTest, Compare) {
+  this->SetUpCompare();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(GroupScalarBinaryTest, Double) {
   this->SetUpDouble();
   this->RunAndVerify();

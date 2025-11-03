@@ -147,6 +147,7 @@ zkx_cc_library(
         ":cpu_kernel_emitter_test",
         "//xla/tsl/platform:status",
         "//zkx:array2d",
+        "//zkx:comparison_util",
         "//zkx:literal_util",
         "//zkx:primitive_util",
         "//zkx/base/containers:container_util",
@@ -165,6 +166,7 @@ zkx_cc_library(
     deps = [
         ":cpu_kernel_emitter_test",
         "//zkx:array2d",
+        "//zkx:comparison_util",
         "//zkx:literal_util",
         "//zkx:primitive_util",
         "//zkx/base/containers:container_util",
@@ -179,6 +181,7 @@ zkx_cc_library(
     deps = [
         ":cpu_kernel_emitter_test",
         "//zkx:array2d",
+        "//zkx:comparison_util",
         "//zkx:literal_util",
         "//zkx:primitive_util",
         "//zkx/base:random",

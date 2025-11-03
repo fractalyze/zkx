@@ -27,6 +27,11 @@ TYPED_TEST(FieldScalarBinaryTest, Add) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(FieldScalarBinaryTest, Compare) {
+  this->SetUpCompare();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(FieldScalarBinaryTest, Div) {
   this->SetUpDiv();
   this->RunAndVerify();

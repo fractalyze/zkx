@@ -11,6 +11,7 @@
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/base/containers/container_util.h"
 #include "zkx/base/random.h"
+#include "zkx/comparison_util.h"
 #include "zkx/literal_util.h"
 #include "zkx/primitive_util.h"
 
@@ -120,6 +121,42 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     )",
                                  x_typename_);
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ + y_);
+  }
+
+  void SetUpCompare() {
+    ComparisonDirection direction = RandomComparisonDirection();
+    std::string direction_str = ComparisonDirectionToString(direction);
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = pred[] compare(%x, %y), direction=$1
+      }
+    )",
+                                 x_typename_, direction_str);
+
+    switch (direction) {
+      case ComparisonDirection::kEq:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ == y_);
+        break;
+      case ComparisonDirection::kNe:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ != y_);
+        break;
+      case ComparisonDirection::kGe:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ >= y_);
+        break;
+      case ComparisonDirection::kGt:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ > y_);
+        break;
+      case ComparisonDirection::kLe:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ <= y_);
+        break;
+      case ComparisonDirection::kLt:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ < y_);
+        break;
+    }
   }
 
   void SetUpDiv() {
