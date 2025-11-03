@@ -17,10 +17,9 @@ limitations under the License.
 
 #include "absl/hash/hash.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "llvm/Support/CommandLine.h"
-
-#include "zkx/base/logging.h"
 
 namespace zkx::llvm_ir {
 

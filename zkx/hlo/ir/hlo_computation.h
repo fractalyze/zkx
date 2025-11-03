@@ -31,6 +31,7 @@ limitations under the License.
 #include "absl/functional/function_ref.h"
 #include "absl/hash/hash.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/str_format.h"
@@ -38,14 +39,12 @@ limitations under the License.
 
 #include "xla/tsl/lib/gtl/iterator_range.h"
 #include "xla/tsl/platform/errors.h"
-#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/dfs_hlo_visitor.h"
 #include "zkx/hlo/ir/hlo_clone_context.h"
 #include "zkx/hlo/ir/hlo_instruction.h"
 #include "zkx/iterator_util.h"
 #include "zkx/service/name_uniquer.h"
 #include "zkx/shape.h"
-#include "zkx/shape_tree.h"
 #include "zkx/status_macros.h"
 
 namespace zkx {

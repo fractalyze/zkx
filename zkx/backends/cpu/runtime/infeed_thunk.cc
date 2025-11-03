@@ -18,11 +18,11 @@ limitations under the License.
 #include <cstring>
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/base/logging.h"
 #include "zkx/service/cpu/xfeed_manager.h"
 
 namespace zkx::cpu {

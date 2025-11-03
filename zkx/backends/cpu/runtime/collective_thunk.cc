@@ -15,11 +15,11 @@ limitations under the License.
 
 #include "zkx/backends/cpu/runtime/collective_thunk.h"
 
+#include "absl/log/log.h"
 #include "absl/strings/str_join.h"
 
 #include "zkx/backends/cpu/collectives/cpu_clique_key.h"
 #include "zkx/backends/cpu/collectives/cpu_cliques.h"
-#include "zkx/base/logging.h"
 #include "zkx/status_macros.h"
 
 namespace zkx::cpu {

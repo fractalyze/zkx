@@ -17,9 +17,8 @@ limitations under the License.
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
-
-#include "zkx/base/logging.h"
 
 namespace zkx {
 namespace {

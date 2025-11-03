@@ -22,11 +22,11 @@ limitations under the License.
 
 #include "absl/algorithm/container.h"
 #include "absl/functional/bind_front.h"
+#include "absl/log/log.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
-#include "zkx/base/logging.h"
 #include "zkx/math/base/field.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/collective_ops_utils.h"

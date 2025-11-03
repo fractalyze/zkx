@@ -19,9 +19,9 @@ limitations under the License.
 #include <algorithm>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 
 #include "xla/tsl/platform/profile_utils/cpu_utils.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 

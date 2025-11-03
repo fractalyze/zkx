@@ -15,12 +15,12 @@ limitations under the License.
 
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
 
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
-#include "zkx/base/logging.h"
 #include "zkx/core/collectives/communicator.h"
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/shape.h"

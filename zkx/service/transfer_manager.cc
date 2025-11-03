@@ -21,12 +21,12 @@ limitations under the License.
 #include "absl/base/const_init.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "absl/synchronization/notification.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/base/logging.h"
 #include "zkx/literal.h"
 #include "zkx/service/compiler.h"
 #include "zkx/status_macros.h"

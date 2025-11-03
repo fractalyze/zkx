@@ -16,8 +16,8 @@ limitations under the License.
 #include "zkx/hlo/ir/dfs_hlo_visitor.h"
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/hlo_instruction.h"
 
 namespace zkx {

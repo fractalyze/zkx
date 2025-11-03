@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -24,7 +25,6 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "xla/tsl/platform/thread_pool.h"
-#include "zkx/base/logging.h"
 #include "zkx/debug_options_flags.h"
 #include "zkx/service/compiler.h"
 #include "zkx/stream_executor/cuda/cuda_platform_id.h"

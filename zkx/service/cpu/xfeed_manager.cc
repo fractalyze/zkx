@@ -19,8 +19,8 @@ limitations under the License.
 
 #include "absl/base/thread_annotations.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/shape_util.h"
 
 namespace zkx::cpu::runtime {

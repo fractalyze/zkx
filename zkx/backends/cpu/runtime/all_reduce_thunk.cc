@@ -18,11 +18,11 @@ limitations under the License.
 #include <cstring>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
-#include "zkx/base/logging.h"
 #include "zkx/core/collectives/communicator.h"
 #include "zkx/primitive_util.h"
 #include "zkx/shape.h"

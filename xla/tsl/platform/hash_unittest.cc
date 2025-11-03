@@ -20,8 +20,6 @@ limitations under the License.
 
 #include "gtest/gtest.h"
 
-#include "zkx/base/logging.h"
-
 namespace tsl {
 
 TEST(Hash, SignedUnsignedIssue) {

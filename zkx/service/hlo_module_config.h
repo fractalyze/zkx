@@ -26,10 +26,10 @@ limitations under the License.
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/service/computation_layout.h"
 #include "zkx/service/computation_placer.h"
 #include "zkx/service/sharding_config.h"

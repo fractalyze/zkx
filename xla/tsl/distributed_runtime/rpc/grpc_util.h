@@ -19,6 +19,7 @@ limitations under the License.
 #include <memory>
 #include <string>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/str_format.h"
@@ -26,7 +27,6 @@ limitations under the License.
 #include "grpcpp/support/byte_buffer.h"
 
 #include "xla/tsl/protobuf/distributed_runtime_payloads.pb.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 

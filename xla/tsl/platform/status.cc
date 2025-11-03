@@ -16,7 +16,6 @@ limitations under the License.
 #include "xla/tsl/platform/status.h"
 
 #include <deque>
-#include <sstream>
 
 #include "absl/base/call_once.h"
 #include "absl/base/thread_annotations.h"

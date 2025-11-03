@@ -23,13 +23,13 @@ limitations under the License.
 #include <vector>
 
 #include "absl/base/thread_annotations.h"
+#include "absl/log/log.h"
 #include "absl/synchronization/mutex.h"
 #include "grpcpp/generic/generic_stub.h"
 
 #include "xla/tsl/distributed_runtime/rpc/grpc_client_cq_tag.h"
 #include "xla/tsl/distributed_runtime/rpc/grpc_state.h"
 #include "xla/tsl/platform/env.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 namespace {

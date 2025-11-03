@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -39,7 +40,6 @@ limitations under the License.
 #include "zkx/backends/cpu/codegen/jit_compiler.h"
 #include "zkx/backends/cpu/codegen/object_loader.h"
 #include "zkx/backends/cpu/runtime/thunk_proto_serdes.h"
-#include "zkx/base/logging.h"
 #include "zkx/hlo/transforms/simplifiers/hlo_memory_scheduler.h"
 #include "zkx/service/buffer_value.h"
 #include "zkx/service/cpu/cpu_options.h"

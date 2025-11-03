@@ -23,6 +23,7 @@ limitations under the License.
 
 #include "xla/tsl/lib/gtl/map_util.h"
 #include "xla/tsl/platform/errors.h"
+#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/hlo_module.h"
 
 namespace zkx {

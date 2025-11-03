@@ -17,10 +17,10 @@ limitations under the License.
 
 #include <algorithm>
 
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/layout_util.h"
 #include "zkx/shape.h"
 

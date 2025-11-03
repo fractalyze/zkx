@@ -22,10 +22,10 @@ limitations under the License.
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/synchronization/mutex.h"
 
 #include "xla/tsl/distributed_runtime/rpc/grpc_util.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 

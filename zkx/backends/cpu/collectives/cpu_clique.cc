@@ -15,10 +15,9 @@ limitations under the License.
 
 #include "zkx/backends/cpu/collectives/cpu_clique.h"
 
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-
-#include "zkx/base/logging.h"
 
 namespace zkx::cpu {
 

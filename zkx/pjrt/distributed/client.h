@@ -24,6 +24,7 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
@@ -31,7 +32,6 @@ limitations under the License.
 #include "grpcpp/channel.h"
 
 #include "xla/tsl/platform/env.h"
-#include "zkx/base/logging.h"
 #include "zkx/pjrt/distributed/key_value_store_interface.h"
 
 namespace tsl {

@@ -31,12 +31,11 @@ limitations under the License.
 #include "absl/container/flat_hash_map.h"
 #include "absl/debugging/leak_check.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_join.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
-
-#include "zkx/base/logging.h"
 
 namespace zkx {
 

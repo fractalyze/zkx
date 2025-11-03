@@ -16,9 +16,9 @@ limitations under the License.
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 
 #include "xla/tsl/platform/casts.h"
-#include "zkx/base/logging.h"
 #include "zkx/core/collectives/collectives_registry.h"
 
 namespace zkx::cpu {

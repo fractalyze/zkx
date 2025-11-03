@@ -18,10 +18,10 @@ limitations under the License.
 #include <algorithm>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/service/time_utils.h"
 
 namespace zkx::memory_space_assignment {

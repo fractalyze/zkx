@@ -15,11 +15,11 @@ limitations under the License.
 
 #include "zkx/hlo/analysis/hlo_ordering.h"
 
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/map_util.h"
 
 namespace zkx {

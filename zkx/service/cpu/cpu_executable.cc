@@ -1,12 +1,12 @@
 #include "zkx/service/cpu/cpu_executable.h"
 
 #include "absl/base/optimization.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/runtime/thread_pool_task_runner.h"
-#include "zkx/base/logging.h"
 #include "zkx/service/cpu/cpu_runtime.h"
 #include "zkx/service/custom_call_status_internal.h"
 #include "zkx/service/zkx_debug_info_manager.h"

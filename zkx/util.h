@@ -33,11 +33,11 @@ limitations under the License.
 #include "absl/base/macros.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/types/span.h"
 
 #include "xla/tsl/lib/math/math_util.h"
-#include "zkx/base/logging.h"
 #include "zkx/status_macros.h"
 #include "zkx/zkx_data.pb.h"
 

@@ -20,9 +20,9 @@ limitations under the License.
 #include <system_error>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "llvm/Support/Process.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/util.h"
 
 namespace zkx::cpu {

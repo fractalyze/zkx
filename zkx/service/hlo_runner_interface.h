@@ -25,11 +25,11 @@ limitations under the License.
 
 #include "absl/base/nullability.h"
 #include "absl/log/die_if_null.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/hlo_computation.h"
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/hlo/parser/hlo_parser.h"

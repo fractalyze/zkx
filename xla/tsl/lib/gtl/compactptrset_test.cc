@@ -18,6 +18,7 @@ limitations under the License.
 #include <algorithm>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "gtest/gtest.h"
 
 namespace tsl {

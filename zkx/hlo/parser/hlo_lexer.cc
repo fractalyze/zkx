@@ -19,6 +19,7 @@ limitations under the License.
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
+#include "re2/re2.h"
 
 #include "zkx/primitive_util.h"
 #include "zkx/util.h"

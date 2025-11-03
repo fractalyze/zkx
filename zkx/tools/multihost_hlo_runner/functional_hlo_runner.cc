@@ -18,6 +18,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -28,7 +29,6 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "xla/tsl/util/fixed_option_set_flag.h"
-#include "zkx/base/logging.h"
 #include "zkx/hlo/builder/zkx_computation.h"
 #include "zkx/hlo/ir/hlo_input_output_alias_config.h"
 #include "zkx/hlo/ir/hlo_sharding.h"

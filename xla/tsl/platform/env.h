@@ -25,6 +25,7 @@ limitations under the License.
 
 #include "absl/base/attributes.h"
 #include "absl/functional/any_invocable.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/ascii.h"
 #include "absl/time/time.h"
@@ -33,7 +34,6 @@ limitations under the License.
 #include "xla/tsl/platform/env_time.h"
 #include "xla/tsl/platform/file_system.h"
 #include "xla/tsl/platform/numa.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 

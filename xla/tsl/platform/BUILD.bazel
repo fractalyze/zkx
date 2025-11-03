@@ -21,7 +21,6 @@ zkx_cc_library(
     deps = [
         ":numa",
         ":platform",
-        "//zkx/base:logging",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/log:check",
     ],
@@ -138,7 +137,7 @@ zkx_cc_library(
     srcs = if_posix(["net_posix.cc"]),
     hdrs = ["net.h"],
     deps = [
-        "//zkx/base:logging",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
     ],
 )
@@ -304,8 +303,8 @@ zkx_cc_library(
     hdrs = ["subprocess.h"],
     deps = [
         ":platform",
-        "//zkx/base:logging",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/synchronization",
     ],
 )
@@ -317,7 +316,7 @@ zkx_cc_library(
     hdrs = ["test_util.h"],
     deps = [
         ":path",
-        "//zkx/base:logging",
+        "@com_google_absl//absl/log",
     ],
 )
 

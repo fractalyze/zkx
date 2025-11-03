@@ -22,7 +22,6 @@ cc_library(
     deps = [
         ":flatrep",
         "//xla/tsl/platform:hash",
-        "//zkx/base:logging",
         "@com_google_absl//absl/log:check",
     ],
 )
@@ -39,7 +38,6 @@ cc_library(
     deps = [
         ":flatrep",
         "//xla/tsl/platform:hash",
-        "//zkx/base:logging",
         "@com_google_absl//absl/log:check",
     ],
 )
@@ -87,5 +85,6 @@ zkx_cc_unittest(
         ":int_type",
         ":iterator_range",
         ":map_util",
+        "@com_google_absl//absl/log",
     ],
 )

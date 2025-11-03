@@ -22,9 +22,8 @@ limitations under the License.
 #include <string>
 
 #include "absl/log/check.h"
-#include "re2/re2.h"
+#include "absl/log/log.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/zkx_data.pb.h"
 
 namespace zkx {

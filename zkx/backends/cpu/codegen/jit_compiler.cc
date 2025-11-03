@@ -19,6 +19,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/base/call_once.h"
+#include "absl/log/log.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/Orc/SelfExecutorProcessControl.h"
@@ -29,7 +30,6 @@ limitations under the License.
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/codegen/cpu_features.h"
 #include "zkx/backends/cpu/codegen/object_loader.h"
-#include "zkx/base/logging.h"
 
 namespace zkx::cpu {
 
