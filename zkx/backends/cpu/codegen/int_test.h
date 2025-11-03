@@ -250,6 +250,34 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
         primitive_util::NativeToPrimitiveType<T>());
   }
 
+  void SetUpConditional() {
+    hlo_text_ = absl::Substitute(R"(
+      %identity {
+        ROOT %ret = $0[] parameter(0)
+      }
+
+      %negate {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] negate(%x)
+      }
+
+      ENTRY %main {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+
+        ROOT %ret = $0[] conditional(%cond, %x, %x), true_computation=%identity, false_computation=%negate
+      }
+    )",
+                                 x_typename_);
+
+    auto x = BaseIntTest<T>::GetRandomValue();
+    bool cond = base::Uniform<uint32_t>() % 2 == 0;
+    literals_.push_back(LiteralUtil::CreateR0<bool>(cond));
+    literals_.push_back(LiteralUtil::CreateR0<T>(x));
+    expected_literal_ = LiteralUtil::CreateR0<T>(cond ? x : -x);
+  }
+
   void SetUpSlice() {
     constexpr static int64_t N = 6;
     constexpr static int64_t S = 2;

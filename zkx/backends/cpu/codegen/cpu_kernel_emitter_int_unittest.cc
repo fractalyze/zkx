@@ -59,6 +59,11 @@ TYPED_TEST(IntR2TensorBinaryTest, Add) {
 
 TYPED_TEST_SUITE(IntTest, IntTypes);
 
+TYPED_TEST(IntTest, Conditional) {
+  this->SetUpConditional();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Slice) {
   this->SetUpSlice();
   this->RunAndVerify();
