@@ -29,11 +29,11 @@ limitations under the License.
 #include "absl/status/status.h"
 #include "absl/types/span.h"
 
-#include "zkx/backends/cpu/runtime/buffer_allocations.h"
 #include "zkx/backends/cpu/runtime/kernel.h"
 #include "zkx/backends/cpu/runtime/kernel_c_api.h"
 #include "zkx/backends/cpu/runtime/thunk.h"
 #include "zkx/codegen/kernel_spec.h"
+#include "zkx/service/buffer_assignment.h"
 #include "zkx/stream_executor/launch_dim.h"
 
 namespace zkx::cpu {

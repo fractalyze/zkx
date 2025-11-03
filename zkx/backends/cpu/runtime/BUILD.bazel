@@ -232,12 +232,12 @@ zkx_cc_library(
     srcs = ["kernel_thunk.cc"],
     hdrs = ["kernel_thunk.h"],
     deps = [
-        ":buffer_allocations",
         ":kernel",
         ":kernel_c_api",
         ":thunk",
         "//xla/tsl/platform:errors",
         "//zkx/codegen:kernel_spec",
+        "//zkx/service:buffer_assignment",
         "//zkx/stream_executor:launch_dim",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base",
