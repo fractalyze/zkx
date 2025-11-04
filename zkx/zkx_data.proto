@@ -85,7 +85,7 @@ enum PrimitiveType {
 }
 
 // Describes the padding configuration for Pad operation. The padding amount on
-// both edges as well as between the elements are specified for each dimension.
+// both edges are specified for each dimension.
 message PaddingConfig {
   // Describes the padding configuration for a dimension.
   message PaddingConfigDimension {
