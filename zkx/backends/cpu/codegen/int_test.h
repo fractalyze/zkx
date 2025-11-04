@@ -58,6 +58,29 @@ class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     }
   }
 
+  void SetUpCountLeadingZeros() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 2;
+    if (case_num == 0) {
+      x_ = 0;
+      literals_[0] = LiteralUtil::CreateR0<T>(x_);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] count-leading-zeros(%x)
+      }
+    )",
+                                 x_typename_);
+    if (x_ == 0) {
+      // NOTE(chokobole): __builtin_clz is undefined behavior for 0.
+      // See https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html
+      expected_literal_ = LiteralUtil::CreateR0<T>(sizeof(T) * 8);
+    } else {
+      expected_literal_ = LiteralUtil::CreateR0<T>(__builtin_clz(x_));
+    }
+  }
+
   void SetUpConvertUp() {
     using DstType =
         typename std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;

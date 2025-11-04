@@ -707,6 +707,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
   switch (instr->opcode()) {
     case HloOpcode::kAbs:
       return b.create<mlir::math::AbsIOp>(value);
+    case HloOpcode::kClz:
+      return b.create<mlir::math::CountLeadingZerosOp>(value);
     case HloOpcode::kConvert: {
       mlir::Type ret_type;
       if (ShapeUtil::IsScalar(instr->shape())) {
@@ -1338,6 +1340,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
 
   switch (instr->opcode()) {
     case HloOpcode::kAbs:
+    case HloOpcode::kClz:
     case HloOpcode::kConvert:
     case HloOpcode::kInverse:
     case HloOpcode::kNegate:
