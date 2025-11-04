@@ -882,7 +882,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
                                                          rhs_value);
-      break;
     case HloOpcode::kCompare:
       if (instr->comparison_direction() != ComparisonDirection::kEq &&
           instr->comparison_direction() != ComparisonDirection::kNe) {
@@ -897,11 +896,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::elliptic_curve::ScalarMulOp>(
           ret_type, lhs_value, rhs_value);
-      break;
     case HloOpcode::kSubtract:
       return b.create<mlir::zkir::elliptic_curve::SubOp>(ret_type, lhs_value,
                                                          rhs_value);
-      break;
     default:
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled binary ec point op %s", HloOpcodeString(instr->opcode())));
