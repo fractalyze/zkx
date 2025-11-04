@@ -76,6 +76,11 @@ TYPED_TEST(IntScalarBinaryTest, Sub) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, Or) {
+  this->SetUpOr();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarBinaryTest, Power) {
   this->SetUpPower();
   this->RunAndVerify();

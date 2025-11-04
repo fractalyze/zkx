@@ -824,6 +824,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     }
     case HloOpcode::kMultiply:
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
+    case HloOpcode::kOr:
+      return b.create<mlir::arith::OrIOp>(lhs_value, rhs_value);
     case HloOpcode::kPower:
       return mlir_utils::PowerInteger(b, lhs_value, rhs_value, is_signed);
     case HloOpcode::kSubtract:
@@ -1345,6 +1347,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kCompare:
     case HloOpcode::kDivide:
     case HloOpcode::kMultiply:
+    case HloOpcode::kOr:
     case HloOpcode::kPower:
     case HloOpcode::kSubtract: {
       enable_flag(instr->operand(0)->shape().element_type());

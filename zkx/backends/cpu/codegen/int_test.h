@@ -253,6 +253,19 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ * y_);
   }
 
+  void SetUpOr() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] or(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_ | y_);
+  }
+
   void SetUpPower() {
     uint32_t case_num = base::Uniform<uint32_t>() % 3;
     if (case_num == 0) {
