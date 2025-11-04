@@ -835,6 +835,13 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
         return b.create<mlir::arith::DivUIOp>(lhs_value, rhs_value);
       }
     }
+    case HloOpcode::kMaximum: {
+      if (is_signed) {
+        return b.create<mlir::arith::MaxSIOp>(lhs_value, rhs_value);
+      } else {
+        return b.create<mlir::arith::MaxUIOp>(lhs_value, rhs_value);
+      }
+    }
     case HloOpcode::kMultiply:
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
     case HloOpcode::kOr:
@@ -855,17 +862,24 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
+  auto compare = [](EmitterLocOpBuilder& b, ComparisonDirection direction,
+                    mlir::Value lhs, mlir::Value rhs) {
+    return b.create<mlir::zkir::field::CmpOp>(
+        mlir_utils::CreateMlirArithCmpIPredicate(direction, false), lhs, rhs);
+  };
+
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::field::AddOp>(lhs_value, rhs_value);
     case HloOpcode::kCompare:
-      return b.create<mlir::zkir::field::CmpOp>(
-          mlir_utils::CreateMlirArithCmpIPredicate(
-              instr->comparison_direction(), false),
-          lhs_value, rhs_value);
+      return compare(b, instr->comparison_direction(), lhs_value, rhs_value);
     case HloOpcode::kDivide: {
       auto inv = b.create<mlir::zkir::field::InverseOp>(rhs_value);
       return b.create<mlir::zkir::field::MulOp>(lhs_value, inv);
+    }
+    case HloOpcode::kMaximum: {
+      auto ge = compare(b, ComparisonDirection::kGe, lhs_value, rhs_value);
+      return b.create<mlir::arith::SelectOp>(ge, lhs_value, rhs_value);
     }
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
@@ -1363,6 +1377,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kAnd:
     case HloOpcode::kCompare:
     case HloOpcode::kDivide:
+    case HloOpcode::kMaximum:
     case HloOpcode::kMultiply:
     case HloOpcode::kOr:
     case HloOpcode::kPower:

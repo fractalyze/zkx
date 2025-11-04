@@ -76,6 +76,11 @@ TYPED_TEST(IntScalarBinaryTest, Div) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, Maximum) {
+  this->SetUpMaximum();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarBinaryTest, Mul) {
   this->SetUpMul();
   this->RunAndVerify();

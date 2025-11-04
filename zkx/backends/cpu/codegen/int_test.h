@@ -1,6 +1,7 @@
 #ifndef ZKX_BACKENDS_CPU_CODEGEN_INT_TEST_H_
 #define ZKX_BACKENDS_CPU_CODEGEN_INT_TEST_H_
 
+#include <algorithm>
 #include <cmath>
 #include <type_traits>
 #include <vector>
@@ -279,6 +280,19 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
       literals_[1] = LiteralUtil::CreateR0<T>(y_);
     }
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ / y_);
+  }
+
+  void SetUpMaximum() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] maximum(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(std::max(x_, y_));
   }
 
   void SetUpMul() {
