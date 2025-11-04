@@ -58,6 +58,24 @@ class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     }
   }
 
+  void SetUpBitcastConvert() {
+    using DstType = typename std::conditional_t<
+        std::is_signed_v<T>, std::make_unsigned_t<T>, std::make_signed_t<T>>;
+    std::string_view dst_typename = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<DstType>());
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $1[] bitcast-convert(%x)
+      }
+    )",
+                                 x_typename_, dst_typename);
+    expected_literal_ =
+        LiteralUtil::CreateR0<DstType>(absl::bit_cast<DstType>(x_));
+  }
+
   void SetUpCountLeadingZeros() {
     uint32_t case_num = base::Uniform<uint32_t>() % 2;
     if (case_num == 0) {

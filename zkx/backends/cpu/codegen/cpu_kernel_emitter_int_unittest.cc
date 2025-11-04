@@ -16,6 +16,11 @@ TYPED_TEST(IntScalarUnaryTest, Abs) {
   }
 }
 
+TYPED_TEST(IntScalarUnaryTest, BitcastConvert) {
+  this->SetUpBitcastConvert();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarUnaryTest, CountLeadingZeros) {
   this->SetUpCountLeadingZeros();
   this->RunAndVerify();

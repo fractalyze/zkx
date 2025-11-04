@@ -707,6 +707,17 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
   switch (instr->opcode()) {
     case HloOpcode::kAbs:
       return b.create<mlir::math::AbsIOp>(value);
+    case HloOpcode::kBitcastConvert: {
+      mlir::Type ret_type;
+      if (ShapeUtil::IsScalar(instr->shape())) {
+        ret_type = mlir_utils::PrimitiveTypeToMlirType(
+            instr->shape().element_type(), b.getContext());
+      } else {
+        ret_type =
+            mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      }
+      return b.create<mlir::arith::BitcastOp>(ret_type, value);
+    }
     case HloOpcode::kClz:
       return b.create<mlir::math::CountLeadingZerosOp>(value);
     case HloOpcode::kConvert: {
@@ -1340,6 +1351,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
 
   switch (instr->opcode()) {
     case HloOpcode::kAbs:
+    case HloOpcode::kBitcastConvert:
     case HloOpcode::kClz:
     case HloOpcode::kConvert:
     case HloOpcode::kInverse:
