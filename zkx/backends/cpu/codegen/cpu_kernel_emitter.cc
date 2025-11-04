@@ -705,6 +705,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
     bool is_signed) {
   switch (instr->opcode()) {
+    case HloOpcode::kAbs:
+      return b.create<mlir::math::AbsIOp>(value);
     case HloOpcode::kConvert: {
       mlir::Type ret_type;
       if (ShapeUtil::IsScalar(instr->shape())) {
@@ -1327,6 +1329,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
   }
 
   switch (instr->opcode()) {
+    case HloOpcode::kAbs:
     case HloOpcode::kConvert:
     case HloOpcode::kInverse:
     case HloOpcode::kNegate: {

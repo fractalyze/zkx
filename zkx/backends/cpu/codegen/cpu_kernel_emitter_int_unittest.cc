@@ -7,6 +7,15 @@ namespace zkx::cpu {
 using IntTypes = testing::Types<int32_t, uint32_t>;
 TYPED_TEST_SUITE(IntScalarUnaryTest, IntTypes);
 
+TYPED_TEST(IntScalarUnaryTest, Abs) {
+  if (std::is_signed_v<TypeParam>) {
+    this->SetUpAbs();
+    this->RunAndVerify();
+  } else {
+    GTEST_SKIP() << "Skipping test for unsigned type";
+  }
+}
+
 TYPED_TEST(IntScalarUnaryTest, ConvertUp) {
   this->SetUpConvertUp();
   this->RunAndVerify();

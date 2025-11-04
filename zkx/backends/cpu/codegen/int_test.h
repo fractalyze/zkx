@@ -1,6 +1,7 @@
 #ifndef ZKX_BACKENDS_CPU_CODEGEN_INT_TEST_H_
 #define ZKX_BACKENDS_CPU_CODEGEN_INT_TEST_H_
 
+#include <cmath>
 #include <type_traits>
 #include <vector>
 
@@ -40,6 +41,22 @@ class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
   }
 
  protected:
+  void SetUpAbs() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] abs(%x)
+      }
+    )",
+                                 x_typename_);
+    if constexpr (std::is_signed_v<T>) {
+      expected_literal_ = LiteralUtil::CreateR0<T>(std::abs<T>(x_));
+    } else {
+      LOG(FATAL) << "abs is not supported for unsigned type";
+    }
+  }
+
   void SetUpConvertUp() {
     using DstType =
         typename std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;
