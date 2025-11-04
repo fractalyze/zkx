@@ -808,6 +808,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     // TODO(jingyue): add the "nsw" attribute for signed types.
     case HloOpcode::kAdd:
       return b.create<mlir::arith::AddIOp>(lhs_value, rhs_value);
+    case HloOpcode::kAnd:
+      return b.create<mlir::arith::AndIOp>(lhs_value, rhs_value);
     case HloOpcode::kCompare:
       return b.create<mlir::arith::CmpIOp>(
           mlir_utils::CreateMlirArithCmpIPredicate(
@@ -1339,6 +1341,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
     case HloOpcode::kAdd:
+    case HloOpcode::kAnd:
     case HloOpcode::kCompare:
     case HloOpcode::kSubtract:
     case HloOpcode::kMultiply:
