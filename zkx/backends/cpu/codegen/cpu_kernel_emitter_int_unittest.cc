@@ -86,6 +86,11 @@ TYPED_TEST(IntScalarBinaryTest, Power) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, Xor) {
+  this->SetUpXor();
+  this->RunAndVerify();
+}
+
 TYPED_TEST_SUITE(IntR2TensorBinaryTest, IntTypes);
 
 TYPED_TEST(IntR2TensorBinaryTest, Add) {

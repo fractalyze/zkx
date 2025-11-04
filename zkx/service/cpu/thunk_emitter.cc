@@ -188,6 +188,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kSign:
     case HloOpcode::kSlice:
     case HloOpcode::kSubtract:
+    case HloOpcode::kXor:
       return EmitKernelThunk(instr);
     case HloOpcode::kAllGather:
       return EmitAllGatherThunk(instr);

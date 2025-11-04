@@ -310,6 +310,19 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ - y_);
   }
 
+  void SetUpXor() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] xor(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_ ^ y_);
+  }
+
  private:
   T x_;
   T y_;
