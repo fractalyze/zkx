@@ -35,6 +35,15 @@ TYPED_TEST(IntScalarUnaryTest, Negate) {
   }
 }
 
+TYPED_TEST(IntScalarUnaryTest, Sign) {
+  if (std::is_signed_v<TypeParam>) {
+    this->SetUpSign();
+    this->RunAndVerify();
+  } else {
+    GTEST_SKIP() << "Skipping test for unsigned type";
+  }
+}
+
 TYPED_TEST_SUITE(IntScalarBinaryTest, IntTypes);
 
 TYPED_TEST(IntScalarBinaryTest, Add) {

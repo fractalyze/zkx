@@ -34,4 +34,17 @@ Value ConvertInteger(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
   return args.front();
 }
 
+Value SignInteger(ImplicitLocOpBuilder& b, Value value) {
+  // sign(x) = x == 0 ? 0 : ((x >>s (width - 1)) | 1)
+  IntegerType integer_type = cast<IntegerType>(value.getType());
+  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(integer_type));
+  Value bit_width_minus_one = b.create<arith::ConstantOp>(
+      b.getIntegerAttr(integer_type, integer_type.getWidth() - 1));
+  Value one = b.create<arith::ConstantOp>(b.getOneAttr(integer_type));
+  Value cmp = b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, value, zero);
+  Value shr = b.create<arith::ShRSIOp>(value, bit_width_minus_one);
+  Value or_op = b.create<arith::OrIOp>(shr, one);
+  return b.create<arith::SelectOp>(cmp, zero, or_op);
+}
+
 }  // namespace zkx::mlir_utils

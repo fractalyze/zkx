@@ -109,6 +109,31 @@ class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(-x_);
   }
 
+  void SetUpSign() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 2;
+    if (case_num == 0) {
+      x_ = 0;
+      literals_[0] = LiteralUtil::CreateR0<T>(x_);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] sign(%x)
+      }
+    )",
+                                 x_typename_);
+    T sign;
+    if (x_ == 0) {
+      sign = 0;
+    } else if (x_ > 0) {
+      sign = 1;
+    } else {
+      sign = -1;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(sign);
+  }
+
  private:
   T x_;
 };

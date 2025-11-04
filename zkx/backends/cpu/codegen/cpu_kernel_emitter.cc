@@ -723,6 +723,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
       return b.create<mlir::arith::SubIOp>(
           b.create<mlir::arith::ConstantOp>(b.getZeroAttr(value.getType())),
           value);
+    case HloOpcode::kSign:
+      return mlir_utils::SignInteger(b, value);
     default:
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled unary integer op: %s", HloOpcodeString(instr->opcode())));
@@ -1332,7 +1334,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kAbs:
     case HloOpcode::kConvert:
     case HloOpcode::kInverse:
-    case HloOpcode::kNegate: {
+    case HloOpcode::kNegate:
+    case HloOpcode::kSign: {
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
     case HloOpcode::kAdd:
