@@ -28,12 +28,12 @@ limitations under the License.
 
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 
 #include "xla/tsl/lib/math/math_util.h"
-#include "zkx/base/logging.h"
 #include "zkx/math/base/field.h"
 #include "zkx/math/elliptic_curves/bn/bn254/fr.h"
 #include "zkx/math/elliptic_curves/bn/bn254/g1.h"

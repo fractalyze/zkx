@@ -20,10 +20,10 @@ limitations under the License.
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/log.h"
 
 #include "xla/tsl/platform/numbers.h"
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/base/logging.h"
 #include "zkx/service/heap_simulator/heap_simulator.h"
 
 namespace zkx {

@@ -19,6 +19,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -28,7 +29,6 @@ limitations under the License.
 #include "llvm/IR/Mangler.h"
 
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/base/logging.h"
 
 namespace zkx::cpu {
 namespace {

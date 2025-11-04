@@ -18,7 +18,7 @@ zkx_cc_library(
     srcs = ["command_line_flags.cc"],
     hdrs = ["command_line_flags.h"],
     deps = [
-        "//zkx/base:logging",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
     ],
 )

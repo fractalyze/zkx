@@ -24,7 +24,7 @@ limitations under the License.
 
 #include <memory>
 
-#include "zkx/base/logging.h"
+#include "absl/log/log.h"
 
 // Android versions older than 28 do not have posix_spawn().
 #if !defined(__ANDROID_API__) || __ANDROID_API__ >= 28

@@ -18,11 +18,11 @@ limitations under the License.
 #include <algorithm>
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "llvm/Support/Error.h"
 
 #include "zkx/backends/cpu/codegen/contiguous_section_memory_manager.h"
-#include "zkx/base/logging.h"
 #include "zkx/service/cpu/orc_jit_memory_mapper.h"
 
 namespace zkx::cpu {

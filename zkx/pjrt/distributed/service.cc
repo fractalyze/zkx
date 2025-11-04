@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/pjrt/distributed/service.h"
 
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 

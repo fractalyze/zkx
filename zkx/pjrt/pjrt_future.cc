@@ -16,9 +16,8 @@ limitations under the License.
 #include "zkx/pjrt/pjrt_future.h"
 
 #include "absl/base/thread_annotations.h"
+#include "absl/log/log.h"
 #include "absl/synchronization/mutex.h"
-
-#include "zkx/base/logging.h"
 
 namespace zkx {
 namespace {

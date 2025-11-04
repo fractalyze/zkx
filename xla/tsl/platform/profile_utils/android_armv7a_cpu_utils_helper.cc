@@ -29,9 +29,8 @@ limitations under the License.
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
-
-#include "zkx/base/logging.h"
 
 namespace tsl::profile_utils {
 

@@ -17,10 +17,10 @@ limitations under the License.
 #define ZKX_HLO_PASS_HLO_PASS_INTERFACE_H_
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/hlo_computation.h"
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/hlo/ir/hlo_module_group.h"

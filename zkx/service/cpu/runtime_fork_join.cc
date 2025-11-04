@@ -24,13 +24,13 @@ limitations under the License.
 
 #include "absl/base/attributes.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "unsupported/Eigen/CXX11/Tensor"
 
-#include "zkx/base/logging.h"
 #include "zkx/executable_run_options.h"
 #include "zkx/service/custom_call_status_internal.h"
 

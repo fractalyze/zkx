@@ -25,7 +25,6 @@ limitations under the License.
 
 #include "xla/tsl/lib/gtl/flatrep.h"
 #include "xla/tsl/platform/hash.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 namespace gtl {

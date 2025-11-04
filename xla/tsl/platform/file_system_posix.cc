@@ -29,11 +29,12 @@ limitations under the License.
 #include <sys/sendfile.h>
 #endif
 
+#include "absl/log/log.h"
+
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/file_system_helper.h"
 #include "xla/tsl/platform/path.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 

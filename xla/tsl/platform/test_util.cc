@@ -18,8 +18,9 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "absl/log/log.h"
+
 #include "xla/tsl/platform/path.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 namespace testing {

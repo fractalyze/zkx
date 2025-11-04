@@ -19,9 +19,9 @@ limitations under the License.
 #include <forward_list>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 
 #include "xla/tsl/platform/status.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 

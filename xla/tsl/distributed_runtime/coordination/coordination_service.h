@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "absl/base/attributes.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
@@ -36,7 +37,6 @@ limitations under the License.
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/protobuf/coordination_config.pb.h"
 #include "xla/tsl/protobuf/coordination_service.pb.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 class Env;

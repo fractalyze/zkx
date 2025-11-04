@@ -20,11 +20,10 @@ limitations under the License.
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/strip.h"
-
-#include "zkx/base/logging.h"
 
 namespace tsl {
 namespace {

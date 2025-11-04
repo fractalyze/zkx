@@ -23,12 +23,12 @@ limitations under the License.
 #include "absl/base/thread_annotations.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/log/log.h"
 #include "absl/synchronization/mutex.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_clique.h"
-#include "zkx/base/logging.h"
 
 namespace zkx::cpu {
 

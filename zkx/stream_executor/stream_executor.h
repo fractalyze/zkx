@@ -24,11 +24,11 @@ limitations under the License.
 #include <variant>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/stream_executor/activate_context.h"
 #include "zkx/stream_executor/allocator_stats.h"
 #include "zkx/stream_executor/command_buffer.h"

@@ -20,7 +20,6 @@ limitations under the License.
 #include "absl/log/check.h"
 
 #include "xla/tsl/platform/numa.h"
-#include "zkx/base/logging.h"
 
 #if defined(PLATFORM_IS_X86)
 #include <mutex>  // NOLINT

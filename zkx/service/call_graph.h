@@ -29,6 +29,7 @@ limitations under the License.
 #include "absl/functional/function_ref.h"
 #include "absl/types/span.h"
 
+#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/hlo_computation.h"
 #include "zkx/hlo/ir/hlo_instruction.h"
 #include "zkx/hlo/ir/hlo_module.h"

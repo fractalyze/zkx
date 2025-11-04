@@ -15,7 +15,7 @@ zkx_cc_library(
         "//xla/tsl/platform:path",
         "//xla/tsl/platform:subprocess",
         "//xla/tsl/platform:test_util",
-        "//zkx/base:logging",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
     ],
 )

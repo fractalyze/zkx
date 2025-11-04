@@ -17,9 +17,8 @@ limitations under the License.
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
-
-#include "zkx/base/logging.h"
 
 namespace zkx {
 

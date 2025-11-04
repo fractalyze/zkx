@@ -18,13 +18,12 @@ limitations under the License.
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/log/log.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/TargetParser/Host.h"
-
-#include "zkx/base/logging.h"
 
 namespace zkx::cpu {
 

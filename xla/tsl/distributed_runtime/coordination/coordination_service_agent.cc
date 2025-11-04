@@ -25,6 +25,7 @@ limitations under the License.
 #include "absl/flags/flag.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/substitute.h"
 #include "absl/synchronization/mutex.h"
@@ -35,7 +36,6 @@ limitations under the License.
 #include "xla/tsl/framework/cancellation.h"
 #include "xla/tsl/platform/random.h"
 #include "xla/tsl/protobuf/coordination_config.pb.h"
-#include "zkx/base/logging.h"
 
 // TODO(b/342448688): Expose via config and API instead of flag.
 ABSL_FLAG(

@@ -16,9 +16,9 @@ limitations under the License.
 #include "zkx/hlo/ir/hlo_input_output_alias_config.h"
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_join.h"
 
-#include "zkx/base/logging.h"
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/layout_util.h"
 #include "zkx/status_macros.h"

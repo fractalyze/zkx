@@ -16,13 +16,8 @@ limitations under the License.
 #ifndef ZKX_PJRT_DISTRIBUTED_SERVICE_H_
 #define ZKX_PJRT_DISTRIBUTED_SERVICE_H_
 
-#include <stdint.h>
-
-#include <functional>
 #include <memory>
-#include <optional>
 #include <string>
-#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
@@ -34,7 +29,6 @@ limitations under the License.
 #include "xla/tsl/distributed_runtime/rpc/async_service_interface.h"
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/thread_pool.h"
-#include "zkx/base/logging.h"
 
 namespace zkx {
 

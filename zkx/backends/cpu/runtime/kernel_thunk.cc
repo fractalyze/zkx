@@ -19,11 +19,11 @@ limitations under the License.
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
 #include "absl/base/optimization.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/errors.h"
-#include "zkx/base/logging.h"
 
 #define EIGEN_USE_THREADS
 

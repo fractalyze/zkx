@@ -15,13 +15,14 @@ limitations under the License.
 
 #include "zkx/hlo/testlib/file_check.h"
 
+#include "absl/log/log.h"
+
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/path.h"
 #include "xla/tsl/platform/platform.h"
 #include "xla/tsl/platform/subprocess.h"
 #include "xla/tsl/platform/test_util.h"
-#include "zkx/base/logging.h"
 
 namespace zkx {
 

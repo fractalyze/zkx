@@ -23,8 +23,6 @@ limitations under the License.
 #include "absl/container/node_hash_map.h"
 #include "absl/log/check.h"
 
-#include "zkx/base/logging.h"
-
 namespace zkx {
 
 // A simple LRU cache. Not thread-safe.

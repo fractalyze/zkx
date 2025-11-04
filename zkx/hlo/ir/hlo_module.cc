@@ -21,6 +21,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/fingerprint.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/logging.h"
 #include "zkx/service/mapped_ptr_container_sorter.h"
 
 namespace zkx {

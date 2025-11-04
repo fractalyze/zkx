@@ -15,7 +15,8 @@ limitations under the License.
 
 #include "zkx/hlo/ir/hlo_sharding_metadata.h"
 
-#include "zkx/base/logging.h"
+#include "absl/log/log.h"
+
 #include "zkx/hlo/ir/hlo_instruction.h"
 
 namespace zkx {

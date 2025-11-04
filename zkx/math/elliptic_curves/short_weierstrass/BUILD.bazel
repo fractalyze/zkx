@@ -8,7 +8,6 @@ zkx_cc_library(
     deps = [
         ":sw_curve",
         "//xla/tsl/platform:errors",
-        "//zkx/base:logging",
         "//zkx/base/buffer:serde",
         "//zkx/base/json:json_serde",
         "//zkx/math/base:finite_field_traits",
@@ -16,6 +15,7 @@ zkx_cc_library(
         "//zkx/math/geometry:curve_type",
         "//zkx/math/geometry:point_declarations",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
     ],
 )

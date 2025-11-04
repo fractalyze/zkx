@@ -22,6 +22,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
@@ -36,7 +37,6 @@ limitations under the License.
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/thread_pool.h"
 #include "xla/tsl/util/env_var.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 

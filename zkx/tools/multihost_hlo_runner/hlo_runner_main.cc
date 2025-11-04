@@ -24,13 +24,13 @@ limitations under the License.
 #include <vector>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "xla/tsl/util/command_line_flags.h"
-#include "zkx/base/logging.h"
 #include "zkx/debug_options_flags.h"
 #include "zkx/tools/multihost_hlo_runner/create_client.h"
 #include "zkx/tools/multihost_hlo_runner/functional_hlo_runner.h"

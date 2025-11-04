@@ -7,10 +7,10 @@ zkx_cc_library(
     srcs = ["llvm_command_line_options.cc"],
     hdrs = ["llvm_command_line_options.h"],
     deps = [
-        "//zkx/base:logging",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",

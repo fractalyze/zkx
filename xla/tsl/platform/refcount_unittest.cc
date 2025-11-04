@@ -15,10 +15,10 @@ limitations under the License.
 
 #include "xla/tsl/platform/refcount.h"
 
+#include "absl/log/log.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/thread_pool.h"
-#include "zkx/base/logging.h"
+#include "xla/tsl/platform/env.h"
 
 namespace tsl::core {
 

@@ -8,10 +8,10 @@ zkx_cc_library(
     deps = [
         "//xla/tsl/platform:statusor",
         "//zkx:shape_util",
-        "//zkx/base:logging",
         "//zkx/hlo/ir:hlo",
         "//zkx/hlo/ir:hlo_module_group",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
     ],
 )

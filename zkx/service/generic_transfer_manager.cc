@@ -18,11 +18,11 @@ limitations under the License.
 #include <memory>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/casts.h"
 #include "xla/tsl/platform/errors.h"
-#include "zkx/base/logging.h"
 #include "zkx/primitive_util.h"
 #include "zkx/shape_util.h"
 #include "zkx/status_macros.h"

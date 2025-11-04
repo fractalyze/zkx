@@ -62,10 +62,10 @@ zkx_cc_library(
     deps = [
         ":memory_space_assignment_cc_proto",
         "//zkx:shape_util",
-        "//zkx/base:logging",
         "//zkx/service:time_utils",
         "//zkx/service/heap_simulator",
         "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

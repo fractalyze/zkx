@@ -9,7 +9,7 @@ zkx_cc_library(
     hdrs = ["clock_cycle_profiler.h"],
     deps = [
         ":cpu_utils",
-        "//zkx/base:logging",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
     ],
 )
@@ -24,8 +24,8 @@ zkx_cc_library(
     hdrs = ["cpu_utils.h"],
     deps = [
         ":i_cpu_utils_helper",
-        "//zkx/base:logging",
         "@com_google_absl//absl/base",
+        "@com_google_absl//absl/log",
     ] + if_android([
         "@com_google_absl//absl/strings:str_format",
     ]),

@@ -28,9 +28,9 @@ limitations under the License.
 #endif
 
 #include "absl/base/call_once.h"
+#include "absl/log/log.h"
 
 #include "xla/tsl/platform/profile_utils/android_armv7a_cpu_utils_helper.h"
-#include "zkx/base/logging.h"
 
 namespace tsl::profile_utils {
 

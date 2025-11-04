@@ -19,6 +19,7 @@ limitations under the License.
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/synchronization/mutex.h"
@@ -37,7 +38,6 @@ limitations under the License.
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/thread_pool.h"
 #include "xla/tsl/protobuf/coordination_config.pb.h"
-#include "zkx/base/logging.h"
 
 namespace tsl {
 namespace {

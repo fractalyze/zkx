@@ -22,6 +22,7 @@ limitations under the License.
 #include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -29,7 +30,6 @@ limitations under the License.
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/base/logging.h"
 
 namespace zkx {
 namespace {

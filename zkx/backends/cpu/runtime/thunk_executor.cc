@@ -24,14 +24,13 @@ limitations under the License.
 #include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/numbers.h"
 #include "zkx/backends/cpu/runtime/resource_use.h"
-#include "zkx/base/logging.h"
-#include "zkx/base/strings/string_util.h"
 #include "zkx/runtime/buffer_use.h"
 
 namespace zkx::cpu {
