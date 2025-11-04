@@ -74,4 +74,9 @@ TYPED_TEST(IntTest, Slice) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, While) {
+  this->SetUpWhile();
+  this->RunAndVerify();
+}
+
 }  // namespace zkx::cpu

@@ -335,6 +335,49 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR1<T>(
         base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
   }
+
+  void SetUpWhile() {
+    hlo_text_ = absl::Substitute(R"(
+      %condition {
+        %param = (u32[], u32[], $0[], $0[]) parameter(0)
+        %i = u32[] get-tuple-element(%param), index=0
+        %n = u32[] get-tuple-element(%param), index=1
+
+        ROOT ret = pred[] compare(%i, %n), direction=LT
+      }
+
+      %body {
+        %param = (u32[], u32[], $0[], $0[]) parameter(0)
+        %i = u32[] get-tuple-element(%param), index=0
+        %n = u32[] get-tuple-element(%param), index=1
+        %acc = $0[] get-tuple-element(%param), index=2
+        %x = $0[] get-tuple-element(%param), index=3
+
+        %one = u32[] constant(1)
+        %next_i = u32[] add(%i, %one)
+        %new_acc = $0[] add(%acc, %x)
+        ROOT %ret = (u32[], u32[], $0[], $0[]) tuple(%next_i, %n, %new_acc, %x)
+      }
+
+      ENTRY %main {
+        %zero = u32[] constant(0)
+        %init = u32[] constant(0)
+        %n = u32[] parameter(0)
+        %x = $0[] parameter(1)
+
+        %while.tuple = (u32[], u32[], $0[], $0[]) tuple(%zero, %n, %init, %x)
+        %result = (u32[], u32[], $0[], $0[]) while(%while.tuple), condition=%condition, body=%body
+        ROOT %ret = $0[] get-tuple-element(%result), index=2
+      }
+    )",
+                                 x_typename_);
+
+    auto x = BaseIntTest<T>::GetRandomValue();
+    auto n = base::Uniform<uint32_t>() % 10;
+    literals_.push_back(LiteralUtil::CreateR0<uint32_t>(n));
+    literals_.push_back(LiteralUtil::CreateR0<T>(x));
+    expected_literal_ = LiteralUtil::CreateR0<T>(n * x);
+  }
 };
 
 }  // namespace zkx::cpu
