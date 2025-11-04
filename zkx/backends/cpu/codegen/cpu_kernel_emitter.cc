@@ -1343,14 +1343,25 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kAdd:
     case HloOpcode::kAnd:
     case HloOpcode::kCompare:
-    case HloOpcode::kSubtract:
+    case HloOpcode::kDivide:
     case HloOpcode::kMultiply:
     case HloOpcode::kPower:
-    case HloOpcode::kDivide: {
+    case HloOpcode::kSubtract: {
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());
       return EmitBinaryOp(instr, b, values[instr->operand(0)],
                           values[instr->operand(1)]);
+    }
+    case HloOpcode::kBroadcast: {
+      enable_flag(instr->operand(0)->shape().element_type());
+      return EmitDimensionsOp(instr, b, values[instr->operand(0)],
+                              instr->dimensions());
+    }
+    case HloOpcode::kDot: {
+      enable_flag(instr->operand(0)->shape().element_type());
+      enable_flag(instr->operand(1)->shape().element_type());
+      return EmitDotOp(instr, b, values[instr->operand(0)],
+                       values[instr->operand(1)]);
     }
     case HloOpcode::kFft: {
       if (instr->operand_count() == 1) {
@@ -1370,17 +1381,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());
       return EmitMsmOp(instr, b, values[instr->operand(0)],
-                       values[instr->operand(1)]);
-    }
-    case HloOpcode::kBroadcast: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      return EmitDimensionsOp(instr, b, values[instr->operand(0)],
-                              instr->dimensions());
-    }
-    case HloOpcode::kDot: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      enable_flag(instr->operand(1)->shape().element_type());
-      return EmitDotOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
     }
     case HloOpcode::kSlice: {
