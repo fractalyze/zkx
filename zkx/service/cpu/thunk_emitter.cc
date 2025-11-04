@@ -70,7 +70,7 @@ absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
 // TODO(ezhulenev): Figure out why AllToAll instruction does not have
 // `use_global_device_ids` field and how to unify it with every other collective
 // operation.
-static absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
+absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
     const HloAllToAllInstruction* instruction) {
   return CollectiveThunk::OpParams{
       /*op_id=*/instruction->channel_id().has_value()
@@ -85,7 +85,7 @@ static absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
 // TODO(ezhulenev): Figure out why CollectivePermute instruction does not have
 // `use_global_device_ids` field and how to unify it with every other collective
 // operation.
-static absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
+absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
     const HloCollectivePermuteInstruction* instruction) {
   return CollectiveThunk::OpParams{
       /*op_id=*/instruction->channel_id().has_value()
