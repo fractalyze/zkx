@@ -42,6 +42,11 @@ TYPED_TEST(FieldScalarBinaryTest, Maximum) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(FieldScalarBinaryTest, Minimum) {
+  this->SetUpMinimum();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(FieldScalarBinaryTest, Mul) {
   this->SetUpMul();
   this->RunAndVerify();

@@ -172,6 +172,19 @@ class FieldScalarBinaryTest : public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<F>(std::max(x_, y_));
   }
 
+  void SetUpMinimum() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] minimum(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(std::min(x_, y_));
+  }
+
   void SetUpMul() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {

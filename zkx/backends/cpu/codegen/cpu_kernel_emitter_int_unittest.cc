@@ -81,6 +81,11 @@ TYPED_TEST(IntScalarBinaryTest, Maximum) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, Minimum) {
+  this->SetUpMinimum();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarBinaryTest, Mul) {
   this->SetUpMul();
   this->RunAndVerify();

@@ -842,6 +842,13 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
         return b.create<mlir::arith::MaxUIOp>(lhs_value, rhs_value);
       }
     }
+    case HloOpcode::kMinimum: {
+      if (is_signed) {
+        return b.create<mlir::arith::MinSIOp>(lhs_value, rhs_value);
+      } else {
+        return b.create<mlir::arith::MinUIOp>(lhs_value, rhs_value);
+      }
+    }
     case HloOpcode::kMultiply:
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
     case HloOpcode::kOr:
@@ -880,6 +887,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
     case HloOpcode::kMaximum: {
       auto ge = compare(b, ComparisonDirection::kGe, lhs_value, rhs_value);
       return b.create<mlir::arith::SelectOp>(ge, lhs_value, rhs_value);
+    }
+    case HloOpcode::kMinimum: {
+      auto le = compare(b, ComparisonDirection::kLe, lhs_value, rhs_value);
+      return b.create<mlir::arith::SelectOp>(le, lhs_value, rhs_value);
     }
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
@@ -1378,6 +1389,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kCompare:
     case HloOpcode::kDivide:
     case HloOpcode::kMaximum:
+    case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
     case HloOpcode::kOr:
     case HloOpcode::kPower:
