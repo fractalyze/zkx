@@ -3,6 +3,17 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "codegen_utils",
+    srcs = ["codegen_utils.cc"],
+    hdrs = ["codegen_utils.h"],
+    deps = [
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "mlir_utils",
     srcs = ["mlir_utils.cc"],
     hdrs = ["mlir_utils.h"],

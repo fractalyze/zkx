@@ -80,6 +80,7 @@ limitations under the License.
 #include "zkx/codegen/llvm_ir_kernel_source.h"
 #include "zkx/layout_util.h"
 #include "zkx/math/poly/root_of_unity.h"
+#include "zkx/mlir/codegen_utils.h"
 #include "zkx/mlir/mlir_utils.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/llvm_ir/llvm_util.h"
@@ -701,8 +702,21 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
-    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
+    bool is_signed) {
   switch (instr->opcode()) {
+    case HloOpcode::kConvert: {
+      mlir::Type ret_type;
+      if (ShapeUtil::IsScalar(instr->shape())) {
+        ret_type = mlir_utils::PrimitiveTypeToMlirType(
+            instr->shape().element_type(), b.getContext());
+      } else {
+        ret_type =
+            mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      }
+      return mlir_utils::ConvertInteger(b, {ret_type}, value.getType(),
+                                        ret_type, {value}, is_signed);
+    }
     case HloOpcode::kNegate:
       return b.create<mlir::arith::SubIOp>(
           b.create<mlir::arith::ConstantOp>(b.getZeroAttr(value.getType())),
@@ -771,7 +785,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitUnaryOp(
   Shape shape = instr->operand(0)->shape();
   PrimitiveType operand_type = shape.element_type();
   if (ShapeUtil::ElementIsIntegral(shape)) {
-    return EmitIntegerUnaryOp(instr, b, value);
+    return EmitIntegerUnaryOp(
+        instr, b, value, primitive_util::IsSignedIntegralType(operand_type));
   } else if (ShapeUtil::ElementIsField(shape)) {
     return EmitFieldUnaryOp(instr, b, value);
   } else if (ShapeUtil::ElementIsEcPoint(shape)) {

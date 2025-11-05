@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
+#include "zkx/mlir/codegen_utils.h"
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h"
 
 namespace mlir::mhlo {
@@ -190,33 +191,6 @@ inline Value getConstantOrSplat(OpBuilder* b, Location loc, Type t,
   return b->create<arith::ConstantOp>(loc, t, cast<TypedAttr>(v));
 }
 
-inline Value makeIntConvert(Location loc, ArrayRef<Type> resultTypes,
-                            Type sourceType, Type targetType, ValueRange args,
-                            ArrayRef<NamedAttribute> attributes, OpBuilder* b) {
-  if (targetType.isInteger(/*width=*/1)) {
-    // When casting to bool, we need to compare whether the value is equal to
-    // zero.
-    Value zeroIntval = b->create<arith::ConstantOp>(
-        loc, b->getZeroAttr(args.front().getType()));
-    return b->create<arith::CmpIOp>(loc, arith::CmpIPredicate::ne, args.front(),
-                                    zeroIntval);
-  }
-  auto src = cast<IntegerType>(sourceType);
-  auto res = cast<IntegerType>(targetType);
-  if (src.getWidth() > res.getWidth()) {
-    return b->create<arith::TruncIOp>(loc, resultTypes, args, attributes);
-  }
-  if (src.getWidth() < res.getWidth()) {
-    // Special case boolean values, so they get casted to `1` instead of `-1`.
-    if (IsUnsignedIntegerType{}(src)) {
-      return b->create<arith::ExtUIOp>(loc, resultTypes, args, attributes);
-    }
-    return b->create<arith::ExtSIOp>(loc, resultTypes, args, attributes);
-  }
-  // No conversion is needed for the same width integers
-  return args.front();
-}
-
 inline Value makeFieldConvert(Location loc, ArrayRef<Type> resultTypes,
                               Type sourceType, Type targetType, ValueRange args,
                               ArrayRef<NamedAttribute> attributes,
@@ -279,8 +253,10 @@ inline Value mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
   Type targetType = getElementTypeOrSelf(targetTypes.front());
 
   if (isa<IntegerType>(sourceType) && isa<IntegerType>(targetType)) {
-    return makeIntConvert(loc, resultTypes, sourceType, targetType, args,
-                          attributes, b);
+    mlir::ImplicitLocOpBuilder lb(loc, *b);
+    return zkx::mlir_utils::ConvertInteger(
+        lb, resultTypes, sourceType, targetType, args,
+        IsSignedIntegerType{}(sourceType), attributes);
   } else if (isa<zkir::field::PrimeFieldType>(sourceType) ||
              isa<zkir::field::QuadraticExtFieldType>(sourceType)) {
     return makeFieldConvert(loc, resultTypes, sourceType, targetType, args,

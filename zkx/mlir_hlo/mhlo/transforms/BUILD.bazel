@@ -23,6 +23,7 @@ zkx_cc_library(
     name = "map_mhlo_to_scalar_op",
     hdrs = ["map_mhlo_to_scalar_op.h"],
     deps = [
+        "//zkx/mlir:codegen_utils",
         "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
