@@ -1004,6 +1004,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerTernaryOp(
           CreateIntegerMaximum(b, /*min=*/value1, /*operand=*/value2,
                                is_signed),
           /*max=*/value3, is_signed);
+    case HloOpcode::kSelect:
+      return b.create<mlir::arith::SelectOp>(value1, value2, value3);
     default:
       return absl::UnimplementedError(
           absl::StrFormat("Unhandled ternary integer op: %s",
@@ -1019,16 +1021,32 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldTernaryOp(
       return CreateFieldMinimum(
           b, CreateFieldMaximum(b, /*min=*/value1, /*operand=*/value2),
           /*max=*/value3);
+    case HloOpcode::kSelect:
+      return b.create<mlir::arith::SelectOp>(value1, value2, value3);
     default:
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled ternary field op: %s", HloOpcodeString(instr->opcode())));
   }
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointTernaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value1,
+    mlir::Value value2, mlir::Value value3) {
+  switch (instr->opcode()) {
+    case HloOpcode::kSelect:
+      return b.create<mlir::arith::SelectOp>(value1, value2, value3);
+    default:
+      return absl::UnimplementedError(
+          absl::StrFormat("Unhandled ternary ec point op: %s",
+                          HloOpcodeString(instr->opcode())));
+  }
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitTernaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value1,
     mlir::Value value2, mlir::Value value3) {
-  Shape shape = instr->operand(0)->shape();
+  Shape shape =
+      instr->operand(instr->opcode() == HloOpcode::kSelect ? 1 : 0)->shape();
   PrimitiveType operand_type = shape.element_type();
   if (ShapeUtil::ElementIsIntegral(shape)) {
     return EmitIntegerTernaryOp(
@@ -1036,6 +1054,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitTernaryOp(
         primitive_util::IsSignedIntegralType(operand_type));
   } else if (ShapeUtil::ElementIsField(shape)) {
     return EmitFieldTernaryOp(instr, b, value1, value2, value3);
+  } else if (ShapeUtil::ElementIsEcPoint(shape)) {
+    return EmitEcPointTernaryOp(instr, b, value1, value2, value3);
   }
   return absl::UnimplementedError(absl::StrFormat(
       "Unhandled primitive type: %s",
@@ -1477,7 +1497,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitDimensionsOp(instr, b, values[instr->operand(0)],
                               instr->dimensions());
     }
-    case HloOpcode::kClamp: {
+    case HloOpcode::kClamp:
+    case HloOpcode::kSelect: {
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());
       enable_flag(instr->operand(2)->shape().element_type());

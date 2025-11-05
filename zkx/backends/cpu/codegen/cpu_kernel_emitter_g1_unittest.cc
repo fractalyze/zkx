@@ -42,6 +42,13 @@ TYPED_TEST(GroupScalarBinaryTest, Sub) {
   this->RunAndVerify();
 }
 
+TYPED_TEST_SUITE(GroupScalarTernaryTest, GroupTypes);
+
+TYPED_TEST(GroupScalarTernaryTest, Select) {
+  this->SetUpSelect();
+  this->RunAndVerify();
+}
+
 TYPED_TEST_SUITE(GroupR2TensorUnaryTest, GroupTypes);
 
 TYPED_TEST(GroupR2TensorUnaryTest, Negate) {

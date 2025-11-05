@@ -133,6 +133,11 @@ TYPED_TEST(IntScalarTernaryTest, Clamp) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarTernaryTest, Select) {
+  this->SetUpSelect();
+  this->RunAndVerify();
+}
+
 TYPED_TEST_SUITE(IntR2TensorBinaryTest, IntTypes);
 
 TYPED_TEST(IntR2TensorBinaryTest, Add) {

@@ -157,6 +157,12 @@ class CpuKernelEmitter final : public KernelEmitter {
                                                  mlir::Value value2,
                                                  mlir::Value value3);
 
+  absl::StatusOr<mlir::Value> EmitEcPointTernaryOp(const HloInstruction* instr,
+                                                   EmitterLocOpBuilder& b,
+                                                   mlir::Value value1,
+                                                   mlir::Value value2,
+                                                   mlir::Value value3);
+
   absl::StatusOr<mlir::Value> EmitMatrixVectorMultiplicationOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,
       mlir::Value rhs);

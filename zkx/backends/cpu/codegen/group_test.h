@@ -8,6 +8,7 @@
 #include "zkx/array2d.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/base/containers/container_util.h"
+#include "zkx/base/random.h"
 #include "zkx/comparison_util.h"
 #include "zkx/literal_util.h"
 #include "zkx/primitive_util.h"
@@ -167,6 +168,38 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
   std::string_view ret_typename_;
   AffinePoint x_;
   AffinePoint y_;
+};
+
+template <typename AffinePoint>
+class GroupScalarTernaryTest : public CpuKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CpuKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<AffinePoint>());
+  }
+
+ protected:
+  void SetUpSelect() {
+    AffinePoint x = AffinePoint::Random();
+    AffinePoint y = AffinePoint::Random();
+    bool cond = base::Uniform<uint32_t>() % 2 == 0;
+    literals_.push_back(LiteralUtil::CreateR0<bool>(cond));
+    literals_.push_back(LiteralUtil::CreateR0<AffinePoint>(x));
+    literals_.push_back(LiteralUtil::CreateR0<AffinePoint>(y));
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+        %y = $0[] parameter(2)
+
+        ROOT %ret = $0[] select(%cond, %x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<AffinePoint>(cond ? x : y);
+  }
 };
 
 template <typename AffinePoint>

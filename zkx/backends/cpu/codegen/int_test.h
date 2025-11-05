@@ -502,6 +502,22 @@ class IntScalarTernaryTest : public BaseIntTest<T>,
     expected_literal_ = LiteralUtil::CreateR0<T>(std::clamp(y_, x_, z_));
   }
 
+  void SetUpSelect() {
+    bool cond = x_ % 2 == 0;
+    literals_[0] = LiteralUtil::CreateR0<bool>(cond);
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+        %y = $0[] parameter(2)
+
+        ROOT %ret = $0[] select(%cond, %x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(cond ? y_ : z_);
+  }
+
  private:
   T x_;
   T y_;
