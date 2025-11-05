@@ -50,6 +50,11 @@ TYPED_TEST(IntScalarUnaryTest, Not) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarUnaryTest, PopulationCount) {
+  this->SetUpPopulationCount();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarUnaryTest, Sign) {
   if (std::is_signed_v<TypeParam>) {
     this->SetUpSign();
