@@ -18,7 +18,6 @@ limitations under the License.
 
 #include <type_traits>
 
-#include "absl/log/check.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -29,7 +28,6 @@ limitations under the License.
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h"
-#include "zkx/service/llvm_ir/llvm_util.h"
 
 namespace mlir::mhlo {
 namespace impl {
