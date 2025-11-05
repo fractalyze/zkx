@@ -67,6 +67,13 @@ TYPED_TEST(FieldScalarBinaryTest, Sub) {
   this->RunAndVerify();
 }
 
+TYPED_TEST_SUITE(FieldScalarTernaryTest, FieldTypes);
+
+TYPED_TEST(FieldScalarTernaryTest, Clamp) {
+  this->SetUpClamp();
+  this->RunAndVerify();
+}
+
 TYPED_TEST_SUITE(FieldR1TensorUnaryTest, FieldTypes);
 
 TYPED_TEST(FieldR1TensorUnaryTest, BatchInverse) {

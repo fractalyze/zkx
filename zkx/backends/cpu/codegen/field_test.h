@@ -246,6 +246,46 @@ class FieldScalarBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename F>
+class FieldScalarTernaryTest : public CpuKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CpuKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<F>());
+    x_ = F::Random();
+    y_ = F::Random();
+    z_ = F::Random();
+    literals_.push_back(LiteralUtil::CreateR0<F>(x_));
+    literals_.push_back(LiteralUtil::CreateR0<F>(y_));
+    literals_.push_back(LiteralUtil::CreateR0<F>(z_));
+  }
+
+ protected:
+  void SetUpClamp() {
+    if (x_ > z_) {
+      std::swap(x_, z_);
+      std::swap(literals_[0], literals_[2]);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %min = $0[] parameter(0)
+        %operand = $0[] parameter(1)
+        %max = $0[] parameter(2)
+
+        ROOT %ret = $0[] clamp(%min, %operand, %max)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(std::clamp(y_, x_, z_));
+  }
+
+ private:
+  F x_;
+  F y_;
+  F z_;
+};
+
+template <typename F>
 class FieldR1TensorUnaryTest : public CpuKernelEmitterTest {
  public:
   constexpr static int64_t N = 4;

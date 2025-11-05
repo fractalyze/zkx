@@ -111,6 +111,13 @@ TYPED_TEST(IntScalarBinaryTest, Xor) {
   this->RunAndVerify();
 }
 
+TYPED_TEST_SUITE(IntScalarTernaryTest, IntTypes);
+
+TYPED_TEST(IntScalarTernaryTest, Clamp) {
+  this->SetUpClamp();
+  this->RunAndVerify();
+}
+
 TYPED_TEST_SUITE(IntR2TensorBinaryTest, IntTypes);
 
 TYPED_TEST(IntR2TensorBinaryTest, Add) {

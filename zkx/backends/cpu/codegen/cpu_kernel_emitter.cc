@@ -125,6 +125,43 @@ absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,
   }
 }
 
+mlir::Value CreateIntegerMaximum(EmitterLocOpBuilder& b, mlir::Value lhs,
+                                 mlir::Value rhs, bool is_signed) {
+  if (is_signed) {
+    return b.create<mlir::arith::MaxSIOp>(lhs, rhs);
+  } else {
+    return b.create<mlir::arith::MaxUIOp>(lhs, rhs);
+  }
+}
+
+mlir::Value CreateIntegerMinimum(EmitterLocOpBuilder& b, mlir::Value lhs,
+                                 mlir::Value rhs, bool is_signed) {
+  if (is_signed) {
+    return b.create<mlir::arith::MinSIOp>(lhs, rhs);
+  } else {
+    return b.create<mlir::arith::MinUIOp>(lhs, rhs);
+  }
+}
+
+mlir::Value CreateFieldCompare(EmitterLocOpBuilder& b,
+                               ComparisonDirection direction, mlir::Value lhs,
+                               mlir::Value rhs) {
+  return b.create<mlir::zkir::field::CmpOp>(
+      mlir_utils::CreateMlirArithCmpIPredicate(direction, false), lhs, rhs);
+}
+
+mlir::Value CreateFieldMaximum(EmitterLocOpBuilder& b, mlir::Value lhs,
+                               mlir::Value rhs) {
+  auto ge = CreateFieldCompare(b, ComparisonDirection::kGe, lhs, rhs);
+  return b.create<mlir::arith::SelectOp>(ge, lhs, rhs);
+}
+
+mlir::Value CreateFieldMinimum(EmitterLocOpBuilder& b, mlir::Value lhs,
+                               mlir::Value rhs) {
+  auto le = CreateFieldCompare(b, ComparisonDirection::kLe, lhs, rhs);
+  return b.create<mlir::arith::SelectOp>(le, lhs, rhs);
+}
+
 void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
   mlir_context->loadDialect<
       // clang-format off
@@ -835,20 +872,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
         return b.create<mlir::arith::DivUIOp>(lhs_value, rhs_value);
       }
     }
-    case HloOpcode::kMaximum: {
-      if (is_signed) {
-        return b.create<mlir::arith::MaxSIOp>(lhs_value, rhs_value);
-      } else {
-        return b.create<mlir::arith::MaxUIOp>(lhs_value, rhs_value);
-      }
-    }
-    case HloOpcode::kMinimum: {
-      if (is_signed) {
-        return b.create<mlir::arith::MinSIOp>(lhs_value, rhs_value);
-      } else {
-        return b.create<mlir::arith::MinUIOp>(lhs_value, rhs_value);
-      }
-    }
+    case HloOpcode::kMaximum:
+      return CreateIntegerMaximum(b, lhs_value, rhs_value, is_signed);
+    case HloOpcode::kMinimum:
+      return CreateIntegerMinimum(b, lhs_value, rhs_value, is_signed);
     case HloOpcode::kMultiply:
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
     case HloOpcode::kOr:
@@ -869,29 +896,20 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
-  auto compare = [](EmitterLocOpBuilder& b, ComparisonDirection direction,
-                    mlir::Value lhs, mlir::Value rhs) {
-    return b.create<mlir::zkir::field::CmpOp>(
-        mlir_utils::CreateMlirArithCmpIPredicate(direction, false), lhs, rhs);
-  };
-
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::field::AddOp>(lhs_value, rhs_value);
     case HloOpcode::kCompare:
-      return compare(b, instr->comparison_direction(), lhs_value, rhs_value);
+      return CreateFieldCompare(b, instr->comparison_direction(), lhs_value,
+                                rhs_value);
     case HloOpcode::kDivide: {
       auto inv = b.create<mlir::zkir::field::InverseOp>(rhs_value);
       return b.create<mlir::zkir::field::MulOp>(lhs_value, inv);
     }
-    case HloOpcode::kMaximum: {
-      auto ge = compare(b, ComparisonDirection::kGe, lhs_value, rhs_value);
-      return b.create<mlir::arith::SelectOp>(ge, lhs_value, rhs_value);
-    }
-    case HloOpcode::kMinimum: {
-      auto le = compare(b, ComparisonDirection::kLe, lhs_value, rhs_value);
-      return b.create<mlir::arith::SelectOp>(le, lhs_value, rhs_value);
-    }
+    case HloOpcode::kMaximum:
+      return CreateFieldMaximum(b, lhs_value, rhs_value);
+    case HloOpcode::kMinimum:
+      return CreateFieldMinimum(b, lhs_value, rhs_value);
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
     case HloOpcode::kPower: {
@@ -967,6 +985,54 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
     return EmitEcPointBinaryOp(instr, b, lhs_value, rhs_value);
   } else if (ShapeUtil::ElementIsField(shape)) {
     return EmitFieldBinaryOp(instr, b, lhs_value, rhs_value);
+  }
+  return absl::UnimplementedError(absl::StrFormat(
+      "Unhandled primitive type: %s",
+      primitive_util::LowercasePrimitiveTypeName(operand_type)));
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerTernaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value1,
+    mlir::Value value2, mlir::Value value3, bool is_signed) {
+  switch (instr->opcode()) {
+    case HloOpcode::kClamp:
+      return CreateIntegerMinimum(
+          b,
+          CreateIntegerMaximum(b, /*min=*/value1, /*operand=*/value2,
+                               is_signed),
+          /*max=*/value3, is_signed);
+    default:
+      return absl::UnimplementedError(
+          absl::StrFormat("Unhandled ternary integer op: %s",
+                          HloOpcodeString(instr->opcode())));
+  }
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldTernaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value1,
+    mlir::Value value2, mlir::Value value3) {
+  switch (instr->opcode()) {
+    case HloOpcode::kClamp:
+      return CreateFieldMinimum(
+          b, CreateFieldMaximum(b, /*min=*/value1, /*operand=*/value2),
+          /*max=*/value3);
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled ternary field op: %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitTernaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value1,
+    mlir::Value value2, mlir::Value value3) {
+  Shape shape = instr->operand(0)->shape();
+  PrimitiveType operand_type = shape.element_type();
+  if (ShapeUtil::ElementIsIntegral(shape)) {
+    return EmitIntegerTernaryOp(
+        instr, b, value1, value2, value3,
+        primitive_util::IsSignedIntegralType(operand_type));
+  } else if (ShapeUtil::ElementIsField(shape)) {
+    return EmitFieldTernaryOp(instr, b, value1, value2, value3);
   }
   return absl::UnimplementedError(absl::StrFormat(
       "Unhandled primitive type: %s",
@@ -1404,6 +1470,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       enable_flag(instr->operand(0)->shape().element_type());
       return EmitDimensionsOp(instr, b, values[instr->operand(0)],
                               instr->dimensions());
+    }
+    case HloOpcode::kClamp: {
+      enable_flag(instr->operand(0)->shape().element_type());
+      enable_flag(instr->operand(1)->shape().element_type());
+      enable_flag(instr->operand(2)->shape().element_type());
+      return EmitTernaryOp(instr, b, values[instr->operand(0)],
+                           values[instr->operand(1)],
+                           values[instr->operand(2)]);
     }
     case HloOpcode::kDot: {
       enable_flag(instr->operand(0)->shape().element_type());

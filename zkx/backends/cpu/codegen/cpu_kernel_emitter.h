@@ -90,6 +90,12 @@ class CpuKernelEmitter final : public KernelEmitter {
                                            mlir::Value lhs_value,
                                            mlir::Value rhs_value);
 
+  absl::StatusOr<mlir::Value> EmitTernaryOp(const HloInstruction* instr,
+                                            EmitterLocOpBuilder& b,
+                                            mlir::Value value1,
+                                            mlir::Value value2,
+                                            mlir::Value value3);
+
   absl::StatusOr<mlir::Value> EmitFftOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
       mlir::Value twiddle_factor = mlir::Value());
@@ -140,6 +146,16 @@ class CpuKernelEmitter final : public KernelEmitter {
                                                   EmitterLocOpBuilder& b,
                                                   mlir::Value lhs_value,
                                                   mlir::Value rhs_value);
+
+  absl::StatusOr<mlir::Value> EmitIntegerTernaryOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value1,
+      mlir::Value value2, mlir::Value value3, bool is_signed);
+
+  absl::StatusOr<mlir::Value> EmitFieldTernaryOp(const HloInstruction* instr,
+                                                 EmitterLocOpBuilder& b,
+                                                 mlir::Value value1,
+                                                 mlir::Value value2,
+                                                 mlir::Value value3);
 
   absl::StatusOr<mlir::Value> EmitMatrixVectorMultiplicationOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,

@@ -397,6 +397,47 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
 };
 
 template <typename T>
+class IntScalarTernaryTest : public BaseIntTest<T>,
+                             public CpuKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CpuKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<T>());
+    x_ = BaseIntTest<T>::GetRandomValue();
+    y_ = BaseIntTest<T>::GetRandomValue();
+    z_ = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR0<T>(x_));
+    literals_.push_back(LiteralUtil::CreateR0<T>(y_));
+    literals_.push_back(LiteralUtil::CreateR0<T>(z_));
+  }
+
+ protected:
+  void SetUpClamp() {
+    if (x_ > z_) {
+      std::swap(x_, z_);
+      std::swap(literals_[0], literals_[2]);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %min = $0[] parameter(0)
+        %operand = $0[] parameter(1)
+        %max = $0[] parameter(2)
+
+        ROOT %ret = $0[] clamp(%min, %operand, %max)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(std::clamp(y_, x_, z_));
+  }
+
+ private:
+  T x_;
+  T y_;
+  T z_;
+};
+
+template <typename T>
 class IntR2TensorBinaryTest : public BaseIntTest<T>,
                               public CpuKernelEmitterTest {
  public:
