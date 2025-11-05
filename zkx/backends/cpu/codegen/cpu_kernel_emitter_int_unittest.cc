@@ -45,6 +45,11 @@ TYPED_TEST(IntScalarUnaryTest, Negate) {
   }
 }
 
+TYPED_TEST(IntScalarUnaryTest, Not) {
+  this->SetUpNot();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarUnaryTest, Sign) {
   if (std::is_signed_v<TypeParam>) {
     this->SetUpSign();

@@ -773,6 +773,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
       return b.create<mlir::arith::SubIOp>(
           b.create<mlir::arith::ConstantOp>(b.getZeroAttr(value.getType())),
           value);
+    case HloOpcode::kNot:
+      return b.create<mlir::arith::XOrIOp>(
+          value, b.create<mlir::arith::ConstantOp>(
+                     b.getIntegerAttr(value.getType(), -1)));
     case HloOpcode::kSign:
       return mlir_utils::SignInteger(b, value);
     default:
@@ -1447,6 +1451,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kConvert:
     case HloOpcode::kInverse:
     case HloOpcode::kNegate:
+    case HloOpcode::kNot:
     case HloOpcode::kSign: {
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
