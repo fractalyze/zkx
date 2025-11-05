@@ -898,8 +898,67 @@ absl::Status ShapeVerifier::HandleReverse(HloInstruction* reverse) {
 }
 
 absl::Status ShapeVerifier::HandleSort(HloInstruction* hlo) {
-  // TODO(chokobole): Implement this. Dependency: HloSortInstruction
-  return absl::UnimplementedError("HandleSort not supported");
+  HloSortInstruction* sort = Cast<HloSortInstruction>(hlo);
+  if (sort->operand_count() < 1) {
+    return absl::InternalError(
+        absl::StrFormat("Expected at least 1 operand for sort instruction: %s",
+                        sort->ToString()));
+  }
+  HloComputation* compare = sort->to_apply();
+
+  // Check that the 'compare' computation returns a PRED.
+  Shape compare_shape = compare->root_instruction()->shape();
+  if (!ShapeUtil::Compatible(compare_shape, ShapeUtil::MakeShape(PRED, {}))) {
+    return absl::InternalError(absl::StrFormat(
+        "The Sort compare computation shape does not lead to a scalar "
+        "predicate shape: %s",
+        StringifyShape(compare_shape)));
+  }
+
+  // Check that the number of parameters of the 'compare' computation is
+  // correct.
+  TF_RETURN_IF_ERROR(
+      CheckParameterCount(sort, compare, sort->operand_count() * 2));
+
+  // Verify that the operands of the compare computation have the correct scalar
+  // shapes.
+  for (int64_t parameter_idx = 0; parameter_idx < compare->num_parameters();
+       ++parameter_idx) {
+    int64_t operand_idx = parameter_idx / 2;
+    Shape expected_scalar_shape = ShapeUtil::MakeShape(
+        sort->operand(operand_idx)->shape().element_type(), {});
+    Shape actual_parameter_shape =
+        compare->parameter_instruction(parameter_idx)->shape();
+    if (!ShapeUtil::Compatible(expected_scalar_shape, actual_parameter_shape)) {
+      return absl::InternalError(absl::StrFormat(
+          "Expected the %lld-th parameter of the compare computation of sort "
+          "to have shape %s, but got %s",
+          parameter_idx, StringifyShape(expected_scalar_shape),
+          StringifyShape(actual_parameter_shape)));
+    }
+  }
+
+  // Verify that all operand shapes have the same dimensions.
+  for (int64_t operand = 1; operand < sort->operand_count(); ++operand) {
+    if (!ShapeUtil::SameDimensions(sort->operand(0)->shape(),
+                                   sort->operand(operand)->shape())) {
+      return absl::InternalError(absl::StrFormat(
+          "Expected sort to have to have the same dimensions for all operands. "
+          "First operand shape is: %s\n, shape (operand index %lld) is: %s",
+          StringifyShape(sort->operand(0)->shape()), operand,
+          StringifyShape(sort->operand(operand)->shape())));
+    }
+  }
+
+  // Verify the sort_dimension.
+  if (sort->sort_dimension() >= sort->operand(0)->shape().rank()) {
+    return absl::InternalError(absl::StrFormat(
+        "Expected the sort_dimension %d of sort to be smaller than the rank %d "
+        "of the operand(s).",
+        sort->sort_dimension(), sort->shape().rank()));
+  }
+
+  return CheckVariadicShape(sort);
 }
 
 absl::Status ShapeVerifier::HandleConstant(HloInstruction* constant) {
@@ -913,8 +972,29 @@ absl::Status ShapeVerifier::HandleConstant(HloInstruction* constant) {
 }
 
 absl::Status ShapeVerifier::HandleIota(HloInstruction* hlo) {
-  // TODO(chokobole): Implement this. Dependency: HloIotaInstruction
-  return absl::UnimplementedError("HandleIota not supported");
+  auto* iota = Cast<HloIotaInstruction>(hlo);
+  if (!iota->shape().IsArray()) {
+    return absl::InternalError("Iota does not support non-array result.");
+  }
+  const int64_t rank = iota->shape().rank();
+  if (rank == 0) {
+    return absl::InternalError("Iota does not support scalars.");
+  }
+  int64_t iota_dimension = iota->iota_dimension();
+  if (iota_dimension >= rank || iota_dimension < 0) {
+    return absl::InternalError(
+        "The iota dimension cannot go beyond the operation rank or be "
+        "negative.");
+  }
+
+  PrimitiveType primitive_type = iota->shape().element_type();
+  if (!primitive_util::IsIntegralType(primitive_type)) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Only support iota of integral primitive types, got %s",
+                        PrimitiveType_Name(primitive_type)));
+  }
+
+  return absl::OkStatus();
 }
 
 absl::Status ShapeVerifier::HandleGetTupleElement(
@@ -1210,27 +1290,23 @@ absl::Status ShapeVerifier::HandleSlice(HloInstruction* slice) {
 }
 
 absl::Status ShapeVerifier::HandleDynamicSlice(HloInstruction* dynamic_slice) {
-  // TODO(chokobole): Uncomment this. Dependency: HloDynamicSliceInstruction
-  // return CheckShape(
-  //     dynamic_slice,
-  //     ShapeInference::InferDynamicSliceShape(
-  //         dynamic_slice->operand(0)->shape(),
-  //         Cast<HloDynamicSliceInstruction>(dynamic_slice)->index_shapes(),
-  //         dynamic_slice->dynamic_slice_sizes()));
-  return absl::UnimplementedError("HandleDynamicSlice not supported");
+  return CheckShape(
+      dynamic_slice,
+      ShapeInference::InferDynamicSliceShape(
+          dynamic_slice->operand(0)->shape(),
+          Cast<HloDynamicSliceInstruction>(dynamic_slice)->index_shapes(),
+          dynamic_slice->dynamic_slice_sizes()));
 }
 
 absl::Status ShapeVerifier::HandleDynamicUpdateSlice(
     HloInstruction* dynamic_update_slice) {
-  // TODO(chokobole): Uncomment this. Dependency: HloDynamicSliceInstruction
-  // return CheckShape(
-  //     dynamic_update_slice,
-  //     ShapeInference::InferDynamicUpdateSliceShape(
-  //         dynamic_update_slice->operand(0)->shape(),
-  //         dynamic_update_slice->operand(1)->shape(),
-  //         Cast<HloDynamicUpdateSliceInstruction>(dynamic_update_slice)
-  //             ->index_shapes()));
-  return absl::UnimplementedError("HandleDynamicSlice not supported");
+  return CheckShape(
+      dynamic_update_slice,
+      ShapeInference::InferDynamicUpdateSliceShape(
+          dynamic_update_slice->operand(0)->shape(),
+          dynamic_update_slice->operand(1)->shape(),
+          Cast<HloDynamicUpdateSliceInstruction>(dynamic_update_slice)
+              ->index_shapes()));
 }
 
 absl::Status ShapeVerifier::HandleTuple(HloInstruction* tuple) {
@@ -1563,26 +1639,16 @@ absl::Status ShapeVerifier::HandleAddDependency(
 }
 
 absl::Status ShapeVerifier::HandleGetDimensionSize(HloInstruction* get_size) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloGetDimensionSizeInstruction
-  // clang-format on
-  // return CheckShape(get_size,
-  //                   ShapeInference::InferGetDimensionSizeShape(
-  //                       get_size->operand(0)->shape(),
-  //                       get_size->dimension()));
-  return absl::UnimplementedError("HandleSetDimensionSize not supported");
+  return CheckShape(get_size,
+                    ShapeInference::InferGetDimensionSizeShape(
+                        get_size->operand(0)->shape(), get_size->dimension()));
 }
 
 absl::Status ShapeVerifier::HandleSetDimensionSize(HloInstruction* set_size) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: HloGetDimensionSizeInstruction
-  // clang-format on
-  // return CheckShape(set_size,
-  //                   ShapeInference::InferSetDimensionSizeShape(
-  //                       set_size->operand(0)->shape(),
-  //                       set_size->operand(1)->shape(),
-  //                       set_size->dimension()));
-  return absl::UnimplementedError("HandleSetDimensionSize not supported");
+  return CheckShape(set_size,
+                    ShapeInference::InferSetDimensionSizeShape(
+                        set_size->operand(0)->shape(),
+                        set_size->operand(1)->shape(), set_size->dimension()));
 }
 
 absl::Status ShapeVerifier::CheckShape(

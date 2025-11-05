@@ -296,6 +296,10 @@ class HloInstruction {
   static std::unique_ptr<HloInstruction> CreateConstant(Literal literal,
                                                         const Shape& shape);
 
+  // Creates an Iota instruction.
+  static std::unique_ptr<HloInstruction> CreateIota(const Shape& shape,
+                                                    int64_t iota_dimension);
+
   // Creates a get tuple element instruction.
   static std::unique_ptr<HloInstruction> CreateGetTupleElement(
       const Shape& shape, HloInstruction* operand, int64_t index);
@@ -330,6 +334,13 @@ class HloInstruction {
   static std::unique_ptr<HloInstruction> CreateVariadic(
       const Shape& shape, HloOpcode opcode,
       absl::Span<HloInstruction* const> operands);
+
+  // Creates a map instruction, where the computation (given by the handle) is
+  // applied element-wise to every element in operands (across the operands,
+  // at a given index)
+  static std::unique_ptr<HloInstruction> CreateMap(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* map_computation);
 
   // Creates an FFT op, of the type indicated by fft_type.
   static std::unique_ptr<HloInstruction> CreateFft(
@@ -702,10 +713,124 @@ class HloInstruction {
       absl::Span<const int64_t> limit_indices,
       absl::Span<const int64_t> strides);
 
+  // Creates a slice instruction, where the first operand is sliced by
+  // start indices specified in the second operand, and by size specified in
+  // 'slice_sizes'.
+  static std::unique_ptr<HloInstruction> CreateDynamicSlice(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<HloInstruction* const> start_indices,
+      absl::Span<const int64_t> slice_sizes);
+
+  // Creates a dynamic update slice instruction, which updates a slice
+  // of 'operand' with 'update' and 'start_indices'.
+  static std::unique_ptr<HloInstruction> CreateDynamicUpdateSlice(
+      const Shape& shape, HloInstruction* operand, HloInstruction* update,
+      absl::Span<HloInstruction* const> start_indices);
+
+  // Creates a concatenate instruction, where the operands are concatenated on
+  // the provided dimension.
+  static std::unique_ptr<HloInstruction> CreateConcatenate(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      int64_t dimension);
+
+  // Creates a reduce instruction, where the computation (given by the handle)
+  // is applied successively to every element in operand. For example, let f be
+  // the function to apply, which takes 2 arguments, an accumulator and the
+  // current value. Let init be an initial value (which is normally chosen to be
+  // the identity element for f, e.g. 0 if f is addition).
+  // Then the reduce HLO will compute:
+  // f(f(init, value0), value1), ...)
+  static std::unique_ptr<HloInstruction> CreateReduce(
+      const Shape& shape, HloInstruction* operand, HloInstruction* init_value,
+      absl::Span<const int64_t> dimensions_to_reduce,
+      HloComputation* reduce_computation);
+
+  // A more general, multiple-argument version of the above.
+  // The function to apply, f, now takes 2N arguments:
+  // [accumulator_0, accumulator_1, ..., accumulator_{N-1},
+  //  value_0, value_1, ..., value_{N-1}], and
+  // returns an N-tuple. The performed computation is (for
+  // commutative and associative f operators) equivalent to:
+  //
+  // f_1 = f(init_0, ...  init_{N-1},
+  //         input_0.value_0, ..., input_{N-1}.value_0)
+  // f_2 = f(f_1.tuple_element(0), ..., f_1.tuple_element(N-1),
+  //         input_0.value_1, ..., input_{N-1}.value_1)
+  // ...
+  static std::unique_ptr<HloInstruction> CreateReduce(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      absl::Span<HloInstruction* const> init_values,
+      absl::Span<const int64_t> dimensions_to_reduce,
+      HloComputation* reduce_computation);
+
+  // Helper version where the operands are given by a single instruction which
+  // either is a tuple of size `init_values`, or a single input, in which case
+  // size of `init_values` is one.
+  static std::unique_ptr<HloInstruction> CreateReduce(
+      const Shape& shape, HloInstruction* tuple_of_instructions,
+      absl::Span<HloInstruction* const> init_values,
+      absl::Span<const int64_t> dimensions_to_reduce,
+      HloComputation* reduce_computation);
+
   // Creates a broadcast instruction.
   static std::unique_ptr<HloInstruction> CreateBroadcast(
       const Shape& shape, HloInstruction* operand,
       absl::Span<const int64_t> broadcast_dimensions);
+
+  // Creates a pad instruction, where the operand is padded on the edges with
+  // the given padding value.
+  static std::unique_ptr<HloInstruction> CreatePad(
+      const Shape& shape, HloInstruction* operand,
+      HloInstruction* padding_value, const PaddingConfig& padding_config);
+
+  // Creates a reshape instruction, where the operand is flattened row-major
+  // order and then reshaped to the given result shape.
+  static std::unique_ptr<HloInstruction> CreateReshape(
+      const Shape& shape, HloInstruction* operand,
+      int64_t inferred_dimension = -1);
+
+  // Creates a dynamic reshape instruction. Similar to reshape but dynamic
+  // dimensions sizes are provided as additional variadic arguments.
+  //
+  // Precondition: dim_sizes.size() == shape.rank()
+  static std::unique_ptr<HloInstruction> CreateDynamicReshape(
+      const Shape& shape, HloInstruction* data_operand,
+      absl::Span<HloInstruction* const> dim_sizes);
+
+  // Creates a transpose instruction which permutes the operand dimensions.
+  static std::unique_ptr<HloInstruction> CreateTranspose(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<const int64_t> dimensions);
+
+  // Creates a n-ary sort op with a 'compare' computation which is used for
+  // comparisons in the sorting algorithm. 'compare' gets 2 * n parameters,
+  // where parameters 2 * i and 2 * i + 1 are the values of the i-th operand at
+  // specific index positions which should be compared, and should return a
+  // PRED. 'is_stable' specifies whether stable sorting is required.
+  static std::unique_ptr<HloInstruction> CreateSort(
+      const Shape& shape, int64_t dimension,
+      absl::Span<HloInstruction* const> operands, HloComputation* compare,
+      bool is_stable);
+
+  // Creates a while instruction, given a condition computation, a body
+  // computation, and the initial value for the input of the computations. For
+  // example, shape: S32, condition: i -> i < 1000, body: i -> i * 2, init: 1
+  // corresponds to the C code below.
+  // int32_t i = 1; int32_t result = while(i < 1000) { i = i * 2 }
+  static std::unique_ptr<HloInstruction> CreateWhile(const Shape& shape,
+                                                     HloComputation* condition,
+                                                     HloComputation* body,
+                                                     HloInstruction* init);
+
+  static std::unique_ptr<HloInstruction> CreateConditional(
+      const Shape& shape, HloInstruction* pred,
+      HloInstruction* true_computation_arg, HloComputation* true_computation,
+      HloInstruction* false_computation_arg, HloComputation* false_computation);
+
+  static std::unique_ptr<HloInstruction> CreateConditional(
+      const Shape& shape, HloInstruction* branch_index,
+      absl::Span<HloComputation* const> branch_computations,
+      absl::Span<HloInstruction* const> branch_computation_args);
 
   // Creates a fusion instruction. A fusion instruction contains one or more
   // fused instructions forming an expression with a single root
@@ -720,10 +845,36 @@ class HloInstruction {
       absl::Span<HloInstruction* const> operands,
       HloComputation* fusion_computation, std::string_view prefix = "");
 
+  // Creates a call instruction that applies the given computation on the given
+  // operands. "shape" is the resultant shape.
+  static std::unique_ptr<HloInstruction> CreateCall(
+      const Shape& shape, HloInstruction* called_computation_root);
+
+  static std::unique_ptr<HloInstruction> CreateCall(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* computation);
+
+  // Creates a composite call instruction that applies the given computation on
+  // the given operands. "shape" is the resultant shape.
+  static std::unique_ptr<HloInstruction> CreateCompositeCall(
+      const Shape& shape, HloInstruction* decomposition_root,
+      const std::string& name, const std::string& attributes, int64_t version);
+
+  static std::unique_ptr<HloInstruction> CreateCompositeCall(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloComputation* decomposition, const std::string& name,
+      const std::string& attributes, int64_t version);
+
   // Creates a tuple instruction with the given elements. This is a convenience
   // wrapper around CreateVariadic.
   static std::unique_ptr<HloInstruction> CreateTuple(
       absl::Span<HloInstruction* const> elements);
+
+  // Creates a reverse instruction, which reverses the order of the elements
+  // in the specified dimensions.
+  static std::unique_ptr<HloInstruction> CreateReverse(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<const int64_t> dimensions);
 
   // Creates a Afterall instruction used for joining or creating new values of
   // token type which thread through side-effecting operations. Operands must
@@ -737,6 +888,13 @@ class HloInstruction {
   // TODO(b/110532604): Remove this capability of creating a token from nothing
   // when we plumb a primordial token from the entry computation.
   static std::unique_ptr<HloInstruction> CreateToken();
+
+  static std::unique_ptr<HloInstruction> CreateGetDimensionSize(
+      const Shape& shape, HloInstruction* operand, int64_t dimension);
+
+  static std::unique_ptr<HloInstruction> CreateSetDimensionSize(
+      const Shape& shape, HloInstruction* operand, HloInstruction* val,
+      int64_t dimension);
 
   static std::unique_ptr<HloInstruction> CreateAddDependency(
       HloInstruction* data_operand, HloInstruction* token_operand);
@@ -1515,6 +1673,16 @@ class HloInstruction {
   // Delegates to HloConcatenateInstruction::concatenate_dimension.
   virtual int64_t concatenate_dimension() const;
 
+  // Delegates to HloGetDimensionSizeInstruction::dimension or
+  // HloSetDimensionSizeInstruction::dimension.
+  int64_t dimension() const;
+
+  // Delegates to HloReshapeInstruction::inferred_dimension.
+  int64_t inferred_dimension() const;
+
+  // Returns whether this instruction does a rank-2 transposition.
+  bool IsRank2Transpose() const;
+
   // Delegates to HloSliceInstruction::slice_start.
   int64_t slice_starts(int64_t dimension) const;
   const std::vector<int64_t>& slice_starts() const;
@@ -1664,6 +1832,16 @@ class HloInstruction {
   void set_original_value(std::shared_ptr<OriginalValue> original_value) {
     original_value_ = original_value;
   }
+
+  // Delegates to HloPadInstruction::padding_config.
+  const PaddingConfig& padding_config() const;
+  PaddingConfig* mutable_padding_config();
+
+  // Delegates to HloDynamicSliceInstruction::slice_sizes.
+  int64_t slice_sizes(int64_t dimension) const;
+
+  // Delegates to HloDynamicSliceInstruction::dynamic_slice_sizes.
+  const std::vector<int64_t>& dynamic_slice_sizes() const;
 
   // Delegates to HloDotInstruction::dot_dimension_numbers().
   const DotDimensionNumbers& dot_dimension_numbers() const;

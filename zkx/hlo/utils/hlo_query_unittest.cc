@@ -51,99 +51,89 @@ ENTRY main {
   ROOT out = u32[] add(zero, five)
 })";
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateCall
-// clang-format on
-// TEST_F(HloQueryTest,
-//        GetInstructionWithOpCodeReturnsMatchingInstructionForModule) {
-//   constexpr std::string_view kHloString = R"(
-// HloModule m
+TEST_F(HloQueryTest,
+       GetInstructionWithOpCodeReturnsMatchingInstructionForModule) {
+  constexpr std::string_view kHloString = R"(
+  HloModule m
 
-// computation.0 {
-//   param.0 = u32[32]{0} parameter(0)
-//   ROOT _ = u32[32]{0} negate(param.0)
-// }
+  computation.0 {
+    param.0 = u32[32]{0} parameter(0)
+    ROOT _ = u32[32]{0} negate(param.0)
+  }
 
-// ENTRY main {
-//   param.0 = u32[32]{0} parameter(0)
-//   param.1 = u32[32]{0} parameter(1)
-//   param.2 = u32[32]{0} parameter(2)
-//   param.3 = u32[32]{0} parameter(3)
-//   add.0 = u32[32]{0} add(param.0,param.1)
-//   add.1 = u32[32]{0} add(param.1,param.2)
-//   sub.0 = u32[32]{0} subtract(param.0,param.1)
-//   mul.0 = u32[32]{0} multiply(param.0,param.1)
-//   mul.1 = u32[32]{0} multiply(param.1,param.2)
-//   mul.2 = u32[32]{0} multiply(param.2,param.3)
-//   comp.0 = call(param.0), to_apply=computation.0
-//   ROOT _ = (u32[32],u32[32],u32[32],u32[32],u32[32],u32[32],u32[32])
-//   tuple(comp.0,add.0,add.1,sub.0,mul.0,mul.1,mul.2)
-// })";
+  ENTRY main {
+    param.0 = u32[32]{0} parameter(0)
+    param.1 = u32[32]{0} parameter(1)
+    param.2 = u32[32]{0} parameter(2)
+    param.3 = u32[32]{0} parameter(3)
+    add.0 = u32[32]{0} add(param.0,param.1)
+    add.1 = u32[32]{0} add(param.1,param.2)
+    sub.0 = u32[32]{0} subtract(param.0,param.1)
+    mul.0 = u32[32]{0} multiply(param.0,param.1)
+    mul.1 = u32[32]{0} multiply(param.1,param.2)
+    mul.2 = u32[32]{0} multiply(param.2,param.3)
+    comp.0 = call(param.0), to_apply=computation.0
+    ROOT _ = (u32[32],u32[32],u32[32],u32[32],u32[32],u32[32],u32[32])
+    tuple(comp.0,add.0,add.1,sub.0,mul.0,mul.1,mul.2)
+  })";
 
-//   TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
-//                           ParseAndReturnUnverifiedModule(kHloString));
-//   EXPECT_EQ(CountInstructions(*module, HloOpcode::kAdd), 2);
-//   EXPECT_EQ(CountInstructions(*module, HloOpcode::kSubtract), 1);
-//   EXPECT_EQ(CountInstructions(*module, HloOpcode::kMultiply), 3);
-//   EXPECT_EQ(CountInstructions(*module, HloPredicateIsOp<HloOpcode::kAdd>),
-//   2); EXPECT_EQ(CountInstructions(*module,
-//   HloPredicateIsOp<HloOpcode::kSubtract>),
-//             1);
-//   EXPECT_EQ(CountInstructions(*module,
-//   HloPredicateIsOp<HloOpcode::kMultiply>),
-//             3);
-// }
+  TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
+                          ParseAndReturnUnverifiedModule(kHloString));
+  EXPECT_EQ(CountInstructions(*module, HloOpcode::kAdd), 2);
+  EXPECT_EQ(CountInstructions(*module, HloOpcode::kSubtract), 1);
+  EXPECT_EQ(CountInstructions(*module, HloOpcode::kMultiply), 3);
+  EXPECT_EQ(CountInstructions(*module, HloPredicateIsOp<HloOpcode::kAdd>), 2);
+  EXPECT_EQ(CountInstructions(*module, HloPredicateIsOp<HloOpcode::kSubtract>),
+            1);
+  EXPECT_EQ(CountInstructions(*module, HloPredicateIsOp<HloOpcode::kMultiply>),
+            3);
+}
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: HloInstruction::CreateCall
-// clang-format on
-// TEST_F(HloQueryTest,
-//        GetInstructionWithOpCodeReturnsMatchingInstructionForComputation) {
-//   constexpr std::string_view kHloString = R"(
-// HloModule m
+TEST_F(HloQueryTest,
+       GetInstructionWithOpCodeReturnsMatchingInstructionForComputation) {
+  constexpr std::string_view kHloString = R"(
+  HloModule m
 
-// computation.0 {
-//   param.0 = u32[32]{0} parameter(0)
-//   param.1 = u32[32]{0} parameter(1)
-//   param.2 = u32[32]{0} parameter(2)
-//   param.3 = u32[32]{0} parameter(3)
-//   add.0 = u32[32]{0} add(param.0,param.1)
-//   add.1 = u32[32]{0} add(param.1,param.2)
-//   sub.0 = u32[32]{0} subtract(param.0,param.1)
-//   mul.0 = u32[32]{0} multiply(param.0,param.1)
-//   mul.1 = u32[32]{0} multiply(param.1,param.2)
-//   ROOT mul.2 = u32[32]{0} multiply(param.2,param.3)
-// }
+  computation.0 {
+    param.0 = u32[32]{0} parameter(0)
+    param.1 = u32[32]{0} parameter(1)
+    param.2 = u32[32]{0} parameter(2)
+    param.3 = u32[32]{0} parameter(3)
+    add.0 = u32[32]{0} add(param.0,param.1)
+    add.1 = u32[32]{0} add(param.1,param.2)
+    sub.0 = u32[32]{0} subtract(param.0,param.1)
+    mul.0 = u32[32]{0} multiply(param.0,param.1)
+    mul.1 = u32[32]{0} multiply(param.1,param.2)
+    ROOT mul.2 = u32[32]{0} multiply(param.2,param.3)
+  }
 
-// ENTRY main {
-//   param.0 = u32[32]{0} parameter(0)
-//   param.1 = u32[32]{0} parameter(1)
-//   param.2 = u32[32]{0} parameter(2)
-//   param.3 = u32[32]{0} parameter(3)
-//   add.0 = u32[32]{0} add(param.0,param.1)
-//   sub.0 = u32[32]{0} subtract(param.0,param.1)
-//   mul.0 = u32[32]{0} multiply(param.0,param.1)
-//   comp.0 = u32[32]{0} call(param.0,param.1,param.2), to_apply=computation.0
-//   ROOT _ = (u32[32],u32[32],u32[32],u32[32]) tuple(add.0,sub.0,mul.0,comp.0)
-// })";
+  ENTRY main {
+    param.0 = u32[32]{0} parameter(0)
+    param.1 = u32[32]{0} parameter(1)
+    param.2 = u32[32]{0} parameter(2)
+    param.3 = u32[32]{0} parameter(3)
+    add.0 = u32[32]{0} add(param.0,param.1)
+    sub.0 = u32[32]{0} subtract(param.0,param.1)
+    mul.0 = u32[32]{0} multiply(param.0,param.1)
+    comp.0 = u32[32]{0} call(param.0,param.1,param.2), to_apply=computation.0
+    ROOT _ = (u32[32],u32[32],u32[32],u32[32]) tuple(add.0,sub.0,mul.0,comp.0)
+  })";
 
-//   TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
-//                           ParseAndReturnUnverifiedModule(kHloString));
-//   HloComputation* computation =
-//   module->GetComputationWithName("computation.0");
-//   EXPECT_EQ(CountInstructions(*computation, HloOpcode::kAdd), 2);
-//   EXPECT_EQ(CountInstructions(*computation, HloOpcode::kSubtract), 1);
-//   EXPECT_EQ(CountInstructions(*computation, HloOpcode::kMultiply), 3);
-//   EXPECT_EQ(CountInstructions(*computation,
-//   HloPredicateIsOp<HloOpcode::kAdd>),
-//             2);
-//   EXPECT_EQ(
-//       CountInstructions(*computation,
-//       HloPredicateIsOp<HloOpcode::kSubtract>), 1);
-//   EXPECT_EQ(
-//       CountInstructions(*computation,
-//       HloPredicateIsOp<HloOpcode::kMultiply>), 3);
-// }
+  TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
+                          ParseAndReturnUnverifiedModule(kHloString));
+  HloComputation* computation = module->GetComputationWithName("computation.0");
+  EXPECT_EQ(CountInstructions(*computation, HloOpcode::kAdd), 2);
+  EXPECT_EQ(CountInstructions(*computation, HloOpcode::kSubtract), 1);
+  EXPECT_EQ(CountInstructions(*computation, HloOpcode::kMultiply), 3);
+  EXPECT_EQ(CountInstructions(*computation, HloPredicateIsOp<HloOpcode::kAdd>),
+            2);
+  EXPECT_EQ(
+      CountInstructions(*computation, HloPredicateIsOp<HloOpcode::kSubtract>),
+      1);
+  EXPECT_EQ(
+      CountInstructions(*computation, HloPredicateIsOp<HloOpcode::kMultiply>),
+      3);
+}
 
 TEST_F(HloQueryTest, GetUniqueGteTest) {
   constexpr std::string_view kHloString = R"(

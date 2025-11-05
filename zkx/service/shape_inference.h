@@ -52,7 +52,7 @@ class ShapeInference {
                                                  const HloInstruction* operand);
 
   // For ternary ops, only scalar broadcasting is supported.
-  // Return the non-scalar shape that all scalars should be broadcasted too
+  // Return the non-scalar shape that all scalars should be broadcasted to
   // Returns status if non-scalar operands do not match.
   // Returns first shape when all shapes are scalar.
   static absl::StatusOr<std::optional<Shape>> InferScalarBroadcastShape(

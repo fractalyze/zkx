@@ -123,6 +123,13 @@ class ShapeUtil {
     return {product, any_overflows};
   }
 
+  // Returns the product of the statically bound dimensions.
+  static inline int64_t StaticExtentProduct(const Shape& shape) {
+    auto [product, overflow] = ExtentProduct</*kBoundedDynamicOk=*/true>(shape);
+    DCHECK(!overflow);
+    return product;
+  }
+
   // Returns the number of elements contained within the provided shape;
   // e.g. for rank 0 (scalars) the result is always 1.
   // Precondition: shape.IsArray()
