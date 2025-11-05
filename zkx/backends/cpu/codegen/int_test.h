@@ -14,6 +14,7 @@
 #include "zkx/base/random.h"
 #include "zkx/comparison_util.h"
 #include "zkx/literal_util.h"
+#include "zkx/math/base/pow.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx::cpu {
@@ -237,6 +238,37 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     )",
                                  x_typename_);
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ * y_);
+  }
+
+  void SetUpPower() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 3;
+    if (case_num == 0) {
+      x_ = -1;
+      literals_[0] = LiteralUtil::CreateR0<T>(x_);
+    } else if (case_num == 1) {
+      x_ = 1;
+      literals_[0] = LiteralUtil::CreateR0<T>(x_);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] power(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    T expected;
+    if (x_ == -1) {
+      expected = y_ % 2 == 0 ? 1 : -1;
+    } else if (x_ == 1) {
+      expected = 1;
+    } else if (y_ >= 0) {
+      expected = math::Pow(x_, y_);
+    } else {
+      expected = 0;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
   }
 
   void SetUpSub() {

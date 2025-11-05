@@ -823,7 +823,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     case HloOpcode::kMultiply:
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
     case HloOpcode::kPower:
-      return b.create<mlir::math::IPowIOp>(lhs_value, rhs_value);
+      return mlir_utils::PowerInteger(b, lhs_value, rhs_value, is_signed);
     case HloOpcode::kSubtract:
       return b.create<mlir::arith::SubIOp>(lhs_value, rhs_value);
 

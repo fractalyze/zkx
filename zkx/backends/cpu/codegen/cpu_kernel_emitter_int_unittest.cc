@@ -71,7 +71,10 @@ TYPED_TEST(IntScalarBinaryTest, Sub) {
   this->RunAndVerify();
 }
 
-// TODO(chokobole): Add tests for power.
+TYPED_TEST(IntScalarBinaryTest, Power) {
+  this->SetUpPower();
+  this->RunAndVerify();
+}
 
 TYPED_TEST_SUITE(IntR2TensorBinaryTest, IntTypes);
 
