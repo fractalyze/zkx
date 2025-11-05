@@ -192,6 +192,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kOr:
     case HloOpcode::kPopulationCount:
     case HloOpcode::kPower:
+    case HloOpcode::kRemainder:
     case HloOpcode::kSign:
     case HloOpcode::kSlice:
     case HloOpcode::kSubtract:

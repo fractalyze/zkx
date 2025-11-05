@@ -116,6 +116,11 @@ TYPED_TEST(IntScalarBinaryTest, Power) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, Remainder) {
+  this->SetUpRemainder();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarBinaryTest, Xor) {
   this->SetUpXor();
   this->RunAndVerify();

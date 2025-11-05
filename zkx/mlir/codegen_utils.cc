@@ -180,6 +180,20 @@ Value PowerInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
   return b.create<arith::SelectOp>(rhs_is_negative, if_lhs_is_neg_one, accum);
 }
 
+Value RemainderInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
+                       bool is_signed) {
+  // Integer remainder overflow behavior:
+  //
+  // X % 0 == X
+  // INT_SMIN %s -1 = 0
+  Type type = lhs.getType();
+  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
+  return DivideOrRemainderIntegerHelper<arith::RemUIOp, arith::RemSIOp>(
+      b, lhs, rhs, is_signed,
+      /*returned_on_zero=*/lhs,
+      /*returned_on_signed_overflow=*/zero);
+}
+
 Value SignInteger(ImplicitLocOpBuilder& b, Value value) {
   // sign(x) = x == 0 ? 0 : ((x >>s (width - 1)) | 1)
   IntegerType integer_type = cast<IntegerType>(value.getType());

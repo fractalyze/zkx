@@ -400,6 +400,42 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(expected);
   }
 
+  void SetUpRemainder() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 3;
+    if (case_num == 0) {
+      y_ = 0;
+      literals_[1] = LiteralUtil::CreateR0<T>(y_);
+    } else if (case_num == 1) {
+      if (std::is_signed_v<T>) {
+        x_ = std::numeric_limits<T>::min();
+        literals_[0] = LiteralUtil::CreateR0<T>(x_);
+        y_ = -1;
+        literals_[1] = LiteralUtil::CreateR0<T>(y_);
+      }
+    }
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] remainder(%x, %y)
+      }
+    )",
+                                 x_typename_);
+
+    T expected;
+    if (y_ == 0) {
+      expected = x_;
+    } else if (std::is_signed_v<T> && x_ == std::numeric_limits<T>::min() &&
+               y_ == -1) {
+      expected = 0;
+    } else {
+      expected = x_ % y_;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
+  }
+
   void SetUpSub() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {

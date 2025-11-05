@@ -20,6 +20,9 @@ mlir::Value DivideInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value lhs,
 mlir::Value PowerInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value lhs,
                          mlir::Value rhs, bool is_signed);
 
+mlir::Value RemainderInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value lhs,
+                             mlir::Value rhs, bool is_signed);
+
 mlir::Value SignInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value value);
 
 }  // namespace zkx::mlir_utils
