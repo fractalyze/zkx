@@ -230,4 +230,19 @@ Value ShiftLeftInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs) {
   return SelectShiftedOrSaturated(b, rhs, shifted, zero, type);
 }
 
+Value ShiftRightArithmeticInteger(ImplicitLocOpBuilder& b, Value lhs,
+                                  Value rhs) {
+  Type type = lhs.getType();
+  Type etype =
+      isa<ShapedType>(type) ? cast<ShapedType>(type).getElementType() : type;
+  auto bit_width_int = cast<IntegerType>(etype).getWidth();
+
+  // "Saturate" if the shift is greater than the bitwidth of the type
+  Value max_shift =
+      GetConstantOrSplat(b, type, b.getIntegerAttr(etype, bit_width_int - 1));
+  Value saturated_shifted = b.create<arith::ShRSIOp>(lhs, max_shift);
+  Value shifted = b.create<arith::ShRSIOp>(lhs, rhs);
+  return SelectShiftedOrSaturated(b, rhs, shifted, saturated_shifted, type);
+}
+
 }  // namespace zkx::mlir_utils

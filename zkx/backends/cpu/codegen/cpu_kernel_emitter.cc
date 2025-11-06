@@ -887,6 +887,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
       return mlir_utils::RemainderInteger(b, lhs_value, rhs_value, is_signed);
     case HloOpcode::kShiftLeft:
       return mlir_utils::ShiftLeftInteger(b, lhs_value, rhs_value);
+    case HloOpcode::kShiftRightArithmetic:
+      return mlir_utils::ShiftRightArithmeticInteger(b, lhs_value, rhs_value);
     case HloOpcode::kSubtract:
       return b.create<mlir::arith::SubIOp>(lhs_value, rhs_value);
     case HloOpcode::kXor:
@@ -1488,6 +1490,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kPower:
     case HloOpcode::kRemainder:
     case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
     case HloOpcode::kSubtract:
     case HloOpcode::kXor: {
       enable_flag(instr->operand(0)->shape().element_type());
