@@ -57,6 +57,20 @@ Value DivideOrRemainderIntegerHelper(ImplicitLocOpBuilder& b, Value lhs,
   return b.create<arith::SelectOp>(rhs_is_zero, returned_on_zero, safe_smin);
 }
 
+// Construct operations to select the saturated value if the shift amount is
+// greater than the bitwidth of the type.
+Value SelectShiftedOrSaturated(ImplicitLocOpBuilder& b, Value rhs,
+                               Value shifted, Value saturated, Type type) {
+  Type etype =
+      isa<ShapedType>(type) ? cast<ShapedType>(type).getElementType() : type;
+  auto bit_width_int = cast<IntegerType>(etype).getWidth();
+  Value bit_width =
+      GetConstantOrSplat(b, type, b.getIntegerAttr(etype, bit_width_int));
+  Value cmp =
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::ugt, bit_width, rhs);
+  return b.create<arith::SelectOp>(cmp, shifted, saturated);
+}
+
 }  // namespace
 
 Value ConvertInteger(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
@@ -205,6 +219,15 @@ Value SignInteger(ImplicitLocOpBuilder& b, Value value) {
   Value shr = b.create<arith::ShRSIOp>(value, bit_width_minus_one);
   Value or_op = b.create<arith::OrIOp>(shr, one);
   return b.create<arith::SelectOp>(cmp, zero, or_op);
+}
+
+Value ShiftLeftInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs) {
+  Type type = lhs.getType();
+
+  // "Saturate" if the shift is greater than the bitwidth of the type
+  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
+  Value shifted = b.create<arith::ShLIOp>(lhs, rhs);
+  return SelectShiftedOrSaturated(b, rhs, shifted, zero, type);
 }
 
 }  // namespace zkx::mlir_utils

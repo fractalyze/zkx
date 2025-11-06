@@ -436,6 +436,26 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(expected);
   }
 
+  void SetUpShiftLeft() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] shift-left(%x, %y)
+      }
+    )",
+                                 x_typename_);
+
+    T expected;
+    if (IsShiftOutOfBounds(y_)) {
+      expected = 0;
+    } else {
+      expected = x_ << y_;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
+  }
+
   void SetUpSub() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {
@@ -463,6 +483,14 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
   }
 
  private:
+  static bool IsShiftOutOfBounds(T rhs) {
+    using UnsignedT = std::make_unsigned_t<T>;
+    UnsignedT lhs_bits_unsigned =
+        static_cast<UnsignedT>(std::numeric_limits<UnsignedT>::digits);
+    UnsignedT rhs_unsigned = static_cast<UnsignedT>(rhs);
+    return rhs_unsigned >= lhs_bits_unsigned;
+  }
+
   T x_;
   T y_;
 };

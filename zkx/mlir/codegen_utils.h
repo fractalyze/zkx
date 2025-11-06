@@ -25,6 +25,9 @@ mlir::Value RemainderInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value lhs,
 
 mlir::Value SignInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value value);
 
+mlir::Value ShiftLeftInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value lhs,
+                             mlir::Value rhs);
+
 }  // namespace zkx::mlir_utils
 
 #endif  // ZKX_MLIR_CODEGEN_UTILS_H_
