@@ -33,14 +33,15 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
+#include "zkx/backends/cpu/runtime/conditional_thunk.h"
 #include "zkx/backends/cpu/runtime/copy_thunk.h"
 #include "zkx/backends/cpu/runtime/infeed_thunk.h"
 #include "zkx/backends/cpu/runtime/kernel_thunk.h"
 #include "zkx/backends/cpu/runtime/outfeed_thunk.h"
 #include "zkx/backends/cpu/runtime/reduce_scatter_thunk.h"
 #include "zkx/backends/cpu/runtime/resource_use.h"
+#include "zkx/backends/cpu/runtime/while_thunk.h"
 #include "zkx/service/collective_ops_utils.h"
-#include "zkx/util.h"
 
 namespace zkx::cpu {
 namespace {
@@ -68,6 +69,8 @@ Thunk::Kind ProtoThunkToThunkKind(const ThunkProto& proto) {
     case ThunkProto::ImplCase::kCollectiveThunk:
       return collective_proto_kind_to_kind(
           proto.collective_thunk().impl_case());
+    case ThunkProto::ImplCase::kConditionalThunk:
+      return Thunk::Kind::kConditional;
     case ThunkProto::ImplCase::kCopyThunk:
       return Thunk::Kind::kCopy;
     case ThunkProto::ImplCase::kInfeedThunk:
@@ -76,6 +79,8 @@ Thunk::Kind ProtoThunkToThunkKind(const ThunkProto& proto) {
       return Thunk::Kind::kKernel;
     case ThunkProto::ImplCase::kOutfeedThunk:
       return Thunk::Kind::kOutfeed;
+    case ThunkProto::ImplCase::kWhileThunk:
+      return Thunk::Kind::kWhile;
     default:
       return Thunk::Kind::kUnknown;
   }
@@ -466,6 +471,28 @@ absl::Status ToProto(const OutfeedThunk& thunk, ThunkProto& proto) {
   return absl::OkStatus();
 }
 
+absl::Status ToProto(const WhileThunk& thunk, ThunkProto& proto) {
+  ThunkSequenceSerDesProtobuf thunk_sequence_serdes;
+  WhileThunkProto* while_thunk_proto = proto.mutable_while_thunk();
+  while_thunk_proto->mutable_trip_count()->set_contains_value(
+      thunk.trip_count().has_value());
+  if (thunk.trip_count().has_value()) {
+    while_thunk_proto->mutable_trip_count()->set_value(*thunk.trip_count());
+  }
+
+  TF_ASSIGN_OR_RETURN(
+      *while_thunk_proto->mutable_cond_sequence(),
+      thunk_sequence_serdes.ToProto(thunk.cond_executor().thunk_sequence()));
+
+  TF_ASSIGN_OR_RETURN(
+      *while_thunk_proto->mutable_body_sequence(),
+      thunk_sequence_serdes.ToProto(thunk.body_executor().thunk_sequence()));
+
+  TF_ASSIGN_OR_RETURN(*while_thunk_proto->mutable_cond_buffer(),
+                      SerializeSliceIntoProto(thunk.cond_buffer()));
+  return absl::OkStatus();
+}
+
 absl::Status ToProto(const KernelThunkBase& thunk, ThunkProto& proto) {
   KernelThunkProto* kernel_thunk_proto = proto.mutable_kernel_thunk();
 
@@ -495,6 +522,24 @@ absl::Status ToProto(const KernelThunkBase& thunk, ThunkProto& proto) {
   return absl::OkStatus();
 }
 
+absl::Status ToProto(const ConditionalThunk& thunk, ThunkProto& proto) {
+  ConditionalThunkProto* conditional_thunk_proto =
+      proto.mutable_conditional_thunk();
+  ThunkSequenceSerDesProtobuf thunk_sequence_serdes;
+
+  conditional_thunk_proto->mutable_branch_sequences()->Reserve(
+      thunk.branch_executors().size());
+  for (const auto& branch_executor : thunk.branch_executors()) {
+    TF_ASSIGN_OR_RETURN(
+        *conditional_thunk_proto->add_branch_sequences(),
+        thunk_sequence_serdes.ToProto(branch_executor.thunk_sequence()));
+  }
+
+  TF_ASSIGN_OR_RETURN(*conditional_thunk_proto->mutable_branch_index_buffer(),
+                      SerializeSliceIntoProto(thunk.branch_index_buffer()));
+  return absl::OkStatus();
+}
+
 absl::StatusOr<ThunkProto> ThunkSerDesProtobuf::ToProto(
     const Thunk& thunk) const {
   ThunkProto proto;
@@ -513,6 +558,10 @@ absl::StatusOr<ThunkProto> ThunkSerDesProtobuf::ToProto(
       TF_RETURN_IF_ERROR(::zkx::cpu::ToProto(
           static_cast<const CollectiveThunk&>(thunk), proto));
       break;
+    case Thunk::Kind::kConditional:
+      TF_RETURN_IF_ERROR(::zkx::cpu::ToProto(
+          static_cast<const ConditionalThunk&>(thunk), proto));
+      break;
     case Thunk::Kind::kKernel:
       TF_RETURN_IF_ERROR(::zkx::cpu::ToProto(
           static_cast<const KernelThunkBase&>(thunk), proto));
@@ -528,6 +577,10 @@ absl::StatusOr<ThunkProto> ThunkSerDesProtobuf::ToProto(
     case Thunk::Kind::kOutfeed:
       TF_RETURN_IF_ERROR(
           ::zkx::cpu::ToProto(static_cast<const OutfeedThunk&>(thunk), proto));
+      break;
+    case Thunk::Kind::kWhile:
+      TF_RETURN_IF_ERROR(
+          ::zkx::cpu::ToProto(static_cast<const WhileThunk&>(thunk), proto));
       break;
     default:
       return absl::UnimplementedError(
@@ -621,6 +674,30 @@ absl::StatusOr<std::unique_ptr<ReduceScatterThunk>> ReduceScatterThunkFromProto(
           proto.collective_thunk().reduce_scatter_thunk().reduction_kind()));
   return ReduceScatterThunk::Create(info, reduction_kind, op_params, op_buffers,
                                     op_resources);
+}
+
+absl::StatusOr<std::unique_ptr<ConditionalThunk>> ConditionalThunkFromProto(
+    const ThunkProto& proto,
+    const std::vector<BufferAllocation>& buffer_allocations) {
+  ThunkSequenceSerDesProtobuf thunk_sequence_serdes(&buffer_allocations);
+
+  std::vector<ThunkSequence> branch_sequences;
+  for (const ThunkSequenceProto& branch_sequence_proto :
+       proto.conditional_thunk().branch_sequences()) {
+    TF_ASSIGN_OR_RETURN(std::unique_ptr<ThunkSequence> branch_sequence,
+                        thunk_sequence_serdes.FromProto(branch_sequence_proto));
+    branch_sequences.push_back(std::move(*branch_sequence));
+  }
+  TF_ASSIGN_OR_RETURN(Thunk::Info info, ThunkInfoFromProto(proto.info()));
+
+  TF_ASSIGN_OR_RETURN(
+      BufferAllocation::Slice branch_index_buffer,
+      DeserializeSliceFromProto(proto.conditional_thunk().branch_index_buffer(),
+                                buffer_allocations));
+
+  return ConditionalThunk::Create(std::move(info),
+                                  std::move(branch_index_buffer),
+                                  std::move(branch_sequences));
 }
 
 absl::StatusOr<std::unique_ptr<CopyThunk>> CopyThunkFromProto(
@@ -781,6 +858,34 @@ absl::StatusOr<std::unique_ptr<OutfeedThunk>> OutfeedThunkFromProto(
                               outfeed_resources);
 }
 
+absl::StatusOr<std::unique_ptr<WhileThunk>> WhileThunkFromProto(
+    const ThunkProto& proto,
+    const std::vector<BufferAllocation>& buffer_allocations) {
+  ThunkSequenceSerDesProtobuf thunk_sequence_serdes(&buffer_allocations);
+
+  TF_ASSIGN_OR_RETURN(
+      std::unique_ptr<ThunkSequence> cond_sequence,
+      thunk_sequence_serdes.FromProto(proto.while_thunk().cond_sequence()));
+  TF_ASSIGN_OR_RETURN(
+      std::unique_ptr<ThunkSequence> body_sequence,
+      thunk_sequence_serdes.FromProto(proto.while_thunk().body_sequence()));
+
+  TF_ASSIGN_OR_RETURN(Thunk::Info info, ThunkInfoFromProto(proto.info()));
+
+  TF_ASSIGN_OR_RETURN(
+      BufferAllocation::Slice cond_buffer,
+      DeserializeSliceFromProto(proto.while_thunk().cond_buffer(),
+                                buffer_allocations));
+
+  std::optional<int64_t> trip_count = std::nullopt;
+  if (proto.while_thunk().has_trip_count()) {
+    trip_count = proto.while_thunk().trip_count().value();
+  }
+  return WhileThunk::Create(std::move(info), cond_buffer,
+                            std::move(*cond_sequence),
+                            std::move(*body_sequence), trip_count);
+}
+
 absl::StatusOr<std::unique_ptr<Thunk>> ThunkSerDesProtobuf::FromProto(
     const ThunkProto& proto) const {
   Thunk::Kind kind = ProtoThunkToThunkKind(proto);
@@ -803,6 +908,8 @@ absl::StatusOr<std::unique_ptr<Thunk>> ThunkSerDesProtobuf::FromProto(
       return CollectivePermuteThunkFromProto(proto, *buffer_allocations_);
     case Thunk::Kind::kReduceScatter:
       return ReduceScatterThunkFromProto(proto, *buffer_allocations_);
+    case Thunk::Kind::kConditional:
+      return ConditionalThunkFromProto(proto, *buffer_allocations_);
     case Thunk::Kind::kCopy:
       return CopyThunkFromProto(proto, *buffer_allocations_);
     case Thunk::Kind::kInfeed:
@@ -811,6 +918,8 @@ absl::StatusOr<std::unique_ptr<Thunk>> ThunkSerDesProtobuf::FromProto(
       return KernelThunkFromProto(proto, *buffer_allocations_);
     case Thunk::Kind::kOutfeed:
       return OutfeedThunkFromProto(proto, *buffer_allocations_);
+    case Thunk::Kind::kWhile:
+      return WhileThunkFromProto(proto, *buffer_allocations_);
     default:
       return absl::Status(absl::StatusCode::kInvalidArgument,
                           absl::StrFormat("Unsupported thunk kind: %s",

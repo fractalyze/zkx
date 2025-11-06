@@ -128,26 +128,6 @@ class GroupScalarBinaryTest : public CudaKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ + x_);
   }
 
-  void SetUpSub() {
-    hlo_text_ = absl::Substitute(R"(
-      %f {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $1[] subtract(%x, %y)
-      }
-
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $1[] fusion(%x, %y), kind=kLoop, calls=%f
-      }
-    )",
-                                 x_typename_, ret_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ - y_);
-  }
-
   void SetUpScalarMul() {
     hlo_text_ = absl::Substitute(
         R"(
@@ -173,6 +153,26 @@ class GroupScalarBinaryTest : public CudaKernelEmitterTest {
     auto x = ScalarField::Random();
     literals_[0] = LiteralUtil::CreateR0<ScalarField>(x);
     expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x * y_);
+  }
+
+  void SetUpSub() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $1[] subtract(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $1[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_, ret_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ - y_);
   }
 
  private:

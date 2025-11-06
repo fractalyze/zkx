@@ -15,8 +15,10 @@
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
 #include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
+#include "zkx/comparison_util.h"
 #include "zkx/service/llvm_ir/llvm_util.h"
 #include "zkx/shape.h"
+#include "zkx/shape_util.h"
 #include "zkx/zkx_data.pb.h"
 
 namespace zkx::mlir_utils {
@@ -249,6 +251,9 @@ mlir::Value CreateMlirEcPointConstant(mlir::ImplicitLocOpBuilder& b,
         GetMlirPointXyzzType<T>(b.getContext()), values);
   }
 }
+
+mlir::arith::CmpIPredicate CreateMlirArithCmpIPredicate(
+    ComparisonDirection direction, bool is_signed);
 
 }  // namespace zkx::mlir_utils
 

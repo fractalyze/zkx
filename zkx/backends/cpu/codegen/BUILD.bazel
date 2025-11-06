@@ -63,6 +63,7 @@ zkx_cc_library(
         "//zkx/codegen:kernel_emitter",
         "//zkx/codegen:llvm_ir_kernel_source",
         "//zkx/math/poly:root_of_unity",
+        "//zkx/mlir:codegen_utils",
         "//zkx/mlir:mlir_utils",
         "//zkx/service:buffer_assignment",
         "//zkx/service/llvm_ir:llvm_util",
@@ -146,6 +147,7 @@ zkx_cc_library(
         ":cpu_kernel_emitter_test",
         "//xla/tsl/platform:status",
         "//zkx:array2d",
+        "//zkx:comparison_util",
         "//zkx:literal_util",
         "//zkx:primitive_util",
         "//zkx/base/containers:container_util",
@@ -164,6 +166,7 @@ zkx_cc_library(
     deps = [
         ":cpu_kernel_emitter_test",
         "//zkx:array2d",
+        "//zkx:comparison_util",
         "//zkx:literal_util",
         "//zkx:primitive_util",
         "//zkx/base/containers:container_util",
@@ -178,6 +181,7 @@ zkx_cc_library(
     deps = [
         ":cpu_kernel_emitter_test",
         "//zkx:array2d",
+        "//zkx:comparison_util",
         "//zkx:literal_util",
         "//zkx:primitive_util",
         "//zkx/base:random",

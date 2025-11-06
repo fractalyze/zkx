@@ -88,6 +88,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "conditional_thunk",
+    srcs = ["conditional_thunk.cc"],
+    hdrs = ["conditional_thunk.h"],
+    deps = [
+        ":thunk",
+        ":thunk_executor",
+        "//xla/tsl/platform:statusor",
+        "//zkx/service:buffer_assignment",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "copy_thunk",
     srcs = ["copy_thunk.cc"],
     hdrs = ["copy_thunk.h"],
@@ -216,12 +232,12 @@ zkx_cc_library(
     srcs = ["kernel_thunk.cc"],
     hdrs = ["kernel_thunk.h"],
     deps = [
-        ":buffer_allocations",
         ":kernel",
         ":kernel_c_api",
         ":thunk",
         "//xla/tsl/platform:errors",
         "//zkx/codegen:kernel_spec",
+        "//zkx/service:buffer_assignment",
         "//zkx/stream_executor:launch_dim",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/base",
@@ -332,6 +348,7 @@ zkx_cc_library(
         ":all_reduce_thunk",
         ":all_to_all_thunk",
         ":collective_permute_thunk",
+        ":conditional_thunk",
         ":copy_thunk",
         ":infeed_thunk",
         ":kernel_thunk",
@@ -341,9 +358,9 @@ zkx_cc_library(
         ":serdes_base",
         ":thunk",
         ":thunk_cc_proto",
+        ":while_thunk",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
-        "//zkx:util",
         "//zkx/service:buffer_assignment",
         "//zkx/service:collective_ops_utils",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -399,6 +416,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "while_thunk",
+    srcs = ["while_thunk.cc"],
+    hdrs = ["while_thunk.h"],
+    deps = [
+        ":thunk",
+        ":thunk_executor",
+        "//xla/tsl/concurrency:async_value",
+        "//zkx/service:buffer_assignment",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "work_queue",
     hdrs = ["work_queue.h"],
     deps = [
@@ -415,6 +452,7 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "runtime_unittests",
     srcs = [
+        "conditional_thunk_unittest.cc",
         "copy_thunk_unittest.cc",
         "infeed_thunk_unittest.cc",
         "kernel_thunk_unittest.cc",
@@ -423,9 +461,11 @@ zkx_cc_unittest(
         "thunk_executor_unittest.cc",
         "thunk_sequence_serdes_unittest.cc",
         "thunk_unittest.cc",
+        "while_thunk_unittest.cc",
         "work_queue_unittest.cc",
     ],
     deps = [
+        ":conditional_thunk",
         ":copy_thunk",
         ":function_library",
         ":infeed_thunk",
@@ -436,12 +476,14 @@ zkx_cc_unittest(
         ":thunk_executor",
         ":thunk_proto_serdes",
         ":thunk_testlib",
+        ":while_thunk",
         ":work_queue",
         "//xla/tsl/concurrency:async_value",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:statusor",
         "//zkx:literal_util",
         "//zkx:shape_util",
+        "//zkx/stream_executor:device_memory",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/synchronization",

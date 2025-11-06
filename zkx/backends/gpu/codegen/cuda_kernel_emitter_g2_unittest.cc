@@ -27,14 +27,14 @@ TYPED_TEST(GroupScalarBinaryTest, Double) {
   this->RunAndVerify();
 }
 
-TYPED_TEST(GroupScalarBinaryTest, Sub) {
-  this->SetUpSub();
-  this->RunAndVerify();
-}
-
 // TODO(chokobole): Enable this. See https://github.com/zk-rabbit/zkx/issues/84
 TYPED_TEST(GroupScalarBinaryTest, DISABLED_ScalarMul) {
   this->SetUpScalarMul();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(GroupScalarBinaryTest, Sub) {
+  this->SetUpSub();
   this->RunAndVerify();
 }
 

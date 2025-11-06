@@ -3,10 +3,22 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "codegen_utils",
+    srcs = ["codegen_utils.cc"],
+    hdrs = ["codegen_utils.h"],
+    deps = [
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "mlir_utils",
     srcs = ["mlir_utils.cc"],
     hdrs = ["mlir_utils.h"],
     deps = [
+        "//zkx:comparison_util",
         "//zkx:primitive_util",
         "//zkx:shape_util",
         "//zkx:zkx_data_cc_proto",
@@ -21,7 +33,6 @@ zkx_cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LLVMCommonConversion",
-        "@llvm-project//mlir:MemRefDialect",
         "@llvm-project//mlir:SparseTensorDialect",
         "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",
         "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",

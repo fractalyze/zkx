@@ -27,18 +27,18 @@ TYPED_TEST(FieldScalarBinaryTest, Add) {
   this->RunAndVerify();
 }
 
-TYPED_TEST(FieldScalarBinaryTest, Sub) {
-  this->SetUpSub();
-  this->RunAndVerify();
-}
-
-TYPED_TEST(FieldScalarBinaryTest, Mul) {
-  this->SetUpMul();
+TYPED_TEST(FieldScalarBinaryTest, Compare) {
+  this->SetUpCompare();
   this->RunAndVerify();
 }
 
 TYPED_TEST(FieldScalarBinaryTest, Div) {
   this->SetUpDiv();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(FieldScalarBinaryTest, Mul) {
+  this->SetUpMul();
   this->RunAndVerify();
 }
 
@@ -49,6 +49,11 @@ TYPED_TEST(FieldScalarBinaryTest, Pow) {
 
 TYPED_TEST(FieldScalarBinaryTest, PowWithSignedExponentShouldFail) {
   this->SetUpPowWithSignedExponentShouldFail();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(FieldScalarBinaryTest, Sub) {
+  this->SetUpSub();
   this->RunAndVerify();
 }
 

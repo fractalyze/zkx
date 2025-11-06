@@ -725,6 +725,23 @@ message ParameterReplication {
   repeated bool replicated_at_leaf_buffers = 1;
 }
 
+// A backend-config for kWhile loops that stores the loop's trip count, if it is
+// known.
+//
+// This is useful for backends that can implement a `for i in 0..N` loop more
+// efficiently than a `while` loop. For example, on GPUs, we can implement a
+// `for i in 0..N` loop by enqueueing the kernels for the loop body N times,
+// whereas implementing a `while` loop requires a host-device sync on each
+// iteration.
+message WhileLoopBackendConfig {
+  message KnownTripCount {
+    int64 n = 1;
+  }
+  // This indirection lets us distinguish between known-trip-count == 0 and
+  // unknown-trip-count.
+  KnownTripCount known_trip_count = 1;
+}
+
 // Specifies a pair of output/operand buffers that alias each other for
 // kCustomCall and kFusion
 message OutputOperandAliasing {

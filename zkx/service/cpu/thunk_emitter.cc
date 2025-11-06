@@ -23,11 +23,13 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
+#include "zkx/backends/cpu/runtime/conditional_thunk.h"
 #include "zkx/backends/cpu/runtime/copy_thunk.h"
 #include "zkx/backends/cpu/runtime/infeed_thunk.h"
 #include "zkx/backends/cpu/runtime/kernel_thunk.h"
 #include "zkx/backends/cpu/runtime/outfeed_thunk.h"
 #include "zkx/backends/cpu/runtime/reduce_scatter_thunk.h"
+#include "zkx/backends/cpu/runtime/while_thunk.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
 #include "zkx/cpu_function_runtime.h"
 #include "zkx/hlo/ir/hlo_casting_utils.h"
@@ -161,8 +163,16 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kConstant:
       return ThunkSequence::Empty();
 
+    // Control flow thunks check predicates on the host and launch nested thunk
+    // sequences for branches and loops.
+    case HloOpcode::kConditional:
+      return EmitConditionThunk(instr);
+    case HloOpcode::kWhile:
+      return EmitWhileThunk(instr);
+
     case HloOpcode::kAdd:
     case HloOpcode::kBroadcast:
+    case HloOpcode::kCompare:
     case HloOpcode::kConvert:
     case HloOpcode::kDivide:
     case HloOpcode::kDot:
@@ -406,6 +416,44 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitOutfeedThunk(
 
   return ThunkSequence::Of<OutfeedThunk>(
       ThunkInfo(instruction), outfeed_buffers, std::move(outfeed_resources));
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitConditionThunk(
+    const HloInstruction* instruction) {
+  std::vector<ThunkSequence> branches;
+  TF_ASSIGN_OR_RETURN(auto branch_index_buffer,
+                      GetAllocationSlice(instruction->operand(0)));
+
+  for (HloComputation* branch : instruction->branch_computations()) {
+    TF_ASSIGN_OR_RETURN(branches.emplace_back(), EmitHloComputation(branch));
+  }
+
+  return ThunkSequence::Of<ConditionalThunk>(
+      ThunkInfo(instruction), branch_index_buffer, std::move(branches));
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitWhileThunk(
+    const HloInstruction* instruction) {
+  HloInstruction* cond = instruction->while_condition()->root_instruction();
+  TF_ASSIGN_OR_RETURN(auto cond_buffer, GetAllocationSlice(cond));
+
+  TF_ASSIGN_OR_RETURN(ThunkSequence cond_thunk,
+                      EmitHloComputation(instruction->while_condition()));
+  TF_ASSIGN_OR_RETURN(ThunkSequence body_thunk,
+                      EmitHloComputation(instruction->while_body()));
+
+  // Check if while loop has a statically known trip count.
+  TF_ASSIGN_OR_RETURN(auto loop_config,
+                      instruction->backend_config<WhileLoopBackendConfig>());
+
+  std::optional<int64_t> trip_count;
+  if (loop_config.has_known_trip_count()) {
+    trip_count = loop_config.known_trip_count().n();
+  }
+
+  return ThunkSequence::Of<WhileThunk>(ThunkInfo(instruction), cond_buffer,
+                                       std::move(cond_thunk),
+                                       std::move(body_thunk), trip_count);
 }
 
 absl::StatusOr<ThunkSequence> ThunkEmitter::EmitCopyThunk(

@@ -99,46 +99,6 @@ class FieldScalarBinaryTest : public CudaKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<F>(x_ + y_);
   }
 
-  void SetUpSub() {
-    hlo_text_ = absl::Substitute(R"(
-      %f {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $0[] subtract(%x, %y)
-      }
-
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
-      }
-    )",
-                                 x_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<F>(x_ - y_);
-  }
-
-  void SetUpMul() {
-    hlo_text_ = absl::Substitute(R"(
-      %f {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $0[] multiply(%x, %y)
-      }
-
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
-      }
-    )",
-                                 x_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<F>(x_ * y_);
-  }
-
   void SetUpDiv() {
     hlo_text_ = absl::Substitute(R"(
       %f {
@@ -163,6 +123,26 @@ class FieldScalarBinaryTest : public CudaKernelEmitterTest {
     }
   }
 
+  void SetUpSub() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] subtract(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_ - y_);
+  }
+
   void SetUpPow() {
     hlo_text_ = absl::Substitute(R"(
       %f {
@@ -184,6 +164,26 @@ class FieldScalarBinaryTest : public CudaKernelEmitterTest {
     auto y = base::Uniform<uint32_t>();
     literals_[1] = LiteralUtil::CreateR0<uint32_t>(y);
     expected_literal_ = LiteralUtil::CreateR0<F>(x_.Pow(y));
+  }
+
+  void SetUpMul() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] multiply(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_ * y_);
   }
 
  private:

@@ -22,18 +22,23 @@ TYPED_TEST(GroupScalarBinaryTest, Add) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(GroupScalarBinaryTest, Compare) {
+  this->SetUpCompare();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(GroupScalarBinaryTest, Double) {
   this->SetUpDouble();
   this->RunAndVerify();
 }
 
-TYPED_TEST(GroupScalarBinaryTest, Sub) {
-  this->SetUpSub();
+TYPED_TEST(GroupScalarBinaryTest, ScalarMul) {
+  this->SetUpScalarMul();
   this->RunAndVerify();
 }
 
-TYPED_TEST(GroupScalarBinaryTest, ScalarMul) {
-  this->SetUpScalarMul();
+TYPED_TEST(GroupScalarBinaryTest, Sub) {
+  this->SetUpSub();
   this->RunAndVerify();
 }
 

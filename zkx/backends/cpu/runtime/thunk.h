@@ -72,10 +72,12 @@ class Thunk {
     kAllToAll,
     kCollectivePermute,
     kCopy,
+    kConditional,
     kInfeed,
     kKernel,
     kOutfeed,
     kReduceScatter,
+    kWhile,
   };
 
   struct Info {

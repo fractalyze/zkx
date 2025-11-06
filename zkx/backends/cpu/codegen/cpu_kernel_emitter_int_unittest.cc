@@ -4,9 +4,28 @@
 
 namespace zkx::cpu {
 
-// TODO(chokobole): Add tests for convert and negate.
-
 using IntTypes = testing::Types<int32_t, uint32_t>;
+TYPED_TEST_SUITE(IntScalarUnaryTest, IntTypes);
+
+TYPED_TEST(IntScalarUnaryTest, ConvertUp) {
+  this->SetUpConvertUp();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarUnaryTest, ConvertDown) {
+  this->SetUpConvertDown();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarUnaryTest, Negate) {
+  if (std::is_signed_v<TypeParam>) {
+    this->SetUpNegate();
+    this->RunAndVerify();
+  } else {
+    GTEST_SKIP() << "Skipping test for unsigned type";
+  }
+}
+
 TYPED_TEST_SUITE(IntScalarBinaryTest, IntTypes);
 
 TYPED_TEST(IntScalarBinaryTest, Add) {
@@ -14,8 +33,13 @@ TYPED_TEST(IntScalarBinaryTest, Add) {
   this->RunAndVerify();
 }
 
-TYPED_TEST(IntScalarBinaryTest, Sub) {
-  this->SetUpSub();
+TYPED_TEST(IntScalarBinaryTest, Compare) {
+  this->SetUpCompare();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, Div) {
+  this->SetUpDiv();
   this->RunAndVerify();
 }
 
@@ -24,8 +48,8 @@ TYPED_TEST(IntScalarBinaryTest, Mul) {
   this->RunAndVerify();
 }
 
-TYPED_TEST(IntScalarBinaryTest, Div) {
-  this->SetUpDiv();
+TYPED_TEST(IntScalarBinaryTest, Sub) {
+  this->SetUpSub();
   this->RunAndVerify();
 }
 
@@ -40,8 +64,18 @@ TYPED_TEST(IntR2TensorBinaryTest, Add) {
 
 TYPED_TEST_SUITE(IntTest, IntTypes);
 
+TYPED_TEST(IntTest, Conditional) {
+  this->SetUpConditional();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Slice) {
   this->SetUpSlice();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, While) {
+  this->SetUpWhile();
   this->RunAndVerify();
 }
 

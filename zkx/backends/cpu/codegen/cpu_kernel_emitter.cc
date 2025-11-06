@@ -80,6 +80,7 @@ limitations under the License.
 #include "zkx/codegen/llvm_ir_kernel_source.h"
 #include "zkx/layout_util.h"
 #include "zkx/math/poly/root_of_unity.h"
+#include "zkx/mlir/codegen_utils.h"
 #include "zkx/mlir/mlir_utils.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/llvm_ir/llvm_util.h"
@@ -701,9 +702,29 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
-    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
-  return absl::UnimplementedError(absl::StrFormat(
-      "Unhandled unary integer op: %s", HloOpcodeString(instr->opcode())));
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
+    bool is_signed) {
+  switch (instr->opcode()) {
+    case HloOpcode::kConvert: {
+      mlir::Type ret_type;
+      if (ShapeUtil::IsScalar(instr->shape())) {
+        ret_type = mlir_utils::PrimitiveTypeToMlirType(
+            instr->shape().element_type(), b.getContext());
+      } else {
+        ret_type =
+            mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      }
+      return mlir_utils::ConvertInteger(b, {ret_type}, value.getType(),
+                                        ret_type, {value}, is_signed);
+    }
+    case HloOpcode::kNegate:
+      return b.create<mlir::arith::SubIOp>(
+          b.create<mlir::arith::ConstantOp>(b.getZeroAttr(value.getType())),
+          value);
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled unary integer op: %s", HloOpcodeString(instr->opcode())));
+  }
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
@@ -764,7 +785,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitUnaryOp(
   Shape shape = instr->operand(0)->shape();
   PrimitiveType operand_type = shape.element_type();
   if (ShapeUtil::ElementIsIntegral(shape)) {
-    return EmitIntegerUnaryOp(instr, b, value);
+    return EmitIntegerUnaryOp(
+        instr, b, value, primitive_util::IsSignedIntegralType(operand_type));
   } else if (ShapeUtil::ElementIsField(shape)) {
     return EmitFieldUnaryOp(instr, b, value);
   } else if (ShapeUtil::ElementIsEcPoint(shape)) {
@@ -782,6 +804,11 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     // TODO(jingyue): add the "nsw" attribute for signed types.
     case HloOpcode::kAdd:
       return b.create<mlir::arith::AddIOp>(lhs_value, rhs_value);
+    case HloOpcode::kCompare:
+      return b.create<mlir::arith::CmpIOp>(
+          mlir_utils::CreateMlirArithCmpIPredicate(
+              instr->comparison_direction(), is_signed),
+          lhs_value, rhs_value);
     case HloOpcode::kDivide: {
       if (is_signed) {
         return b.create<mlir::arith::DivSIOp>(lhs_value, rhs_value);
@@ -808,6 +835,11 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::field::AddOp>(lhs_value, rhs_value);
+    case HloOpcode::kCompare:
+      return b.create<mlir::zkir::field::CmpOp>(
+          mlir_utils::CreateMlirArithCmpIPredicate(
+              instr->comparison_direction(), false),
+          lhs_value, rhs_value);
     case HloOpcode::kDivide: {
       auto inv = b.create<mlir::zkir::field::InverseOp>(rhs_value);
       return b.create<mlir::zkir::field::MulOp>(lhs_value, inv);
@@ -850,15 +882,23 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
                                                          rhs_value);
-      break;
+    case HloOpcode::kCompare:
+      if (instr->comparison_direction() != ComparisonDirection::kEq &&
+          instr->comparison_direction() != ComparisonDirection::kNe) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Unsupported comparison direction for EC points: %s",
+            ComparisonDirectionToString(instr->comparison_direction())));
+      }
+      return b.create<mlir::zkir::elliptic_curve::CmpOp>(
+          mlir_utils::CreateMlirArithCmpIPredicate(
+              instr->comparison_direction(), false),
+          lhs_value, rhs_value);
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::elliptic_curve::ScalarMulOp>(
           ret_type, lhs_value, rhs_value);
-      break;
     case HloOpcode::kSubtract:
       return b.create<mlir::zkir::elliptic_curve::SubOp>(ret_type, lhs_value,
                                                          rhs_value);
-      break;
     default:
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled binary ec point op %s", HloOpcodeString(instr->opcode())));
@@ -1293,6 +1333,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
     case HloOpcode::kAdd:
+    case HloOpcode::kCompare:
     case HloOpcode::kSubtract:
     case HloOpcode::kMultiply:
     case HloOpcode::kPower:

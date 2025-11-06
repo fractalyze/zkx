@@ -8,6 +8,7 @@
 #include "zkx/array2d.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/base/containers/container_util.h"
+#include "zkx/comparison_util.h"
 #include "zkx/literal_util.h"
 #include "zkx/primitive_util.h"
 
@@ -90,6 +91,32 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ + y_);
   }
 
+  void SetUpCompare() {
+    ComparisonDirection direction = RandomEqualityComparisonDirection();
+    std::string direction_str = ComparisonDirectionToString(direction);
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = pred[] compare(%x, %y), direction=$1
+      }
+    )",
+                                 x_typename_, direction_str);
+    switch (direction) {
+      case ComparisonDirection::kEq:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ == y_);
+        break;
+      case ComparisonDirection::kNe:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ != y_);
+        break;
+      default:
+        LOG(FATAL) << "Unexpected comparison direction: " << direction_str;
+        break;
+    }
+  }
+
   void SetUpDouble() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {
@@ -101,19 +128,6 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
                                  x_typename_, ret_typename_);
     literals_.pop_back();
     expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ + x_);
-  }
-
-  void SetUpSub() {
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $1[] subtract(%x, %y)
-      }
-    )",
-                                 x_typename_, ret_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ - y_);
   }
 
   void SetUpScalarMul() {
@@ -134,6 +148,19 @@ class GroupScalarBinaryTest : public CpuKernelEmitterTest {
     auto x = ScalarField::Random();
     literals_[0] = LiteralUtil::CreateR0<ScalarField>(x);
     expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x * y_);
+  }
+
+  void SetUpSub() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $1[] subtract(%x, %y)
+      }
+    )",
+                                 x_typename_, ret_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<JacobianPoint>(x_ - y_);
   }
 
  private:

@@ -11,23 +11,100 @@
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
 #include "zkx/base/containers/container_util.h"
 #include "zkx/base/random.h"
+#include "zkx/comparison_util.h"
 #include "zkx/literal_util.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx::cpu {
 
 template <typename T>
-class IntScalarBinaryTest : public CpuKernelEmitterTest {
+class BaseIntTest {
+ protected:
   using UnsignedT =
       std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
 
+  static T GetRandomValue() {
+    return absl::bit_cast<T>(base::Uniform<UnsignedT>());
+  }
+};
+
+template <typename T>
+class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
  public:
   void SetUp() override {
     CpuKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<T>());
-    x_ = absl::bit_cast<T>(base::Uniform<UnsignedT>());
-    y_ = absl::bit_cast<T>(base::Uniform<UnsignedT>());
+    x_ = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR0<T>(x_));
+  }
+
+ protected:
+  void SetUpConvertUp() {
+    using DstType =
+        typename std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;
+    static_assert(sizeof(T) < sizeof(DstType),
+                  "T must be smaller than DstType");
+    std::string_view dst_typename = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<DstType>());
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $1[] convert(%x)
+      }
+    )",
+                                 x_typename_, dst_typename);
+
+    expected_literal_ =
+        LiteralUtil::CreateR0<DstType>(static_cast<DstType>(x_));
+  }
+
+  void SetUpConvertDown() {
+    using DstType =
+        typename std::conditional_t<std::is_signed_v<T>, int16_t, uint16_t>;
+    static_assert(sizeof(T) > sizeof(DstType), "T must be larger than DstType");
+    std::string_view dst_typename = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<DstType>());
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $1[] convert(%x)
+      }
+    )",
+                                 x_typename_, dst_typename);
+    expected_literal_ =
+        LiteralUtil::CreateR0<DstType>(static_cast<DstType>(x_));
+  }
+
+  void SetUpNegate() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] negate(%x)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(-x_);
+  }
+
+ private:
+  T x_;
+};
+
+template <typename T>
+class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CpuKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<T>());
+    x_ = BaseIntTest<T>::GetRandomValue();
+    y_ = BaseIntTest<T>::GetRandomValue();
     literals_.push_back(LiteralUtil::CreateR0<T>(x_));
     literals_.push_back(LiteralUtil::CreateR0<T>(y_));
   }
@@ -46,30 +123,40 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ + y_);
   }
 
-  void SetUpSub() {
+  void SetUpCompare() {
+    ComparisonDirection direction = RandomComparisonDirection();
+    std::string direction_str = ComparisonDirectionToString(direction);
+
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {
         %x = $0[] parameter(0)
         %y = $0[] parameter(1)
 
-        ROOT %ret = $0[] subtract(%x, %y)
+        ROOT %ret = pred[] compare(%x, %y), direction=$1
       }
     )",
-                                 x_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<T>(x_ - y_);
-  }
+                                 x_typename_, direction_str);
 
-  void SetUpMul() {
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[] parameter(0)
-        %y = $0[] parameter(1)
-
-        ROOT %ret = $0[] multiply(%x, %y)
-      }
-    )",
-                                 x_typename_);
-    expected_literal_ = LiteralUtil::CreateR0<T>(x_ * y_);
+    switch (direction) {
+      case ComparisonDirection::kEq:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ == y_);
+        break;
+      case ComparisonDirection::kNe:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ != y_);
+        break;
+      case ComparisonDirection::kGe:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ >= y_);
+        break;
+      case ComparisonDirection::kGt:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ > y_);
+        break;
+      case ComparisonDirection::kLe:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ <= y_);
+        break;
+      case ComparisonDirection::kLt:
+        expected_literal_ = LiteralUtil::CreateR0<bool>(x_ < y_);
+        break;
+    }
   }
 
   void SetUpDiv() {
@@ -91,10 +178,36 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
     //      because -min(T) is not representable.
     while (y_ == 0 || (std::is_signed_v<T> && y_ == -1 &&
                        x_ == std::numeric_limits<T>::min())) {
-      y_ = absl::bit_cast<T>(base::Uniform<UnsignedT>());
+      y_ = BaseIntTest<T>::GetRandomValue();
       literals_[1] = LiteralUtil::CreateR0<T>(y_);
     }
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ / y_);
+  }
+
+  void SetUpMul() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] multiply(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_ * y_);
+  }
+
+  void SetUpSub() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] subtract(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_ - y_);
   }
 
  private:
@@ -103,11 +216,9 @@ class IntScalarBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename T>
-class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
+class IntR2TensorBinaryTest : public BaseIntTest<T>,
+                              public CpuKernelEmitterTest {
  public:
-  using UnsignedT =
-      std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
-
   constexpr static int64_t M = 2;
   constexpr static int64_t N = 3;
 
@@ -117,11 +228,11 @@ class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
         primitive_util::NativeToPrimitiveType<T>());
     x_ = base::CreateVector(M, []() {
       return base::CreateVector(
-          N, []() { return absl::bit_cast<T>(base::Uniform<UnsignedT>()); });
+          N, []() { return BaseIntTest<T>::GetRandomValue(); });
     });
     y_ = base::CreateVector(M, []() {
       return base::CreateVector(
-          N, []() { return absl::bit_cast<T>(base::Uniform<UnsignedT>()); });
+          N, []() { return BaseIntTest<T>::GetRandomValue(); });
     });
     Array2D<T> x_array(M, N);
     Array2D<T> y_array(M, N);
@@ -168,15 +279,40 @@ class IntR2TensorBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename T>
-class IntTest : public CpuKernelEmitterTest {
+class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
  public:
-  using UnsignedT =
-      std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
-
   void SetUp() override {
     CpuKernelEmitterTest::SetUp();
     x_typename_ = primitive_util::LowercasePrimitiveTypeName(
         primitive_util::NativeToPrimitiveType<T>());
+  }
+
+  void SetUpConditional() {
+    hlo_text_ = absl::Substitute(R"(
+      %identity {
+        ROOT %ret = $0[] parameter(0)
+      }
+
+      %negate {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] negate(%x)
+      }
+
+      ENTRY %main {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+
+        ROOT %ret = $0[] conditional(%cond, %x, %x), true_computation=%identity, false_computation=%negate
+      }
+    )",
+                                 x_typename_);
+
+    auto x = BaseIntTest<T>::GetRandomValue();
+    bool cond = base::Uniform<uint32_t>() % 2 == 0;
+    literals_.push_back(LiteralUtil::CreateR0<bool>(cond));
+    literals_.push_back(LiteralUtil::CreateR0<T>(x));
+    expected_literal_ = LiteralUtil::CreateR0<T>(cond ? x : -x);
   }
 
   void SetUpSlice() {
@@ -194,10 +330,53 @@ class IntTest : public CpuKernelEmitterTest {
                                  x_typename_, N, E - S, S, E);
 
     auto x = base::CreateVector(
-        N, []() { return absl::bit_cast<T>(base::Uniform<UnsignedT>()); });
+        N, []() { return BaseIntTest<T>::GetRandomValue(); });
     literals_.push_back(LiteralUtil::CreateR1<T>(x));
     expected_literal_ = LiteralUtil::CreateR1<T>(
         base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
+  }
+
+  void SetUpWhile() {
+    hlo_text_ = absl::Substitute(R"(
+      %condition {
+        %param = (u32[], u32[], $0[], $0[]) parameter(0)
+        %i = u32[] get-tuple-element(%param), index=0
+        %n = u32[] get-tuple-element(%param), index=1
+
+        ROOT ret = pred[] compare(%i, %n), direction=LT
+      }
+
+      %body {
+        %param = (u32[], u32[], $0[], $0[]) parameter(0)
+        %i = u32[] get-tuple-element(%param), index=0
+        %n = u32[] get-tuple-element(%param), index=1
+        %acc = $0[] get-tuple-element(%param), index=2
+        %x = $0[] get-tuple-element(%param), index=3
+
+        %one = u32[] constant(1)
+        %next_i = u32[] add(%i, %one)
+        %new_acc = $0[] add(%acc, %x)
+        ROOT %ret = (u32[], u32[], $0[], $0[]) tuple(%next_i, %n, %new_acc, %x)
+      }
+
+      ENTRY %main {
+        %zero = u32[] constant(0)
+        %init = u32[] constant(0)
+        %n = u32[] parameter(0)
+        %x = $0[] parameter(1)
+
+        %while.tuple = (u32[], u32[], $0[], $0[]) tuple(%zero, %n, %init, %x)
+        %result = (u32[], u32[], $0[], $0[]) while(%while.tuple), condition=%condition, body=%body
+        ROOT %ret = $0[] get-tuple-element(%result), index=2
+      }
+    )",
+                                 x_typename_);
+
+    auto x = BaseIntTest<T>::GetRandomValue();
+    auto n = base::Uniform<uint32_t>() % 10;
+    literals_.push_back(LiteralUtil::CreateR0<uint32_t>(n));
+    literals_.push_back(LiteralUtil::CreateR0<T>(x));
+    expected_literal_ = LiteralUtil::CreateR0<T>(n * x);
   }
 };
 

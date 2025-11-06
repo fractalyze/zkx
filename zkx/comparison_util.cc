@@ -20,13 +20,17 @@ limitations under the License.
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 
+#include "zkx/base/random.h"
+
 namespace zkx {
 namespace {
 
 // Verifies that this is a valid Comparison: (1) not a partial ordering on
 // integers, and (2) a valid PrimitiveType.
 bool IsValidComparison(PrimitiveType type, Comparison::Order order) {
-  if (primitive_util::IsIntegralType(type) || type == PRED) {
+  if (primitive_util::IsIntegralType(type) ||
+      primitive_util::IsFieldType(type) ||
+      primitive_util::IsEcPointType(type) || type == PRED) {
     return order == Comparison::Order::kTotal;
   }
   LOG(FATAL) << "Unsupported type: " << PrimitiveType_Name(type);
@@ -34,7 +38,9 @@ bool IsValidComparison(PrimitiveType type, Comparison::Order order) {
 
 // Returns the expected ordering for each primitive type.
 Comparison::Order DefaultOrdering(PrimitiveType type) {
-  if (primitive_util::IsIntegralType(type) || type == PRED) {
+  if (primitive_util::IsIntegralType(type) ||
+      primitive_util::IsFieldType(type) ||
+      primitive_util::IsEcPointType(type) || type == PRED) {
     return Comparison::Order::kTotal;
   }
   LOG(FATAL) << "Unsupported type: " << PrimitiveType_Name(type);
@@ -203,6 +209,14 @@ std::string Comparison::ToString(std::string prefix1, std::string prefix2,
   return absl::StrCat(prefix1, ComparisonDirectionToString(dir_), prefix2,
                       ComparisonPrimitiveTypeToString(primitive_type_), prefix3,
                       ComparisonOrderToString(order_));
+}
+
+ComparisonDirection RandomComparisonDirection() {
+  return static_cast<ComparisonDirection>(base::Uniform<uint8_t>() % 6);
+}
+
+ComparisonDirection RandomEqualityComparisonDirection() {
+  return static_cast<ComparisonDirection>(base::Uniform<uint8_t>() % 2);
 }
 
 }  // namespace zkx

@@ -114,7 +114,8 @@ class CpuKernelEmitter final : public KernelEmitter {
 
   absl::StatusOr<mlir::Value> EmitIntegerUnaryOp(const HloInstruction* instr,
                                                  EmitterLocOpBuilder& b,
-                                                 mlir::Value value);
+                                                 mlir::Value value,
+                                                 bool is_signed);
 
   absl::StatusOr<mlir::Value> EmitFieldUnaryOp(const HloInstruction* instr,
                                                EmitterLocOpBuilder& b,

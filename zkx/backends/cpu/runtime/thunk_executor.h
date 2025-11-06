@@ -69,6 +69,8 @@ struct ThunkExecutorOptions {
 // thunks concurrently in a given thread pool.
 class ThunkExecutor {
  public:
+  using BufferUses = Thunk::BufferUses;
+  using ResourceUses = Thunk::ResourceUses;
   using ExecuteEvent = Thunk::ExecuteEvent;
   using Options = internal::ThunkExecutorOptions;
 
@@ -120,6 +122,9 @@ class ThunkExecutor {
 
   absl::Span<const NodeId> source() const { return source_; }
   absl::Span<const NodeId> sink() const { return sink_; }
+
+  BufferUses buffer_uses() const { return thunk_sequence_.buffer_uses(); }
+  ResourceUses resource_uses() const { return thunk_sequence_.resource_uses(); }
 
   std::string ToString() const;
 

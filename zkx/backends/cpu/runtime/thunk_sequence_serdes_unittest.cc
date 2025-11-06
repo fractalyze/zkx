@@ -33,6 +33,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_thunk.h"
+#include "zkx/backends/cpu/runtime/conditional_thunk.h"
 #include "zkx/backends/cpu/runtime/copy_thunk.h"
 #include "zkx/backends/cpu/runtime/infeed_thunk.h"
 #include "zkx/backends/cpu/runtime/kernel_thunk.h"
@@ -44,6 +45,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/thunk_executor.h"
 #include "zkx/backends/cpu/runtime/thunk_proto_serdes.h"
 #include "zkx/backends/cpu/runtime/thunk_testlib.h"
+#include "zkx/backends/cpu/runtime/while_thunk.h"
 #include "zkx/literal.h"
 #include "zkx/literal_util.h"
 #include "zkx/service/buffer_assignment.h"
@@ -75,8 +77,11 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(),
                         CreateCollectivePermuteThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateCopyThunk());
+    TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(),
+                        CreateConditionalThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateInfeedThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateOutfeedThunk());
+    TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateWhileThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateKernelThunk());
     return thunk_sequence;
   }
@@ -279,6 +284,29 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
         /*dst_shape=*/literals_[buffer_allocations_.size() - 1].shape());
   }
 
+  absl::StatusOr<std::unique_ptr<Thunk>> CreateConditionalThunk() {
+    std::vector<ThunkSequence> branch_sequences;
+    for (int i = 0; i < 2; ++i) {
+      ThunkSequence called_sequence;
+      TF_ASSIGN_OR_RETURN(called_sequence.emplace_back(),
+                          CreateAllGatherThunk());
+      TF_ASSIGN_OR_RETURN(called_sequence.emplace_back(),
+                          CreateAllReduceThunk());
+      TF_ASSIGN_OR_RETURN(called_sequence.emplace_back(),
+                          CreateAllToAllThunk());
+      branch_sequences.push_back(std::move(called_sequence));
+    }
+
+    AddBufferAllocations(1);
+
+    return ConditionalThunk::Create(
+        Thunk::Info(),
+        /*branch_index_buffer=*/
+        CreateBufferAllocationSlice(
+            buffer_allocations_[buffer_allocations_.size() - 1]),
+        std::move(branch_sequences));
+  }
+
   absl::StatusOr<std::unique_ptr<Thunk>> CreateInfeedThunk() {
     AddBufferAllocations(2);
 
@@ -315,6 +343,25 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
              literals_[buffer_allocations_.size() - 1].shape(),
          }},
         OutfeedThunk::OutfeedResources());
+  }
+
+  absl::StatusOr<std::unique_ptr<Thunk>> CreateWhileThunk() {
+    ThunkSequence cond_sequence;
+    TF_ASSIGN_OR_RETURN(cond_sequence.emplace_back(), CreateAllGatherThunk());
+    ThunkSequence body_sequence;
+    TF_ASSIGN_OR_RETURN(body_sequence.emplace_back(), CreateAllGatherThunk());
+    TF_ASSIGN_OR_RETURN(body_sequence.emplace_back(), CreateAllReduceThunk());
+    TF_ASSIGN_OR_RETURN(body_sequence.emplace_back(), CreateAllToAllThunk());
+
+    AddBufferAllocations(1);
+    return WhileThunk::Create(
+        Thunk::Info(),
+        /*cond_buffer=*/
+        CreateBufferAllocationSlice(
+            buffer_allocations_[buffer_allocations_.size() - 1]),
+        /*cond_sequence=*/std::move(cond_sequence),
+        /*body_sequence=*/std::move(body_sequence),
+        /*trip_count=*/1);
   }
 
   absl::StatusOr<std::unique_ptr<Thunk>> CreateKernelThunk() {
@@ -468,6 +515,23 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
                                     thunk_2.dst_buffer(), thunk_2.dst_shape());
   }
 
+  bool VerifyConditionalThunkEquality(const ConditionalThunk& thunk_1,
+                                      const ConditionalThunk& thunk_2) {
+    return VerifySliceEquality(thunk_1.branch_index_buffer(),
+                               thunk_2.branch_index_buffer()) &&
+           absl::c_equal(thunk_1.branch_executors(), thunk_2.branch_executors(),
+                         [this](const ThunkExecutor& executor_1,
+                                const ThunkExecutor& executor_2) {
+                           return absl::c_equal(
+                               executor_1.thunk_sequence(),
+                               executor_2.thunk_sequence(),
+                               [this](const std::unique_ptr<Thunk>& thunk_1,
+                                      const std::unique_ptr<Thunk>& thunk_2) {
+                                 return VerifyThunkEquality(*thunk_1, *thunk_2);
+                               });
+                         });
+  }
+
   bool VerifyInfeedThunkEquality(const InfeedThunk& thunk_1,
                                  const InfeedThunk& thunk_2) {
     InfeedThunk::InfeedResources infeed_resources_1 =
@@ -512,6 +576,24 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
                                buffer_1.slice, buffer_1.shape, buffer_2.slice,
                                buffer_2.shape);
                          });
+  }
+
+  bool VerifyWhileThunkEquality(const WhileThunk& thunk_1,
+                                const WhileThunk& thunk_2) {
+    return VerifySliceEquality(thunk_1.cond_buffer(), thunk_2.cond_buffer()) &&
+           absl::c_equal(thunk_1.cond_executor().thunk_sequence(),
+                         thunk_2.cond_executor().thunk_sequence(),
+                         [this](const std::unique_ptr<Thunk>& thunk_1,
+                                const std::unique_ptr<Thunk>& thunk_2) {
+                           return VerifyThunkEquality(*thunk_1, *thunk_2);
+                         }) &&
+           absl::c_equal(thunk_1.body_executor().thunk_sequence(),
+                         thunk_2.body_executor().thunk_sequence(),
+                         [this](const std::unique_ptr<Thunk>& thunk_1,
+                                const std::unique_ptr<Thunk>& thunk_2) {
+                           return VerifyThunkEquality(*thunk_1, *thunk_2);
+                         }) &&
+           thunk_1.trip_count() == thunk_2.trip_count();
   }
 
   bool VerifyKernelThunkEquality(const KernelThunkBase& thunk_1,
@@ -569,6 +651,10 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
       case Thunk::Kind::kCopy:
         return VerifyCopyThunkEquality(static_cast<const CopyThunk&>(thunk_1),
                                        static_cast<const CopyThunk&>(thunk_2));
+      case Thunk::Kind::kConditional:
+        return VerifyConditionalThunkEquality(
+            static_cast<const ConditionalThunk&>(thunk_1),
+            static_cast<const ConditionalThunk&>(thunk_2));
       case Thunk::Kind::kInfeed:
         return VerifyInfeedThunkEquality(
             static_cast<const InfeedThunk&>(thunk_1),
@@ -577,6 +663,10 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
         return VerifyOutfeedThunkEquality(
             static_cast<const OutfeedThunk&>(thunk_1),
             static_cast<const OutfeedThunk&>(thunk_2));
+      case Thunk::Kind::kWhile:
+        return VerifyWhileThunkEquality(
+            static_cast<const WhileThunk&>(thunk_1),
+            static_cast<const WhileThunk&>(thunk_2));
       case Thunk::Kind::kKernel:
         return VerifyKernelThunkEquality(
             static_cast<const KernelThunkBase&>(thunk_1),
