@@ -871,13 +871,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
           mlir_utils::CreateMlirArithCmpIPredicate(
               instr->comparison_direction(), is_signed),
           lhs_value, rhs_value);
-    case HloOpcode::kDivide: {
-      if (is_signed) {
-        return b.create<mlir::arith::DivSIOp>(lhs_value, rhs_value);
-      } else {
-        return b.create<mlir::arith::DivUIOp>(lhs_value, rhs_value);
-      }
-    }
+    case HloOpcode::kDivide:
+      return mlir_utils::DivideInteger(b, lhs_value, rhs_value, is_signed);
     case HloOpcode::kMaximum:
       return CreateIntegerMaximum(b, lhs_value, rhs_value, is_signed);
     case HloOpcode::kMinimum:

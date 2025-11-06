@@ -149,6 +149,19 @@ class IntScalarBinaryTest : public BaseIntTest<T>,
   }
 
   void SetUpDiv() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 3;
+    if (case_num == 0) {
+      y_ = 0;
+      literals_[1] = LiteralUtil::CreateR0<T>(y_);
+    } else if (case_num == 1) {
+      if (std::is_signed_v<T>) {
+        x_ = std::numeric_limits<T>::min();
+        literals_[0] = LiteralUtil::CreateR0<T>(x_);
+        y_ = -1;
+        literals_[1] = LiteralUtil::CreateR0<T>(y_);
+      }
+    }
+
     hlo_text_ = absl::Substitute(R"(
       %f {
         %x = $0[] parameter(0)
@@ -166,18 +179,16 @@ class IntScalarBinaryTest : public BaseIntTest<T>,
     )",
                                  x_typename_);
 
-    // Re-sample divisor `y_` until it is safe to divide:
-    //  - Disallow zero to avoid division-by-zero.
-    //  - For signed T, also disallow the INT_MIN / -1 pattern:
-    //      If x_ == std::numeric_limits<T>::min() and y_ == -1,
-    //      then x_ / y_ triggers undefined behavior on two's-complement
-    //      because -min(T) is not representable.
-    while (y_ == 0 || (std::is_signed_v<T> && y_ == -1 &&
-                       x_ == std::numeric_limits<T>::min())) {
-      y_ = BaseIntTest<T>::GetRandomValue();
-      literals_[1] = LiteralUtil::CreateR0<T>(y_);
+    T expected;
+    if (y_ == 0) {
+      expected = -1;
+    } else if (std::is_signed_v<T> && x_ == std::numeric_limits<T>::min() &&
+               y_ == -1) {
+      expected = std::numeric_limits<T>::min();
+    } else {
+      expected = x_ / y_;
     }
-    expected_literal_ = LiteralUtil::CreateR0<T>(x_ / y_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
   }
 
   void SetUpMul() {

@@ -2,11 +2,62 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/IR/Location.h"
+#include "mlir/IR/TypeUtilities.h"
 
 namespace zkx::mlir_utils {
 
 using namespace mlir;
+
+namespace {
+
+Value GetConstantOrSplat(ImplicitLocOpBuilder& b, Type t, Attribute v) {
+  if (VectorType vecType = dyn_cast<VectorType>(t)) {
+    v = SplatElementsAttr::get(vecType, v);
+  }
+  return b.create<arith::ConstantOp>(t, cast<TypedAttr>(v));
+}
+
+template <typename U, typename S>
+Value DivideOrRemainderIntegerHelper(ImplicitLocOpBuilder& b, Value lhs,
+                                     Value rhs, bool is_signed,
+                                     Value returned_on_zero,
+                                     Value returned_on_signed_overflow) {
+  Type type = lhs.getType();
+  auto element_type = cast<IntegerType>(getElementTypeOrSelf(type));
+  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
+  auto make_constant = [&](const APInt& i) {
+    return GetConstantOrSplat(b, type, b.getIntegerAttr(element_type, i));
+  };
+  Value one = make_constant(APInt(element_type.getWidth(), 1));
+  Value rhs_is_zero =
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, rhs, zero);
+
+  // For unsigned just set the divisor to 1 when it would be 0.
+  if (!is_signed) {
+    Value safeRhs = b.create<arith::SelectOp>(rhs_is_zero, one, rhs);
+    Value safeDiv = b.create<U>(lhs, safeRhs);
+    return b.create<arith::SelectOp>(rhs_is_zero, returned_on_zero, safeDiv);
+  }
+
+  // For signed also check for INT_SMIN / -1.
+  Value smin = make_constant(APInt::getSignedMinValue(element_type.getWidth()));
+  Value lhs_is_smin =
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, lhs, smin);
+  Value minus_one = make_constant(APInt::getAllOnes(element_type.getWidth()));
+  Value rhs_is_minus_one =
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, rhs, minus_one);
+  Value has_int_min_overflow =
+      b.create<arith::AndIOp>(lhs_is_smin, rhs_is_minus_one);
+  Value rhs_is_unsafe =
+      b.create<arith::OrIOp>(rhs_is_zero, has_int_min_overflow);
+  Value safe_rhs = b.create<arith::SelectOp>(rhs_is_unsafe, one, rhs);
+  Value safe_div = b.create<S>(lhs, safe_rhs);
+  Value safe_smin = b.create<arith::SelectOp>(
+      has_int_min_overflow, returned_on_signed_overflow, safe_div);
+  return b.create<arith::SelectOp>(rhs_is_zero, returned_on_zero, safe_smin);
+}
+
+}  // namespace
 
 Value ConvertInteger(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
                      Type source_type, Type target_type, ValueRange args,
@@ -34,6 +85,29 @@ Value ConvertInteger(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
   }
   // No conversion is needed for the same width integers
   return args.front();
+}
+
+Value DivideInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
+                    bool is_signed) {
+  // Integer division overflow behavior:
+  //
+  // X / 0 == -1
+  // INT_SMIN /s -1 = INT_SMIN
+  Type type = lhs.getType();
+  Type elementType = getElementTypeOrSelf(type);
+  auto integer_element_type = cast<IntegerType>(elementType);
+  auto make_constant = [&](const APInt& i) {
+    return GetConstantOrSplat(b, type,
+                              b.getIntegerAttr(integer_element_type, i));
+  };
+  Value minus_one =
+      make_constant(APInt::getAllOnes(integer_element_type.getWidth()));
+  Value smin =
+      make_constant(APInt::getSignedMinValue(integer_element_type.getWidth()));
+  return DivideOrRemainderIntegerHelper<arith::DivUIOp, arith::DivSIOp>(
+      b, lhs, rhs, is_signed,
+      /*returned_on_zero=*/minus_one,
+      /*returned_on_signed_overflow=*/smin);
 }
 
 Value PowerInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
