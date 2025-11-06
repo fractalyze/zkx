@@ -1231,9 +1231,26 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
   }
 }
 
-absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBroadcastOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
     absl::Span<const int64_t> source_dimensions) {
+  if (ShapeUtil::IsScalar(instr->operand(0)->shape())) {
+    const HloInstruction* input_instr = instr->operand(0);
+    if (ShapeUtil::IsScalar(input_instr->shape())) {
+      mlir::memref::LoadOp load =
+          mlir::dyn_cast<mlir::memref::LoadOp>(input.getDefiningOp());
+      if (!load) {
+        return absl::InternalError("input is not a memref");
+      }
+      input = b.create<mlir::bufferization::ToTensorOp>(
+          mlir_utils::ShapeToMlirTensorType(input_instr->shape(),
+                                            b.getContext()),
+          load.getMemref(),
+          /*restrict=*/true,
+          /*writable=*/false);
+    }
+  }
+
   pass_flag_.enable_linalg_to_parallel_loops = true;
 
   int64_t rank = instr->shape().rank();
@@ -1273,32 +1290,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDimensionsOp(
       mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
       mlir::ValueRange{});
 
-  switch (instr->opcode()) {
-    case HloOpcode::kBroadcast: {
-      if (ShapeUtil::IsScalar(instr->operand(0)->shape())) {
-        const HloInstruction* input_instr = instr->operand(0);
-        if (ShapeUtil::IsScalar(input_instr->shape())) {
-          mlir::memref::LoadOp load =
-              mlir::dyn_cast<mlir::memref::LoadOp>(input.getDefiningOp());
-          if (!load) {
-            return absl::InternalError("input is not a memref");
-          }
-          input = b.create<mlir::bufferization::ToTensorOp>(
-              mlir_utils::ShapeToMlirTensorType(input_instr->shape(),
-                                                b.getContext()),
-              load.getMemref(),
-              /*restrict=*/true,
-              /*writable=*/false);
-        }
-      }
-      auto broadcast =
-          b.create<mlir::linalg::BroadcastOp>(input, init, target_dimensions());
-      return broadcast.getResult()[0];
-    }
-    default:
-      return absl::UnimplementedError(absl::StrFormat(
-          "Unhandled dimensions op: %s", HloOpcodeString(instr->opcode())));
-  }
+  auto broadcast =
+      b.create<mlir::linalg::BroadcastOp>(input, init, target_dimensions());
+  return broadcast.getResult()[0];
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
@@ -1503,8 +1497,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     }
     case HloOpcode::kBroadcast: {
       enable_flag(instr->operand(0)->shape().element_type());
-      return EmitDimensionsOp(instr, b, values[instr->operand(0)],
-                              instr->dimensions());
+      return EmitBroadcastOp(instr, b, values[instr->operand(0)],
+                             instr->dimensions());
     }
     case HloOpcode::kClamp:
     case HloOpcode::kSelect: {
