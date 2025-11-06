@@ -137,6 +137,11 @@ TYPED_TEST(FieldTest, CSRMatrixVectorMultiplication) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(FieldTest, Reverse) {
+  this->SetUpReverse();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(FieldTest, Slice) {
   this->SetUpSlice();
   this->RunAndVerify();

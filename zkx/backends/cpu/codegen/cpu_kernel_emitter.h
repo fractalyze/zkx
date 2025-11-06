@@ -112,6 +112,10 @@ class CpuKernelEmitter final : public KernelEmitter {
                                         EmitterLocOpBuilder& b, mlir::Value lhs,
                                         mlir::Value rhs);
 
+  absl::StatusOr<mlir::Value> EmitReverseOp(const HloInstruction* instr,
+                                            EmitterLocOpBuilder& b,
+                                            mlir::Value value);
+
   absl::StatusOr<mlir::Value> EmitSliceOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
       absl::Span<const int64_t> start_indices,

@@ -698,6 +698,40 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(cond ? x : -x);
   }
 
+  void SetUpReverse() {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+    constexpr static int64_t D2 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+
+        ROOT %ret = $0[$1, $2, $3] reverse(%x), dimensions={0, 2}
+      }
+    )",
+                                 x_typename_, D0, D1, D2);
+
+    Array3D<T> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    Array3D<T> expected_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          expected_array({i, j, k}) = x_array({D0 - i - 1, j, D2 - k - 1});
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    expected_literal_ = LiteralUtil::CreateR3FromArray3D<T>(expected_array);
+  }
+
   void SetUpSlice() {
     constexpr static int64_t N = 6;
     constexpr static int64_t S = 2;

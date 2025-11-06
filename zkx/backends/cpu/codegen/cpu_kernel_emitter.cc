@@ -266,12 +266,6 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     pm.addPass(mlir::createCanonicalizerPass());
   }
 
-  if (flag.enable_lower_affine) {
-    VLOG(2) << "add pass: -lower-affine";
-    flag.enable_scf_to_cf = true;
-    pm.addPass(mlir::createLowerAffinePass());
-  }
-
   if (flag.enable_tensor_ext_to_tensor) {
     VLOG(2) << "add pass: -tensor-ext-to-tensor";
     pm.addPass(mlir::zkir::tensor_ext::createTensorExtToTensor());
@@ -294,6 +288,12 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     flag.enable_scf_to_cf = true;
     pm.addNestedPass<mlir::func::FuncOp>(
         mlir::createConvertLinalgToParallelLoopsPass());
+  }
+
+  if (flag.enable_lower_affine) {
+    VLOG(2) << "add pass: -lower-affine";
+    flag.enable_scf_to_cf = true;
+    pm.addPass(mlir::createLowerAffinePass());
   }
 
   if (flag.enable_omp) {
@@ -1405,6 +1405,55 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
       "Dot op with rank %d and rank %d is not supported", rank0, rank1));
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReverseOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  pass_flag_.enable_linalg_to_parallel_loops = true;
+  pass_flag_.enable_lower_affine = true;
+
+  CHECK(mlir::cast<mlir::RankedTensorType>(input.getType()).hasStaticShape());
+
+  auto output = b.create<mlir::tensor::EmptyOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      mlir::ValueRange{});
+
+  llvm::SmallVector<mlir::AffineExpr, 3> output_exprs;
+  for (int64_t i = 0; i < instr->shape().rank(); ++i) {
+    auto it =
+        std::find(instr->dimensions().begin(), instr->dimensions().end(), i);
+    if (it != instr->dimensions().end()) {
+      output_exprs.push_back(
+          b.getAffineConstantExpr(instr->shape().dimensions(i) - 1) -
+          b.getAffineDimExpr(i));
+    } else {
+      output_exprs.push_back(b.getAffineDimExpr(i));
+    }
+  }
+
+  llvm::SmallVector<mlir::AffineMap, 2> indexing_maps;
+  indexing_maps.push_back(mlir::AffineMap::getMultiDimIdentityMap(
+      instr->shape().rank(), b.getContext()));
+  indexing_maps.push_back(mlir::AffineMap::get(instr->shape().rank(), 0,
+                                               output_exprs, b.getContext()));
+
+  llvm::SmallVector<mlir::utils::IteratorType, 3> iterator_types;
+  for (int64_t i = 0; i < instr->shape().rank(); ++i) {
+    iterator_types.push_back(mlir::utils::IteratorType::parallel);
+  }
+
+  return b
+      .create<mlir::linalg::GenericOp>(
+          mlir::TypeRange{output.getType()}, mlir::ValueRange{input},
+          mlir::ValueRange{output}, indexing_maps, iterator_types,
+          /*doc=*/"reverse",
+          /*libraryCall=*/mlir::StringRef(),
+          [](mlir::OpBuilder& builder, mlir::Location loc,
+             mlir::ValueRange args) {
+            mlir::ImplicitLocOpBuilder b(loc, builder);
+            b.create<mlir::linalg::YieldOp>(mlir::ValueRange{args[0]});
+          })
+      .getResult(0);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
     absl::Span<const int64_t> start_indices,
@@ -1534,6 +1583,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       enable_flag(instr->operand(1)->shape().element_type());
       return EmitMsmOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
+    }
+    case HloOpcode::kReverse: {
+      enable_flag(instr->operand(0)->shape().element_type());
+      return EmitReverseOp(instr, b, values[instr->operand(0)]);
     }
     case HloOpcode::kSlice: {
       enable_flag(instr->operand(0)->shape().element_type());
