@@ -197,6 +197,11 @@ TYPED_TEST(IntTest, Slice) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, Transpose) {
+  this->SetUpTranspose();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, While) {
   this->SetUpWhile();
   this->RunAndVerify();

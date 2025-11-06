@@ -1485,6 +1485,19 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
                                                 sizes, strides);
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitTransposeOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  pass_flag_.enable_linalg_to_parallel_loops = true;
+
+  auto output = b.create<mlir::tensor::EmptyOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      mlir::ValueRange{});
+
+  return b
+      .create<mlir::linalg::TransposeOp>(input, output, instr->dimensions())
+      ->getResult(0);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     absl::flat_hash_map<const HloInstruction*, mlir::Value>& values) {
@@ -1579,6 +1592,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitSliceOp(instr, b, values[instr->operand(0)],
                          instr->slice_starts(), instr->slice_limits(),
                          instr->slice_strides());
+    case HloOpcode::kTranspose:
+      return EmitTransposeOp(instr, b, values[instr->operand(0)]);
 
     default:
       return absl::UnimplementedError(
