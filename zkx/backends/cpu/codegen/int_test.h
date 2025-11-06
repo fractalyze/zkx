@@ -737,6 +737,35 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(cond ? x : -x);
   }
 
+  void SetUpReshape() {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+    constexpr static int64_t D2 = 4;
+    constexpr static int64_t D0Prime = 8;
+    constexpr static int64_t D1Prime = 3;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+
+        ROOT %ret = $0[$4, $5] reshape(%x)
+      }
+    )",
+                                 x_typename_, D0, D1, D2, D0Prime, D1Prime);
+
+    Array3D<T> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    TF_ASSERT_OK_AND_ASSIGN(expected_literal_,
+                            literals_[0].Reshape({D0Prime, D1Prime}));
+  }
+
   void SetUpReverse() {
     constexpr static int64_t D0 = 2;
     constexpr static int64_t D1 = 3;

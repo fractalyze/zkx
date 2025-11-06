@@ -1405,6 +1405,15 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
       "Dot op with rank %d and rank %d is not supported", rank0, rank1));
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  auto output_type =
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+  mlir::Value shape = b.create<mlir::arith::ConstantOp>(
+      b.getIndexTensorAttr(instr->shape().dimensions()));
+  return b.create<mlir::tensor::ReshapeOp>(output_type, input, shape);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReverseOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
   pass_flag_.enable_linalg_to_parallel_loops = true;
@@ -1586,6 +1595,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitMsmOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
     }
+    case HloOpcode::kReshape:
+      return EmitReshapeOp(instr, b, values[instr->operand(0)]);
     case HloOpcode::kReverse:
       return EmitReverseOp(instr, b, values[instr->operand(0)]);
     case HloOpcode::kSlice:

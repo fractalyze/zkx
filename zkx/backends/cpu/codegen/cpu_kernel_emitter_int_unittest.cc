@@ -187,6 +187,11 @@ TYPED_TEST(IntTest, Conditional) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, Reshape) {
+  this->SetUpReshape();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Reverse) {
   this->SetUpReverse();
   this->RunAndVerify();
