@@ -111,6 +111,11 @@ TYPED_TEST(IntScalarBinaryTest, ShiftRightArithmetic) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, ShiftRightLogical) {
+  this->SetUpShiftRightLogical();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarBinaryTest, Sub) {
   this->SetUpSub();
   this->RunAndVerify();

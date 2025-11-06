@@ -482,6 +482,26 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(expected);
   }
 
+  void SetUpShiftRightLogical() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] shift-right-logical(%x, %y)
+      }
+    )",
+                                 x_typename_);
+
+    T expected;
+    if (IsShiftOutOfBounds(y_)) {
+      expected = 0;
+    } else {
+      expected = x_ >> y_;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
+  }
+
   void SetUpSub() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {

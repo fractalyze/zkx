@@ -245,4 +245,13 @@ Value ShiftRightArithmeticInteger(ImplicitLocOpBuilder& b, Value lhs,
   return SelectShiftedOrSaturated(b, rhs, shifted, saturated_shifted, type);
 }
 
+Value ShiftRightLogicalInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs) {
+  Type type = lhs.getType();
+
+  // "Saturate" if the shift is greater than the bitwidth of the type
+  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
+  Value shifted = b.create<arith::ShRUIOp>(lhs, rhs);
+  return SelectShiftedOrSaturated(b, rhs, shifted, zero, type);
+}
+
 }  // namespace zkx::mlir_utils
