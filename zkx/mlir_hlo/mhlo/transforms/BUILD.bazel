@@ -27,7 +27,6 @@ zkx_cc_library(
         "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
-        "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
         "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
     ],

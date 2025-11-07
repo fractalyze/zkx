@@ -590,9 +590,6 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
   for (auto& [name, module] : thunk_emitter.kernels()) {
     compiled_symbols.push_back(
         FunctionLibrary::Sym<FunctionLibrary::Kernel>(name));
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: symbol_type_id_to_function_type_id
-    // clang-format on
     symbol_type_id_to_function_type_id.emplace(compiled_symbols.back().type_id,
                                                SymbolProto::KERNEL);
     // TODO(chokobole): Uncomment this. Dependency: kernel_dylib_index
@@ -626,9 +623,6 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
 
   // Save mapping between symbol type id and function type id to be able to
   // export them to AOT compilation result.
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: symbol_type_id_to_function_type_id
-  // clang-format on
   cpu_executable->set_symbol_type_id_to_function_type_id(
       symbol_type_id_to_function_type_id);
 

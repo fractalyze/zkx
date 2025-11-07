@@ -102,18 +102,6 @@ extern "C" void __chkstk(size_t);
              "_mlir_ciface___zkx_cpu_runtime_" #base_name);                   \
   } while (false)
 
-// Register both the f32 (float) and f64 (double) versions of a libm symbol.
-// Unfortunately the double versions are overloaded on some systems, e.g.
-// Mac so we need an explicit cast. This requires passing the function signature
-// for that case.
-#define REGISTER_LIBM_SYMBOL(name, double_sig)                                 \
-  do {                                                                         \
-    registry->Register(#name "f", reinterpret_cast<void*>(name##f), "Host");   \
-    registry->Register(#name,                                                  \
-                       reinterpret_cast<void*>(static_cast<double_sig>(name)), \
-                       "Host");                                                \
-  } while (false)
-
 static bool RegisterKnownJITSymbols() {
   zkx::CustomCallTargetRegistry* registry =
       zkx::CustomCallTargetRegistry::Global();
@@ -202,7 +190,6 @@ static bool RegisterKnownJITSymbols() {
 }
 
 #undef REGISTER_CPU_RUNTIME_SYMBOL
-#undef REGISTER_LIBM_SYMBOL
 
 static bool unused = RegisterKnownJITSymbols();
 

@@ -19,7 +19,6 @@ limitations under the License.
 #include <type_traits>
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "mlir/IR/TypeUtilities.h"
@@ -398,72 +397,9 @@ inline Value mapMhloOpToStdScalarOp<mhlo::PowOp>(
   Type type = adaptor.getLhs().getType();
   Type elementType = getElementTypeOrSelf(type);
   if (IsAnyIntegerType{}(elementType)) {
-    // TODO: b/315868720 Consider alternate lowerings of mhlo::PowOp with
-    // integer operands.
     auto lb = ImplicitLocOpBuilder(loc, *b);
-    auto resultType = getElementTypeOrSelf(resultTypes.front());
-    // Exponentiation by squaring:
-    // https://en.wikipedia.org/wiki/Exponentiation_by_squaring;
-    Value negOne =
-        lb.create<arith::ConstantOp>(lb.getIntegerAttr(resultType, -1));
-    Value zero = lb.create<arith::ConstantOp>(lb.getIntegerAttr(resultType, 0));
-    Value one = lb.create<arith::ConstantOp>(lb.getIntegerAttr(resultType, 1));
-    Value two = lb.create<arith::ConstantOp>(lb.getIntegerAttr(resultType, 2));
-    Value step = lb.create<arith::ConstantIndexOp>(1);
-    Value lowerBound = lb.create<arith::ConstantIndexOp>(0);
-    // Everything else would overflow for any exponent > 1, as 2^64
-    // is the largest possible exponent for a 64-bit integer, and
-    // that's 1 << 6.
-    Value upperBound = lb.create<arith::ConstantIndexOp>(6);
-    auto originalBase = adaptor.getLhs();
-    auto originalExponent = adaptor.getRhs();
-
-    Value accum =
-        lb.create<scf::ForOp>(
-              lowerBound, upperBound, step,
-              SmallVector<Value>({one, originalBase, originalExponent}),
-              [&](OpBuilder& b, Location, Value /*v*/, ValueRange iters) {
-                Value accum = iters[0];
-                Value base = iters[1];
-                Value exponent = iters[2];
-
-                Value condition = b.create<arith::CmpIOp>(
-                    loc, arith::CmpIPredicate::eq,
-                    b.create<arith::AndIOp>(loc, exponent, one), one);
-                Value multiplied = b.create<arith::MulIOp>(loc, accum, base);
-                accum = b.create<arith::SelectOp>(loc, condition, multiplied,
-                                                  accum);
-                base = b.create<arith::MulIOp>(loc, base, base);
-                exponent = b.create<arith::ShRUIOp>(loc, exponent, one);
-                b.create<scf::YieldOp>(
-                    loc, SmallVector<Value>({accum, base, exponent}));
-              })
-            .getResult(0);
-
-    Value rhsIsEven = lb.create<arith::CmpIOp>(
-        arith::CmpIPredicate::eq,
-        lb.create<arith::RemSIOp>(adaptor.getRhs(), two), zero);
-    Value rhsIsNegative = lb.create<arith::CmpIOp>(arith::CmpIPredicate::slt,
-                                                   adaptor.getRhs(), zero);
-    Value lhsIsOne = lb.create<arith::CmpIOp>(arith::CmpIPredicate::eq,
-                                              adaptor.getLhs(), one);
-    Value lhsIsNegOne = lb.create<arith::CmpIOp>(arith::CmpIPredicate::eq,
-                                                 adaptor.getLhs(), negOne);
-
-    // The accum is correct when the rhs is non-negative. When rhs is
-    // negative, we return 0 for integer, with the exception of lhs values of 1
-    // and -1 which have integer results for negative exponents. Specifically,
-    // the calculation is the following:
-    //
-    // - Return accum if the rhs is not negative.
-    // - Return 1 or -1 depending on the parity of rhs when the lhs is -1.
-    // - Return 1 if lhs is 1.
-    // - Else return 0.
-    Value ifLhsIsOne = lb.create<arith::SelectOp>(lhsIsOne, one, zero);
-    Value ifLhsIsNegOne = lb.create<arith::SelectOp>(
-        lhsIsNegOne, lb.create<arith::SelectOp>(rhsIsEven, one, negOne),
-        ifLhsIsOne);
-    return lb.create<arith::SelectOp>(rhsIsNegative, ifLhsIsNegOne, accum);
+    return zkx::mlir_utils::PowerInteger(lb, adaptor.getLhs(), adaptor.getRhs(),
+                                         elementType.isSignedInteger());
   } else if (IsFieldType{}(elementType)) {
     return b->create<zkir::field::PowUIOp>(loc, adaptor.getLhs(),
                                            adaptor.getRhs());

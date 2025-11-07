@@ -70,7 +70,7 @@ absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
 // TODO(ezhulenev): Figure out why AllToAll instruction does not have
 // `use_global_device_ids` field and how to unify it with every other collective
 // operation.
-static absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
+absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
     const HloAllToAllInstruction* instruction) {
   return CollectiveThunk::OpParams{
       /*op_id=*/instruction->channel_id().has_value()
@@ -85,7 +85,7 @@ static absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
 // TODO(ezhulenev): Figure out why CollectivePermute instruction does not have
 // `use_global_device_ids` field and how to unify it with every other collective
 // operation.
-static absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
+absl::StatusOr<CollectiveThunk::OpParams> GetCollectiveOpParams(
     const HloCollectivePermuteInstruction* instruction) {
   return CollectiveThunk::OpParams{
       /*op_id=*/instruction->channel_id().has_value()
@@ -170,20 +170,29 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kWhile:
       return EmitWhileThunk(instr);
 
+    case HloOpcode::kAbs:
     case HloOpcode::kAdd:
+    case HloOpcode::kAnd:
+    case HloOpcode::kBitcastConvert:
     case HloOpcode::kBroadcast:
+    case HloOpcode::kClz:
     case HloOpcode::kCompare:
     case HloOpcode::kConvert:
     case HloOpcode::kDivide:
     case HloOpcode::kDot:
     case HloOpcode::kFft:
     case HloOpcode::kInverse:
+    case HloOpcode::kMaximum:
+    case HloOpcode::kMinimum:
     case HloOpcode::kMsm:
     case HloOpcode::kMultiply:
     case HloOpcode::kNegate:
+    case HloOpcode::kOr:
     case HloOpcode::kPower:
+    case HloOpcode::kSign:
     case HloOpcode::kSlice:
     case HloOpcode::kSubtract:
+    case HloOpcode::kXor:
       return EmitKernelThunk(instr);
     case HloOpcode::kAllGather:
       return EmitAllGatherThunk(instr);

@@ -7,6 +7,25 @@ namespace zkx::cpu {
 using IntTypes = testing::Types<int32_t, uint32_t>;
 TYPED_TEST_SUITE(IntScalarUnaryTest, IntTypes);
 
+TYPED_TEST(IntScalarUnaryTest, Abs) {
+  if (std::is_signed_v<TypeParam>) {
+    this->SetUpAbs();
+    this->RunAndVerify();
+  } else {
+    GTEST_SKIP() << "Skipping test for unsigned type";
+  }
+}
+
+TYPED_TEST(IntScalarUnaryTest, BitcastConvert) {
+  this->SetUpBitcastConvert();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarUnaryTest, CountLeadingZeros) {
+  this->SetUpCountLeadingZeros();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarUnaryTest, ConvertUp) {
   this->SetUpConvertUp();
   this->RunAndVerify();
@@ -26,10 +45,24 @@ TYPED_TEST(IntScalarUnaryTest, Negate) {
   }
 }
 
+TYPED_TEST(IntScalarUnaryTest, Sign) {
+  if (std::is_signed_v<TypeParam>) {
+    this->SetUpSign();
+    this->RunAndVerify();
+  } else {
+    GTEST_SKIP() << "Skipping test for unsigned type";
+  }
+}
+
 TYPED_TEST_SUITE(IntScalarBinaryTest, IntTypes);
 
 TYPED_TEST(IntScalarBinaryTest, Add) {
   this->SetUpAdd();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, And) {
+  this->SetUpAnd();
   this->RunAndVerify();
 }
 
@@ -43,6 +76,16 @@ TYPED_TEST(IntScalarBinaryTest, Div) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, Maximum) {
+  this->SetUpMaximum();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, Minimum) {
+  this->SetUpMinimum();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarBinaryTest, Mul) {
   this->SetUpMul();
   this->RunAndVerify();
@@ -53,7 +96,20 @@ TYPED_TEST(IntScalarBinaryTest, Sub) {
   this->RunAndVerify();
 }
 
-// TODO(chokobole): Add tests for power.
+TYPED_TEST(IntScalarBinaryTest, Or) {
+  this->SetUpOr();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, Power) {
+  this->SetUpPower();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, Xor) {
+  this->SetUpXor();
+  this->RunAndVerify();
+}
 
 TYPED_TEST_SUITE(IntR2TensorBinaryTest, IntTypes);
 

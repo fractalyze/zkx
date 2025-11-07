@@ -705,6 +705,21 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
     bool is_signed) {
   switch (instr->opcode()) {
+    case HloOpcode::kAbs:
+      return b.create<mlir::math::AbsIOp>(value);
+    case HloOpcode::kBitcastConvert: {
+      mlir::Type ret_type;
+      if (ShapeUtil::IsScalar(instr->shape())) {
+        ret_type = mlir_utils::PrimitiveTypeToMlirType(
+            instr->shape().element_type(), b.getContext());
+      } else {
+        ret_type =
+            mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      }
+      return b.create<mlir::arith::BitcastOp>(ret_type, value);
+    }
+    case HloOpcode::kClz:
+      return b.create<mlir::math::CountLeadingZerosOp>(value);
     case HloOpcode::kConvert: {
       mlir::Type ret_type;
       if (ShapeUtil::IsScalar(instr->shape())) {
@@ -721,6 +736,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
       return b.create<mlir::arith::SubIOp>(
           b.create<mlir::arith::ConstantOp>(b.getZeroAttr(value.getType())),
           value);
+    case HloOpcode::kSign:
+      return mlir_utils::SignInteger(b, value);
     default:
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled unary integer op: %s", HloOpcodeString(instr->opcode())));
@@ -804,6 +821,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
     // TODO(jingyue): add the "nsw" attribute for signed types.
     case HloOpcode::kAdd:
       return b.create<mlir::arith::AddIOp>(lhs_value, rhs_value);
+    case HloOpcode::kAnd:
+      return b.create<mlir::arith::AndIOp>(lhs_value, rhs_value);
     case HloOpcode::kCompare:
       return b.create<mlir::arith::CmpIOp>(
           mlir_utils::CreateMlirArithCmpIPredicate(
@@ -816,12 +835,30 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
         return b.create<mlir::arith::DivUIOp>(lhs_value, rhs_value);
       }
     }
+    case HloOpcode::kMaximum: {
+      if (is_signed) {
+        return b.create<mlir::arith::MaxSIOp>(lhs_value, rhs_value);
+      } else {
+        return b.create<mlir::arith::MaxUIOp>(lhs_value, rhs_value);
+      }
+    }
+    case HloOpcode::kMinimum: {
+      if (is_signed) {
+        return b.create<mlir::arith::MinSIOp>(lhs_value, rhs_value);
+      } else {
+        return b.create<mlir::arith::MinUIOp>(lhs_value, rhs_value);
+      }
+    }
     case HloOpcode::kMultiply:
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
+    case HloOpcode::kOr:
+      return b.create<mlir::arith::OrIOp>(lhs_value, rhs_value);
     case HloOpcode::kPower:
-      return b.create<mlir::math::IPowIOp>(lhs_value, rhs_value);
+      return mlir_utils::PowerInteger(b, lhs_value, rhs_value, is_signed);
     case HloOpcode::kSubtract:
       return b.create<mlir::arith::SubIOp>(lhs_value, rhs_value);
+    case HloOpcode::kXor:
+      return b.create<mlir::arith::XOrIOp>(lhs_value, rhs_value);
 
     default:
       return absl::UnimplementedError(absl::StrFormat(
@@ -832,17 +869,28 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
+  auto compare = [](EmitterLocOpBuilder& b, ComparisonDirection direction,
+                    mlir::Value lhs, mlir::Value rhs) {
+    return b.create<mlir::zkir::field::CmpOp>(
+        mlir_utils::CreateMlirArithCmpIPredicate(direction, false), lhs, rhs);
+  };
+
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
       return b.create<mlir::zkir::field::AddOp>(lhs_value, rhs_value);
     case HloOpcode::kCompare:
-      return b.create<mlir::zkir::field::CmpOp>(
-          mlir_utils::CreateMlirArithCmpIPredicate(
-              instr->comparison_direction(), false),
-          lhs_value, rhs_value);
+      return compare(b, instr->comparison_direction(), lhs_value, rhs_value);
     case HloOpcode::kDivide: {
       auto inv = b.create<mlir::zkir::field::InverseOp>(rhs_value);
       return b.create<mlir::zkir::field::MulOp>(lhs_value, inv);
+    }
+    case HloOpcode::kMaximum: {
+      auto ge = compare(b, ComparisonDirection::kGe, lhs_value, rhs_value);
+      return b.create<mlir::arith::SelectOp>(ge, lhs_value, rhs_value);
+    }
+    case HloOpcode::kMinimum: {
+      auto le = compare(b, ComparisonDirection::kLe, lhs_value, rhs_value);
+      return b.create<mlir::arith::SelectOp>(le, lhs_value, rhs_value);
     }
     case HloOpcode::kMultiply:
       return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
@@ -1327,21 +1375,41 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
   }
 
   switch (instr->opcode()) {
+    case HloOpcode::kAbs:
+    case HloOpcode::kBitcastConvert:
+    case HloOpcode::kClz:
     case HloOpcode::kConvert:
     case HloOpcode::kInverse:
-    case HloOpcode::kNegate: {
+    case HloOpcode::kNegate:
+    case HloOpcode::kSign: {
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
     case HloOpcode::kAdd:
+    case HloOpcode::kAnd:
     case HloOpcode::kCompare:
-    case HloOpcode::kSubtract:
+    case HloOpcode::kDivide:
+    case HloOpcode::kMaximum:
+    case HloOpcode::kMinimum:
     case HloOpcode::kMultiply:
+    case HloOpcode::kOr:
     case HloOpcode::kPower:
-    case HloOpcode::kDivide: {
+    case HloOpcode::kSubtract:
+    case HloOpcode::kXor: {
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());
       return EmitBinaryOp(instr, b, values[instr->operand(0)],
                           values[instr->operand(1)]);
+    }
+    case HloOpcode::kBroadcast: {
+      enable_flag(instr->operand(0)->shape().element_type());
+      return EmitDimensionsOp(instr, b, values[instr->operand(0)],
+                              instr->dimensions());
+    }
+    case HloOpcode::kDot: {
+      enable_flag(instr->operand(0)->shape().element_type());
+      enable_flag(instr->operand(1)->shape().element_type());
+      return EmitDotOp(instr, b, values[instr->operand(0)],
+                       values[instr->operand(1)]);
     }
     case HloOpcode::kFft: {
       if (instr->operand_count() == 1) {
@@ -1361,17 +1429,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());
       return EmitMsmOp(instr, b, values[instr->operand(0)],
-                       values[instr->operand(1)]);
-    }
-    case HloOpcode::kBroadcast: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      return EmitDimensionsOp(instr, b, values[instr->operand(0)],
-                              instr->dimensions());
-    }
-    case HloOpcode::kDot: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      enable_flag(instr->operand(1)->shape().element_type());
-      return EmitDotOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
     }
     case HloOpcode::kSlice: {

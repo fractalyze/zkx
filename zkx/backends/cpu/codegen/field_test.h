@@ -1,6 +1,7 @@
 #ifndef ZKX_BACKENDS_CPU_CODEGEN_FIELD_TEST_H_
 #define ZKX_BACKENDS_CPU_CODEGEN_FIELD_TEST_H_
 
+#include <algorithm>
 #include <optional>
 #include <vector>
 
@@ -156,6 +157,32 @@ class FieldScalarBinaryTest : public CpuKernelEmitterTest {
     } else {
       expected_literal_ = LiteralUtil::CreateR0<F>(*(x_ / y_));
     }
+  }
+
+  void SetUpMaximum() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] maximum(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(std::max(x_, y_));
+  }
+
+  void SetUpMinimum() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] minimum(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(std::min(x_, y_));
   }
 
   void SetUpMul() {

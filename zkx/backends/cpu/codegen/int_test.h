@@ -1,6 +1,8 @@
 #ifndef ZKX_BACKENDS_CPU_CODEGEN_INT_TEST_H_
 #define ZKX_BACKENDS_CPU_CODEGEN_INT_TEST_H_
 
+#include <algorithm>
+#include <cmath>
 #include <type_traits>
 #include <vector>
 
@@ -13,6 +15,7 @@
 #include "zkx/base/random.h"
 #include "zkx/comparison_util.h"
 #include "zkx/literal_util.h"
+#include "zkx/math/base/pow.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx::cpu {
@@ -40,6 +43,63 @@ class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
   }
 
  protected:
+  void SetUpAbs() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] abs(%x)
+      }
+    )",
+                                 x_typename_);
+    if constexpr (std::is_signed_v<T>) {
+      expected_literal_ = LiteralUtil::CreateR0<T>(std::abs<T>(x_));
+    } else {
+      LOG(FATAL) << "abs is not supported for unsigned type";
+    }
+  }
+
+  void SetUpBitcastConvert() {
+    using DstType = typename std::conditional_t<
+        std::is_signed_v<T>, std::make_unsigned_t<T>, std::make_signed_t<T>>;
+    std::string_view dst_typename = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<DstType>());
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $1[] bitcast-convert(%x)
+      }
+    )",
+                                 x_typename_, dst_typename);
+    expected_literal_ =
+        LiteralUtil::CreateR0<DstType>(absl::bit_cast<DstType>(x_));
+  }
+
+  void SetUpCountLeadingZeros() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 2;
+    if (case_num == 0) {
+      x_ = 0;
+      literals_[0] = LiteralUtil::CreateR0<T>(x_);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] count-leading-zeros(%x)
+      }
+    )",
+                                 x_typename_);
+    if (x_ == 0) {
+      // NOTE(chokobole): __builtin_clz is undefined behavior for 0.
+      // See https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html
+      expected_literal_ = LiteralUtil::CreateR0<T>(sizeof(T) * 8);
+    } else {
+      expected_literal_ = LiteralUtil::CreateR0<T>(__builtin_clz(x_));
+    }
+  }
+
   void SetUpConvertUp() {
     using DstType =
         typename std::conditional_t<std::is_signed_v<T>, int64_t, uint64_t>;
@@ -92,6 +152,31 @@ class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(-x_);
   }
 
+  void SetUpSign() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 2;
+    if (case_num == 0) {
+      x_ = 0;
+      literals_[0] = LiteralUtil::CreateR0<T>(x_);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] sign(%x)
+      }
+    )",
+                                 x_typename_);
+    T sign;
+    if (x_ == 0) {
+      sign = 0;
+    } else if (x_ > 0) {
+      sign = 1;
+    } else {
+      sign = -1;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(sign);
+  }
+
  private:
   T x_;
 };
@@ -121,6 +206,19 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     )",
                                  x_typename_);
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ + y_);
+  }
+
+  void SetUpAnd() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] and(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_ & y_);
   }
 
   void SetUpCompare() {
@@ -184,6 +282,32 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ / y_);
   }
 
+  void SetUpMaximum() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] maximum(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(std::max(x_, y_));
+  }
+
+  void SetUpMinimum() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] minimum(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(std::min(x_, y_));
+  }
+
   void SetUpMul() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {
@@ -197,6 +321,50 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ * y_);
   }
 
+  void SetUpOr() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] or(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_ | y_);
+  }
+
+  void SetUpPower() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 3;
+    if (case_num == 0) {
+      x_ = -1;
+      literals_[0] = LiteralUtil::CreateR0<T>(x_);
+    } else if (case_num == 1) {
+      x_ = 1;
+      literals_[0] = LiteralUtil::CreateR0<T>(x_);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] power(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    T expected;
+    if (x_ == -1) {
+      expected = y_ % 2 == 0 ? 1 : -1;
+    } else if (x_ == 1) {
+      expected = 1;
+    } else if (y_ >= 0) {
+      expected = math::Pow(x_, y_);
+    } else {
+      expected = 0;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
+  }
+
   void SetUpSub() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {
@@ -208,6 +376,19 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     )",
                                  x_typename_);
     expected_literal_ = LiteralUtil::CreateR0<T>(x_ - y_);
+  }
+
+  void SetUpXor() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] xor(%x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_ ^ y_);
   }
 
  private:
