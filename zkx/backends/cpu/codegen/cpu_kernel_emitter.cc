@@ -1405,6 +1405,64 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
       "Dot op with rank %d and rank %d is not supported", rank0, rank1));
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b) {
+  pass_flag_.enable_linalg_to_parallel_loops = true;
+  pass_flag_.enable_lower_affine = true;
+
+  PrimitiveType element_type = instr->shape().element_type();
+  if (!(primitive_util::IsIntegralType(element_type) ||
+        primitive_util::IsFieldType(element_type))) {
+    return absl::UnimplementedError(absl::StrFormat(
+        "Unhandled primitive type: %s",
+        primitive_util::LowercasePrimitiveTypeName(element_type)));
+  }
+
+  auto output_type =
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+  bool is_signed = primitive_util::IsSignedIntegralType(element_type);
+
+  int64_t iota_dimension = instr->iota_dimension();
+  auto iota_op = b.create<mlir::tensor::GenerateOp>(
+      output_type, /*dynamicExtents=*/mlir::ValueRange{},
+      [&](mlir::OpBuilder& nested_b, mlir::Location loc,
+          mlir::ValueRange indices) {
+        mlir::ImplicitLocOpBuilder b(loc, nested_b);
+
+        mlir::Value value_as_index = indices[iota_dimension];
+        mlir::Type element_type =
+            mlir::cast<mlir::RankedTensorType>(output_type).getElementType();
+
+        mlir::Value value;
+        if (element_type.isInteger()) {
+          if (is_signed) {
+            value = b.create<mlir::arith::IndexCastOp>(element_type,
+                                                       value_as_index);
+          } else {
+            value = b.create<mlir::arith::IndexCastUIOp>(element_type,
+                                                         value_as_index);
+          }
+        } else if (auto prime_field_type =
+                       mlir::dyn_cast<mlir::zkir::field::PrimeFieldType>(
+                           element_type)) {
+          value = b.create<mlir::arith::IndexCastUIOp>(
+              prime_field_type.getStorageType(), value_as_index);
+
+          if (prime_field_type.isMontgomery()) {
+            value = b.create<mlir::zkir::field::BitcastOp>(
+                mlir::zkir::field::getStandardFormType(element_type), value);
+            value = b.create<mlir::zkir::field::ToMontOp>(element_type, value);
+          } else {
+            value = b.create<mlir::zkir::field::BitcastOp>(element_type, value);
+          }
+        }
+
+        b.create<mlir::tensor::YieldOp>(value);
+      });
+
+  return iota_op.getResult();
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
   auto output_type =
@@ -1589,6 +1647,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
             "HloFftInstruction shouldn't have more than 2 arguments");
       }
     }
+    case HloOpcode::kIota:
+      return EmitIotaOp(instr, b);
     case HloOpcode::kMsm: {
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());

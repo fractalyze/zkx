@@ -112,6 +112,9 @@ class CpuKernelEmitter final : public KernelEmitter {
                                         EmitterLocOpBuilder& b, mlir::Value lhs,
                                         mlir::Value rhs);
 
+  absl::StatusOr<mlir::Value> EmitIotaOp(const HloInstruction* instr,
+                                         EmitterLocOpBuilder& b);
+
   absl::StatusOr<mlir::Value> EmitReshapeOp(const HloInstruction* instr,
                                             EmitterLocOpBuilder& b,
                                             mlir::Value value);

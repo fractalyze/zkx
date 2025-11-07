@@ -187,6 +187,16 @@ TYPED_TEST(IntTest, Conditional) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, IotaWithD0) {
+  this->SetUpIotaWithD0();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, IotaWithD1) {
+  this->SetUpIotaWithD1();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Reshape) {
   this->SetUpReshape();
   this->RunAndVerify();

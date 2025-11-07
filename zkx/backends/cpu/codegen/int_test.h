@@ -737,6 +737,10 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(cond ? x : -x);
   }
 
+  void SetUpIotaWithD0() { SetUpIotaHelper(0); }
+
+  void SetUpIotaWithD1() { SetUpIotaHelper(1); }
+
   void SetUpReshape() {
     constexpr static int64_t D0 = 2;
     constexpr static int64_t D1 = 3;
@@ -907,6 +911,27 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
         m, []() { return BaseIntTest<T>::GetRandomValue(); });
     literals_.push_back(LiteralUtil::CreateR1<T>(x));
     expected_literal_ = callback(x);
+  }
+
+  void SetUpIotaHelper(int64_t iota_dimension) {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        ROOT %ret = $0[$1, $2] iota(), iota_dimension=$3
+      }
+    )",
+                                 x_typename_, D0, D1, iota_dimension);
+    Shape iota_shape(ShapeUtil::MakeShape(
+        primitive_util::NativeToPrimitiveType<T>(), {D0, D1}));
+    Literal result(iota_shape);
+    ShapeUtil::ForEachIndexNoStatus(
+        iota_shape, [&](absl::Span<const int64_t> idx) {
+          result.Set(idx, static_cast<T>(idx[iota_dimension]));
+          return true;
+        });
+    expected_literal_ = std::move(result);
   }
 };
 
