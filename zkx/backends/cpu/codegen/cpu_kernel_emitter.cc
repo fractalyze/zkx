@@ -1522,6 +1522,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kNot:
     case HloOpcode::kPopulationCount:
     case HloOpcode::kSign: {
+      enable_flag(instr->operand(0)->shape().element_type());
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
     case HloOpcode::kAdd:
@@ -1544,33 +1545,21 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitBinaryOp(instr, b, values[instr->operand(0)],
                           values[instr->operand(1)]);
     }
-    case HloOpcode::kBroadcast: {
-      enable_flag(instr->operand(0)->shape().element_type());
+    case HloOpcode::kBroadcast:
       return EmitBroadcastOp(instr, b, values[instr->operand(0)],
                              instr->dimensions());
-    }
     case HloOpcode::kClamp:
-    case HloOpcode::kSelect: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      enable_flag(instr->operand(1)->shape().element_type());
-      enable_flag(instr->operand(2)->shape().element_type());
+    case HloOpcode::kSelect:
       return EmitTernaryOp(instr, b, values[instr->operand(0)],
                            values[instr->operand(1)],
                            values[instr->operand(2)]);
-    }
-    case HloOpcode::kDot: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      enable_flag(instr->operand(1)->shape().element_type());
+    case HloOpcode::kDot:
       return EmitDotOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
-    }
     case HloOpcode::kFft: {
       if (instr->operand_count() == 1) {
-        enable_flag(instr->operand(0)->shape().element_type());
         return EmitFftOp(instr, b, values[instr->operand(0)]);
       } else if (instr->operand_count() == 2) {
-        enable_flag(instr->operand(0)->shape().element_type());
-        enable_flag(instr->operand(1)->shape().element_type());
         return EmitFftOp(instr, b, values[instr->operand(0)],
                          values[instr->operand(1)]);
       } else {
@@ -1584,16 +1573,12 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitMsmOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
     }
-    case HloOpcode::kReverse: {
-      enable_flag(instr->operand(0)->shape().element_type());
+    case HloOpcode::kReverse:
       return EmitReverseOp(instr, b, values[instr->operand(0)]);
-    }
-    case HloOpcode::kSlice: {
-      enable_flag(instr->operand(0)->shape().element_type());
+    case HloOpcode::kSlice:
       return EmitSliceOp(instr, b, values[instr->operand(0)],
                          instr->slice_starts(), instr->slice_limits(),
                          instr->slice_strides());
-    }
 
     default:
       return absl::UnimplementedError(
