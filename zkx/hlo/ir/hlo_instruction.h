@@ -1671,7 +1671,7 @@ class HloInstruction {
   }
 
   // Delegates to HloConcatenateInstruction::concatenate_dimension.
-  virtual int64_t concatenate_dimension() const;
+  int64_t concatenate_dimension() const;
 
   // Delegates to HloGetDimensionSizeInstruction::dimension or
   // HloSetDimensionSizeInstruction::dimension.
