@@ -741,6 +741,40 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
 
   void SetUpIotaWithD1() { SetUpIotaHelper(1); }
 
+  void SetUpPad() {
+    constexpr static int64_t M = 4;
+    constexpr static int64_t LO = 2;
+    constexpr static int64_t HI = 3;
+    constexpr static int64_t N = M + LO + HI;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+        %padding_value = $0[] parameter(1)
+
+        ROOT %ret = $0[$4] pad(%x, %padding_value), padding=$2_$3
+      }
+    )",
+                                 x_typename_, M, LO, HI, N);
+
+    std::vector<T> x = base::CreateVector(
+        M, []() { return BaseIntTest<T>::GetRandomValue(); });
+    T padding_value = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    literals_.push_back(LiteralUtil::CreateR0<T>(padding_value));
+    std::vector<T> expected =
+        base::CreateVector(N, [padding_value, &x](size_t i) {
+          if (i < LO) {
+            return padding_value;
+          } else if (i < M + LO) {
+            return x[i - LO];
+          } else {
+            return padding_value;
+          }
+        });
+    expected_literal_ = LiteralUtil::CreateR1<T>(expected);
+  }
+
   void SetUpReshape() {
     constexpr static int64_t D0 = 2;
     constexpr static int64_t D1 = 3;

@@ -42,6 +42,7 @@ class CpuKernelEmitter final : public KernelEmitter {
     bool enable_ext_field_to_llvm = false;
     bool enable_lower_affine = false;
     bool enable_elementwise_to_linalg = false;
+    bool enable_tensor_to_linalg = false;
     bool enable_linalg_to_parallel_loops = false;
     bool enable_scf_to_cf = false;
     bool enable_expand_strided_metadata = false;
@@ -114,6 +115,11 @@ class CpuKernelEmitter final : public KernelEmitter {
 
   absl::StatusOr<mlir::Value> EmitIotaOp(const HloInstruction* instr,
                                          EmitterLocOpBuilder& b);
+
+  absl::StatusOr<mlir::Value> EmitPadOp(const HloInstruction* instr,
+                                        EmitterLocOpBuilder& b,
+                                        mlir::Value input,
+                                        mlir::Value padding_value);
 
   absl::StatusOr<mlir::Value> EmitReshapeOp(const HloInstruction* instr,
                                             EmitterLocOpBuilder& b,

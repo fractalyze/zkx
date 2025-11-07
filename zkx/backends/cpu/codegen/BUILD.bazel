@@ -92,6 +92,8 @@ zkx_cc_library(
         "@llvm-project//mlir:SCFToControlFlow",
         "@llvm-project//mlir:SparseTensorDialect",
         "@llvm-project//mlir:SparseTensorTransforms",
+        "@llvm-project//mlir:TensorInferTypeOpInterfaceImpl",
+        "@llvm-project//mlir:TensorToLinalg",
         "@llvm-project//mlir:Transforms",
         "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField",
         "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",

@@ -197,6 +197,11 @@ TYPED_TEST(IntTest, IotaWithD1) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, Pad) {
+  this->SetUpPad();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Reshape) {
   this->SetUpReshape();
   this->RunAndVerify();

@@ -22,6 +22,7 @@ limitations under the License.
 #include "mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"
 #include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
@@ -44,6 +45,7 @@ limitations under the License.
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/Dialect/SparseTensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/SparseTensor/Transforms/Passes.h"
+#include "mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OwningOpRef.h"
@@ -271,6 +273,12 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     pm.addPass(mlir::zkir::tensor_ext::createTensorExtToTensor());
   }
 
+  if (flag.enable_tensor_to_linalg) {
+    VLOG(2) << "add pass: -convert-tensor-to-linalg";
+    flag.enable_linalg_to_parallel_loops = true;
+    pm.addPass(mlir::createConvertTensorToLinalgPass());
+  }
+
   if (flag.enable_one_shot_bufferize) {
     VLOG(2) << "add pass: -one-shot-bufferize";
     OneShotBufferize(pm);
@@ -361,6 +369,9 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
   mlir::registerAllExtensions(registry);
   mlir::memref::registerAllocationOpInterfaceExternalModels(registry);
   mlir::LLVM::registerInlinerInterface(registry);
+  if (pass_flag.enable_tensor_to_linalg) {
+    mlir::tensor::registerInferTypeOpInterfaceExternalModels(registry);
+  }
   if (pass_flag.enable_one_shot_bufferize) {
     mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
     mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
@@ -1463,6 +1474,28 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
   return iota_op.getResult();
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPadOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
+    mlir::Value padding_value) {
+  pass_flag_.enable_tensor_to_linalg = true;
+  pass_flag_.enable_expand_strided_metadata = true;
+
+  llvm::SmallVector<mlir::OpFoldResult> lower_edge_padding_low;
+  llvm::SmallVector<mlir::OpFoldResult> lower_edge_padding_high;
+  const PaddingConfig& padding_config = instr->padding_config();
+  for (const PaddingConfig::PaddingConfigDimension& dimension :
+       padding_config.dimensions()) {
+    lower_edge_padding_low.push_back(
+        b.getIndexAttr(dimension.edge_padding_low()));
+    lower_edge_padding_high.push_back(
+        b.getIndexAttr(dimension.edge_padding_high()));
+  }
+
+  return b.create<mlir::tensor::PadOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()), input,
+      lower_edge_padding_low, lower_edge_padding_high, padding_value);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
   auto output_type =
@@ -1656,6 +1689,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitMsmOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
     }
+    case HloOpcode::kPad:
+      return EmitPadOp(instr, b, values[instr->operand(0)],
+                       values[instr->operand(1)]);
     case HloOpcode::kReshape:
       return EmitReshapeOp(instr, b, values[instr->operand(0)]);
     case HloOpcode::kReverse:
