@@ -1522,10 +1522,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReverseOp(
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
-    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
-    absl::Span<const int64_t> start_indices,
-    absl::Span<const int64_t> limit_indices,
-    absl::Span<const int64_t> strides_in) {
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   pass_flag_.enable_expand_strided_metadata = true;
 
   const Shape& shape = instr->shape();
@@ -1542,10 +1539,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
   llvm::SmallVector<mlir::OpFoldResult> sizes;
   llvm::SmallVector<mlir::OpFoldResult> strides;
 
+  absl::Span<const int64_t> slices_starts = instr->slice_starts();
+  absl::Span<const int64_t> slices_limits = instr->slice_limits();
+  absl::Span<const int64_t> slices_strides = instr->slice_strides();
+
   for (int64_t i = 0; i < shape.rank(); ++i) {
-    offsets.push_back(b.getIndexAttr(start_indices[i]));
-    sizes.push_back(b.getIndexAttr(limit_indices[i] - start_indices[i]));
-    strides.push_back(b.getIndexAttr(strides_in[i]));
+    offsets.push_back(b.getIndexAttr(slices_starts[i]));
+    sizes.push_back(b.getIndexAttr(slices_limits[i] - slices_starts[i]));
+    strides.push_back(b.getIndexAttr(slices_strides[i]));
   }
 
   return b.create<mlir::tensor::ExtractSliceOp>(result_type, value, offsets,
@@ -1660,9 +1661,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kReverse:
       return EmitReverseOp(instr, b, values[instr->operand(0)]);
     case HloOpcode::kSlice:
-      return EmitSliceOp(instr, b, values[instr->operand(0)],
-                         instr->slice_starts(), instr->slice_limits(),
-                         instr->slice_strides());
+      return EmitSliceOp(instr, b, values[instr->operand(0)]);
     case HloOpcode::kTranspose:
       return EmitTransposeOp(instr, b, values[instr->operand(0)]);
 

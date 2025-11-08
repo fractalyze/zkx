@@ -123,11 +123,9 @@ class CpuKernelEmitter final : public KernelEmitter {
                                             EmitterLocOpBuilder& b,
                                             mlir::Value value);
 
-  absl::StatusOr<mlir::Value> EmitSliceOp(
-      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
-      absl::Span<const int64_t> start_indices,
-      absl::Span<const int64_t> limit_indices,
-      absl::Span<const int64_t> strides);
+  absl::StatusOr<mlir::Value> EmitSliceOp(const HloInstruction* instr,
+                                          EmitterLocOpBuilder& b,
+                                          mlir::Value value);
 
   absl::StatusOr<mlir::Value> EmitTransposeOp(const HloInstruction* instr,
                                               EmitterLocOpBuilder& b,
