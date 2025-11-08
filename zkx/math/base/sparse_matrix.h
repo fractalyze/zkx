@@ -5,9 +5,11 @@
 
 #include <numeric>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "absl/base/casts.h"
 #include "absl/log/check.h"
 #include "absl/status/statusor.h"
 
@@ -59,7 +61,14 @@ class SparseMatrix {
     base::Shuffle(positions);
 
     for (size_t i = 0; i < num_nonzeros; ++i) {
-      ret.Insert(positions[i].row, positions[i].col, T::Random());
+      if constexpr (std::is_integral_v<T>) {
+        using UnsignedT =
+            std::conditional_t<std::is_signed_v<T>, std::make_unsigned_t<T>, T>;
+        ret.Insert(positions[i].row, positions[i].col,
+                   absl::bit_cast<T>(base::Uniform<UnsignedT>()));
+      } else {
+        ret.Insert(positions[i].row, positions[i].col, T::Random());
+      }
     }
 
     return ret;
