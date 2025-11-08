@@ -22,6 +22,7 @@ limitations under the License.
 #include <string_view>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/status/statusor.h"
@@ -136,6 +137,8 @@ class KernelApiIrBuilder {
   llvm::StructType* thread_ty_;
   llvm::StructType* arg_ty_;
   llvm::StructType* call_frame_ty_;
+
+  absl::flat_hash_map<int64_t, llvm::StructType*> memref_tys_;
   llvm::FunctionType* kernel_function_ty_;
 };
 

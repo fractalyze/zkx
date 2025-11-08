@@ -60,13 +60,9 @@ typedef struct ZKX_CPU_KernelDim3 ZKX_CPU_KernelThreadDim;
 typedef struct ZKX_CPU_KernelDim3 ZKX_CPU_KernelThread;
 
 // A CPU kernel argument that corresponds to se::DeviceMemoryBase.
-// See https://mlir.llvm.org/docs/TargetLLVMIR/#c-compatible-wrapper-emission
 typedef struct ZKX_CPU_KernelArg {
-  void* allocated;
-  void* aligned;
-  intptr_t offset;
-  size_t sizes[1];
-  size_t strides[1];
+  void* data;
+  size_t size;
 } ZKX_CPU_KernelArg;
 
 // A CPU kernel call frame.

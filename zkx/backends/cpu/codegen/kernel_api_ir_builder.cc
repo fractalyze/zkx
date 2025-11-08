@@ -61,9 +61,7 @@ llvm::StructType* KernelThreadTy(llvm::LLVMContext& ctx) {
 llvm::StructType* KernelArgTy(llvm::LLVMContext& ctx) {
   llvm::PointerType* ptr = llvm::PointerType::getUnqual(ctx);
   llvm::IntegerType* i64 = llvm::IntegerType::getInt64Ty(ctx);
-  llvm::ArrayType* array = llvm::ArrayType::get(i64, 1);
-  return llvm::StructType::create("ZKX_CPU_KernelArg", ptr, ptr, i64, array,
-                                  array);
+  return llvm::StructType::create("ZKX_CPU_KernelArg", ptr, i64);
 }
 
 llvm::StructType* KernelCallFrameTy(llvm::LLVMContext& ctx) {
@@ -77,6 +75,19 @@ llvm::FunctionType* KernelFunctionTy(llvm::LLVMContext& ctx) {
   return llvm::FunctionType::get(llvm::PointerType::getUnqual(ctx),
                                  llvm::PointerType::getUnqual(ctx),
                                  /*isVarArg=*/false);
+}
+
+// See https://mlir.llvm.org/docs/TargetLLVMIR/#c-compatible-wrapper-emission
+llvm::StructType* MemRefTy(llvm::LLVMContext& ctx, size_t rank) {
+  llvm::PointerType* ptr = llvm::PointerType::getUnqual(ctx);
+  llvm::IntegerType* i64 = llvm::IntegerType::getInt64Ty(ctx);
+  if (rank == 0) {
+    return llvm::StructType::create("MemRefR0", ptr, ptr, i64);
+  } else {
+    llvm::ArrayType* array = llvm::ArrayType::get(i64, rank);
+    return llvm::StructType::create(absl::StrCat("MemRefR", rank), ptr, ptr,
+                                    i64, array, array);
+  }
 }
 
 // Check that all kernel arguments are coming from non-overlapping slices. It
@@ -376,7 +387,74 @@ llvm::Value* KernelApiIrBuilder::EmitKernelArgument(
   llvm::Value* arg_gep =
       builder.CreateInBoundsGEP(arg_ty_, args, {index_val}, name + "_gep");
 
-  return arg_gep;
+  auto it = memref_tys_.find(shape.rank());
+  if (it == memref_tys_.end()) {
+    it = memref_tys_.emplace(shape.rank(), MemRefTy(ctx, shape.rank())).first;
+  }
+
+  // See https://mlir.llvm.org/docs/TargetLLVMIR/#c-compatible-wrapper-emission
+  llvm::StructType* memref_ty = it->second;
+  llvm::Value* memref =
+      builder.CreateAlloca(memref_ty, nullptr, name + "_memref");
+
+  llvm::Type* ptr_type = llvm::PointerType::get(ctx, 0);
+  llvm::Value* data_ptr_gep =
+      builder.CreateStructGEP(arg_ty_, arg_gep, 0, name + "_arg_data_gep");
+  llvm::Value* data_val =
+      builder.CreateLoad(ptr_type, data_ptr_gep, name + "_arg_data");
+
+  // memref->allocated = arg_gep->data
+  llvm::Value* memref_data_gep = builder.CreateStructGEP(
+      memref_ty, memref, 0, name + "_memref_allocated_gep");
+  builder.CreateStore(data_val, memref_data_gep);
+  llvm::Value* memref_aligned_gep = builder.CreateStructGEP(
+      memref_ty, memref, 1, name + "_memref_aligned_gep");
+  builder.CreateStore(data_val, memref_aligned_gep);
+
+  // memref->offset = 0
+  llvm::Value* memref_offset_gep = builder.CreateStructGEP(
+      memref_ty, memref, 2, name + "_memref_offset_gep");
+  builder.CreateStore(llvm::ConstantInt::get(builder.getInt64Ty(), 0),
+                      memref_offset_gep);
+
+  int64_t rank = shape.rank();
+  if (rank == 0) return memref;
+
+  absl::Span<const int64_t> minor_to_major = shape.layout().minor_to_major();
+  llvm::SmallVector<int64_t> major_to_minor = {minor_to_major.rbegin(),
+                                               minor_to_major.rend()};
+  llvm::SmallVector<int64_t> strides(rank);
+  int64_t stride = 1;
+  for (int64_t i : minor_to_major) {
+    strides[i] = stride;
+    stride *= shape.dimensions(i);
+  }
+
+  for (int64_t i : major_to_minor) {
+    // memref->size[i] = dimension
+    llvm::Value* size_val =
+        llvm::ConstantInt::get(builder.getInt64Ty(), shape.dimensions(i));
+    llvm::Value* memref_size_elem_gep = builder.CreateInBoundsGEP(
+        memref_ty, memref,
+        {llvm::ConstantInt::get(builder.getInt64Ty(), 0),
+         llvm::ConstantInt::get(builder.getInt32Ty(), 3),
+         llvm::ConstantInt::get(builder.getInt64Ty(), i)},
+        name + "_memref_size_elem_gep_" + std::to_string(i));
+    builder.CreateStore(size_val, memref_size_elem_gep);
+
+    // memref->strides[i] = stride;
+    llvm::Value* stride_val =
+        llvm::ConstantInt::get(builder.getInt64Ty(), strides[i]);
+    llvm::Value* memref_stride_elem_gep = builder.CreateInBoundsGEP(
+        memref_ty, memref,
+        {llvm::ConstantInt::get(builder.getInt64Ty(), 0),
+         llvm::ConstantInt::get(builder.getInt32Ty(), 4),
+         llvm::ConstantInt::get(builder.getInt64Ty(), i)},
+        name + "_memref_stride_elem_gep_" + std::to_string(i));
+    builder.CreateStore(stride_val, memref_stride_elem_gep);
+  }
+
+  return memref;
 }
 
 llvm::Function* KernelApiIrBuilder::EmitKernelFunction(llvm::Module& module,
