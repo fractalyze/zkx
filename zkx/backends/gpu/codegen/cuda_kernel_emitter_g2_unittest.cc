@@ -59,4 +59,6 @@ TYPED_TEST(GroupTest, Slice) {
   this->RunAndVerify();
 }
 
+// TODO(chokobole): Add MSM test
+
 }  // namespace zkx::gpu
