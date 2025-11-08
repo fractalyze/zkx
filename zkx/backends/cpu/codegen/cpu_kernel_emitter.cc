@@ -1590,10 +1590,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
   pass_flag_.enable_expand_strided_metadata = true;
 
   const Shape& shape = instr->shape();
-  auto value_type = mlir::dyn_cast<mlir::RankedTensorType>(value.getType());
-  if (value_type == nullptr) {
-    return absl::InternalError("value is not a ranked tensor");
-  }
 
   auto result_type = mlir::cast<mlir::RankedTensorType>(
       mlir_utils::ShapeToMlirTensorType(shape, b.getContext()));
