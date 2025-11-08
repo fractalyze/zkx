@@ -10,7 +10,6 @@
 
 #include "absl/log/check.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/substitute.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "zkx/base/auto_reset.h"
