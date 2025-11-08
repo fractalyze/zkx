@@ -709,6 +709,66 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     });
   }
 
+  void SetUpConcatenate() {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+    constexpr static int64_t D2 = 4;
+    constexpr static int64_t D = D0 + D1 + D2;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[2, $1, 2] parameter(0)
+        %y = $0[2, $2, 2] parameter(1)
+        %z = $0[2, $3, 2] parameter(2)
+
+        ROOT %ret = $0[2, $4, 2] concatenate(%x, %y, %z), dimensions={1}
+      }
+    )",
+                                 x_typename_, D0, D1, D2, D);
+    Array3D<T> x_array(2, D0, 2);
+    Array3D<T> y_array(2, D1, 2);
+    Array3D<T> z_array(2, D2, 2);
+    for (int64_t i = 0; i < 2; ++i) {
+      for (int64_t j = 0; j < D0; ++j) {
+        for (int64_t k = 0; k < 2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    for (int64_t i = 0; i < 2; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < 2; ++k) {
+          y_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    for (int64_t i = 0; i < 2; ++i) {
+      for (int64_t j = 0; j < D2; ++j) {
+        for (int64_t k = 0; k < 2; ++k) {
+          z_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(y_array));
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(z_array));
+    Array3D<T> expected_array(2, D, 2);
+    for (int64_t i = 0; i < 2; ++i) {
+      for (int64_t j = 0; j < D; ++j) {
+        for (int64_t k = 0; k < 2; ++k) {
+          if (j < D0) {
+            expected_array({i, j, k}) = x_array({i, j, k});
+          } else if (j < D0 + D1) {
+            expected_array({i, j, k}) = y_array({i, j - D0, k});
+          } else {
+            expected_array({i, j, k}) = z_array({i, j - D0 - D1, k});
+          }
+        }
+      }
+    }
+    expected_literal_ = LiteralUtil::CreateR3FromArray3D<T>(expected_array);
+  }
+
   void SetUpConditional() {
     hlo_text_ = absl::Substitute(R"(
       %identity {

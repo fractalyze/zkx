@@ -109,6 +109,10 @@ class CpuKernelEmitter final : public KernelEmitter {
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
       absl::Span<const int64_t> source_dimensions);
 
+  absl::StatusOr<mlir::Value> EmitConcatenateOp(const HloInstruction* instr,
+                                                EmitterLocOpBuilder& b,
+                                                mlir::ValueRange inputs);
+
   absl::StatusOr<mlir::Value> EmitDotOp(const HloInstruction* instr,
                                         EmitterLocOpBuilder& b, mlir::Value lhs,
                                         mlir::Value rhs);

@@ -1306,6 +1306,15 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBroadcastOp(
   return broadcast.getResult()[0];
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitConcatenateOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b,
+    mlir::ValueRange inputs) {
+  pass_flag_.enable_expand_strided_metadata = true;
+
+  return b.create<mlir::tensor::ConcatOp>(instr->concatenate_dimension(),
+                                          inputs);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,
     mlir::Value rhs) {
@@ -1667,6 +1676,13 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitTernaryOp(instr, b, values[instr->operand(0)],
                            values[instr->operand(1)],
                            values[instr->operand(2)]);
+    case HloOpcode::kConcatenate: {
+      llvm::SmallVector<mlir::Value> inputs;
+      for (int64_t i = 0; i < instr->operand_count(); ++i) {
+        inputs.push_back(values[instr->operand(i)]);
+      }
+      return EmitConcatenateOp(instr, b, inputs);
+    }
     case HloOpcode::kDot:
       return EmitDotOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
