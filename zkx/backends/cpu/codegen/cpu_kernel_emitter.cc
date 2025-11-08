@@ -1447,6 +1447,31 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicSliceOp(
       static_strides);
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicUpdateSliceOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value dest,
+    mlir::Value update, mlir::ValueRange start_indices) {
+  pass_flag_.enable_expand_strided_metadata = true;
+
+  llvm::SmallVector<mlir::Value> offsets;
+  llvm::SmallVector<mlir::Value> sizes;
+  llvm::SmallVector<int64_t> static_offsets;
+  llvm::SmallVector<int64_t> static_sizes;
+  llvm::SmallVector<int64_t> static_strides;
+  for (size_t i = 0; i < instr->shape().rank(); ++i) {
+    offsets.push_back(
+        b.create<mlir::arith::IndexCastOp>(b.getIndexType(), start_indices[i]));
+    sizes.push_back(b.create<mlir::tensor::DimOp>(update, i));
+    static_offsets.push_back(mlir::ShapedType::kDynamic);
+    static_sizes.push_back(mlir::ShapedType::kDynamic);
+    static_strides.push_back(1);
+  }
+
+  return b.create<mlir::tensor::InsertSliceOp>(
+      update, dest, offsets, sizes,
+      /*strides=*/mlir::ValueRange{},
+      /*static_offsets=*/static_offsets, static_sizes, static_strides);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b) {
   pass_flag_.enable_linalg_to_parallel_loops = true;
@@ -1710,6 +1735,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       }
       return EmitDynamicSliceOp(instr, b, values[instr->operand(0)],
                                 start_indices);
+    }
+    case HloOpcode::kDynamicUpdateSlice: {
+      llvm::SmallVector<mlir::Value> start_indices;
+      for (int64_t i = 2; i < instr->operand_count(); ++i) {
+        start_indices.push_back(values[instr->operand(i)]);
+      }
+      return EmitDynamicUpdateSliceOp(instr, b, values[instr->operand(0)],
+                                      values[instr->operand(1)], start_indices);
     }
     case HloOpcode::kFft: {
       if (instr->operand_count() == 1) {
