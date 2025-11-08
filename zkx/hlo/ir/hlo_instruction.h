@@ -1833,6 +1833,9 @@ class HloInstruction {
     original_value_ = original_value;
   }
 
+  // Delegates to HloIotaInstruction::iota_dimension.
+  int64_t iota_dimension() const;
+
   // Delegates to HloPadInstruction::padding_config.
   const PaddingConfig& padding_config() const;
   PaddingConfig* mutable_padding_config();

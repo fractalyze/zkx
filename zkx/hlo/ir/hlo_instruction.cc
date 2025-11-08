@@ -3960,6 +3960,10 @@ void HloInstruction::set_channel_id(const std::optional<int64_t>& channel_id) {
   return Cast<HloChannelInstruction>(this)->set_channel_id(channel_id);
 }
 
+int64_t HloInstruction::iota_dimension() const {
+  return Cast<HloIotaInstruction>(this)->iota_dimension();
+}
+
 const PaddingConfig& HloInstruction::padding_config() const {
   return Cast<HloPadInstruction>(this)->padding_config();
 }
