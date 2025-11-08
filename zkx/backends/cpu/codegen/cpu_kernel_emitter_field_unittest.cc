@@ -112,38 +112,9 @@ TYPED_TEST(FieldR2TensorBinaryTest, Add) { this->SetUpAdd(); }
 
 TYPED_TEST_SUITE(FieldTest, FieldTypes);
 
-TYPED_TEST(FieldTest, BroadcastScalar) {
-  this->SetUpBroadcastScalar();
-  this->RunAndVerify();
-}
-
-TYPED_TEST(FieldTest, BroadcastTensorR1ToR3WithD0) {
-  this->SetUpBroadcastTensorR1ToR3WithD0();
-  this->RunAndVerify();
-}
-
-TYPED_TEST(FieldTest, BroadcastTensorR1ToR3WithD1) {
-  this->SetUpBroadcastTensorR1ToR3WithD1();
-  this->RunAndVerify();
-}
-
-TYPED_TEST(FieldTest, BroadcastTensorR1ToR3WithD2) {
-  this->SetUpBroadcastTensorR1ToR3WithD2();
-  this->RunAndVerify();
-}
-
+// TODO(chokobole): Move this test to cpu_kernel_emitter_int_unittest.cc
 TYPED_TEST(FieldTest, CSRMatrixVectorMultiplication) {
   this->SetUpCSRMatrixVectorMultiplication();
-  this->RunAndVerify();
-}
-
-TYPED_TEST(FieldTest, Reverse) {
-  this->SetUpReverse();
-  this->RunAndVerify();
-}
-
-TYPED_TEST(FieldTest, Slice) {
-  this->SetUpSlice();
   this->RunAndVerify();
 }
 

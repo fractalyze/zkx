@@ -532,45 +532,6 @@ class FieldTest : public CpuKernelEmitterTest {
   }
 
  protected:
-  void SetUpBroadcastScalar() {
-    constexpr static int64_t N = 4;
-
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[] parameter(0)
-
-        ROOT %ret = $0[$1] broadcast(%x)
-      }
-    )",
-                                 x_typename_, N);
-
-    auto x = F::Random();
-    literals_.push_back(LiteralUtil::CreateR0<F>(x));
-    expected_literal_ = LiteralUtil::CreateR1<F>(
-        base::CreateVector(N, [x](size_t i) { return x; }));
-  }
-
-  void SetUpBroadcastTensorR1ToR3WithD0() {
-    SetUpBroadcastTensorR1ToR3Helper(2, 0, [](const std::vector<F>& x) {
-      return LiteralUtil::CreateR3<F>(
-          {{{x[0], x[0]}, {x[0], x[0]}}, {{x[1], x[1]}, {x[1], x[1]}}});
-    });
-  }
-
-  void SetUpBroadcastTensorR1ToR3WithD1() {
-    SetUpBroadcastTensorR1ToR3Helper(2, 1, [](const std::vector<F>& x) {
-      return LiteralUtil::CreateR3<F>(
-          {{{x[0], x[0]}, {x[1], x[1]}}, {{x[0], x[0]}, {x[1], x[1]}}});
-    });
-  }
-
-  void SetUpBroadcastTensorR1ToR3WithD2() {
-    SetUpBroadcastTensorR1ToR3Helper(2, 2, [](const std::vector<F>& x) {
-      return LiteralUtil::CreateR3<F>(
-          {{{x[0], x[1]}, {x[0], x[1]}}, {{x[0], x[1]}, {x[0], x[1]}}});
-    });
-  }
-
   void SetUpCSRMatrixVectorMultiplication() {
     constexpr static int64_t M = 4;
     constexpr static int64_t N = 3;
@@ -605,78 +566,6 @@ class FieldTest : public CpuKernelEmitterTest {
       }
     }
     expected_literal_ = LiteralUtil::CreateR1<F>(expected);
-  }
-
-  void SetUpReverse() {
-    constexpr static int64_t D0 = 2;
-    constexpr static int64_t D1 = 3;
-    constexpr static int64_t D2 = 4;
-
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[$1, $2, $3] parameter(0)
-
-        ROOT %ret = $0[$1, $2, $3] reverse(%x), dimensions={0, 2}
-      }
-    )",
-                                 x_typename_, D0, D1, D2);
-
-    Array3D<F> x_array(D0, D1, D2);
-    for (int64_t i = 0; i < D0; ++i) {
-      for (int64_t j = 0; j < D1; ++j) {
-        for (int64_t k = 0; k < D2; ++k) {
-          x_array({i, j, k}) = F::Random();
-        }
-      }
-    }
-    Array3D<F> expected_array(D0, D1, D2);
-    for (int64_t i = 0; i < D0; ++i) {
-      for (int64_t j = 0; j < D1; ++j) {
-        for (int64_t k = 0; k < D2; ++k) {
-          expected_array({i, j, k}) = x_array({D0 - i - 1, j, D2 - k - 1});
-        }
-      }
-    }
-    literals_.push_back(LiteralUtil::CreateR3FromArray3D<F>(x_array));
-    expected_literal_ = LiteralUtil::CreateR3FromArray3D<F>(expected_array);
-  }
-
-  void SetUpSlice() {
-    constexpr static int64_t N = 6;
-    constexpr static int64_t S = 2;
-    constexpr static int64_t E = 5;
-
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[$1] parameter(0)
-
-        ROOT %ret = $0[$2] slice(%x), slice={[$3:$4]}
-      }
-    )",
-                                 x_typename_, N, E - S, S, E);
-
-    auto x = base::CreateVector(N, []() { return F::Random(); });
-    literals_.push_back(LiteralUtil::CreateR1<F>(x));
-    expected_literal_ = LiteralUtil::CreateR1<F>(
-        base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
-  }
-
- private:
-  void SetUpBroadcastTensorR1ToR3Helper(
-      int64_t m, int64_t d,
-      std::function<Literal(const std::vector<F>&)> callback) {
-    hlo_text_ = absl::Substitute(R"(
-      ENTRY %main {
-        %x = $0[$1] parameter(0)
-
-        ROOT %ret = $0[$1, $1, $1] broadcast(%x), dimensions={$2}
-      }
-    )",
-                                 x_typename_, m, d);
-
-    auto x = base::CreateVector(m, []() { return F::Random(); });
-    literals_.push_back(LiteralUtil::CreateR1<F>(x));
-    expected_literal_ = callback(x);
   }
 };
 

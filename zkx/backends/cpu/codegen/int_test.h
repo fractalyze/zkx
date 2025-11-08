@@ -670,6 +670,45 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
         primitive_util::NativeToPrimitiveType<T>());
   }
 
+  void SetUpBroadcastScalar() {
+    constexpr static int64_t N = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[$1] broadcast(%x)
+      }
+    )",
+                                 x_typename_, N);
+
+    auto x = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR0<T>(x));
+    expected_literal_ =
+        LiteralUtil::CreateR1<T>(base::CreateVector(N, [x]() { return x; }));
+  }
+
+  void SetUpBroadcastTensorR1ToR3WithD0() {
+    SetUpBroadcastTensorR1ToR3Helper(2, 0, [](const std::vector<T>& x) {
+      return LiteralUtil::CreateR3<T>(
+          {{{x[0], x[0]}, {x[0], x[0]}}, {{x[1], x[1]}, {x[1], x[1]}}});
+    });
+  }
+
+  void SetUpBroadcastTensorR1ToR3WithD1() {
+    SetUpBroadcastTensorR1ToR3Helper(2, 1, [](const std::vector<T>& x) {
+      return LiteralUtil::CreateR3<T>(
+          {{{x[0], x[0]}, {x[1], x[1]}}, {{x[0], x[0]}, {x[1], x[1]}}});
+    });
+  }
+
+  void SetUpBroadcastTensorR1ToR3WithD2() {
+    SetUpBroadcastTensorR1ToR3Helper(2, 2, [](const std::vector<T>& x) {
+      return LiteralUtil::CreateR3<T>(
+          {{{x[0], x[1]}, {x[0], x[1]}}, {{x[0], x[1]}, {x[0], x[1]}}});
+    });
+  }
+
   void SetUpConditional() {
     hlo_text_ = absl::Substitute(R"(
       %identity {
@@ -794,6 +833,25 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     literals_.push_back(LiteralUtil::CreateR0<uint32_t>(n));
     literals_.push_back(LiteralUtil::CreateR0<T>(x));
     expected_literal_ = LiteralUtil::CreateR0<T>(n * x);
+  }
+
+ private:
+  void SetUpBroadcastTensorR1ToR3Helper(
+      int64_t m, int64_t d,
+      std::function<Literal(const std::vector<T>&)> callback) {
+    hlo_text_ = absl::Substitute(R"(
+    ENTRY %main {
+      %x = $0[$1] parameter(0)
+
+      ROOT %ret = $0[$1, $1, $1] broadcast(%x), dimensions={$2}
+    }
+  )",
+                                 x_typename_, m, d);
+
+    auto x = base::CreateVector(
+        m, []() { return BaseIntTest<T>::GetRandomValue(); });
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    expected_literal_ = callback(x);
   }
 };
 

@@ -162,6 +162,26 @@ TYPED_TEST(IntR2TensorBinaryTest, Add) {
 
 TYPED_TEST_SUITE(IntTest, IntTypes);
 
+TYPED_TEST(IntTest, BroadcastScalar) {
+  this->SetUpBroadcastScalar();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, BroadcastTensorR1ToR3WithD0) {
+  this->SetUpBroadcastTensorR1ToR3WithD0();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, BroadcastTensorR1ToR3WithD1) {
+  this->SetUpBroadcastTensorR1ToR3WithD1();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, BroadcastTensorR1ToR3WithD2) {
+  this->SetUpBroadcastTensorR1ToR3WithD2();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Conditional) {
   this->SetUpConditional();
   this->RunAndVerify();
