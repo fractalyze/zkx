@@ -192,6 +192,11 @@ TYPED_TEST(IntTest, Conditional) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, DynamicSlice) {
+  this->SetUpDynamicSlice();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, IotaWithD0) {
   this->SetUpIotaWithD0();
   this->RunAndVerify();

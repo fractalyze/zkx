@@ -117,6 +117,10 @@ class CpuKernelEmitter final : public KernelEmitter {
                                         EmitterLocOpBuilder& b, mlir::Value lhs,
                                         mlir::Value rhs);
 
+  absl::StatusOr<mlir::Value> EmitDynamicSliceOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
+      mlir::ValueRange start_indices);
+
   absl::StatusOr<mlir::Value> EmitIotaOp(const HloInstruction* instr,
                                          EmitterLocOpBuilder& b);
 

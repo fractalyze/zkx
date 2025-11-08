@@ -797,6 +797,54 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(cond ? x : -x);
   }
 
+  void SetUpDynamicSlice() {
+    constexpr static int64_t D0 = 5;
+    constexpr static int64_t D1 = 6;
+    constexpr static int64_t D2 = 7;
+
+    constexpr static int64_t S0 = 1;
+    constexpr static int64_t S1 = 2;
+    constexpr static int64_t S2 = 3;
+
+    constexpr static int64_t L0 = 2;
+    constexpr static int64_t L1 = 3;
+    constexpr static int64_t L2 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+        %offset0 = $0[] parameter(1)
+        %offset1 = $0[] parameter(2)
+        %offset2 = $0[] parameter(3)
+
+        ROOT %ret = $0[$4, $5, $6] dynamic-slice(%x, %offset0, %offset1, %offset2), dynamic_slice_sizes={$4, $5, $6}
+      }
+    )",
+                                 x_typename_, D0, D1, D2, L0, L1, L2);
+
+    Array3D<T> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    literals_.push_back(LiteralUtil::CreateR0<T>(S0));
+    literals_.push_back(LiteralUtil::CreateR0<T>(S1));
+    literals_.push_back(LiteralUtil::CreateR0<T>(S2));
+    Array3D<T> expected_array(L0, L1, L2);
+    for (int64_t i = 0; i < L0; ++i) {
+      for (int64_t j = 0; j < L1; ++j) {
+        for (int64_t k = 0; k < L2; ++k) {
+          expected_array({i, j, k}) = x_array({S0 + i, S1 + j, S2 + k});
+        }
+      }
+    }
+    expected_literal_ = LiteralUtil::CreateR3FromArray3D<T>(expected_array);
+  }
+
   void SetUpIotaWithD0() { SetUpIotaHelper(0); }
 
   void SetUpIotaWithD1() { SetUpIotaHelper(1); }

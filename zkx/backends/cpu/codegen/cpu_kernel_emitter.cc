@@ -1424,6 +1424,29 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
       "Dot op with rank %d and rank %d is not supported", rank0, rank1));
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicSliceOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
+    mlir::ValueRange start_indices) {
+  pass_flag_.enable_expand_strided_metadata = true;
+
+  llvm::SmallVector<mlir::Value> offsets;
+  llvm::SmallVector<int64_t> static_offsets;
+  llvm::SmallVector<int64_t> static_strides;
+  for (size_t i = 0; i < instr->shape().rank(); ++i) {
+    offsets.push_back(
+        b.create<mlir::arith::IndexCastOp>(b.getIndexType(), start_indices[i]));
+    static_offsets.push_back(mlir::ShapedType::kDynamic);
+    static_strides.push_back(1);
+  }
+
+  return b.create<mlir::tensor::ExtractSliceOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()), input,
+      offsets, /*sizes=*/mlir::ValueRange{},
+      /*strides=*/mlir::ValueRange{},
+      /*static_offsets=*/static_offsets, instr->dynamic_slice_sizes(),
+      static_strides);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b) {
   pass_flag_.enable_linalg_to_parallel_loops = true;
@@ -1684,6 +1707,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kDot:
       return EmitDotOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
+    case HloOpcode::kDynamicSlice: {
+      llvm::SmallVector<mlir::Value> start_indices;
+      for (int64_t i = 1; i < instr->operand_count(); ++i) {
+        start_indices.push_back(values[instr->operand(i)]);
+      }
+      return EmitDynamicSliceOp(instr, b, values[instr->operand(0)],
+                                start_indices);
+    }
     case HloOpcode::kFft: {
       if (instr->operand_count() == 1) {
         return EmitFftOp(instr, b, values[instr->operand(0)]);
