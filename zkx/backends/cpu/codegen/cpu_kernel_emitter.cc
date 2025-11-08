@@ -1331,7 +1331,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
   mlir::MLIRContext* ctx = lhs.getContext();
   auto result_type = mlir::cast<mlir::RankedTensorType>(
       mlir_utils::ShapeToMlirTensorType(instr->shape(), ctx));
-  CHECK(result_type);
   llvm::SmallVector<int64_t> shapes;
   for (int64_t i = 0; i < instr->shape().dimensions_size(); ++i) {
     shapes.push_back(instr->shape().dimensions(i));
@@ -1573,9 +1572,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
     return absl::InternalError("value is not a ranked tensor");
   }
 
-  auto result_type = mlir::dyn_cast<mlir::RankedTensorType>(
+  auto result_type = mlir::cast<mlir::RankedTensorType>(
       mlir_utils::ShapeToMlirTensorType(shape, b.getContext()));
-  CHECK(result_type);
 
   llvm::SmallVector<mlir::OpFoldResult> offsets;
   llvm::SmallVector<mlir::OpFoldResult> sizes;
