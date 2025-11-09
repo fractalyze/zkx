@@ -41,6 +41,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/outfeed_thunk.h"
 #include "zkx/backends/cpu/runtime/reduce_scatter_thunk.h"
 #include "zkx/backends/cpu/runtime/resource_use.h"
+#include "zkx/backends/cpu/runtime/sort_thunk.h"
 #include "zkx/backends/cpu/runtime/while_thunk.h"
 #include "zkx/service/collective_ops_utils.h"
 
@@ -82,6 +83,8 @@ Thunk::Kind ProtoThunkToThunkKind(const ThunkProto& proto) {
       return Thunk::Kind::kKernel;
     case ThunkProto::ImplCase::kOutfeedThunk:
       return Thunk::Kind::kOutfeed;
+    case ThunkProto::ImplCase::kSortThunk:
+      return Thunk::Kind::kSort;
     case ThunkProto::ImplCase::kWhileThunk:
       return Thunk::Kind::kWhile;
     default:
@@ -484,6 +487,39 @@ absl::Status ToProto(const OutfeedThunk& thunk, ThunkProto& proto) {
   return absl::OkStatus();
 }
 
+absl::Status ToProto(const SortThunk& thunk, ThunkProto& proto) {
+  SortThunkProto* sort_thunk_proto = proto.mutable_sort_thunk();
+
+  sort_thunk_proto->set_dimension(thunk.dimension());
+  sort_thunk_proto->set_is_stable(thunk.is_stable());
+  sort_thunk_proto->set_comparator_name(thunk.comparator_name());
+  sort_thunk_proto->mutable_direction()->set_contains_value(
+      thunk.direction().has_value());
+  if (thunk.direction().has_value()) {
+    switch (*thunk.direction()) {
+      case SortThunk::SortDirection::kAscending:
+        sort_thunk_proto->mutable_direction()->set_value(
+            SortDirectionProto::ASCENDING);
+        break;
+      case SortThunk::SortDirection::kDescending:
+        sort_thunk_proto->mutable_direction()->set_value(
+            SortDirectionProto::DESCENDING);
+        break;
+    }
+  }
+
+  if (thunk.has_less_than()) {
+    return absl::UnimplementedError("`LessThan` is not serializable.");
+  }
+
+  for (const SortThunk::Input& input : thunk.inputs()) {
+    TF_RETURN_IF_ERROR(SerializeSliceShapeIntoProto(
+        input.slice, input.shape, sort_thunk_proto->add_inputs_shapes()));
+  }
+
+  return absl::OkStatus();
+}
+
 absl::Status ToProto(const WhileThunk& thunk, ThunkProto& proto) {
   ThunkSequenceSerDesProtobuf thunk_sequence_serdes;
   WhileThunkProto* while_thunk_proto = proto.mutable_while_thunk();
@@ -594,6 +630,10 @@ absl::StatusOr<ThunkProto> ThunkSerDesProtobuf::ToProto(
     case Thunk::Kind::kOutfeed:
       TF_RETURN_IF_ERROR(
           ::zkx::cpu::ToProto(static_cast<const OutfeedThunk&>(thunk), proto));
+      break;
+    case Thunk::Kind::kSort:
+      TF_RETURN_IF_ERROR(
+          ::zkx::cpu::ToProto(static_cast<const SortThunk&>(thunk), proto));
       break;
     case Thunk::Kind::kWhile:
       TF_RETURN_IF_ERROR(
@@ -888,6 +928,35 @@ absl::StatusOr<std::unique_ptr<OutfeedThunk>> OutfeedThunkFromProto(
                               outfeed_resources);
 }
 
+absl::StatusOr<std::unique_ptr<SortThunk>> SortThunkFromProto(
+    const ThunkProto& proto,
+    const std::vector<BufferAllocation>& buffer_allocations) {
+  TF_ASSIGN_OR_RETURN(Thunk::Info info, ThunkInfoFromProto(proto.info()));
+  std::vector<SortThunk::Input> inputs;
+  for (const ShapeBufferAllocationSliceProto& buffer_proto :
+       proto.sort_thunk().inputs_shapes()) {
+    TF_ASSIGN_OR_RETURN(
+        auto buffer_slice_shape,
+        DeserializeSliceShapeFromProto(buffer_proto, buffer_allocations));
+
+    const auto& [buffer_slice, buffer_shape] = buffer_slice_shape;
+    inputs.push_back({std::move(buffer_slice), std::move(buffer_shape)});
+  }
+
+  std::optional<SortThunk::SortDirection> sort_direction = std::nullopt;
+  if (proto.sort_thunk().direction().contains_value()) {
+    sort_direction =
+        proto.sort_thunk().direction().value() == SortDirectionProto::ASCENDING
+            ? SortThunk::SortDirection::kAscending
+            : SortThunk::SortDirection::kDescending;
+  }
+
+  return SortThunk::Create(
+      std::move(info), inputs, proto.sort_thunk().dimension(),
+      proto.sort_thunk().is_stable(), proto.sort_thunk().comparator_name(),
+      sort_direction);
+}
+
 absl::StatusOr<std::unique_ptr<WhileThunk>> WhileThunkFromProto(
     const ThunkProto& proto,
     const std::vector<BufferAllocation>& buffer_allocations) {
@@ -950,6 +1019,8 @@ absl::StatusOr<std::unique_ptr<Thunk>> ThunkSerDesProtobuf::FromProto(
       return KernelThunkFromProto(proto, *buffer_allocations_);
     case Thunk::Kind::kOutfeed:
       return OutfeedThunkFromProto(proto, *buffer_allocations_);
+    case Thunk::Kind::kSort:
+      return SortThunkFromProto(proto, *buffer_allocations_);
     case Thunk::Kind::kWhile:
       return WhileThunkFromProto(proto, *buffer_allocations_);
     default:

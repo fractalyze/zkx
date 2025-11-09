@@ -42,6 +42,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/reduce_scatter_thunk.h"
 #include "zkx/backends/cpu/runtime/resource_use.h"
 #include "zkx/backends/cpu/runtime/serdes_base.h"
+#include "zkx/backends/cpu/runtime/sort_thunk.h"
 #include "zkx/backends/cpu/runtime/thunk.h"
 #include "zkx/backends/cpu/runtime/thunk_executor.h"
 #include "zkx/backends/cpu/runtime/thunk_proto_serdes.h"
@@ -85,6 +86,7 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateOutfeedThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateWhileThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateKernelThunk());
+    TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateSortThunk());
     return thunk_sequence;
   }
 
@@ -392,6 +394,27 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
         /*min_alignment=*/8);
   }
 
+  absl::StatusOr<std::unique_ptr<Thunk>> CreateSortThunk() {
+    AddBufferAllocations(2);
+    return SortThunk::Create(
+        Thunk::Info(),
+        /*inputs=*/
+        {{
+             CreateBufferAllocationSlice(
+                 buffer_allocations_[buffer_allocations_.size() - 2]),
+             literals_[buffer_allocations_.size() - 2].shape(),
+         },
+         {
+             CreateBufferAllocationSlice(
+                 buffer_allocations_[buffer_allocations_.size() - 1]),
+             literals_[buffer_allocations_.size() - 1].shape(),
+         }},
+        /*dimension=*/0,
+        /*is_stable=*/false,
+        /*comparator_name=*/"test",
+        /*direction=*/SortThunk::SortDirection::kAscending);
+  }
+
   bool VerifySliceEquality(const BufferAllocation::Slice& slice_1,
                            const BufferAllocation::Slice& slice_2) {
     return slice_1.offset() == slice_2.offset() &&
@@ -600,6 +623,22 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
                          });
   }
 
+  bool VerifySortThunkEquality(const SortThunk& thunk_1,
+                               const SortThunk& thunk_2) {
+    return thunk_1.comparator_name() == thunk_2.comparator_name() &&
+           thunk_1.dimension() == thunk_2.dimension() &&
+           thunk_1.is_stable() == thunk_2.is_stable() &&
+           thunk_1.has_less_than() == thunk_2.has_less_than() &&
+           thunk_1.direction() == thunk_2.direction() &&
+           absl::c_equal(thunk_1.inputs(), thunk_2.inputs(),
+                         [this](const SortThunk::Input& input_1,
+                                const SortThunk::Input& input_2) {
+                           return VerifySliceShapeEquality(
+                               input_1.slice, input_1.shape, input_2.slice,
+                               input_2.shape);
+                         });
+  }
+
   bool VerifyWhileThunkEquality(const WhileThunk& thunk_1,
                                 const WhileThunk& thunk_2) {
     return VerifySliceEquality(thunk_1.cond_buffer(), thunk_2.cond_buffer()) &&
@@ -688,6 +727,9 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
         return VerifyOutfeedThunkEquality(
             static_cast<const OutfeedThunk&>(thunk_1),
             static_cast<const OutfeedThunk&>(thunk_2));
+      case Thunk::Kind::kSort:
+        return VerifySortThunkEquality(static_cast<const SortThunk&>(thunk_1),
+                                       static_cast<const SortThunk&>(thunk_2));
       case Thunk::Kind::kWhile:
         return VerifyWhileThunkEquality(
             static_cast<const WhileThunk&>(thunk_1),

@@ -78,6 +78,7 @@ class Thunk {
     kKernel,
     kOutfeed,
     kReduceScatter,
+    kSort,
     kWhile,
   };
 

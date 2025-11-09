@@ -31,6 +31,12 @@ message ResourceProto {
   Kind kind = 1;
 }
 
+enum SortDirectionProto {
+  UNKNOWN = 0;
+  ASCENDING = 1;
+  DESCENDING = 2;
+}
+
 message BoolOptional {
   bool value = 1;
   bool contains_value = 2;
@@ -43,6 +49,11 @@ message ResourceOptional {
 
 message Int64Optional {
   int64 value = 1;
+  bool contains_value = 2;
+}
+
+message SortDirectionOptional {
+  SortDirectionProto value = 1;
   bool contains_value = 2;
 }
 
@@ -116,6 +127,14 @@ message ConditionalThunkProto {
   BufferAllocationSliceProto branch_index_buffer = 2;
 }
 
+message SortThunkProto {
+  int64 dimension = 1;
+  bool is_stable = 2;
+  SortDirectionOptional direction = 3;
+  string comparator_name = 4;
+  repeated ShapeBufferAllocationSliceProto inputs_shapes = 5;
+}
+
 message WhileThunkProto {
   ThunkSequenceProto cond_sequence = 1;
   ThunkSequenceProto body_sequence = 2;
@@ -174,6 +193,7 @@ message ThunkProto {
   oneof impl {
     CallThunkProto call_thunk = 3;
     ConditionalThunkProto conditional_thunk = 4;
+    SortThunkProto sort_thunk = 5;
     KernelThunkProto kernel_thunk = 11;
     CopyThunkProto copy_thunk = 12;
     InfeedThunkProto infeed_thunk = 14;
