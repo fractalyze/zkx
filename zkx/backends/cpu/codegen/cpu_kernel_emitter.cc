@@ -752,6 +752,73 @@ absl::StatusOr<KernelDefinition> CpuKernelEmitter::EmitKernelDefinition() {
   return KernelDefinition(std::move(spec), std::move(source));
 }
 
+absl::StatusOr<std::unique_ptr<KernelSource>> CpuKernelEmitter::EmitComparator(
+    const HloComputation* comparator) {
+  VLOG(2) << "Emit comparator: " << comparator->name();
+
+  auto llvm_context = std::make_unique<llvm::LLVMContext>();
+
+  const HloModule* hlo_module = instr_->GetModule();
+  if (hlo_module == nullptr) {
+    return absl::InternalError("HloModule is null");
+  }
+
+  LoadMlirDialects(mlir_context_);
+
+  auto loc = mlir::NameLoc::get(
+      mlir::StringAttr::get(mlir_context_, comparator->name()));
+  EmitterLocOpBuilder b(loc, mlir_context_);
+
+  mlir::OwningOpRef<mlir::ModuleOp> mlir_module =
+      llvm_ir::CreateMlirModuleOp(std::move(loc));
+  b.setInsertionPointToEnd(mlir_module->getBody());
+
+  auto ptr_type = mlir::LLVM::LLVMPointerType::get(b.getContext());
+  auto fn = b.create<mlir::func::FuncOp>(
+      comparator->name(), b.getFunctionType(ptr_type, b.getI1Type()));
+
+  mlir::Block* entry_block = fn.addEntryBlock();
+  b.setInsertionPointToEnd(entry_block);
+
+  auto base_ptr = entry_block->getArgument(0);
+  absl::flat_hash_map<const HloInstruction*, mlir::Value> values;
+  for (int64_t i = 0; i < comparator->num_parameters(); ++i) {
+    const HloInstruction* instr = comparator->parameter_instruction(i);
+
+    mlir::Type param_type;
+    if (ShapeUtil::IsScalar(instr->shape())) {
+      param_type = mlir_utils::PrimitiveTypeToMlirType(
+          instr->shape().element_type(), b.getContext());
+    } else {
+      param_type =
+          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+    }
+
+    llvm::SmallVector<mlir::Value> indices = {
+        {b.create<mlir::arith::ConstantIntOp>(b.getI64Type(), i)}};
+    mlir::Value ptr = b.create<mlir::LLVM::GEPOp>(
+        ptr_type, ptr_type,
+        /*basePtr=*/base_ptr, indices, mlir::LLVM::GEPNoWrapFlags::inbounds);
+
+    mlir::Value value_ptr = b.create<mlir::LLVM::LoadOp>(ptr_type, ptr);
+
+    values[comparator->parameter_instruction(i)] =
+        b.create<mlir::LLVM::LoadOp>(param_type, value_ptr);
+  }
+
+  comparator->ForEachInstructionPostOrder(absl::bind_front(
+      &CpuKernelEmitter::EmitOpInToApply, this, std::ref(b), std::ref(values)));
+
+  b.create<mlir::func::ReturnOp>(
+      mlir::ValueRange{values[comparator->root_instruction()]});
+
+  std::unique_ptr<llvm::Module> llvm_module = CreateLLVMModule(
+      mlir_context_, mlir_module.get(), llvm_context.get(), pass_flag_);
+
+  return std::make_unique<LlvmIrKernelSource>(std::move(llvm_context),
+                                              std::move(llvm_module));
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
     bool is_signed) {

@@ -1118,6 +1118,33 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
         base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
   }
 
+  void SetUpSort() {
+    constexpr static int64_t D0 = 8;
+
+    hlo_text_ = absl::Substitute(R"(
+      %compare {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT ret = pred[] compare(%x, %y), direction=LT
+      }
+
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+
+        ROOT %ret = $0[$1] sort(%x), dimensions={0}, to_apply=%compare
+      }
+    )",
+                                 x_typename_, D0);
+
+    auto x = base::CreateVector(
+        D0, []() { return BaseIntTest<T>::GetRandomValue(); });
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    auto expected = x;
+    std::sort(expected.begin(), expected.end(), std::less<T>());
+    expected_literal_ = LiteralUtil::CreateR1<T>(expected);
+  }
+
   void SetUpTranspose() {
     constexpr static int64_t D0 = 2;
     constexpr static int64_t D1 = 3;

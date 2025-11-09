@@ -25,6 +25,7 @@ limitations under the License.
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
 #include "mlir/IR/MLIRContext.h"
 
+#include "zkx/backends/cpu/runtime/sort_thunk.h"
 #include "zkx/backends/cpu/runtime/thunk.h"
 #include "zkx/codegen/kernel_spec.h"
 #include "zkx/service/buffer_assignment.h"
@@ -38,6 +39,11 @@ class ThunkEmitter {
     llvm::orc::ThreadSafeModule module;
   };
 
+  struct EmittedComparator {
+    std::string comparator_name;
+    llvm::orc::ThreadSafeModule module;
+  };
+
   ThunkEmitter(const BufferAssignment* buffer_assignment,
                mlir::MLIRContext* mlir_context);
 
@@ -45,11 +51,16 @@ class ThunkEmitter {
 
   std::vector<EmittedKernel>& kernels() { return kernels_; }
 
+  std::vector<EmittedComparator>& comparators() { return comparators_; }
+
  private:
   struct HostKernelAllocationSlices {
     std::vector<BufferAllocation::Slice> arguments;
     std::vector<BufferAllocation::Slice> results;
   };
+
+  std::optional<SortThunk::SortDirection> MatchSortDirection(
+      const HloComputation* hlo_comparator) const;
 
   // Returns the buffer allocation slice assigned to the given instruction at
   // the given shape index. Instruction must have a unique slice assigned to it!
@@ -86,8 +97,18 @@ class ThunkEmitter {
       const HloInstruction* instruction);
   absl::StatusOr<ThunkSequence> EmitCopyThunk(
       const HloInstruction* instruction);
+  absl::StatusOr<ThunkSequence> EmitSortThunk(
+      const HloInstruction* instruction);
   absl::StatusOr<ThunkSequence> EmitKernelThunk(
       const HloInstruction* instruction);
+
+  // Returns the list of buffer allocation slices assigned to the given
+  // instruction that will be passed to the host kernel as arguments: a
+  // flattened list of all the leaf buffers for all operands and result. We do
+  // not materialize tuples at run time and only read and write from buffers
+  // corresponding to arrays.
+  absl::StatusOr<HostKernelAllocationSlices> GetHostKernelAllocationSlices(
+      const HloInstruction* instruction) const;
 
   static absl::StatusOr<ThunkSequence> MakeKernelThunkSequence(
       const HloInstruction* instruction, const KernelSpec& kernel_spec,
@@ -103,6 +124,8 @@ class ThunkEmitter {
       token_resources_;
 
   std::vector<EmittedKernel> kernels_;
+
+  std::vector<EmittedComparator> comparators_;
 
   // A global resource that is used to order all collective operations.
   std::shared_ptr<Resource> communicator_resource_;
