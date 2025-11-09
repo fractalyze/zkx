@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter.h"
 
+#include "absl/functional/bind_front.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "llvm/Linker/Linker.h"
@@ -80,6 +81,8 @@ limitations under the License.
 #include "zkx/base/bits.h"
 #include "zkx/base/logging.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
+#include "zkx/hlo/ir/hlo_casting_utils.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/layout_util.h"
 #include "zkx/math/poly/root_of_unity.h"
 #include "zkx/mlir/codegen_utils.h"
@@ -1552,6 +1555,48 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPadOp(
       lower_edge_padding_low, lower_edge_padding_high, padding_value);
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReduceOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b,
+    mlir::ValueRange inputs, mlir::ValueRange inits_in) {
+  pass_flag_.enable_linalg_to_parallel_loops = true;
+
+  llvm::SmallVector<mlir::Value> inits = {inits_in.begin(), inits_in.end()};
+  if (ShapeUtil::IsScalar(instr->shape())) {
+    for (size_t i = 0; i < inits.size(); ++i) {
+      inits[i] = b.create<mlir::tensor::FromElementsOp>(
+          mlir::RankedTensorType::get({}, inits[i].getType()),
+          mlir::ValueRange{inits[i]});
+    }
+  }
+
+  HloComputation* to_apply = instr->to_apply();
+  auto reduce = b.create<mlir::linalg::ReduceOp>(
+      inputs, inits, instr->dimensions(),
+      [this, to_apply](mlir::OpBuilder& nested_b, mlir::Location loc,
+                       mlir::ValueRange loop_vars) {
+        EmitterLocOpBuilder b(loc, nested_b);
+        absl::flat_hash_map<const HloInstruction*, mlir::Value> values;
+        values[to_apply->parameter_instruction(0)] = loop_vars[1];
+        values[to_apply->parameter_instruction(1)] = loop_vars[0];
+
+        to_apply->ForEachInstructionPostOrder(
+            absl::bind_front(&CpuKernelEmitter::EmitOpInToApply, this,
+                             std::ref(b), std::ref(values)));
+
+        b.create<mlir::linalg::YieldOp>(
+            mlir::ValueRange{values[to_apply->root_instruction()]});
+      });
+
+  if (ShapeUtil::IsScalar(instr->shape())) {
+    return b
+        .create<mlir::tensor::ExtractOp>(reduce.getResult(0),
+                                         mlir::ValueRange{})
+        .getResult();
+  } else {
+    return reduce.getResult(0);
+  }
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
   auto output_type =
@@ -1766,6 +1811,18 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kPad:
       return EmitPadOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
+    case HloOpcode::kReduce: {
+      auto* reduce_instr = Cast<HloReduceInstruction>(instr);
+      llvm::SmallVector<mlir::Value> inputs;
+      for (const HloInstruction* input : reduce_instr->inputs()) {
+        inputs.push_back(values.at(input));
+      }
+      llvm::SmallVector<mlir::Value> inits;
+      for (const HloInstruction* init : reduce_instr->init_values()) {
+        inits.push_back(values.at(init));
+      }
+      return EmitReduceOp(instr, b, inputs, inits);
+    }
     case HloOpcode::kReshape:
       return EmitReshapeOp(instr, b, values[instr->operand(0)]);
     case HloOpcode::kReverse:
@@ -1780,6 +1837,17 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
           absl::StrFormat("Unhandled opcode for IR emission: %s",
                           HloOpcodeString(instr->opcode())));
   }
+}
+
+void CpuKernelEmitter::EmitOpInToApply(
+    EmitterLocOpBuilder& b,
+    absl::flat_hash_map<const HloInstruction*, mlir::Value>& values,
+    const HloInstruction* instr) {
+  if (instr->opcode() == HloOpcode::kParameter) return;
+
+  absl::StatusOr<mlir::Value> result = EmitOp(instr, b, values);
+  CHECK(result.ok()) << result.status();
+  values[instr] = result.value();
 }
 
 }  // namespace zkx::cpu

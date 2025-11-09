@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <type_traits>
 #include <vector>
 
@@ -944,6 +945,37 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
           }
         });
     expected_literal_ = LiteralUtil::CreateR1<T>(expected);
+  }
+
+  void SetUpReduce() {
+    constexpr static int64_t D0 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      %func {
+        %a = $0[] parameter(0)
+        %b = $0[] parameter(1)
+
+        %mul = $0[] multiply(%a, %b)
+        ROOT %ret = $0[] add(%mul, %a)
+      }
+
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+        %init = $0[] parameter(1)
+
+        ROOT %ret = $0[] reduce(%x, %init), dimensions={0}, to_apply=%func
+      }
+    )",
+                                 x_typename_, D0);
+    std::vector<T> x = base::CreateVector(
+        D0, []() { return BaseIntTest<T>::GetRandomValue(); });
+    T init = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    literals_.push_back(LiteralUtil::CreateR0<T>(init));
+    T result = std::accumulate(x.begin(), x.end(), init, [](T acc, T value) {
+      return acc * value + acc;
+    });
+    expected_literal_ = LiteralUtil::CreateR0<T>(result);
   }
 
   void SetUpReshape() {

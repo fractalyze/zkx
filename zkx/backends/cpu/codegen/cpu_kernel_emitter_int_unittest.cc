@@ -217,6 +217,11 @@ TYPED_TEST(IntTest, Pad) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, Reduce) {
+  this->SetUpReduce();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Reshape) {
   this->SetUpReshape();
   this->RunAndVerify();

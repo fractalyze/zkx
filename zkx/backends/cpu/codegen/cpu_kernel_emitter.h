@@ -82,6 +82,11 @@ class CpuKernelEmitter final : public KernelEmitter {
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       absl::flat_hash_map<const HloInstruction*, mlir::Value>& values);
 
+  void EmitOpInToApply(
+      EmitterLocOpBuilder& b,
+      absl::flat_hash_map<const HloInstruction*, mlir::Value>& values,
+      const HloInstruction* instr);
+
   absl::StatusOr<mlir::Value> EmitUnaryOp(const HloInstruction* instr,
                                           EmitterLocOpBuilder& b,
                                           mlir::Value value);
@@ -132,6 +137,11 @@ class CpuKernelEmitter final : public KernelEmitter {
                                         EmitterLocOpBuilder& b,
                                         mlir::Value input,
                                         mlir::Value padding_value);
+
+  absl::StatusOr<mlir::Value> EmitReduceOp(const HloInstruction* instr,
+                                           EmitterLocOpBuilder& b,
+                                           mlir::ValueRange inputs,
+                                           mlir::ValueRange inits);
 
   absl::StatusOr<mlir::Value> EmitReshapeOp(const HloInstruction* instr,
                                             EmitterLocOpBuilder& b,
