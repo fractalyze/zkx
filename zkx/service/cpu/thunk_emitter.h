@@ -25,7 +25,6 @@ limitations under the License.
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
 #include "mlir/IR/MLIRContext.h"
 
-#include "zkx/backends/cpu/codegen/jit_compiler.h"
 #include "zkx/backends/cpu/runtime/thunk.h"
 #include "zkx/codegen/kernel_spec.h"
 #include "zkx/service/buffer_assignment.h"
