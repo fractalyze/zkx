@@ -913,6 +913,37 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
 
   void SetUpIotaWithD1() { SetUpIotaHelper(1); }
 
+  void SetUpMap() {
+    constexpr static int64_t D0 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      %func {
+        %a = $0[] parameter(0)
+        %b = $0[] parameter(1)
+
+        %mul = $0[] multiply(%a, %b)
+        ROOT %ret = $0[] add(%mul, %a)
+      }
+
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+        %y = $0[$1] parameter(1)
+
+        ROOT %ret = $0[$1] map(%x, %y), dimensions={0}, to_apply=%func
+      }
+    )",
+                                 x_typename_, D0);
+    std::vector<T> x = base::CreateVector(
+        D0, []() { return BaseIntTest<T>::GetRandomValue(); });
+    std::vector<T> y = base::CreateVector(
+        D0, []() { return BaseIntTest<T>::GetRandomValue(); });
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    literals_.push_back(LiteralUtil::CreateR1<T>(y));
+    std::vector<T> expected =
+        base::CreateVector(D0, [&](size_t i) { return x[i] * y[i] + x[i]; });
+    expected_literal_ = LiteralUtil::CreateR1<T>(expected);
+  }
+
   void SetUpPad() {
     constexpr static int64_t M = 4;
     constexpr static int64_t LO = 2;

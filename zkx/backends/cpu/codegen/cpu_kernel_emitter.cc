@@ -1533,6 +1533,35 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
   return iota_op.getResult();
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMapOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b,
+    mlir::ValueRange inputs) {
+  pass_flag_.enable_linalg_to_parallel_loops = true;
+
+  auto output = b.create<mlir::tensor::EmptyOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      mlir::ValueRange{});
+
+  HloComputation* to_apply = instr->to_apply();
+  return b
+      .create<mlir::linalg::MapOp>(
+          inputs, output,
+          [this, to_apply](mlir::OpBuilder& nested_b, mlir::Location loc,
+                           mlir::ValueRange loop_vars) {
+            EmitterLocOpBuilder b(loc, nested_b);
+            absl::flat_hash_map<const HloInstruction*, mlir::Value> values;
+            for (int64_t i = 0; i < to_apply->num_parameters(); ++i) {
+              values[to_apply->parameter_instruction(i)] = loop_vars[i];
+            }
+            to_apply->ForEachInstructionPostOrder(
+                absl::bind_front(&CpuKernelEmitter::EmitOpInToApply, this,
+                                 std::ref(b), std::ref(values)));
+            b.create<mlir::linalg::YieldOp>(
+                values[to_apply->root_instruction()]);
+          })
+      ->getResult(0);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPadOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
     mlir::Value padding_value) {
@@ -1802,6 +1831,13 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     }
     case HloOpcode::kIota:
       return EmitIotaOp(instr, b);
+    case HloOpcode::kMap: {
+      llvm::SmallVector<mlir::Value> inputs;
+      for (int64_t i = 0; i < instr->operand_count(); ++i) {
+        inputs.push_back(values[instr->operand(i)]);
+      }
+      return EmitMapOp(instr, b, inputs);
+    }
     case HloOpcode::kMsm: {
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());

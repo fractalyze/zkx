@@ -133,6 +133,10 @@ class CpuKernelEmitter final : public KernelEmitter {
   absl::StatusOr<mlir::Value> EmitIotaOp(const HloInstruction* instr,
                                          EmitterLocOpBuilder& b);
 
+  absl::StatusOr<mlir::Value> EmitMapOp(const HloInstruction* instr,
+                                        EmitterLocOpBuilder& b,
+                                        mlir::ValueRange inputs);
+
   absl::StatusOr<mlir::Value> EmitPadOp(const HloInstruction* instr,
                                         EmitterLocOpBuilder& b,
                                         mlir::Value input,

@@ -212,6 +212,11 @@ TYPED_TEST(IntTest, IotaWithD1) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, Map) {
+  this->SetUpMap();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Pad) {
   this->SetUpPad();
   this->RunAndVerify();

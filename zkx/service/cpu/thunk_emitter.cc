@@ -187,6 +187,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kFft:
     case HloOpcode::kInverse:
     case HloOpcode::kIota:
+    case HloOpcode::kMap:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMsm:
