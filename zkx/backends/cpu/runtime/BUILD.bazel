@@ -88,6 +88,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "call_thunk",
+    srcs = ["call_thunk.cc"],
+    hdrs = ["call_thunk.h"],
+    deps = [
+        ":thunk",
+        ":thunk_executor",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "conditional_thunk",
     srcs = ["conditional_thunk.cc"],
     hdrs = ["conditional_thunk.h"],
@@ -347,6 +360,7 @@ zkx_cc_library(
         ":all_gather_thunk",
         ":all_reduce_thunk",
         ":all_to_all_thunk",
+        ":call_thunk",
         ":collective_permute_thunk",
         ":conditional_thunk",
         ":copy_thunk",
@@ -465,6 +479,7 @@ zkx_cc_unittest(
         "work_queue_unittest.cc",
     ],
     deps = [
+        ":call_thunk",
         ":conditional_thunk",
         ":copy_thunk",
         ":function_library",

@@ -31,6 +31,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_gather_thunk.h"
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
+#include "zkx/backends/cpu/runtime/call_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_thunk.h"
 #include "zkx/backends/cpu/runtime/conditional_thunk.h"
@@ -74,6 +75,7 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateAllToAllThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(),
                         CreateReduceScatterThunk());
+    TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateCallThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(),
                         CreateCollectivePermuteThunk());
     TF_ASSIGN_OR_RETURN(thunk_sequence.emplace_back(), CreateCopyThunk());
@@ -238,6 +240,16 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
         {
             /*communicator_resource=*/nullptr,
         });
+  }
+
+  absl::StatusOr<std::unique_ptr<Thunk>> CreateCallThunk() {
+    ThunkSequence called_sequence;
+    TF_ASSIGN_OR_RETURN(called_sequence.emplace_back(), CreateAllGatherThunk());
+    TF_ASSIGN_OR_RETURN(called_sequence.emplace_back(), CreateAllReduceThunk());
+    TF_ASSIGN_OR_RETURN(called_sequence.emplace_back(), CreateAllToAllThunk());
+    return CallThunk::Create(Thunk::Info(),
+                             /*called_sequence=*/
+                             std::move(called_sequence));
   }
 
   absl::StatusOr<std::unique_ptr<Thunk>> CreateCollectivePermuteThunk() {
@@ -498,6 +510,16 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
     return VerifyCollectiveThunkEquality(thunk_1, thunk_2);
   }
 
+  bool VerifyCallThunkEquality(const CallThunk& thunk_1,
+                               const CallThunk& thunk_2) {
+    return absl::c_equal(thunk_1.called_executor().thunk_sequence(),
+                         thunk_2.called_executor().thunk_sequence(),
+                         [this](const std::unique_ptr<Thunk>& thunk_1,
+                                const std::unique_ptr<Thunk>& thunk_2) {
+                           return VerifyThunkEquality(*thunk_1, *thunk_2);
+                         });
+  }
+
   bool VerifyCollectivePermuteThunkEquality(
       const CollectivePermuteThunk& thunk_1,
       const CollectivePermuteThunk& thunk_2) {
@@ -644,6 +666,9 @@ class ThunkSequenceSerdesTest : public ::testing::Test {
         return VerifyAllToAllThunkEquality(
             static_cast<const AllToAllThunk&>(thunk_1),
             static_cast<const AllToAllThunk&>(thunk_2));
+      case Thunk::Kind::kCall:
+        return VerifyCallThunkEquality(static_cast<const CallThunk&>(thunk_1),
+                                       static_cast<const CallThunk&>(thunk_2));
       case Thunk::Kind::kCollectivePermute:
         return VerifyCollectivePermuteThunkEquality(
             static_cast<const CollectivePermuteThunk&>(thunk_1),

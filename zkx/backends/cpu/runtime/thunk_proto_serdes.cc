@@ -32,6 +32,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_gather_thunk.h"
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
+#include "zkx/backends/cpu/runtime/call_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
 #include "zkx/backends/cpu/runtime/conditional_thunk.h"
 #include "zkx/backends/cpu/runtime/copy_thunk.h"
@@ -69,6 +70,8 @@ Thunk::Kind ProtoThunkToThunkKind(const ThunkProto& proto) {
     case ThunkProto::ImplCase::kCollectiveThunk:
       return collective_proto_kind_to_kind(
           proto.collective_thunk().impl_case());
+    case ThunkProto::ImplCase::kCallThunk:
+      return Thunk::Kind::kCall;
     case ThunkProto::ImplCase::kConditionalThunk:
       return Thunk::Kind::kConditional;
     case ThunkProto::ImplCase::kCopyThunk:
@@ -396,6 +399,16 @@ absl::Status ToProto(const CollectiveThunk& thunk, ThunkProto& proto) {
   return absl::OkStatus();
 }
 
+absl::Status ToProto(const CallThunk& thunk, ThunkProto& proto) {
+  ThunkSequenceSerDesProtobuf thunk_sequence_serdes;
+  CallThunkProto* call_thunk_proto = proto.mutable_call_thunk();
+
+  TF_ASSIGN_OR_RETURN(
+      *call_thunk_proto->mutable_called_sequence(),
+      thunk_sequence_serdes.ToProto(thunk.called_executor().thunk_sequence()));
+  return absl::OkStatus();
+}
+
 absl::Status ToProto(const CopyThunk& thunk, ThunkProto& proto) {
   CopyThunkProto* copy_thunk_proto = proto.mutable_copy_thunk();
 
@@ -566,6 +579,10 @@ absl::StatusOr<ThunkProto> ThunkSerDesProtobuf::ToProto(
       TF_RETURN_IF_ERROR(::zkx::cpu::ToProto(
           static_cast<const KernelThunkBase&>(thunk), proto));
       break;
+    case Thunk::Kind::kCall:
+      TF_RETURN_IF_ERROR(
+          ::zkx::cpu::ToProto(static_cast<const CallThunk&>(thunk), proto));
+      break;
     case Thunk::Kind::kCopy:
       TF_RETURN_IF_ERROR(
           ::zkx::cpu::ToProto(static_cast<const CopyThunk&>(thunk), proto));
@@ -674,6 +691,19 @@ absl::StatusOr<std::unique_ptr<ReduceScatterThunk>> ReduceScatterThunkFromProto(
           proto.collective_thunk().reduce_scatter_thunk().reduction_kind()));
   return ReduceScatterThunk::Create(info, reduction_kind, op_params, op_buffers,
                                     op_resources);
+}
+
+absl::StatusOr<std::unique_ptr<CallThunk>> CallThunkFromProto(
+    const ThunkProto& proto,
+    const std::vector<BufferAllocation>& buffer_allocations) {
+  ThunkSequenceSerDesProtobuf thunk_sequence_serdes(&buffer_allocations);
+
+  TF_ASSIGN_OR_RETURN(
+      std::unique_ptr<ThunkSequence> call_sequence,
+      thunk_sequence_serdes.FromProto(proto.call_thunk().called_sequence()));
+  TF_ASSIGN_OR_RETURN(Thunk::Info info, ThunkInfoFromProto(proto.info()));
+
+  return CallThunk::Create(std::move(info), std::move(*call_sequence));
 }
 
 absl::StatusOr<std::unique_ptr<ConditionalThunk>> ConditionalThunkFromProto(
@@ -908,6 +938,8 @@ absl::StatusOr<std::unique_ptr<Thunk>> ThunkSerDesProtobuf::FromProto(
       return CollectivePermuteThunkFromProto(proto, *buffer_allocations_);
     case Thunk::Kind::kReduceScatter:
       return ReduceScatterThunkFromProto(proto, *buffer_allocations_);
+    case Thunk::Kind::kCall:
+      return CallThunkFromProto(proto, *buffer_allocations_);
     case Thunk::Kind::kConditional:
       return ConditionalThunkFromProto(proto, *buffer_allocations_);
     case Thunk::Kind::kCopy:

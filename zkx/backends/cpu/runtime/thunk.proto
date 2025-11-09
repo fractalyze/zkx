@@ -107,6 +107,10 @@ message CollectiveThunkProto {
   }
 }
 
+message CallThunkProto {
+  ThunkSequenceProto called_sequence = 1;
+}
+
 message ConditionalThunkProto {
   repeated ThunkSequenceProto branch_sequences = 1;
   BufferAllocationSliceProto branch_index_buffer = 2;
@@ -168,6 +172,7 @@ message ThunkProto {
   string kind = 1;
   InfoProto info = 2;
   oneof impl {
+    CallThunkProto call_thunk = 3;
     ConditionalThunkProto conditional_thunk = 4;
     KernelThunkProto kernel_thunk = 11;
     CopyThunkProto copy_thunk = 12;
