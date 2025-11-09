@@ -22,6 +22,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_gather_thunk.h"
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
+#include "zkx/backends/cpu/runtime/call_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
 #include "zkx/backends/cpu/runtime/conditional_thunk.h"
 #include "zkx/backends/cpu/runtime/copy_thunk.h"
@@ -162,6 +163,11 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     // not need to emit any thunks for constant instructions.
     case HloOpcode::kConstant:
       return ThunkSequence::Empty();
+
+    // Call operations are simply converted to a ThunkSequence emitted from the
+    // called computation and embedded into the "main" one.
+    case HloOpcode::kCall:
+      return EmitCallThunk(instr);
 
     // Control flow thunks check predicates on the host and launch nested thunk
     // sequences for branches and loops.
@@ -443,6 +449,15 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitOutfeedThunk(
 
   return ThunkSequence::Of<OutfeedThunk>(
       ThunkInfo(instruction), outfeed_buffers, std::move(outfeed_resources));
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitCallThunk(
+    const HloInstruction* instruction) {
+  TF_ASSIGN_OR_RETURN(
+      ThunkSequence called_sequence,
+      EmitHloComputation(instruction->called_computations().front()));
+  return ThunkSequence::Of<CallThunk>(ThunkInfo(instruction),
+                                      std::move(called_sequence));
 }
 
 absl::StatusOr<ThunkSequence> ThunkEmitter::EmitConditionThunk(

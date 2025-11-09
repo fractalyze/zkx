@@ -182,6 +182,11 @@ TYPED_TEST(IntTest, BroadcastTensorR1ToR3WithD2) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, Call) {
+  this->SetUpCall();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Concatenate) {
   this->SetUpConcatenate();
   this->RunAndVerify();

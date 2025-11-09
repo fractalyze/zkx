@@ -710,6 +710,31 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     });
   }
 
+  void SetUpCall() {
+    hlo_text_ = absl::Substitute(R"(
+      %func {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] add(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] call(%x, %y), to_apply=%func
+      }
+    )",
+                                 x_typename_);
+
+    auto x = BaseIntTest<T>::GetRandomValue();
+    auto y = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR0<T>(x));
+    literals_.push_back(LiteralUtil::CreateR0<T>(y));
+    expected_literal_ = LiteralUtil::CreateR0<T>(x + y);
+  }
+
   void SetUpConcatenate() {
     constexpr static int64_t D0 = 2;
     constexpr static int64_t D1 = 3;
