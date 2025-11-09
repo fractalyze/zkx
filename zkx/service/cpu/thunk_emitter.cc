@@ -243,7 +243,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
 }
 
 absl::StatusOr<BufferAllocation::Slice> ThunkEmitter::GetAllocationSlice(
-    const HloInstruction* instruction, const ShapeIndex& index) {
+    const HloInstruction* instruction, const ShapeIndex& index) const {
   return buffer_assignment_->GetUniqueSlice(instruction, index);
 }
 

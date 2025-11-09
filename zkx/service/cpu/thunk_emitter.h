@@ -54,7 +54,7 @@ class ThunkEmitter {
   // Returns the buffer allocation slice assigned to the given instruction at
   // the given shape index. Instruction must have a unique slice assigned to it!
   absl::StatusOr<BufferAllocation::Slice> GetAllocationSlice(
-      const HloInstruction* instruction, const ShapeIndex& index = {});
+      const HloInstruction* instruction, const ShapeIndex& index = {}) const;
 
   // Returns a token resource corresponding to the given instruction result.
   absl::StatusOr<std::shared_ptr<Resource>> GetTokenResource(
