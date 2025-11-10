@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <type_traits>
 #include <vector>
 
@@ -709,6 +710,66 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     });
   }
 
+  void SetUpConcatenate() {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+    constexpr static int64_t D2 = 4;
+    constexpr static int64_t D = D0 + D1 + D2;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[2, $1, 2] parameter(0)
+        %y = $0[2, $2, 2] parameter(1)
+        %z = $0[2, $3, 2] parameter(2)
+
+        ROOT %ret = $0[2, $4, 2] concatenate(%x, %y, %z), dimensions={1}
+      }
+    )",
+                                 x_typename_, D0, D1, D2, D);
+    Array3D<T> x_array(2, D0, 2);
+    Array3D<T> y_array(2, D1, 2);
+    Array3D<T> z_array(2, D2, 2);
+    for (int64_t i = 0; i < 2; ++i) {
+      for (int64_t j = 0; j < D0; ++j) {
+        for (int64_t k = 0; k < 2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    for (int64_t i = 0; i < 2; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < 2; ++k) {
+          y_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    for (int64_t i = 0; i < 2; ++i) {
+      for (int64_t j = 0; j < D2; ++j) {
+        for (int64_t k = 0; k < 2; ++k) {
+          z_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(y_array));
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(z_array));
+    Array3D<T> expected_array(2, D, 2);
+    for (int64_t i = 0; i < 2; ++i) {
+      for (int64_t j = 0; j < D; ++j) {
+        for (int64_t k = 0; k < 2; ++k) {
+          if (j < D0) {
+            expected_array({i, j, k}) = x_array({i, j, k});
+          } else if (j < D0 + D1) {
+            expected_array({i, j, k}) = y_array({i, j - D0, k});
+          } else {
+            expected_array({i, j, k}) = z_array({i, j - D0 - D1, k});
+          }
+        }
+      }
+    }
+    expected_literal_ = LiteralUtil::CreateR3FromArray3D<T>(expected_array);
+  }
+
   void SetUpConditional() {
     hlo_text_ = absl::Substitute(R"(
       %identity {
@@ -737,9 +798,216 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(cond ? x : -x);
   }
 
+  void SetUpDynamicSlice() {
+    constexpr static int64_t D0 = 5;
+    constexpr static int64_t D1 = 6;
+    constexpr static int64_t D2 = 7;
+
+    constexpr static int64_t S0 = 1;
+    constexpr static int64_t S1 = 2;
+    constexpr static int64_t S2 = 3;
+
+    constexpr static int64_t L0 = 2;
+    constexpr static int64_t L1 = 3;
+    constexpr static int64_t L2 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+        %offset0 = $0[] parameter(1)
+        %offset1 = $0[] parameter(2)
+        %offset2 = $0[] parameter(3)
+
+        ROOT %ret = $0[$4, $5, $6] dynamic-slice(%x, %offset0, %offset1, %offset2), dynamic_slice_sizes={$4, $5, $6}
+      }
+    )",
+                                 x_typename_, D0, D1, D2, L0, L1, L2);
+
+    Array3D<T> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    literals_.push_back(LiteralUtil::CreateR0<T>(S0));
+    literals_.push_back(LiteralUtil::CreateR0<T>(S1));
+    literals_.push_back(LiteralUtil::CreateR0<T>(S2));
+    Array3D<T> expected_array(L0, L1, L2);
+    for (int64_t i = 0; i < L0; ++i) {
+      for (int64_t j = 0; j < L1; ++j) {
+        for (int64_t k = 0; k < L2; ++k) {
+          expected_array({i, j, k}) = x_array({S0 + i, S1 + j, S2 + k});
+        }
+      }
+    }
+    expected_literal_ = LiteralUtil::CreateR3FromArray3D<T>(expected_array);
+  }
+
+  void SetUpDynamicUpdateSlice() {
+    constexpr static int64_t D0 = 5;
+    constexpr static int64_t D1 = 6;
+    constexpr static int64_t D2 = 7;
+
+    constexpr static int64_t S0 = 1;
+    constexpr static int64_t S1 = 2;
+    constexpr static int64_t S2 = 3;
+
+    constexpr static int64_t L0 = 2;
+    constexpr static int64_t L1 = 3;
+    constexpr static int64_t L2 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+        %update = $0[$4, $5, $6] parameter(1)
+        %offset0 = $0[] parameter(2)
+        %offset1 = $0[] parameter(3)
+        %offset2 = $0[] parameter(4)
+
+        ROOT %ret = $0[$1, $2, $3] dynamic-update-slice(%x, %update, %offset0, %offset1, %offset2)
+      }
+    )",
+                                 x_typename_, D0, D1, D2, L0, L1, L2);
+
+    Array3D<T> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    Array3D<T> update_array(L0, L1, L2);
+    for (int64_t i = 0; i < L0; ++i) {
+      for (int64_t j = 0; j < L1; ++j) {
+        for (int64_t k = 0; k < L2; ++k) {
+          update_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(update_array));
+    literals_.push_back(LiteralUtil::CreateR0<T>(S0));
+    literals_.push_back(LiteralUtil::CreateR0<T>(S1));
+    literals_.push_back(LiteralUtil::CreateR0<T>(S2));
+    Array3D<T> expected_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          if (i < S0 || i >= S0 + L0 || j < S1 || j >= S1 + L1 || k < S2 ||
+              k >= S2 + L2) {
+            expected_array({i, j, k}) = x_array({i, j, k});
+          } else {
+            expected_array({i, j, k}) = update_array({i - S0, j - S1, k - S2});
+          }
+        }
+      }
+    }
+    expected_literal_ = LiteralUtil::CreateR3FromArray3D<T>(expected_array);
+  }
+
   void SetUpIotaWithD0() { SetUpIotaHelper(0); }
 
   void SetUpIotaWithD1() { SetUpIotaHelper(1); }
+
+  void SetUpMap() {
+    constexpr static int64_t D0 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      %func {
+        %a = $0[] parameter(0)
+        %b = $0[] parameter(1)
+
+        %mul = $0[] multiply(%a, %b)
+        ROOT %ret = $0[] add(%mul, %a)
+      }
+
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+        %y = $0[$1] parameter(1)
+
+        ROOT %ret = $0[$1] map(%x, %y), dimensions={0}, to_apply=%func
+      }
+    )",
+                                 x_typename_, D0);
+    std::vector<T> x = base::CreateVector(
+        D0, []() { return BaseIntTest<T>::GetRandomValue(); });
+    std::vector<T> y = base::CreateVector(
+        D0, []() { return BaseIntTest<T>::GetRandomValue(); });
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    literals_.push_back(LiteralUtil::CreateR1<T>(y));
+    std::vector<T> expected =
+        base::CreateVector(D0, [&](size_t i) { return x[i] * y[i] + x[i]; });
+    expected_literal_ = LiteralUtil::CreateR1<T>(expected);
+  }
+
+  void SetUpPad() {
+    constexpr static int64_t M = 4;
+    constexpr static int64_t LO = 2;
+    constexpr static int64_t HI = 3;
+    constexpr static int64_t N = M + LO + HI;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+        %padding_value = $0[] parameter(1)
+
+        ROOT %ret = $0[$4] pad(%x, %padding_value), padding=$2_$3
+      }
+    )",
+                                 x_typename_, M, LO, HI, N);
+
+    std::vector<T> x = base::CreateVector(
+        M, []() { return BaseIntTest<T>::GetRandomValue(); });
+    T padding_value = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    literals_.push_back(LiteralUtil::CreateR0<T>(padding_value));
+    std::vector<T> expected =
+        base::CreateVector(N, [padding_value, &x](size_t i) {
+          if (i < LO) {
+            return padding_value;
+          } else if (i < M + LO) {
+            return x[i - LO];
+          } else {
+            return padding_value;
+          }
+        });
+    expected_literal_ = LiteralUtil::CreateR1<T>(expected);
+  }
+
+  void SetUpReduce() {
+    constexpr static int64_t D0 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      %func {
+        %a = $0[] parameter(0)
+        %b = $0[] parameter(1)
+
+        %mul = $0[] multiply(%a, %b)
+        ROOT %ret = $0[] add(%mul, %a)
+      }
+
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+        %init = $0[] parameter(1)
+
+        ROOT %ret = $0[] reduce(%x, %init), dimensions={0}, to_apply=%func
+      }
+    )",
+                                 x_typename_, D0);
+    std::vector<T> x = base::CreateVector(
+        D0, []() { return BaseIntTest<T>::GetRandomValue(); });
+    T init = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    literals_.push_back(LiteralUtil::CreateR0<T>(init));
+    T result = std::accumulate(x.begin(), x.end(), init, [](T acc, T value) {
+      return acc * value + acc;
+    });
+    expected_literal_ = LiteralUtil::CreateR0<T>(result);
+  }
 
   void SetUpReshape() {
     constexpr static int64_t D0 = 2;

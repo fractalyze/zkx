@@ -42,6 +42,7 @@ class CpuKernelEmitter final : public KernelEmitter {
     bool enable_ext_field_to_llvm = false;
     bool enable_lower_affine = false;
     bool enable_elementwise_to_linalg = false;
+    bool enable_tensor_to_linalg = false;
     bool enable_linalg_to_parallel_loops = false;
     bool enable_scf_to_cf = false;
     bool enable_expand_strided_metadata = false;
@@ -81,6 +82,11 @@ class CpuKernelEmitter final : public KernelEmitter {
       const HloInstruction* instr, EmitterLocOpBuilder& b,
       absl::flat_hash_map<const HloInstruction*, mlir::Value>& values);
 
+  void EmitOpInToApply(
+      EmitterLocOpBuilder& b,
+      absl::flat_hash_map<const HloInstruction*, mlir::Value>& values,
+      const HloInstruction* instr);
+
   absl::StatusOr<mlir::Value> EmitUnaryOp(const HloInstruction* instr,
                                           EmitterLocOpBuilder& b,
                                           mlir::Value value);
@@ -108,12 +114,38 @@ class CpuKernelEmitter final : public KernelEmitter {
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
       absl::Span<const int64_t> source_dimensions);
 
+  absl::StatusOr<mlir::Value> EmitConcatenateOp(const HloInstruction* instr,
+                                                EmitterLocOpBuilder& b,
+                                                mlir::ValueRange inputs);
+
   absl::StatusOr<mlir::Value> EmitDotOp(const HloInstruction* instr,
                                         EmitterLocOpBuilder& b, mlir::Value lhs,
                                         mlir::Value rhs);
 
+  absl::StatusOr<mlir::Value> EmitDynamicSliceOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
+      mlir::ValueRange start_indices);
+
+  absl::StatusOr<mlir::Value> EmitDynamicUpdateSliceOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value dest,
+      mlir::Value update, mlir::ValueRange start_indices);
+
   absl::StatusOr<mlir::Value> EmitIotaOp(const HloInstruction* instr,
                                          EmitterLocOpBuilder& b);
+
+  absl::StatusOr<mlir::Value> EmitMapOp(const HloInstruction* instr,
+                                        EmitterLocOpBuilder& b,
+                                        mlir::ValueRange inputs);
+
+  absl::StatusOr<mlir::Value> EmitPadOp(const HloInstruction* instr,
+                                        EmitterLocOpBuilder& b,
+                                        mlir::Value input,
+                                        mlir::Value padding_value);
+
+  absl::StatusOr<mlir::Value> EmitReduceOp(const HloInstruction* instr,
+                                           EmitterLocOpBuilder& b,
+                                           mlir::ValueRange inputs,
+                                           mlir::ValueRange inits);
 
   absl::StatusOr<mlir::Value> EmitReshapeOp(const HloInstruction* instr,
                                             EmitterLocOpBuilder& b,

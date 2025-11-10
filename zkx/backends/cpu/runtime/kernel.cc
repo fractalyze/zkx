@@ -43,11 +43,8 @@ absl::InlinedVector<ZKX_CPU_KernelArg, 8> ConvertBuffersToKernelArgs(
     absl::Span<const Kernel::DeviceMemoryBase> buffers) {
   absl::InlinedVector<ZKX_CPU_KernelArg, 8> args(buffers.size());
   for (size_t i = 0; i < buffers.size(); ++i) {
-    args[i].allocated = const_cast<void*>(buffers[i].opaque());
-    args[i].aligned = const_cast<void*>(buffers[i].opaque());
-    args[i].offset = 0;
-    args[i].sizes[0] = buffers[i].size();
-    args[i].strides[0] = 1;
+    args[i].data = const_cast<void*>(buffers[i].opaque());
+    args[i].size = buffers[i].size();
   }
   return args;
 }

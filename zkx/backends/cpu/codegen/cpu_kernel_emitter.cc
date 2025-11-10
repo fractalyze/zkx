@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter.h"
 
+#include "absl/functional/bind_front.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "llvm/Linker/Linker.h"
@@ -22,6 +23,7 @@ limitations under the License.
 #include "mlir/Conversion/BufferizationToMemRef/BufferizationToMemRef.h"
 #include "mlir/Conversion/ConvertToLLVM/ToLLVMPass.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Conversion/TensorToLinalg/TensorToLinalgPass.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Arith/Transforms/BufferDeallocationOpInterfaceImpl.h"
 #include "mlir/Dialect/Arith/Transforms/BufferizableOpInterfaceImpl.h"
@@ -44,6 +46,7 @@ limitations under the License.
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "mlir/Dialect/SparseTensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/SparseTensor/Transforms/Passes.h"
+#include "mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OwningOpRef.h"
@@ -78,6 +81,8 @@ limitations under the License.
 #include "zkx/base/bits.h"
 #include "zkx/base/logging.h"
 #include "zkx/codegen/llvm_ir_kernel_source.h"
+#include "zkx/hlo/ir/hlo_casting_utils.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/layout_util.h"
 #include "zkx/math/poly/root_of_unity.h"
 #include "zkx/mlir/codegen_utils.h"
@@ -271,6 +276,12 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
     pm.addPass(mlir::zkir::tensor_ext::createTensorExtToTensor());
   }
 
+  if (flag.enable_tensor_to_linalg) {
+    VLOG(2) << "add pass: -convert-tensor-to-linalg";
+    flag.enable_linalg_to_parallel_loops = true;
+    pm.addPass(mlir::createConvertTensorToLinalgPass());
+  }
+
   if (flag.enable_one_shot_bufferize) {
     VLOG(2) << "add pass: -one-shot-bufferize";
     OneShotBufferize(pm);
@@ -361,6 +372,9 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
   mlir::registerAllExtensions(registry);
   mlir::memref::registerAllocationOpInterfaceExternalModels(registry);
   mlir::LLVM::registerInlinerInterface(registry);
+  if (pass_flag.enable_tensor_to_linalg) {
+    mlir::tensor::registerInferTypeOpInterfaceExternalModels(registry);
+  }
   if (pass_flag.enable_one_shot_bufferize) {
     mlir::arith::registerBufferDeallocationOpInterfaceExternalModels(registry);
     mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
@@ -1295,6 +1309,15 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBroadcastOp(
   return broadcast.getResult()[0];
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitConcatenateOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b,
+    mlir::ValueRange inputs) {
+  pass_flag_.enable_expand_strided_metadata = true;
+
+  return b.create<mlir::tensor::ConcatOp>(instr->concatenate_dimension(),
+                                          inputs);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,
     mlir::Value rhs) {
@@ -1311,7 +1334,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
   mlir::MLIRContext* ctx = lhs.getContext();
   auto result_type = mlir::cast<mlir::RankedTensorType>(
       mlir_utils::ShapeToMlirTensorType(instr->shape(), ctx));
-  CHECK(result_type);
   llvm::SmallVector<int64_t> shapes;
   for (int64_t i = 0; i < instr->shape().dimensions_size(); ++i) {
     shapes.push_back(instr->shape().dimensions(i));
@@ -1405,6 +1427,54 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
       "Dot op with rank %d and rank %d is not supported", rank0, rank1));
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicSliceOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
+    mlir::ValueRange start_indices) {
+  pass_flag_.enable_expand_strided_metadata = true;
+
+  llvm::SmallVector<mlir::Value> offsets;
+  llvm::SmallVector<int64_t> static_offsets;
+  llvm::SmallVector<int64_t> static_strides;
+  for (size_t i = 0; i < instr->shape().rank(); ++i) {
+    offsets.push_back(
+        b.create<mlir::arith::IndexCastOp>(b.getIndexType(), start_indices[i]));
+    static_offsets.push_back(mlir::ShapedType::kDynamic);
+    static_strides.push_back(1);
+  }
+
+  return b.create<mlir::tensor::ExtractSliceOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()), input,
+      offsets, /*sizes=*/mlir::ValueRange{},
+      /*strides=*/mlir::ValueRange{},
+      /*static_offsets=*/static_offsets, instr->dynamic_slice_sizes(),
+      static_strides);
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicUpdateSliceOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value dest,
+    mlir::Value update, mlir::ValueRange start_indices) {
+  pass_flag_.enable_expand_strided_metadata = true;
+
+  llvm::SmallVector<mlir::Value> offsets;
+  llvm::SmallVector<mlir::Value> sizes;
+  llvm::SmallVector<int64_t> static_offsets;
+  llvm::SmallVector<int64_t> static_sizes;
+  llvm::SmallVector<int64_t> static_strides;
+  for (size_t i = 0; i < instr->shape().rank(); ++i) {
+    offsets.push_back(
+        b.create<mlir::arith::IndexCastOp>(b.getIndexType(), start_indices[i]));
+    sizes.push_back(b.create<mlir::tensor::DimOp>(update, i));
+    static_offsets.push_back(mlir::ShapedType::kDynamic);
+    static_sizes.push_back(mlir::ShapedType::kDynamic);
+    static_strides.push_back(1);
+  }
+
+  return b.create<mlir::tensor::InsertSliceOp>(
+      update, dest, offsets, sizes,
+      /*strides=*/mlir::ValueRange{},
+      /*static_offsets=*/static_offsets, static_sizes, static_strides);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b) {
   pass_flag_.enable_linalg_to_parallel_loops = true;
@@ -1461,6 +1531,99 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
       });
 
   return iota_op.getResult();
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMapOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b,
+    mlir::ValueRange inputs) {
+  pass_flag_.enable_linalg_to_parallel_loops = true;
+
+  auto output = b.create<mlir::tensor::EmptyOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      mlir::ValueRange{});
+
+  HloComputation* to_apply = instr->to_apply();
+  return b
+      .create<mlir::linalg::MapOp>(
+          inputs, output,
+          [this, to_apply](mlir::OpBuilder& nested_b, mlir::Location loc,
+                           mlir::ValueRange loop_vars) {
+            EmitterLocOpBuilder b(loc, nested_b);
+            absl::flat_hash_map<const HloInstruction*, mlir::Value> values;
+            for (int64_t i = 0; i < to_apply->num_parameters(); ++i) {
+              values[to_apply->parameter_instruction(i)] = loop_vars[i];
+            }
+            to_apply->ForEachInstructionPostOrder(
+                absl::bind_front(&CpuKernelEmitter::EmitOpInToApply, this,
+                                 std::ref(b), std::ref(values)));
+            b.create<mlir::linalg::YieldOp>(
+                values[to_apply->root_instruction()]);
+          })
+      ->getResult(0);
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPadOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
+    mlir::Value padding_value) {
+  pass_flag_.enable_tensor_to_linalg = true;
+  pass_flag_.enable_expand_strided_metadata = true;
+
+  llvm::SmallVector<mlir::OpFoldResult> lower_edge_padding_low;
+  llvm::SmallVector<mlir::OpFoldResult> lower_edge_padding_high;
+  const PaddingConfig& padding_config = instr->padding_config();
+  for (const PaddingConfig::PaddingConfigDimension& dimension :
+       padding_config.dimensions()) {
+    lower_edge_padding_low.push_back(
+        b.getIndexAttr(dimension.edge_padding_low()));
+    lower_edge_padding_high.push_back(
+        b.getIndexAttr(dimension.edge_padding_high()));
+  }
+
+  return b.create<mlir::tensor::PadOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()), input,
+      lower_edge_padding_low, lower_edge_padding_high, padding_value);
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReduceOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b,
+    mlir::ValueRange inputs, mlir::ValueRange inits_in) {
+  pass_flag_.enable_linalg_to_parallel_loops = true;
+
+  llvm::SmallVector<mlir::Value> inits = {inits_in.begin(), inits_in.end()};
+  if (ShapeUtil::IsScalar(instr->shape())) {
+    for (size_t i = 0; i < inits.size(); ++i) {
+      inits[i] = b.create<mlir::tensor::FromElementsOp>(
+          mlir::RankedTensorType::get({}, inits[i].getType()),
+          mlir::ValueRange{inits[i]});
+    }
+  }
+
+  HloComputation* to_apply = instr->to_apply();
+  auto reduce = b.create<mlir::linalg::ReduceOp>(
+      inputs, inits, instr->dimensions(),
+      [this, to_apply](mlir::OpBuilder& nested_b, mlir::Location loc,
+                       mlir::ValueRange loop_vars) {
+        EmitterLocOpBuilder b(loc, nested_b);
+        absl::flat_hash_map<const HloInstruction*, mlir::Value> values;
+        values[to_apply->parameter_instruction(0)] = loop_vars[1];
+        values[to_apply->parameter_instruction(1)] = loop_vars[0];
+
+        to_apply->ForEachInstructionPostOrder(
+            absl::bind_front(&CpuKernelEmitter::EmitOpInToApply, this,
+                             std::ref(b), std::ref(values)));
+
+        b.create<mlir::linalg::YieldOp>(
+            mlir::ValueRange{values[to_apply->root_instruction()]});
+      });
+
+  if (ShapeUtil::IsScalar(instr->shape())) {
+    return b
+        .create<mlir::tensor::ExtractOp>(reduce.getResult(0),
+                                         mlir::ValueRange{})
+        .getResult();
+  } else {
+    return reduce.getResult(0);
+  }
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
@@ -1526,14 +1689,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
   pass_flag_.enable_expand_strided_metadata = true;
 
   const Shape& shape = instr->shape();
-  auto value_type = mlir::dyn_cast<mlir::RankedTensorType>(value.getType());
-  if (value_type == nullptr) {
-    return absl::InternalError("value is not a ranked tensor");
-  }
 
-  auto result_type = mlir::dyn_cast<mlir::RankedTensorType>(
+  auto result_type = mlir::cast<mlir::RankedTensorType>(
       mlir_utils::ShapeToMlirTensorType(shape, b.getContext()));
-  CHECK(result_type);
 
   llvm::SmallVector<mlir::OpFoldResult> offsets;
   llvm::SmallVector<mlir::OpFoldResult> sizes;
@@ -1634,9 +1792,32 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitTernaryOp(instr, b, values[instr->operand(0)],
                            values[instr->operand(1)],
                            values[instr->operand(2)]);
+    case HloOpcode::kConcatenate: {
+      llvm::SmallVector<mlir::Value> inputs;
+      for (int64_t i = 0; i < instr->operand_count(); ++i) {
+        inputs.push_back(values[instr->operand(i)]);
+      }
+      return EmitConcatenateOp(instr, b, inputs);
+    }
     case HloOpcode::kDot:
       return EmitDotOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
+    case HloOpcode::kDynamicSlice: {
+      llvm::SmallVector<mlir::Value> start_indices;
+      for (int64_t i = 1; i < instr->operand_count(); ++i) {
+        start_indices.push_back(values[instr->operand(i)]);
+      }
+      return EmitDynamicSliceOp(instr, b, values[instr->operand(0)],
+                                start_indices);
+    }
+    case HloOpcode::kDynamicUpdateSlice: {
+      llvm::SmallVector<mlir::Value> start_indices;
+      for (int64_t i = 2; i < instr->operand_count(); ++i) {
+        start_indices.push_back(values[instr->operand(i)]);
+      }
+      return EmitDynamicUpdateSliceOp(instr, b, values[instr->operand(0)],
+                                      values[instr->operand(1)], start_indices);
+    }
     case HloOpcode::kFft: {
       if (instr->operand_count() == 1) {
         return EmitFftOp(instr, b, values[instr->operand(0)]);
@@ -1650,11 +1831,33 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     }
     case HloOpcode::kIota:
       return EmitIotaOp(instr, b);
+    case HloOpcode::kMap: {
+      llvm::SmallVector<mlir::Value> inputs;
+      for (int64_t i = 0; i < instr->operand_count(); ++i) {
+        inputs.push_back(values[instr->operand(i)]);
+      }
+      return EmitMapOp(instr, b, inputs);
+    }
     case HloOpcode::kMsm: {
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());
       return EmitMsmOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
+    }
+    case HloOpcode::kPad:
+      return EmitPadOp(instr, b, values[instr->operand(0)],
+                       values[instr->operand(1)]);
+    case HloOpcode::kReduce: {
+      auto* reduce_instr = Cast<HloReduceInstruction>(instr);
+      llvm::SmallVector<mlir::Value> inputs;
+      for (const HloInstruction* input : reduce_instr->inputs()) {
+        inputs.push_back(values.at(input));
+      }
+      llvm::SmallVector<mlir::Value> inits;
+      for (const HloInstruction* init : reduce_instr->init_values()) {
+        inits.push_back(values.at(init));
+      }
+      return EmitReduceOp(instr, b, inputs, inits);
     }
     case HloOpcode::kReshape:
       return EmitReshapeOp(instr, b, values[instr->operand(0)]);
@@ -1670,6 +1873,17 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
           absl::StrFormat("Unhandled opcode for IR emission: %s",
                           HloOpcodeString(instr->opcode())));
   }
+}
+
+void CpuKernelEmitter::EmitOpInToApply(
+    EmitterLocOpBuilder& b,
+    absl::flat_hash_map<const HloInstruction*, mlir::Value>& values,
+    const HloInstruction* instr) {
+  if (instr->opcode() == HloOpcode::kParameter) return;
+
+  absl::StatusOr<mlir::Value> result = EmitOp(instr, b, values);
+  CHECK(result.ok()) << result.status();
+  values[instr] = result.value();
 }
 
 }  // namespace zkx::cpu

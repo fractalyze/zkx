@@ -182,8 +182,23 @@ TYPED_TEST(IntTest, BroadcastTensorR1ToR3WithD2) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, Concatenate) {
+  this->SetUpConcatenate();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Conditional) {
   this->SetUpConditional();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, DynamicSlice) {
+  this->SetUpDynamicSlice();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, DynamicUpdateSlice) {
+  this->SetUpDynamicUpdateSlice();
   this->RunAndVerify();
 }
 
@@ -194,6 +209,21 @@ TYPED_TEST(IntTest, IotaWithD0) {
 
 TYPED_TEST(IntTest, IotaWithD1) {
   this->SetUpIotaWithD1();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, Map) {
+  this->SetUpMap();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, Pad) {
+  this->SetUpPad();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, Reduce) {
+  this->SetUpReduce();
   this->RunAndVerify();
 }
 

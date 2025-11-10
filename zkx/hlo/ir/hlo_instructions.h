@@ -923,7 +923,7 @@ class HloConcatenateInstruction : public HloDimensionsInstruction {
                                      absl::Span<HloInstruction* const> operands,
                                      int64_t dimension);
   // Accessor for the dimension in which a concatenate HLO should occur.
-  int64_t concatenate_dimension() const override {
+  int64_t concatenate_dimension() const {
     return HloInstruction::dimensions(0);
   }
 

@@ -178,12 +178,16 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kClamp:
     case HloOpcode::kClz:
     case HloOpcode::kCompare:
+    case HloOpcode::kConcatenate:
     case HloOpcode::kConvert:
     case HloOpcode::kDivide:
     case HloOpcode::kDot:
+    case HloOpcode::kDynamicSlice:
+    case HloOpcode::kDynamicUpdateSlice:
     case HloOpcode::kFft:
     case HloOpcode::kInverse:
     case HloOpcode::kIota:
+    case HloOpcode::kMap:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMsm:
@@ -191,8 +195,10 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kNegate:
     case HloOpcode::kNot:
     case HloOpcode::kOr:
+    case HloOpcode::kPad:
     case HloOpcode::kPopulationCount:
     case HloOpcode::kPower:
+    case HloOpcode::kReduce:
     case HloOpcode::kRemainder:
     case HloOpcode::kReshape:
     case HloOpcode::kReverse:

@@ -33,8 +33,8 @@ class AddU32HostKernel : public FunctionLibrary {
       const ZKX_CPU_KernelArg& in = call_frame->args[0];
       const ZKX_CPU_KernelArg& out = call_frame->args[1];
 
-      uint32_t* in_ptr = reinterpret_cast<uint32_t*>(in.aligned);
-      uint32_t* out_ptr = reinterpret_cast<uint32_t*>(out.aligned);
+      uint32_t* in_ptr = reinterpret_cast<uint32_t*>(in.data);
+      uint32_t* out_ptr = reinterpret_cast<uint32_t*>(out.data);
 
       uint64_t i = call_frame->thread->x;
       *(out_ptr + i) = *(in_ptr + i) + *(in_ptr + i);
