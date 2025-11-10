@@ -300,6 +300,7 @@ SmallKernelThunk<num_arguments, num_results>::Execute(
   return Base::ExecuteInternal(params);
 }
 
+// static
 absl::StatusOr<std::unique_ptr<Thunk>> KernelThunk::Create(
     Thunk::Info info,
     absl::Span<const BufferAllocation::Slice> arguments_buffers,
@@ -348,6 +349,7 @@ absl::StatusOr<std::unique_ptr<Thunk>> KernelThunk::Create(
                       thread_dim, min_alignment));
 }
 
+// static
 absl::StatusOr<std::unique_ptr<Thunk>> KernelThunk::Create(
     Thunk::Info info, const KernelSpec& kernel_spec,
     std::optional<uint64_t> min_alignment) {

@@ -258,43 +258,6 @@ class FieldR2TensorBinaryTest : public CudaKernelEmitterTest {
   std::vector<std::vector<F>> expected_;
 };
 
-template <typename F>
-class FieldTest : public CudaKernelEmitterTest {
- public:
-  void SetUp() override {
-    CudaKernelEmitterTest::SetUp();
-    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
-        primitive_util::NativeToPrimitiveType<F>());
-  }
-
- protected:
-  void SetUpSlice() {
-    constexpr static int64_t N = 6;
-    constexpr static int64_t S = 2;
-    constexpr static int64_t E = 5;
-
-    hlo_text_ = absl::Substitute(R"(
-      %f {
-        %x = $0[$1] parameter(0)
-
-        ROOT %ret = $0[$2] slice(%x), slice={[$3:$4]}
-      }
-
-      ENTRY %main {
-        %x = $0[$1] parameter(0)
-
-        ROOT %ret = $0[$2] fusion(%x), kind=kLoop, calls=%f
-      }
-    )",
-                                 x_typename_, N, E - S, S, E);
-
-    auto x = base::CreateVector(N, []() { return F::Random(); });
-    literals_.push_back(LiteralUtil::CreateR1<F>(x));
-    expected_literal_ = LiteralUtil::CreateR1<F>(
-        base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
-  }
-};
-
 }  // namespace zkx::gpu
 
 #endif  // ZKX_BACKENDS_GPU_CODEGEN_FIELD_TEST_H_

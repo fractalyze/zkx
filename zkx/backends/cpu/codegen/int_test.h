@@ -670,6 +670,45 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
         primitive_util::NativeToPrimitiveType<T>());
   }
 
+  void SetUpBroadcastScalar() {
+    constexpr static int64_t N = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[$1] broadcast(%x)
+      }
+    )",
+                                 x_typename_, N);
+
+    auto x = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR0<T>(x));
+    expected_literal_ =
+        LiteralUtil::CreateR1<T>(base::CreateVector(N, [x]() { return x; }));
+  }
+
+  void SetUpBroadcastTensorR1ToR3WithD0() {
+    SetUpBroadcastTensorR1ToR3Helper(2, 0, [](const std::vector<T>& x) {
+      return LiteralUtil::CreateR3<T>(
+          {{{x[0], x[0]}, {x[0], x[0]}}, {{x[1], x[1]}, {x[1], x[1]}}});
+    });
+  }
+
+  void SetUpBroadcastTensorR1ToR3WithD1() {
+    SetUpBroadcastTensorR1ToR3Helper(2, 1, [](const std::vector<T>& x) {
+      return LiteralUtil::CreateR3<T>(
+          {{{x[0], x[0]}, {x[1], x[1]}}, {{x[0], x[0]}, {x[1], x[1]}}});
+    });
+  }
+
+  void SetUpBroadcastTensorR1ToR3WithD2() {
+    SetUpBroadcastTensorR1ToR3Helper(2, 2, [](const std::vector<T>& x) {
+      return LiteralUtil::CreateR3<T>(
+          {{{x[0], x[1]}, {x[0], x[1]}}, {{x[0], x[1]}, {x[0], x[1]}}});
+    });
+  }
+
   void SetUpConditional() {
     hlo_text_ = absl::Substitute(R"(
       %identity {
@@ -696,6 +735,39 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     literals_.push_back(LiteralUtil::CreateR0<bool>(cond));
     literals_.push_back(LiteralUtil::CreateR0<T>(x));
     expected_literal_ = LiteralUtil::CreateR0<T>(cond ? x : -x);
+  }
+
+  void SetUpIotaWithD0() { SetUpIotaHelper(0); }
+
+  void SetUpIotaWithD1() { SetUpIotaHelper(1); }
+
+  void SetUpReshape() {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+    constexpr static int64_t D2 = 4;
+    constexpr static int64_t D0Prime = 8;
+    constexpr static int64_t D1Prime = 3;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+
+        ROOT %ret = $0[$4, $5] reshape(%x)
+      }
+    )",
+                                 x_typename_, D0, D1, D2, D0Prime, D1Prime);
+
+    Array3D<T> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    TF_ASSERT_OK_AND_ASSIGN(expected_literal_,
+                            literals_[0].Reshape({D0Prime, D1Prime}));
   }
 
   void SetUpReverse() {
@@ -753,6 +825,32 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
         base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
   }
 
+  void SetUpTranspose() {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+    constexpr static int64_t D2 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+
+        ROOT %ret = $0[$3, $1, $2] transpose(%x), dimensions={2, 0, 1}
+      }
+    )",
+                                 x_typename_, D0, D1, D2);
+
+    Array3D<T> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    expected_literal_ = literals_[0].Transpose({2, 0, 1});
+  }
+
   void SetUpWhile() {
     hlo_text_ = absl::Substitute(R"(
       %condition {
@@ -794,6 +892,46 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     literals_.push_back(LiteralUtil::CreateR0<uint32_t>(n));
     literals_.push_back(LiteralUtil::CreateR0<T>(x));
     expected_literal_ = LiteralUtil::CreateR0<T>(n * x);
+  }
+
+ private:
+  void SetUpBroadcastTensorR1ToR3Helper(
+      int64_t m, int64_t d,
+      std::function<Literal(const std::vector<T>&)> callback) {
+    hlo_text_ = absl::Substitute(R"(
+    ENTRY %main {
+      %x = $0[$1] parameter(0)
+
+      ROOT %ret = $0[$1, $1, $1] broadcast(%x), dimensions={$2}
+    }
+  )",
+                                 x_typename_, m, d);
+
+    auto x = base::CreateVector(
+        m, []() { return BaseIntTest<T>::GetRandomValue(); });
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    expected_literal_ = callback(x);
+  }
+
+  void SetUpIotaHelper(int64_t iota_dimension) {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        ROOT %ret = $0[$1, $2] iota(), iota_dimension=$3
+      }
+    )",
+                                 x_typename_, D0, D1, iota_dimension);
+    Shape iota_shape(ShapeUtil::MakeShape(
+        primitive_util::NativeToPrimitiveType<T>(), {D0, D1}));
+    Literal result(iota_shape);
+    ShapeUtil::ForEachIndexNoStatus(
+        iota_shape, [&](absl::Span<const int64_t> idx) {
+          result.Set(idx, static_cast<T>(idx[iota_dimension]));
+          return true;
+        });
+    expected_literal_ = std::move(result);
   }
 };
 

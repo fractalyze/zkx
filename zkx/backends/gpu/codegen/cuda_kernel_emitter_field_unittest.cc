@@ -53,7 +53,6 @@ TYPED_TEST(FieldR2TensorBinaryTest, Add) {
 }
 
 // TODO(chokobole): Add FFT, IFFT test
-// TODO(chokobole): Add MSM test
 // TODO(chokobole): Add CSRMatrixVectorMultiplication test
 
 TYPED_TEST_SUITE(FieldTest, FieldTypes);

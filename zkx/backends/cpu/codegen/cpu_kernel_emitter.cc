@@ -1405,6 +1405,73 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDotOp(
       "Dot op with rank %d and rank %d is not supported", rank0, rank1));
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b) {
+  pass_flag_.enable_linalg_to_parallel_loops = true;
+  pass_flag_.enable_lower_affine = true;
+
+  PrimitiveType element_type = instr->shape().element_type();
+  if (!(primitive_util::IsIntegralType(element_type) ||
+        primitive_util::IsFieldType(element_type))) {
+    return absl::UnimplementedError(absl::StrFormat(
+        "Unhandled primitive type: %s",
+        primitive_util::LowercasePrimitiveTypeName(element_type)));
+  }
+
+  auto output_type =
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+  bool is_signed = primitive_util::IsSignedIntegralType(element_type);
+
+  int64_t iota_dimension = instr->iota_dimension();
+  auto iota_op = b.create<mlir::tensor::GenerateOp>(
+      output_type, /*dynamicExtents=*/mlir::ValueRange{},
+      [&](mlir::OpBuilder& nested_b, mlir::Location loc,
+          mlir::ValueRange indices) {
+        mlir::ImplicitLocOpBuilder b(loc, nested_b);
+
+        mlir::Value value_as_index = indices[iota_dimension];
+        mlir::Type element_type =
+            mlir::cast<mlir::RankedTensorType>(output_type).getElementType();
+
+        mlir::Value value;
+        if (element_type.isInteger()) {
+          if (is_signed) {
+            value = b.create<mlir::arith::IndexCastOp>(element_type,
+                                                       value_as_index);
+          } else {
+            value = b.create<mlir::arith::IndexCastUIOp>(element_type,
+                                                         value_as_index);
+          }
+        } else if (auto prime_field_type =
+                       mlir::dyn_cast<mlir::zkir::field::PrimeFieldType>(
+                           element_type)) {
+          value = b.create<mlir::arith::IndexCastUIOp>(
+              prime_field_type.getStorageType(), value_as_index);
+
+          if (prime_field_type.isMontgomery()) {
+            value = b.create<mlir::zkir::field::BitcastOp>(
+                mlir::zkir::field::getStandardFormType(element_type), value);
+            value = b.create<mlir::zkir::field::ToMontOp>(element_type, value);
+          } else {
+            value = b.create<mlir::zkir::field::BitcastOp>(element_type, value);
+          }
+        }
+
+        b.create<mlir::tensor::YieldOp>(value);
+      });
+
+  return iota_op.getResult();
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  auto output_type =
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+  mlir::Value shape = b.create<mlir::arith::ConstantOp>(
+      b.getIndexTensorAttr(instr->shape().dimensions()));
+  return b.create<mlir::tensor::ReshapeOp>(output_type, input, shape);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReverseOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
   pass_flag_.enable_linalg_to_parallel_loops = true;
@@ -1455,10 +1522,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReverseOp(
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
-    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
-    absl::Span<const int64_t> start_indices,
-    absl::Span<const int64_t> limit_indices,
-    absl::Span<const int64_t> strides_in) {
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   pass_flag_.enable_expand_strided_metadata = true;
 
   const Shape& shape = instr->shape();
@@ -1475,14 +1539,31 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
   llvm::SmallVector<mlir::OpFoldResult> sizes;
   llvm::SmallVector<mlir::OpFoldResult> strides;
 
+  absl::Span<const int64_t> slices_starts = instr->slice_starts();
+  absl::Span<const int64_t> slices_limits = instr->slice_limits();
+  absl::Span<const int64_t> slices_strides = instr->slice_strides();
+
   for (int64_t i = 0; i < shape.rank(); ++i) {
-    offsets.push_back(b.getIndexAttr(start_indices[i]));
-    sizes.push_back(b.getIndexAttr(limit_indices[i] - start_indices[i]));
-    strides.push_back(b.getIndexAttr(strides_in[i]));
+    offsets.push_back(b.getIndexAttr(slices_starts[i]));
+    sizes.push_back(b.getIndexAttr(slices_limits[i] - slices_starts[i]));
+    strides.push_back(b.getIndexAttr(slices_strides[i]));
   }
 
   return b.create<mlir::tensor::ExtractSliceOp>(result_type, value, offsets,
                                                 sizes, strides);
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitTransposeOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  pass_flag_.enable_linalg_to_parallel_loops = true;
+
+  auto output = b.create<mlir::tensor::EmptyOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      mlir::ValueRange{});
+
+  return b
+      .create<mlir::linalg::TransposeOp>(input, output, instr->dimensions())
+      ->getResult(0);
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
@@ -1522,6 +1603,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
     case HloOpcode::kNot:
     case HloOpcode::kPopulationCount:
     case HloOpcode::kSign: {
+      enable_flag(instr->operand(0)->shape().element_type());
       return EmitUnaryOp(instr, b, values[instr->operand(0)]);
     }
     case HloOpcode::kAdd:
@@ -1544,33 +1626,21 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitBinaryOp(instr, b, values[instr->operand(0)],
                           values[instr->operand(1)]);
     }
-    case HloOpcode::kBroadcast: {
-      enable_flag(instr->operand(0)->shape().element_type());
+    case HloOpcode::kBroadcast:
       return EmitBroadcastOp(instr, b, values[instr->operand(0)],
                              instr->dimensions());
-    }
     case HloOpcode::kClamp:
-    case HloOpcode::kSelect: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      enable_flag(instr->operand(1)->shape().element_type());
-      enable_flag(instr->operand(2)->shape().element_type());
+    case HloOpcode::kSelect:
       return EmitTernaryOp(instr, b, values[instr->operand(0)],
                            values[instr->operand(1)],
                            values[instr->operand(2)]);
-    }
-    case HloOpcode::kDot: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      enable_flag(instr->operand(1)->shape().element_type());
+    case HloOpcode::kDot:
       return EmitDotOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
-    }
     case HloOpcode::kFft: {
       if (instr->operand_count() == 1) {
-        enable_flag(instr->operand(0)->shape().element_type());
         return EmitFftOp(instr, b, values[instr->operand(0)]);
       } else if (instr->operand_count() == 2) {
-        enable_flag(instr->operand(0)->shape().element_type());
-        enable_flag(instr->operand(1)->shape().element_type());
         return EmitFftOp(instr, b, values[instr->operand(0)],
                          values[instr->operand(1)]);
       } else {
@@ -1578,22 +1648,22 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
             "HloFftInstruction shouldn't have more than 2 arguments");
       }
     }
+    case HloOpcode::kIota:
+      return EmitIotaOp(instr, b);
     case HloOpcode::kMsm: {
       enable_flag(instr->operand(0)->shape().element_type());
       enable_flag(instr->operand(1)->shape().element_type());
       return EmitMsmOp(instr, b, values[instr->operand(0)],
                        values[instr->operand(1)]);
     }
-    case HloOpcode::kReverse: {
-      enable_flag(instr->operand(0)->shape().element_type());
+    case HloOpcode::kReshape:
+      return EmitReshapeOp(instr, b, values[instr->operand(0)]);
+    case HloOpcode::kReverse:
       return EmitReverseOp(instr, b, values[instr->operand(0)]);
-    }
-    case HloOpcode::kSlice: {
-      enable_flag(instr->operand(0)->shape().element_type());
-      return EmitSliceOp(instr, b, values[instr->operand(0)],
-                         instr->slice_starts(), instr->slice_limits(),
-                         instr->slice_strides());
-    }
+    case HloOpcode::kSlice:
+      return EmitSliceOp(instr, b, values[instr->operand(0)]);
+    case HloOpcode::kTranspose:
+      return EmitTransposeOp(instr, b, values[instr->operand(0)]);
 
     default:
       return absl::UnimplementedError(

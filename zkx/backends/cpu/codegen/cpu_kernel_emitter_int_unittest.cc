@@ -162,8 +162,43 @@ TYPED_TEST(IntR2TensorBinaryTest, Add) {
 
 TYPED_TEST_SUITE(IntTest, IntTypes);
 
+TYPED_TEST(IntTest, BroadcastScalar) {
+  this->SetUpBroadcastScalar();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, BroadcastTensorR1ToR3WithD0) {
+  this->SetUpBroadcastTensorR1ToR3WithD0();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, BroadcastTensorR1ToR3WithD1) {
+  this->SetUpBroadcastTensorR1ToR3WithD1();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, BroadcastTensorR1ToR3WithD2) {
+  this->SetUpBroadcastTensorR1ToR3WithD2();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Conditional) {
   this->SetUpConditional();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, IotaWithD0) {
+  this->SetUpIotaWithD0();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, IotaWithD1) {
+  this->SetUpIotaWithD1();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, Reshape) {
+  this->SetUpReshape();
   this->RunAndVerify();
 }
 
@@ -174,6 +209,11 @@ TYPED_TEST(IntTest, Reverse) {
 
 TYPED_TEST(IntTest, Slice) {
   this->SetUpSlice();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, Transpose) {
+  this->SetUpTranspose();
   this->RunAndVerify();
 }
 

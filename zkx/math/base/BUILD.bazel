@@ -147,9 +147,9 @@ zkx_cc_library(
         "//zkx/base:random",
         "//zkx/base/buffer:serde",
         "//zkx/base/buffer:vector_buffer",
+        "@com_google_absl//absl/base",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
     ],
 )
 

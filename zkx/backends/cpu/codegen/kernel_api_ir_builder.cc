@@ -375,7 +375,6 @@ llvm::Value* KernelApiIrBuilder::EmitKernelArgument(
   llvm::Value* index_val = llvm::ConstantInt::get(builder.getInt32Ty(), index);
   llvm::Value* arg_gep =
       builder.CreateInBoundsGEP(arg_ty_, args, {index_val}, name + "_gep");
-  // llvm::LoadInst* arg = builder.CreateLoad(ptr, arg_gep, name);
 
   return arg_gep;
 }

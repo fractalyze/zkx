@@ -183,6 +183,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kDot:
     case HloOpcode::kFft:
     case HloOpcode::kInverse:
+    case HloOpcode::kIota:
     case HloOpcode::kMaximum:
     case HloOpcode::kMinimum:
     case HloOpcode::kMsm:
@@ -193,6 +194,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kPopulationCount:
     case HloOpcode::kPower:
     case HloOpcode::kRemainder:
+    case HloOpcode::kReshape:
     case HloOpcode::kReverse:
     case HloOpcode::kSelect:
     case HloOpcode::kShiftLeft:
@@ -201,6 +203,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kSign:
     case HloOpcode::kSlice:
     case HloOpcode::kSubtract:
+    case HloOpcode::kTranspose:
     case HloOpcode::kXor:
       return EmitKernelThunk(instr);
     case HloOpcode::kAllGather:
