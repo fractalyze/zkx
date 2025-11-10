@@ -175,6 +175,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kAnd:
     case HloOpcode::kBitcastConvert:
     case HloOpcode::kBroadcast:
+    case HloOpcode::kClamp:
     case HloOpcode::kClz:
     case HloOpcode::kCompare:
     case HloOpcode::kConvert:
@@ -187,8 +188,16 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kMsm:
     case HloOpcode::kMultiply:
     case HloOpcode::kNegate:
+    case HloOpcode::kNot:
     case HloOpcode::kOr:
+    case HloOpcode::kPopulationCount:
     case HloOpcode::kPower:
+    case HloOpcode::kRemainder:
+    case HloOpcode::kReverse:
+    case HloOpcode::kSelect:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
     case HloOpcode::kSign:
     case HloOpcode::kSlice:
     case HloOpcode::kSubtract:

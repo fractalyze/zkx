@@ -14,10 +14,25 @@ mlir::Value ConvertInteger(
     mlir::Type source_type, mlir::Type target_type, mlir::ValueRange args,
     bool is_signed, mlir::ArrayRef<mlir::NamedAttribute> attributes = {});
 
+mlir::Value DivideInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value lhs,
+                          mlir::Value rhs, bool is_signed);
+
 mlir::Value PowerInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value lhs,
                          mlir::Value rhs, bool is_signed);
 
+mlir::Value RemainderInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value lhs,
+                             mlir::Value rhs, bool is_signed);
+
 mlir::Value SignInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value value);
+
+mlir::Value ShiftLeftInteger(mlir::ImplicitLocOpBuilder& b, mlir::Value lhs,
+                             mlir::Value rhs);
+
+mlir::Value ShiftRightArithmeticInteger(mlir::ImplicitLocOpBuilder& b,
+                                        mlir::Value lhs, mlir::Value rhs);
+
+mlir::Value ShiftRightLogicalInteger(mlir::ImplicitLocOpBuilder& b,
+                                     mlir::Value lhs, mlir::Value rhs);
 
 }  // namespace zkx::mlir_utils
 

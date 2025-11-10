@@ -90,6 +90,12 @@ class CpuKernelEmitter final : public KernelEmitter {
                                            mlir::Value lhs_value,
                                            mlir::Value rhs_value);
 
+  absl::StatusOr<mlir::Value> EmitTernaryOp(const HloInstruction* instr,
+                                            EmitterLocOpBuilder& b,
+                                            mlir::Value value1,
+                                            mlir::Value value2,
+                                            mlir::Value value3);
+
   absl::StatusOr<mlir::Value> EmitFftOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
       mlir::Value twiddle_factor = mlir::Value());
@@ -98,13 +104,17 @@ class CpuKernelEmitter final : public KernelEmitter {
                                         EmitterLocOpBuilder& b,
                                         mlir::Value scalars, mlir::Value bases);
 
-  absl::StatusOr<mlir::Value> EmitDimensionsOp(
+  absl::StatusOr<mlir::Value> EmitBroadcastOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
       absl::Span<const int64_t> source_dimensions);
 
   absl::StatusOr<mlir::Value> EmitDotOp(const HloInstruction* instr,
                                         EmitterLocOpBuilder& b, mlir::Value lhs,
                                         mlir::Value rhs);
+
+  absl::StatusOr<mlir::Value> EmitReverseOp(const HloInstruction* instr,
+                                            EmitterLocOpBuilder& b,
+                                            mlir::Value value);
 
   absl::StatusOr<mlir::Value> EmitSliceOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
@@ -140,6 +150,22 @@ class CpuKernelEmitter final : public KernelEmitter {
                                                   EmitterLocOpBuilder& b,
                                                   mlir::Value lhs_value,
                                                   mlir::Value rhs_value);
+
+  absl::StatusOr<mlir::Value> EmitIntegerTernaryOp(
+      const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value1,
+      mlir::Value value2, mlir::Value value3, bool is_signed);
+
+  absl::StatusOr<mlir::Value> EmitFieldTernaryOp(const HloInstruction* instr,
+                                                 EmitterLocOpBuilder& b,
+                                                 mlir::Value value1,
+                                                 mlir::Value value2,
+                                                 mlir::Value value3);
+
+  absl::StatusOr<mlir::Value> EmitEcPointTernaryOp(const HloInstruction* instr,
+                                                   EmitterLocOpBuilder& b,
+                                                   mlir::Value value1,
+                                                   mlir::Value value2,
+                                                   mlir::Value value3);
 
   absl::StatusOr<mlir::Value> EmitMatrixVectorMultiplicationOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs,

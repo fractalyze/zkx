@@ -67,6 +67,18 @@ TYPED_TEST(FieldScalarBinaryTest, Sub) {
   this->RunAndVerify();
 }
 
+TYPED_TEST_SUITE(FieldScalarTernaryTest, FieldTypes);
+
+TYPED_TEST(FieldScalarTernaryTest, Clamp) {
+  this->SetUpClamp();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(FieldScalarTernaryTest, Select) {
+  this->SetUpSelect();
+  this->RunAndVerify();
+}
+
 TYPED_TEST_SUITE(FieldR1TensorUnaryTest, FieldTypes);
 
 TYPED_TEST(FieldR1TensorUnaryTest, BatchInverse) {
@@ -122,6 +134,11 @@ TYPED_TEST(FieldTest, BroadcastTensorR1ToR3WithD2) {
 
 TYPED_TEST(FieldTest, CSRMatrixVectorMultiplication) {
   this->SetUpCSRMatrixVectorMultiplication();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(FieldTest, Reverse) {
+  this->SetUpReverse();
   this->RunAndVerify();
 }
 

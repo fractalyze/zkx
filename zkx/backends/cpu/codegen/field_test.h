@@ -246,6 +246,62 @@ class FieldScalarBinaryTest : public CpuKernelEmitterTest {
 };
 
 template <typename F>
+class FieldScalarTernaryTest : public CpuKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CpuKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<F>());
+    x_ = F::Random();
+    y_ = F::Random();
+    z_ = F::Random();
+    literals_.push_back(LiteralUtil::CreateR0<F>(x_));
+    literals_.push_back(LiteralUtil::CreateR0<F>(y_));
+    literals_.push_back(LiteralUtil::CreateR0<F>(z_));
+  }
+
+ protected:
+  void SetUpClamp() {
+    if (x_ > z_) {
+      std::swap(x_, z_);
+      std::swap(literals_[0], literals_[2]);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %min = $0[] parameter(0)
+        %operand = $0[] parameter(1)
+        %max = $0[] parameter(2)
+
+        ROOT %ret = $0[] clamp(%min, %operand, %max)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(std::clamp(y_, x_, z_));
+  }
+
+  void SetUpSelect() {
+    bool cond = x_[0] % 2 == 0;
+    literals_[0] = LiteralUtil::CreateR0<bool>(cond);
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+        %y = $0[] parameter(2)
+
+        ROOT %ret = $0[] select(%cond, %x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(cond ? y_ : z_);
+  }
+
+ private:
+  F x_;
+  F y_;
+  F z_;
+};
+
+template <typename F>
 class FieldR1TensorUnaryTest : public CpuKernelEmitterTest {
  public:
   constexpr static int64_t N = 4;
@@ -549,6 +605,40 @@ class FieldTest : public CpuKernelEmitterTest {
       }
     }
     expected_literal_ = LiteralUtil::CreateR1<F>(expected);
+  }
+
+  void SetUpReverse() {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+    constexpr static int64_t D2 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+
+        ROOT %ret = $0[$1, $2, $3] reverse(%x), dimensions={0, 2}
+      }
+    )",
+                                 x_typename_, D0, D1, D2);
+
+    Array3D<F> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = F::Random();
+        }
+      }
+    }
+    Array3D<F> expected_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          expected_array({i, j, k}) = x_array({D0 - i - 1, j, D2 - k - 1});
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<F>(x_array));
+    expected_literal_ = LiteralUtil::CreateR3FromArray3D<F>(expected_array);
   }
 
   void SetUpSlice() {

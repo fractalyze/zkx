@@ -152,6 +152,30 @@ class IntScalarUnaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(-x_);
   }
 
+  void SetUpNot() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] not(%x)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(~x_);
+  }
+
+  void SetUpPopulationCount() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] popcnt(%x)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(__builtin_popcount(x_));
+  }
+
   void SetUpSign() {
     uint32_t case_num = base::Uniform<uint32_t>() % 2;
     if (case_num == 0) {
@@ -258,6 +282,19 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
   }
 
   void SetUpDiv() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 3;
+    if (case_num == 0) {
+      y_ = 0;
+      literals_[1] = LiteralUtil::CreateR0<T>(y_);
+    } else if (case_num == 1) {
+      if (std::is_signed_v<T>) {
+        x_ = std::numeric_limits<T>::min();
+        literals_[0] = LiteralUtil::CreateR0<T>(x_);
+        y_ = -1;
+        literals_[1] = LiteralUtil::CreateR0<T>(y_);
+      }
+    }
+
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {
         %x = $0[] parameter(0)
@@ -268,18 +305,16 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     )",
                                  x_typename_);
 
-    // Re-sample divisor `y_` until it is safe to divide:
-    //  - Disallow zero to avoid division-by-zero.
-    //  - For signed T, also disallow the INT_MIN / -1 pattern:
-    //      If x_ == std::numeric_limits<T>::min() and y_ == -1,
-    //      then x_ / y_ triggers undefined behavior on two's-complement
-    //      because -min(T) is not representable.
-    while (y_ == 0 || (std::is_signed_v<T> && y_ == -1 &&
-                       x_ == std::numeric_limits<T>::min())) {
-      y_ = BaseIntTest<T>::GetRandomValue();
-      literals_[1] = LiteralUtil::CreateR0<T>(y_);
+    T expected;
+    if (y_ == 0) {
+      expected = -1;
+    } else if (std::is_signed_v<T> && x_ == std::numeric_limits<T>::min() &&
+               y_ == -1) {
+      expected = std::numeric_limits<T>::min();
+    } else {
+      expected = x_ / y_;
     }
-    expected_literal_ = LiteralUtil::CreateR0<T>(x_ / y_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
   }
 
   void SetUpMaximum() {
@@ -365,6 +400,108 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(expected);
   }
 
+  void SetUpRemainder() {
+    uint32_t case_num = base::Uniform<uint32_t>() % 3;
+    if (case_num == 0) {
+      y_ = 0;
+      literals_[1] = LiteralUtil::CreateR0<T>(y_);
+    } else if (case_num == 1) {
+      if (std::is_signed_v<T>) {
+        x_ = std::numeric_limits<T>::min();
+        literals_[0] = LiteralUtil::CreateR0<T>(x_);
+        y_ = -1;
+        literals_[1] = LiteralUtil::CreateR0<T>(y_);
+      }
+    }
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] remainder(%x, %y)
+      }
+    )",
+                                 x_typename_);
+
+    T expected;
+    if (y_ == 0) {
+      expected = x_;
+    } else if (std::is_signed_v<T> && x_ == std::numeric_limits<T>::min() &&
+               y_ == -1) {
+      expected = 0;
+    } else {
+      expected = x_ % y_;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
+  }
+
+  void SetUpShiftLeft() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] shift-left(%x, %y)
+      }
+    )",
+                                 x_typename_);
+
+    T expected;
+    if (IsShiftOutOfBounds(y_)) {
+      expected = 0;
+    } else {
+      expected = x_ << y_;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
+  }
+
+  void SetUpShiftRightArithmetic() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] shift-right-arithmetic(%x, %y)
+      }
+    )",
+                                 x_typename_);
+
+    T expected;
+    if (IsShiftOutOfBounds(y_)) {
+      using SignedT = std::make_signed_t<T>;
+      auto x_signed = static_cast<SignedT>(x_);
+      if (x_signed < 0) {
+        expected = -1;
+      } else {
+        expected = 0;
+      }
+    } else {
+      expected = x_ >> y_;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
+  }
+
+  void SetUpShiftRightLogical() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] shift-right-logical(%x, %y)
+      }
+    )",
+                                 x_typename_);
+
+    T expected;
+    if (IsShiftOutOfBounds(y_)) {
+      expected = 0;
+    } else {
+      expected = x_ >> y_;
+    }
+    expected_literal_ = LiteralUtil::CreateR0<T>(expected);
+  }
+
   void SetUpSub() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {
@@ -392,8 +529,73 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
   }
 
  private:
+  static bool IsShiftOutOfBounds(T rhs) {
+    using UnsignedT = std::make_unsigned_t<T>;
+    UnsignedT lhs_bits_unsigned =
+        static_cast<UnsignedT>(std::numeric_limits<UnsignedT>::digits);
+    UnsignedT rhs_unsigned = static_cast<UnsignedT>(rhs);
+    return rhs_unsigned >= lhs_bits_unsigned;
+  }
+
   T x_;
   T y_;
+};
+
+template <typename T>
+class IntScalarTernaryTest : public BaseIntTest<T>,
+                             public CpuKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CpuKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<T>());
+    x_ = BaseIntTest<T>::GetRandomValue();
+    y_ = BaseIntTest<T>::GetRandomValue();
+    z_ = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR0<T>(x_));
+    literals_.push_back(LiteralUtil::CreateR0<T>(y_));
+    literals_.push_back(LiteralUtil::CreateR0<T>(z_));
+  }
+
+ protected:
+  void SetUpClamp() {
+    if (x_ > z_) {
+      std::swap(x_, z_);
+      std::swap(literals_[0], literals_[2]);
+    }
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %min = $0[] parameter(0)
+        %operand = $0[] parameter(1)
+        %max = $0[] parameter(2)
+
+        ROOT %ret = $0[] clamp(%min, %operand, %max)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(std::clamp(y_, x_, z_));
+  }
+
+  void SetUpSelect() {
+    bool cond = x_ % 2 == 0;
+    literals_[0] = LiteralUtil::CreateR0<bool>(cond);
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+        %y = $0[] parameter(2)
+
+        ROOT %ret = $0[] select(%cond, %x, %y)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>(cond ? y_ : z_);
+  }
+
+ private:
+  T x_;
+  T y_;
+  T z_;
 };
 
 template <typename T>
@@ -494,6 +696,40 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     literals_.push_back(LiteralUtil::CreateR0<bool>(cond));
     literals_.push_back(LiteralUtil::CreateR0<T>(x));
     expected_literal_ = LiteralUtil::CreateR0<T>(cond ? x : -x);
+  }
+
+  void SetUpReverse() {
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 3;
+    constexpr static int64_t D2 = 4;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+
+        ROOT %ret = $0[$1, $2, $3] reverse(%x), dimensions={0, 2}
+      }
+    )",
+                                 x_typename_, D0, D1, D2);
+
+    Array3D<T> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    Array3D<T> expected_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          expected_array({i, j, k}) = x_array({D0 - i - 1, j, D2 - k - 1});
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    expected_literal_ = LiteralUtil::CreateR3FromArray3D<T>(expected_array);
   }
 
   void SetUpSlice() {

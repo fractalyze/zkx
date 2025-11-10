@@ -2,11 +2,76 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/IR/Location.h"
+#include "mlir/IR/TypeUtilities.h"
 
 namespace zkx::mlir_utils {
 
 using namespace mlir;
+
+namespace {
+
+Value GetConstantOrSplat(ImplicitLocOpBuilder& b, Type t, Attribute v) {
+  if (VectorType vecType = dyn_cast<VectorType>(t)) {
+    v = SplatElementsAttr::get(vecType, v);
+  }
+  return b.create<arith::ConstantOp>(t, cast<TypedAttr>(v));
+}
+
+template <typename U, typename S>
+Value DivideOrRemainderIntegerHelper(ImplicitLocOpBuilder& b, Value lhs,
+                                     Value rhs, bool is_signed,
+                                     Value returned_on_zero,
+                                     Value returned_on_signed_overflow) {
+  Type type = lhs.getType();
+  auto element_type = cast<IntegerType>(getElementTypeOrSelf(type));
+  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
+  auto make_constant = [&](const APInt& i) {
+    return GetConstantOrSplat(b, type, b.getIntegerAttr(element_type, i));
+  };
+  Value one = make_constant(APInt(element_type.getWidth(), 1));
+  Value rhs_is_zero =
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, rhs, zero);
+
+  // For unsigned just set the divisor to 1 when it would be 0.
+  if (!is_signed) {
+    Value safeRhs = b.create<arith::SelectOp>(rhs_is_zero, one, rhs);
+    Value safeDiv = b.create<U>(lhs, safeRhs);
+    return b.create<arith::SelectOp>(rhs_is_zero, returned_on_zero, safeDiv);
+  }
+
+  // For signed also check for INT_SMIN / -1.
+  Value smin = make_constant(APInt::getSignedMinValue(element_type.getWidth()));
+  Value lhs_is_smin =
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, lhs, smin);
+  Value minus_one = make_constant(APInt::getAllOnes(element_type.getWidth()));
+  Value rhs_is_minus_one =
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, rhs, minus_one);
+  Value has_int_min_overflow =
+      b.create<arith::AndIOp>(lhs_is_smin, rhs_is_minus_one);
+  Value rhs_is_unsafe =
+      b.create<arith::OrIOp>(rhs_is_zero, has_int_min_overflow);
+  Value safe_rhs = b.create<arith::SelectOp>(rhs_is_unsafe, one, rhs);
+  Value safe_div = b.create<S>(lhs, safe_rhs);
+  Value safe_smin = b.create<arith::SelectOp>(
+      has_int_min_overflow, returned_on_signed_overflow, safe_div);
+  return b.create<arith::SelectOp>(rhs_is_zero, returned_on_zero, safe_smin);
+}
+
+// Construct operations to select the saturated value if the shift amount is
+// greater than the bitwidth of the type.
+Value SelectShiftedOrSaturated(ImplicitLocOpBuilder& b, Value rhs,
+                               Value shifted, Value saturated, Type type) {
+  Type etype =
+      isa<ShapedType>(type) ? cast<ShapedType>(type).getElementType() : type;
+  auto bit_width_int = cast<IntegerType>(etype).getWidth();
+  Value bit_width =
+      GetConstantOrSplat(b, type, b.getIntegerAttr(etype, bit_width_int));
+  Value cmp =
+      b.create<arith::CmpIOp>(arith::CmpIPredicate::ugt, bit_width, rhs);
+  return b.create<arith::SelectOp>(cmp, shifted, saturated);
+}
+
+}  // namespace
 
 Value ConvertInteger(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
                      Type source_type, Type target_type, ValueRange args,
@@ -34,6 +99,29 @@ Value ConvertInteger(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
   }
   // No conversion is needed for the same width integers
   return args.front();
+}
+
+Value DivideInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
+                    bool is_signed) {
+  // Integer division overflow behavior:
+  //
+  // X / 0 == -1
+  // INT_SMIN /s -1 = INT_SMIN
+  Type type = lhs.getType();
+  Type elementType = getElementTypeOrSelf(type);
+  auto integer_element_type = cast<IntegerType>(elementType);
+  auto make_constant = [&](const APInt& i) {
+    return GetConstantOrSplat(b, type,
+                              b.getIntegerAttr(integer_element_type, i));
+  };
+  Value minus_one =
+      make_constant(APInt::getAllOnes(integer_element_type.getWidth()));
+  Value smin =
+      make_constant(APInt::getSignedMinValue(integer_element_type.getWidth()));
+  return DivideOrRemainderIntegerHelper<arith::DivUIOp, arith::DivSIOp>(
+      b, lhs, rhs, is_signed,
+      /*returned_on_zero=*/minus_one,
+      /*returned_on_signed_overflow=*/smin);
 }
 
 Value PowerInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
@@ -106,6 +194,20 @@ Value PowerInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
   return b.create<arith::SelectOp>(rhs_is_negative, if_lhs_is_neg_one, accum);
 }
 
+Value RemainderInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
+                       bool is_signed) {
+  // Integer remainder overflow behavior:
+  //
+  // X % 0 == X
+  // INT_SMIN %s -1 = 0
+  Type type = lhs.getType();
+  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
+  return DivideOrRemainderIntegerHelper<arith::RemUIOp, arith::RemSIOp>(
+      b, lhs, rhs, is_signed,
+      /*returned_on_zero=*/lhs,
+      /*returned_on_signed_overflow=*/zero);
+}
+
 Value SignInteger(ImplicitLocOpBuilder& b, Value value) {
   // sign(x) = x == 0 ? 0 : ((x >>s (width - 1)) | 1)
   IntegerType integer_type = cast<IntegerType>(value.getType());
@@ -117,6 +219,39 @@ Value SignInteger(ImplicitLocOpBuilder& b, Value value) {
   Value shr = b.create<arith::ShRSIOp>(value, bit_width_minus_one);
   Value or_op = b.create<arith::OrIOp>(shr, one);
   return b.create<arith::SelectOp>(cmp, zero, or_op);
+}
+
+Value ShiftLeftInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs) {
+  Type type = lhs.getType();
+
+  // "Saturate" if the shift is greater than the bitwidth of the type
+  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
+  Value shifted = b.create<arith::ShLIOp>(lhs, rhs);
+  return SelectShiftedOrSaturated(b, rhs, shifted, zero, type);
+}
+
+Value ShiftRightArithmeticInteger(ImplicitLocOpBuilder& b, Value lhs,
+                                  Value rhs) {
+  Type type = lhs.getType();
+  Type etype =
+      isa<ShapedType>(type) ? cast<ShapedType>(type).getElementType() : type;
+  auto bit_width_int = cast<IntegerType>(etype).getWidth();
+
+  // "Saturate" if the shift is greater than the bitwidth of the type
+  Value max_shift =
+      GetConstantOrSplat(b, type, b.getIntegerAttr(etype, bit_width_int - 1));
+  Value saturated_shifted = b.create<arith::ShRSIOp>(lhs, max_shift);
+  Value shifted = b.create<arith::ShRSIOp>(lhs, rhs);
+  return SelectShiftedOrSaturated(b, rhs, shifted, saturated_shifted, type);
+}
+
+Value ShiftRightLogicalInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs) {
+  Type type = lhs.getType();
+
+  // "Saturate" if the shift is greater than the bitwidth of the type
+  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
+  Value shifted = b.create<arith::ShRUIOp>(lhs, rhs);
+  return SelectShiftedOrSaturated(b, rhs, shifted, zero, type);
 }
 
 }  // namespace zkx::mlir_utils

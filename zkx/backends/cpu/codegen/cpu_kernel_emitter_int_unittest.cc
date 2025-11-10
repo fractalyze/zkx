@@ -45,6 +45,16 @@ TYPED_TEST(IntScalarUnaryTest, Negate) {
   }
 }
 
+TYPED_TEST(IntScalarUnaryTest, Not) {
+  this->SetUpNot();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarUnaryTest, PopulationCount) {
+  this->SetUpPopulationCount();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarUnaryTest, Sign) {
   if (std::is_signed_v<TypeParam>) {
     this->SetUpSign();
@@ -91,6 +101,21 @@ TYPED_TEST(IntScalarBinaryTest, Mul) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, ShiftLeft) {
+  this->SetUpShiftLeft();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, ShiftRightArithmetic) {
+  this->SetUpShiftRightArithmetic();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarBinaryTest, ShiftRightLogical) {
+  this->SetUpShiftRightLogical();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarBinaryTest, Sub) {
   this->SetUpSub();
   this->RunAndVerify();
@@ -106,8 +131,25 @@ TYPED_TEST(IntScalarBinaryTest, Power) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, Remainder) {
+  this->SetUpRemainder();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntScalarBinaryTest, Xor) {
   this->SetUpXor();
+  this->RunAndVerify();
+}
+
+TYPED_TEST_SUITE(IntScalarTernaryTest, IntTypes);
+
+TYPED_TEST(IntScalarTernaryTest, Clamp) {
+  this->SetUpClamp();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntScalarTernaryTest, Select) {
+  this->SetUpSelect();
   this->RunAndVerify();
 }
 
@@ -122,6 +164,11 @@ TYPED_TEST_SUITE(IntTest, IntTypes);
 
 TYPED_TEST(IntTest, Conditional) {
   this->SetUpConditional();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, Reverse) {
+  this->SetUpReverse();
   this->RunAndVerify();
 }
 
