@@ -91,7 +91,7 @@ def zkx_deps():
         name = "zkir",
         sha256 = "0419ae398c6170dfdfeaa6df5e4add866121d5bbfe595d721eb632de65166beb",
         strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
-        urls = tf_mirror_urls("https://github.com/zk-rabbit/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
+        urls = tf_mirror_urls("https://github.com/fractalyze/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
     )
     # Uncomment this for development!
     # native.local_repository(
@@ -105,5 +105,5 @@ def zkx_deps():
         name = "version",
         sha256 = "2e65daa275198d4fa6e2081746a48b70999f5a6c0b533478b5ce77752d5ad54c",
         strip_prefix = "version-{commit}".format(commit = VERSION_COMMIT),
-        urls = tf_mirror_urls("https://github.com/zk-rabbit/version/archive/{commit}.tar.gz".format(commit = VERSION_COMMIT)),
+        urls = tf_mirror_urls("https://github.com/fractalyze/version/archive/{commit}.tar.gz".format(commit = VERSION_COMMIT)),
     )

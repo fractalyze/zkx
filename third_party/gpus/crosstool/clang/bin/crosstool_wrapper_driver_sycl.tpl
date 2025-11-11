@@ -56,7 +56,7 @@ def main():
   parser = ArgumentParser()
   parser = ArgumentParser(fromfile_prefix_chars='@')
   # NOTE(chokobole): Gemini said that we don't use this flag.
-  # See https://github.com/zk-rabbit/zkx/pull/32#discussion_r2268367247.
+  # See https://github.com/fractalyze/zkx/pull/32#discussion_r2268367247.
   # parser.add_argument('-sycl_compile', action='store_true')
   args, leftover = parser.parse_known_args(sys.argv[1:])
 

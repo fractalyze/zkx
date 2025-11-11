@@ -23,7 +23,7 @@ import sys
 # NOTE(chokobole): Gemini suggested replacing `pipes` (deprecated since Python 3.3,
 # removed in Python 3.9) with `shlex`, which is already imported in other scripts
 # in this PR.
-# See: https://github.com/zk-rabbit/zkx/pull/32#discussion_r2268367251
+# See: https://github.com/fractalyze/zkx/pull/32#discussion_r2268367251
 import shlex
 
 # Template values set by rocm_configure.bzl.

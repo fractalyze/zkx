@@ -71,7 +71,7 @@ class ContextMap {
     CHECK(it != gpu_context_to_context_type_map_.end()) << context;
 
     // NOTE(chokobole): This change was made for optimization. See
-    // https://github.com/zk-rabbit/zkx/pull/41#discussion_r2281081287.
+    // https://github.com/fractalyze/zkx/pull/41#discussion_r2281081287.
     const int device_ordinal = it->second->device_ordinal();
     gpu_context_to_context_type_map_.erase(it);
 

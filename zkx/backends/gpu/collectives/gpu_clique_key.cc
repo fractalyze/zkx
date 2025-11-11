@@ -133,7 +133,8 @@ bool operator<(const GpuCliqueKey& a, const GpuCliqueKey& b) {
   // caused the unittests to fail. To resolve this, the unittest was updated
   // to use the opposite comparison.
   // See: GpuCliqueKeyTest.Compare in gpu_clique_key_unittest.cc
-  // Discussion: https://github.com/zk-rabbit/zkx/pull/31#discussion_r2266711030
+  // Discussion:
+  // https://github.com/fractalyze/zkx/pull/31#discussion_r2266711030
   return a.stream_id_.value() > b.stream_id_.value();
 }
 
