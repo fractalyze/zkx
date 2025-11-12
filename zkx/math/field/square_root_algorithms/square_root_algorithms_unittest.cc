@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
 
-#include "zkx/math/base/square_root_algorithms/shanks.h"
-#include "zkx/math/base/square_root_algorithms/square_root_algorithm9.h"
-#include "zkx/math/base/square_root_algorithms/tonelli_shanks.h"
 #include "zkx/math/elliptic_curve/short_weierstrass/test/sw_curve_config.h"
+#include "zkx/math/field/square_root_algorithms/shanks.h"
+#include "zkx/math/field/square_root_algorithms/square_root_algorithm9.h"
+#include "zkx/math/field/square_root_algorithms/tonelli_shanks.h"
 
 namespace zkx::math::test {
 

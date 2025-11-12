@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_BASE_FIELD_H_
-#define ZKX_MATH_BASE_FIELD_H_
+#ifndef ZKX_MATH_FIELD_FIELD_H_
+#define ZKX_MATH_FIELD_FIELD_H_
 
 namespace zkx::math {
 
@@ -13,4 +13,4 @@ constexpr bool IsField = IsFieldImpl<T>::value;
 
 }  // namespace zkx::math
 
-#endif  // ZKX_MATH_BASE_FIELD_H_
+#endif  // ZKX_MATH_FIELD_FIELD_H_

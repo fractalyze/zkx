@@ -3,12 +3,12 @@
 // can be found in the LICENSE-MIT.arkworks and the LICENCE-APACHE.arkworks
 // file.
 
-#ifndef ZKX_MATH_BASE_SQUARE_ROOT_ALGORITHMS_TONELLI_SHANKS_H_
-#define ZKX_MATH_BASE_SQUARE_ROOT_ALGORITHMS_TONELLI_SHANKS_H_
+#ifndef ZKX_MATH_FIELD_SQUARE_ROOT_ALGORITHMS_TONELLI_SHANKS_H_
+#define ZKX_MATH_FIELD_SQUARE_ROOT_ALGORITHMS_TONELLI_SHANKS_H_
 
 #include "absl/status/statusor.h"
 
-#include "zkx/math/base/finite_field_traits.h"
+#include "zkx/math/field/finite_field_traits.h"
 
 namespace zkx::math {
 
@@ -121,4 +121,4 @@ constexpr absl::StatusOr<F> ComputeTonelliShanksSquareRoot(const F& a) {
 
 }  // namespace zkx::math
 
-#endif  // ZKX_MATH_BASE_SQUARE_ROOT_ALGORITHMS_TONELLI_SHANKS_H_
+#endif  // ZKX_MATH_FIELD_SQUARE_ROOT_ALGORITHMS_TONELLI_SHANKS_H_

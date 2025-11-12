@@ -23,7 +23,7 @@ limitations under the License.
 
 #include "zkx/base/containers/container_util.h"
 #include "zkx/math/base/big_int.h"
-#include "zkx/math/base/prime_field.h"
+#include "zkx/math/field/prime_field.h"
 #include "zkx/math/geometry/point_declarations.h"
 
 namespace zkx {

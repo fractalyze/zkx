@@ -1,10 +1,10 @@
-#ifndef ZKX_MATH_BASE_SQUARE_ROOT_ALGORITHMS_SQUARE_ROOT_ALGORITHM9_H_
-#define ZKX_MATH_BASE_SQUARE_ROOT_ALGORITHMS_SQUARE_ROOT_ALGORITHM9_H_
+#ifndef ZKX_MATH_FIELD_SQUARE_ROOT_ALGORITHMS_SQUARE_ROOT_ALGORITHM9_H_
+#define ZKX_MATH_FIELD_SQUARE_ROOT_ALGORITHMS_SQUARE_ROOT_ALGORITHM9_H_
 
 #include "absl/status/statusor.h"
 
 #include "xla/tsl/platform/statusor.h"
-#include "zkx/math/base/finite_field_traits.h"
+#include "zkx/math/field/finite_field_traits.h"
 
 namespace zkx::math {
 
@@ -39,4 +39,4 @@ constexpr absl::StatusOr<F> ComputeAlgorithm9SquareRoot(const F& a) {
 
 }  // namespace zkx::math
 
-#endif  // ZKX_MATH_BASE_SQUARE_ROOT_ALGORITHMS_SQUARE_ROOT_ALGORITHM9_H_
+#endif  // ZKX_MATH_FIELD_SQUARE_ROOT_ALGORITHMS_SQUARE_ROOT_ALGORITHM9_H_

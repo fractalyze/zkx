@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_BASE_FINITE_FIELD_TRAITS_H_
-#define ZKX_MATH_BASE_FINITE_FIELD_TRAITS_H_
+#ifndef ZKX_MATH_FIELD_FINITE_FIELD_TRAITS_H_
+#define ZKX_MATH_FIELD_FINITE_FIELD_TRAITS_H_
 
 namespace zkx::math {
 
@@ -26,4 +26,4 @@ class FiniteFieldTraits<ExtensionField<Config>> {
 
 }  // namespace zkx::math
 
-#endif  // ZKX_MATH_BASE_FINITE_FIELD_TRAITS_H_
+#endif  // ZKX_MATH_FIELD_FINITE_FIELD_TRAITS_H_

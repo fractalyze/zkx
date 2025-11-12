@@ -11,9 +11,9 @@
 #include "xla/tsl/platform/errors.h"
 #include "zkx/base/buffer/serde.h"
 #include "zkx/base/json/json_serde.h"
-#include "zkx/math/base/finite_field_traits.h"
 #include "zkx/math/base/scalar_mul.h"
 #include "zkx/math/elliptic_curve/short_weierstrass/sw_curve.h"
+#include "zkx/math/field/finite_field_traits.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 

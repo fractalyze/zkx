@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_BASE_PRIME_FIELD_H_
-#define ZKX_MATH_BASE_PRIME_FIELD_H_
+#ifndef ZKX_MATH_FIELD_PRIME_FIELD_H_
+#define ZKX_MATH_FIELD_PRIME_FIELD_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -18,8 +18,8 @@
 #include "zkx/base/json/json_serde.h"
 #include "zkx/math/base/big_int.h"
 #include "zkx/math/base/byinverter.h"
-#include "zkx/math/base/finite_field.h"
 #include "zkx/math/base/pow.h"
+#include "zkx/math/field/finite_field.h"
 
 namespace zkx {
 namespace math {
@@ -562,4 +562,4 @@ bool JsonSerde<math::PrimeField<Config>>::s_is_in_montgomery = true;
 }  // namespace base
 }  // namespace zkx
 
-#endif  // ZKX_MATH_BASE_PRIME_FIELD_H_
+#endif  // ZKX_MATH_FIELD_PRIME_FIELD_H_

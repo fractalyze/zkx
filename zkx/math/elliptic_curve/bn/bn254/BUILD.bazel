@@ -14,7 +14,7 @@ zkx_cc_library(
 zkx_cc_library(
     name = "fq",
     hdrs = ["fq.h"],
-    deps = ["//zkx/math/base:prime_field"],
+    deps = ["//zkx/math/field:prime_field"],
 )
 
 zkx_cc_library(
@@ -22,14 +22,14 @@ zkx_cc_library(
     hdrs = ["fq2.h"],
     deps = [
         ":fq",
-        "//zkx/math/base:extension_field",
+        "//zkx/math/field:extension_field",
     ],
 )
 
 zkx_cc_library(
     name = "fr",
     hdrs = ["fr.h"],
-    deps = ["//zkx/math/base:prime_field"],
+    deps = ["//zkx/math/field:prime_field"],
 )
 
 zkx_cc_library(

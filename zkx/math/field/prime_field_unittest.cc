@@ -1,4 +1,4 @@
-#include "zkx/math/base/prime_field.h"
+#include "zkx/math/field/prime_field.h"
 
 #include "gtest/gtest.h"
 

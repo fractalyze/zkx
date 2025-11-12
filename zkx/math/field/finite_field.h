@@ -1,14 +1,14 @@
-#ifndef ZKX_MATH_BASE_FINITE_FIELD_H_
-#define ZKX_MATH_BASE_FINITE_FIELD_H_
+#ifndef ZKX_MATH_FIELD_FINITE_FIELD_H_
+#define ZKX_MATH_FIELD_FINITE_FIELD_H_
 
 #include <type_traits>
 
 #include "zkx/base/types/always_false.h"
-#include "zkx/math/base/field.h"
-#include "zkx/math/base/finite_field_traits.h"
-#include "zkx/math/base/square_root_algorithms/shanks.h"
-#include "zkx/math/base/square_root_algorithms/square_root_algorithm9.h"
-#include "zkx/math/base/square_root_algorithms/tonelli_shanks.h"
+#include "zkx/math/field/field.h"
+#include "zkx/math/field/finite_field_traits.h"
+#include "zkx/math/field/square_root_algorithms/shanks.h"
+#include "zkx/math/field/square_root_algorithms/square_root_algorithm9.h"
+#include "zkx/math/field/square_root_algorithms/tonelli_shanks.h"
 
 namespace zkx::math {
 
@@ -67,4 +67,4 @@ struct IsFieldImpl<T, std::enable_if_t<std::is_base_of_v<FiniteField<T>, T>>> {
 
 }  // namespace zkx::math
 
-#endif  // ZKX_MATH_BASE_FINITE_FIELD_H_
+#endif  // ZKX_MATH_FIELD_FINITE_FIELD_H_

@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-#include "zkx/math/base/extension_field.h"
 #include "zkx/math/elliptic_curve/bn/bn254/fq.h"
+#include "zkx/math/field/extension_field.h"
 
 namespace zkx::math::bn254 {
 

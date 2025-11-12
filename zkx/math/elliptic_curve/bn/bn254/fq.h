@@ -1,7 +1,7 @@
 #ifndef ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_FQ_H_
 #define ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_FQ_H_
 
-#include "zkx/math/base/prime_field.h"
+#include "zkx/math/field/prime_field.h"
 
 namespace zkx::math::bn254 {
 

@@ -1,6 +1,6 @@
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
-package(default_visibility = ["//zkx/math/base:__pkg__"])
+package(default_visibility = ["//zkx/math/field:__pkg__"])
 
 zkx_cc_library(
     name = "square_root_algorithms",
@@ -11,7 +11,7 @@ zkx_cc_library(
     ],
     deps = [
         "//xla/tsl/platform:statusor",
-        "//zkx/math/base:finite_field_traits",
+        "//zkx/math/field:finite_field_traits",
         "@com_google_absl//absl/status:statusor",
     ],
 )

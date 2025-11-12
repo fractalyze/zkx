@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_BASE_EXTENSION_FIELD_H_
-#define ZKX_MATH_BASE_EXTENSION_FIELD_H_
+#ifndef ZKX_MATH_FIELD_EXTENSION_FIELD_H_
+#define ZKX_MATH_FIELD_EXTENSION_FIELD_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,8 +17,8 @@
 #include "zkx/base/json/json_serde.h"
 #include "zkx/base/strings/string_util.h"
 #include "zkx/base/types/always_false.h"
-#include "zkx/math/base/finite_field.h"
 #include "zkx/math/base/pow.h"
+#include "zkx/math/field/finite_field.h"
 
 namespace zkx {
 namespace math {
@@ -403,4 +403,4 @@ class JsonSerde<math::ExtensionField<Config>> {
 }  // namespace base
 }  // namespace zkx
 
-#endif  // ZKX_MATH_BASE_EXTENSION_FIELD_H_
+#endif  // ZKX_MATH_FIELD_EXTENSION_FIELD_H_
