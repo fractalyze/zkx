@@ -1,12 +1,12 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_TEST_SW_CURVE_CONFIG_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_TEST_SW_CURVE_CONFIG_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_TEST_SW_CURVE_CONFIG_H_
+#define ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_TEST_SW_CURVE_CONFIG_H_
 
 #include "zkx/math/base/extension_field.h"
 #include "zkx/math/base/prime_field.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/affine_point.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/jacobian_point.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/point_xyzz.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/sw_curve.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/affine_point.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/jacobian_point.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/point_xyzz.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/sw_curve.h"
 
 namespace zkx::math::test {
 
@@ -111,4 +111,4 @@ using PointXyzzStd = zkx::math::PointXyzz<G1CurveStd>;
 
 }  // namespace zkx::math::test
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_TEST_SW_CURVE_CONFIG_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_TEST_SW_CURVE_CONFIG_H_

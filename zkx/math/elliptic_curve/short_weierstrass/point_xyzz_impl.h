@@ -1,7 +1,7 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_POINT_XYZZ_IMPL_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_POINT_XYZZ_IMPL_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_POINT_XYZZ_IMPL_H_
+#define ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_POINT_XYZZ_IMPL_H_
 
-#include "zkx/math/elliptic_curves/short_weierstrass/point_xyzz.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/point_xyzz.h"
 
 namespace zkx::math {
 
@@ -133,4 +133,4 @@ constexpr auto CLASS::Double() const -> PointXyzz {
 
 }  // namespace zkx::math
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_POINT_XYZZ_IMPL_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_POINT_XYZZ_IMPL_H_

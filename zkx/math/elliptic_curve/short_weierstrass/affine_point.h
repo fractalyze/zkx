@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_AFFINE_POINT_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_AFFINE_POINT_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_AFFINE_POINT_H_
+#define ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_AFFINE_POINT_H_
 
 #include <string>
 #include <type_traits>
@@ -13,7 +13,7 @@
 #include "zkx/base/json/json_serde.h"
 #include "zkx/math/base/finite_field_traits.h"
 #include "zkx/math/base/scalar_mul.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/sw_curve.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/sw_curve.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
@@ -414,4 +414,4 @@ class JsonSerde<math::AffinePoint<
 }  // namespace base
 }  // namespace zkx
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_AFFINE_POINT_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_AFFINE_POINT_H_

@@ -1,10 +1,10 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_FQ2_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_FQ2_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_FQ2_H_
+#define ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_FQ2_H_
 
 #include <stdint.h>
 
 #include "zkx/math/base/extension_field.h"
-#include "zkx/math/elliptic_curves/bn/bn254/fq.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fq.h"
 
 namespace zkx::math::bn254 {
 
@@ -40,4 +40,4 @@ using Fq2Std = ExtensionField<Fq2StdConfig>;
 
 }  // namespace zkx::math::bn254
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_FQ2_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_FQ2_H_

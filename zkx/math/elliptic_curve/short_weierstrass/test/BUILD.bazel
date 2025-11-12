@@ -9,9 +9,9 @@ zkx_cc_library(
     deps = [
         "//zkx/math/base:extension_field",
         "//zkx/math/base:prime_field",
-        "//zkx/math/elliptic_curves/short_weierstrass:affine_point",
-        "//zkx/math/elliptic_curves/short_weierstrass:jacobian_point",
-        "//zkx/math/elliptic_curves/short_weierstrass:point_xyzz",
-        "//zkx/math/elliptic_curves/short_weierstrass:sw_curve",
+        "//zkx/math/elliptic_curve/short_weierstrass:affine_point",
+        "//zkx/math/elliptic_curve/short_weierstrass:jacobian_point",
+        "//zkx/math/elliptic_curve/short_weierstrass:point_xyzz",
+        "//zkx/math/elliptic_curve/short_weierstrass:sw_curve",
     ],
 )

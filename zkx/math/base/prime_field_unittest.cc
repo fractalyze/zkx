@@ -6,8 +6,8 @@
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/auto_reset.h"
 #include "zkx/base/buffer/vector_buffer.h"
-#include "zkx/math/elliptic_curves/bn/bn254/fq.h"
-#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fq.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
 
 namespace zkx::math {
 namespace bn254 {

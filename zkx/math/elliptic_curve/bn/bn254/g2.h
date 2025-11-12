@@ -1,12 +1,12 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_G2_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_G2_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_G2_H_
+#define ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_G2_H_
 
-#include "zkx/math/elliptic_curves/bn/bn254/fq2.h"
-#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/affine_point.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/jacobian_point.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/point_xyzz.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/sw_curve.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fq2.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/affine_point.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/jacobian_point.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/point_xyzz.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/sw_curve.h"
 
 namespace zkx::math::bn254 {
 
@@ -83,4 +83,4 @@ using G2PointXyzzStd = zkx::math::PointXyzz<G2CurveStd>;
 
 }  // namespace zkx::math::bn254
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_G2_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_G2_H_

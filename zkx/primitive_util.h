@@ -35,9 +35,9 @@ limitations under the License.
 
 #include "xla/tsl/lib/math/math_util.h"
 #include "zkx/math/base/field.h"
-#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
-#include "zkx/math/elliptic_curves/bn/bn254/g1.h"
-#include "zkx/math/elliptic_curves/bn/bn254/g2.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g1.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g2.h"
 #include "zkx/types.h"
 #include "zkx/util.h"
 #include "zkx/zkx_data.pb.h"

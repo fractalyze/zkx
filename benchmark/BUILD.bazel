@@ -66,7 +66,7 @@ zkx_cc_binary(
         "//zkx/base/buffer:vector_buffer",
         "//zkx/base/flag:flag_parser",
         "//zkx/base/flag:numeric_flags",
-        "//zkx/math/elliptic_curves/bn/bn254:fr",
+        "//zkx/math/elliptic_curve/bn/bn254:fr",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
     ],

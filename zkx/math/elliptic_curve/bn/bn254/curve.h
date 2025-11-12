@@ -1,8 +1,8 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_CURVE_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_CURVE_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_CURVE_H_
+#define ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_CURVE_H_
 
-#include "zkx/math/elliptic_curves/bn/bn254/g1.h"
-#include "zkx/math/elliptic_curves/bn/bn254/g2.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g1.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g2.h"
 
 namespace zkx::math::bn254 {
 
@@ -24,4 +24,4 @@ class Curve {
 
 }  // namespace zkx::math::bn254
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_CURVE_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_CURVE_H_

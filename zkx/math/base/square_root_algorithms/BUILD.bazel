@@ -21,6 +21,6 @@ zkx_cc_unittest(
     srcs = ["square_root_algorithms_unittest.cc"],
     deps = [
         ":square_root_algorithms",
-        "//zkx/math/elliptic_curves/short_weierstrass/test:sw_curve_config",
+        "//zkx/math/elliptic_curve/short_weierstrass/test:sw_curve_config",
     ],
 )

@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_FQ_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_FQ_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_FQ_H_
+#define ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_FQ_H_
 
 #include "zkx/math/base/prime_field.h"
 
@@ -75,4 +75,4 @@ using FqStd = PrimeField<FqStdConfig>;
 
 }  // namespace zkx::math::bn254
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_BN_BN254_FQ_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVE_BN_BN254_FQ_H_

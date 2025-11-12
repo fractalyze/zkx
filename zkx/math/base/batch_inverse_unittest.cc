@@ -4,7 +4,7 @@
 
 #include "gtest/gtest.h"
 
-#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
 
 namespace zkx::math::bn254 {
 

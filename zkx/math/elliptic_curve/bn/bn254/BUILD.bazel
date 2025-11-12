@@ -38,10 +38,10 @@ zkx_cc_library(
     deps = [
         ":fq",
         ":fr",
-        "//zkx/math/elliptic_curves/short_weierstrass:affine_point",
-        "//zkx/math/elliptic_curves/short_weierstrass:jacobian_point",
-        "//zkx/math/elliptic_curves/short_weierstrass:point_xyzz",
-        "//zkx/math/elliptic_curves/short_weierstrass:sw_curve",
+        "//zkx/math/elliptic_curve/short_weierstrass:affine_point",
+        "//zkx/math/elliptic_curve/short_weierstrass:jacobian_point",
+        "//zkx/math/elliptic_curve/short_weierstrass:point_xyzz",
+        "//zkx/math/elliptic_curve/short_weierstrass:sw_curve",
     ],
 )
 
@@ -51,9 +51,9 @@ zkx_cc_library(
     deps = [
         ":fq2",
         ":fr",
-        "//zkx/math/elliptic_curves/short_weierstrass:affine_point",
-        "//zkx/math/elliptic_curves/short_weierstrass:jacobian_point",
-        "//zkx/math/elliptic_curves/short_weierstrass:point_xyzz",
-        "//zkx/math/elliptic_curves/short_weierstrass:sw_curve",
+        "//zkx/math/elliptic_curve/short_weierstrass:affine_point",
+        "//zkx/math/elliptic_curve/short_weierstrass:jacobian_point",
+        "//zkx/math/elliptic_curve/short_weierstrass:point_xyzz",
+        "//zkx/math/elliptic_curve/short_weierstrass:sw_curve",
     ],
 )

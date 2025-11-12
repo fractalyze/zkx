@@ -3,7 +3,7 @@
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/buffer/vector_buffer.h"
-#include "zkx/math/elliptic_curves/bn/bn254/fq2.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fq2.h"
 
 namespace zkx::math {
 namespace bn254 {

@@ -1,4 +1,4 @@
-#include "zkx/math/elliptic_curves/short_weierstrass/affine_point.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/affine_point.h"
 
 #include <vector>
 
@@ -9,7 +9,7 @@
 #include "xla/tsl/platform/status.h"
 #include "zkx/base/auto_reset.h"
 #include "zkx/base/buffer/vector_buffer.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/test/sw_curve_config.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/test/sw_curve_config.h"
 
 namespace zkx::math::test {
 

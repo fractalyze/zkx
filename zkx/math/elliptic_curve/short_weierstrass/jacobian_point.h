@@ -1,5 +1,5 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_JACOBIAN_POINT_H_
-#define ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_JACOBIAN_POINT_H_
+#ifndef ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_JACOBIAN_POINT_H_
+#define ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_JACOBIAN_POINT_H_
 
 #include <string>
 #include <type_traits>
@@ -15,7 +15,7 @@
 #include "zkx/base/template_util.h"
 #include "zkx/math/base/batch_inverse.h"
 #include "zkx/math/base/scalar_mul.h"
-#include "zkx/math/elliptic_curves/short_weierstrass/sw_curve.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/sw_curve.h"
 #include "zkx/math/geometry/curve_type.h"
 #include "zkx/math/geometry/point_declarations.h"
 
@@ -323,6 +323,6 @@ class JsonSerde<math::JacobianPoint<
 }  // namespace base
 }  // namespace zkx
 
-#include "zkx/math/elliptic_curves/short_weierstrass/jacobian_point_impl.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/jacobian_point_impl.h"
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVES_SHORT_WEIERSTRASS_JACOBIAN_POINT_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_JACOBIAN_POINT_H_

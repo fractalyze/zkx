@@ -90,6 +90,6 @@ zkx_cc_unittest(
         "//xla/tsl/platform:status",
         "//zkx/base:auto_reset",
         "//zkx/base/buffer:vector_buffer",
-        "//zkx/math/elliptic_curves/short_weierstrass/test:sw_curve_config",
+        "//zkx/math/elliptic_curve/short_weierstrass/test:sw_curve_config",
     ],
 )

@@ -2,9 +2,9 @@
 
 #include "mlir/ExecutionEngine/RunnerUtils.h"
 
-#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
-#include "zkx/math/elliptic_curves/bn/bn254/g1.h"
-#include "zkx/math/elliptic_curves/bn/bn254/g2.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g1.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g2.h"
 
 namespace zkx::cpu {
 
