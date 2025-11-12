@@ -16,7 +16,8 @@ constexpr absl::StatusOr<F> ComputeAlgorithm9SquareRoot(const F& a) {
   // Assumes the modulus p satisfies p ≡ 3 (mod 4).
   // See: https://eprint.iacr.org/2012/685.pdf (Algorithm 9, page 17)
   using BasePrimeField = typename FiniteFieldTraits<F>::BasePrimeField;
-  static_assert(BasePrimeField::Config::kModulus[0] % 4 == 3);
+  static_assert(static_cast<uint64_t>(BasePrimeField::Config::kModulus) % 4 ==
+                3);
   static_assert(F::ExtensionDegree() == 2);
   constexpr auto exponent = (BasePrimeField::Config::kModulus - 3) >> 2;
   F a1 = a.Pow(exponent);

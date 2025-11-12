@@ -25,7 +25,8 @@ class FiniteField {
   constexpr absl::StatusOr<F> SquareRoot() const {
     using BasePrimeField = typename FiniteFieldTraits<F>::BasePrimeField;
 
-    constexpr uint64_t p = BasePrimeField::Config::kModulus[0];
+    constexpr uint64_t p =
+        static_cast<uint64_t>(BasePrimeField::Config::kModulus);
     if constexpr (F::ExtensionDegree() % 2 == 1) {
       if constexpr (p % 4 == 3) {
         return ComputeShanksSquareRoot(*static_cast<const F*>(this));

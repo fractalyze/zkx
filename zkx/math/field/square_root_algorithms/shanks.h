@@ -25,7 +25,8 @@ constexpr absl::StatusOr<F> ComputeShanksSquareRoot(const F& a) {
   // a  = b^((p + 1) / 4)
   // clang-format on
   using BasePrimeField = typename FiniteFieldTraits<F>::BasePrimeField;
-  static_assert(BasePrimeField::Config::kModulus[0] % 4 == 3);
+  static_assert(static_cast<uint64_t>(BasePrimeField::Config::kModulus) % 4 ==
+                3);
   constexpr auto exponent = (BasePrimeField::Config::kModulus + 1) >> 2;
   F x = a.Pow(exponent);
   if (x.Square() != a) {
