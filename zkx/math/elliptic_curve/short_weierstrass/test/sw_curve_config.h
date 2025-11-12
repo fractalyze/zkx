@@ -5,8 +5,8 @@
 #include "zkx/math/elliptic_curve/short_weierstrass/jacobian_point.h"
 #include "zkx/math/elliptic_curve/short_weierstrass/point_xyzz.h"
 #include "zkx/math/elliptic_curve/short_weierstrass/sw_curve.h"
+#include "zkx/math/field/big_prime_field.h"
 #include "zkx/math/field/extension_field.h"
-#include "zkx/math/field/prime_field.h"
 
 namespace zkx::math::test {
 

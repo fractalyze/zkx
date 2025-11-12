@@ -11,7 +11,7 @@ zkx_cc_library(
         "//zkx/math/elliptic_curve/short_weierstrass:jacobian_point",
         "//zkx/math/elliptic_curve/short_weierstrass:point_xyzz",
         "//zkx/math/elliptic_curve/short_weierstrass:sw_curve",
+        "//zkx/math/field:big_prime_field",
         "//zkx/math/field:extension_field",
-        "//zkx/math/field:prime_field",
     ],
 )

@@ -3,6 +3,21 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "big_prime_field",
+    hdrs = ["big_prime_field.h"],
+    deps = [
+        ":finite_field",
+        ":prime_field",
+        "//xla/tsl/platform:statusor",
+        "//zkx/math/base:big_int",
+        "//zkx/math/base:byinverter",
+        "//zkx/math/base:pow",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "extension_field",
     hdrs = ["extension_field.h"],
     deps = [
@@ -43,16 +58,12 @@ zkx_cc_library(
     name = "prime_field",
     hdrs = ["prime_field.h"],
     deps = [
-        ":finite_field",
+        ":finite_field_traits",
         "//xla/tsl/platform:errors",
-        "//xla/tsl/platform:statusor",
         "//zkx/base/buffer:serde",
         "//zkx/base/json:json_serde",
         "//zkx/math/base:big_int",
-        "//zkx/math/base:byinverter",
-        "//zkx/math/base:pow",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/status",
     ],
 )
 
