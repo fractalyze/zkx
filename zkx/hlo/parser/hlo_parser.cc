@@ -3587,7 +3587,7 @@ bool IsFinite(T val) {
 template <typename LiteralNativeT, typename ParsedElemT>
 bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
   if constexpr (math::IsPrimeField<LiteralNativeT>) {
-    if constexpr (LiteralNativeT::kUseBigModulus) {
+    if constexpr (LiteralNativeT::Config::kModulusBits > 64) {
       return true;
     } else {
       LOG(ERROR) << "Not implemented for small prime field";
@@ -3595,7 +3595,7 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
     }
   } else if constexpr (math::IsEcPoint<LiteralNativeT>) {
     using ScalarField = typename LiteralNativeT::ScalarField;
-    if constexpr (ScalarField::kUseBigModulus) {
+    if constexpr (ScalarField::Config::kModulusBits > 64) {
       return true;
     } else {
       LOG(ERROR) << "Not implemented for small prime field";
