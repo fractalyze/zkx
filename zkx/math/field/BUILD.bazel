@@ -14,6 +14,7 @@ zkx_cc_library(
         "//zkx/math/base:pow",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_googletest//:gtest_prod",
     ],
 )
 

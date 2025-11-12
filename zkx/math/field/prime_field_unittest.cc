@@ -10,39 +10,11 @@
 #include "zkx/math/elliptic_curve/bn/bn254/fr.h"
 
 namespace zkx::math {
-namespace bn254 {
-
-template <typename T>
-class FrTypedTest : public testing::Test {};
-
-using FrTypes = testing::Types<Fr, FrStd>;
-TYPED_TEST_SUITE(FrTypedTest, FrTypes);
-
-TYPED_TEST(FrTypedTest, Operations) {
-  using F = TypeParam;
-
-  F a = *F::FromHexString(
-      "0xb94db59332f8a619901d39188315c421beafb516eb8a3ab56ceed7df960ede2");
-  F b = *F::FromHexString(
-      "0xecec51689891ef3f7ff39040036fd0e282687d392abe8f011589f1c755500a2");
-  // clang-format off
-  EXPECT_TRUE(b > a);
-  EXPECT_TRUE(a != b);
-  EXPECT_EQ(a + b, *F::FromHexString("0x1a63a06fbcb8a95591010c95886859504411832501648c9b68278c9a6eb5ee84"));
-  EXPECT_EQ(a.Double(), *F::FromHexString("0x1729b6b2665f14c33203a7231062b88437d5f6a2dd714756ad9ddafbf2c1dbc4"));
-  EXPECT_EQ(a - b, *F::FromHexString("0x2d2a64b58ad80b975952e044097bb7911bf85bc655c62b4c895843f5740bed41"));
-  EXPECT_EQ(a * b, *F::FromHexString("0x30593207bceeeba352060f9f1a3ae9d2214f428a90ad235867aabd7a10640d44"));
-  EXPECT_EQ(a.Square(), *F::FromHexString("0x2e3797fa80f1e71d9b23f1a6a2572f6aa2de416a1b31ceca88ef28944fd292a"));
-  EXPECT_EQ(a.Pow(30), *F::FromHexString("0xa5c969115bc5da7d6bfe244ec24b7e244d454561569de7acf0980633533fcca"));
-  // clang-format on
-}
-
-}  // namespace bn254
 
 template <typename T>
 class PrimeFieldTypedTest : public testing::Test {};
 
-using PrimeFieldTypes = testing::Types<bn254::Fq, bn254::Fr>;
+using PrimeFieldTypes = testing::Types<bn254::Fq, bn254::FqStd, bn254::Fr>;
 TYPED_TEST_SUITE(PrimeFieldTypedTest, PrimeFieldTypes);
 
 TYPED_TEST(PrimeFieldTypedTest, Zero) {
@@ -56,6 +28,47 @@ TYPED_TEST(PrimeFieldTypedTest, One) {
 
   EXPECT_TRUE(F::One().IsOne());
   EXPECT_FALSE(F::Zero().IsOne());
+}
+
+TYPED_TEST(PrimeFieldTypedTest, Operations) {
+  using F = TypeParam;
+  using UnderlyingType = typename F::UnderlyingType;
+
+  auto a_value = UnderlyingType::Random(F::Config::kModulus);
+  auto b_value = UnderlyingType::Random(F::Config::kModulus);
+
+  F a = F(a_value);
+  F b = F(b_value);
+
+  EXPECT_EQ(a > b, a_value > b_value);
+  EXPECT_EQ(a < b, a_value < b_value);
+  EXPECT_EQ(a == b, a_value == b_value);
+  if constexpr (F::HasSpareBit()) {
+    EXPECT_EQ(a + b, F(*((a_value + b_value) % F::Config::kModulus)));
+    EXPECT_EQ(a.Double(), F(*((a_value + a_value) % F::Config::kModulus)));
+    if (a >= b) {
+      EXPECT_EQ(a - b, F(*((a_value - b_value) % F::Config::kModulus)));
+    } else {
+      EXPECT_EQ(a - b, F(*((a_value + F::Config::kModulus - b_value) %
+                           F::Config::kModulus)));
+    }
+  }
+
+  if constexpr (F::kUseMontgomery) {
+    using StdF = typename F::StdType;
+    StdF a_std = a.MontReduce();
+    StdF b_std = b.MontReduce();
+    StdF mul;
+    StdF::VerySlowMul(a_std, b_std, mul);
+    EXPECT_EQ(a * b, F(mul.value()));
+
+    StdF square;
+    StdF::VerySlowMul(a_std, a_std, square);
+    EXPECT_EQ(a.Square(), F(square.value()));
+  } else {
+    GTEST_SKIP()
+        << "Skipping test because mul operation already uses VerySlowMul()";
+  }
 }
 
 TYPED_TEST(PrimeFieldTypedTest, SquareRoot) {

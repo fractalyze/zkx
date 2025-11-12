@@ -10,6 +10,7 @@
 
 #include "absl/log/check.h"
 #include "absl/status/statusor.h"
+#include "gtest/gtest_prod.h"
 
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/math/base/big_int.h"
@@ -311,6 +312,9 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   }
 
  private:
+  template <typename T>
+  FRIEND_TEST(PrimeFieldTypedTest, Operations);
+
   // Does the modulus have a spare unused bit?
   //
   // This condition applies if
