@@ -177,16 +177,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
   }
 
   constexpr PrimeField& operator*=(const PrimeField& other) {
-    if constexpr (kUseMontgomery) {
-      if constexpr (CanUseNoCarryMulOptimization()) {
-        FastMontMul(*this, other, *this);
-      } else {
-        SlowMontMul(*this, other, *this);
-      }
-    } else {
-      VerySlowMul(*this, other, *this);
-    }
-    return *this;
+    return *this = *this * other;
   }
 
   constexpr PrimeField Square() const {
