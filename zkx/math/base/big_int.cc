@@ -91,7 +91,15 @@ std::string DoLimbsToString(const uint64_t* limbs, size_t limb_nums,
       }
     }
 
-    return oss.str().empty() ? "0" : oss.str();
+    std::string str = oss.str().empty() ? "0" : oss.str();
+    if (pad_zero) {
+      size_t total_hex_length = limb_nums * 16;
+      if (str.size() < total_hex_length) {
+        return absl::StrCat(std::string(total_hex_length - str.size(), '0'),
+                            str);
+      }
+    }
+    return str;
   } else {
     std::vector<uint64_t> temp(limbs, limbs + limb_nums);
     std::string result;

@@ -57,7 +57,7 @@ TEST(BigIntTest, HexString) {
     absl::StatusOr<BigInt<2>> big_int =
         BigInt<2>::FromHexString("0x20000000000000000");
     TF_ASSERT_OK(big_int);
-    EXPECT_EQ(big_int->ToHexString(), "0x20000000000000000");
+    EXPECT_EQ(big_int->ToHexString(true), "0x00000000000000020000000000000000");
   }
 
   // Invalid input
