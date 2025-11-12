@@ -5,7 +5,6 @@ package(default_visibility = ["//visibility:public"])
 zkx_cc_library(
     name = "arithmetics",
     hdrs = ["arithmetics.h"],
-    deps = ["@com_google_absl//absl/numeric:int128"],
 )
 
 zkx_cc_library(

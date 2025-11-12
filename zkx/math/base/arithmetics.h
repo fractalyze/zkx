@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#include "absl/numeric/int128.h"
-
 namespace zkx::math::internal {
 
 template <typename T>
@@ -67,42 +65,116 @@ struct DivResult {
   }
 };
 
+#if !defined(__SIZEOF_INT128__)
+#error __uint128_t is not supported
+#endif
+
+template <typename T>
+class PromotedTypeImpl;
+
+template <>
+class PromotedTypeImpl<uint64_t> {
+ public:
+  using type = __uint128_t;
+};
+
+template <>
+class PromotedTypeImpl<uint32_t> {
+ public:
+  using type = uint64_t;
+};
+
+template <>
+class PromotedTypeImpl<uint16_t> {
+ public:
+  using type = uint32_t;
+};
+
+template <>
+class PromotedTypeImpl<uint8_t> {
+ public:
+  using type = uint16_t;
+};
+
+template <>
+class PromotedTypeImpl<int64_t> {
+ public:
+  using type = __int128_t;
+};
+
+template <>
+class PromotedTypeImpl<int32_t> {
+ public:
+  using type = int64_t;
+};
+
+template <>
+class PromotedTypeImpl<int16_t> {
+ public:
+  using type = int32_t;
+};
+
+template <>
+class PromotedTypeImpl<int8_t> {
+ public:
+  using type = int16_t;
+};
+
+template <typename T>
+using make_promoted_t = typename PromotedTypeImpl<T>::type;
+
 // Calculates a + b + carry.
-constexpr AddResult<uint64_t> AddWithCarry(uint64_t a, uint64_t b,
-                                           uint64_t carry = 0) {
-  AddResult<uint64_t> result;
-  absl::uint128 tmp =
-      absl::uint128{a} + absl::uint128{b} + absl::uint128{carry};
-  result.value = absl::Uint128Low64(tmp);
-  result.carry = absl::Uint128High64(tmp);
-  return result;
-}
+#define ADD_WITH_CARRY_IMPL(T)                                 \
+  constexpr AddResult<T> AddWithCarry(T a, T b, T carry = 0) { \
+    using PromotedT = make_promoted_t<T>;                      \
+    AddResult<T> result;                                       \
+    PromotedT tmp = PromotedT{a} + b + carry;                  \
+    result.value = static_cast<T>(tmp);                        \
+    result.carry = static_cast<T>(tmp >> (sizeof(T) * 8));     \
+    return result;                                             \
+  }
+
+ADD_WITH_CARRY_IMPL(uint64_t)
+ADD_WITH_CARRY_IMPL(uint32_t)
+ADD_WITH_CARRY_IMPL(uint16_t)
+ADD_WITH_CARRY_IMPL(uint8_t)
+
+#undef ADD_WITH_CARRY_IMPL
 
 // Calculates a - b - borrow.
-constexpr SubResult<uint64_t> SubWithBorrow(uint64_t a, uint64_t b,
-                                            uint64_t borrow = 0) {
-  SubResult<uint64_t> result;
-  absl::uint128 tmp = (absl::uint128{1} << 64) + absl::uint128{a} -
-                      absl::uint128{b} - absl::uint128{borrow};
-  result.value = absl::Uint128Low64(tmp);
-  result.borrow = absl::Uint128High64(tmp) == 0 ? 1 : 0;
-  return result;
-}
+#define SUB_WITH_BORROW_IMPL(T)                                          \
+  constexpr SubResult<T> SubWithBorrow(T a, T b, T borrow = 0) {         \
+    using PromotedT = make_promoted_t<T>;                                \
+    SubResult<T> result;                                                 \
+    PromotedT tmp = (PromotedT{1} << sizeof(T) * 8) + a - b - borrow;    \
+    result.value = static_cast<T>(tmp);                                  \
+    result.borrow = static_cast<T>(tmp >> (sizeof(T) * 8)) == 0 ? 1 : 0; \
+    return result;                                                       \
+  }
+SUB_WITH_BORROW_IMPL(uint64_t)
+SUB_WITH_BORROW_IMPL(uint32_t)
+SUB_WITH_BORROW_IMPL(uint16_t)
+SUB_WITH_BORROW_IMPL(uint8_t)
+
+#undef SUB_WITH_BORROW_IMPL
+
+#define MUL_ADD_WITH_CARRY_IMPL(T)                                     \
+  constexpr MulResult<T> MulAddWithCarry(T a, T b, T c, T carry = 0) { \
+    using PromotedT = make_promoted_t<T>;                              \
+    PromotedT tmp = static_cast<PromotedT>(b) * c + a + carry;         \
+    MulResult<T> result;                                               \
+    result.lo = static_cast<T>(tmp);                                   \
+    result.hi = static_cast<T>(tmp >> (sizeof(T) * 8));                \
+    return result;                                                     \
+  }
 
 // Calculates a + b * c.
-// NOTE(chokobole): absl::uint128 multiplication is not constexpr.
-#if defined(__SIZEOF_INT128__)
-constexpr MulResult<uint64_t> MulAddWithCarry(uint64_t a, uint64_t b,
-                                              uint64_t c, uint64_t carry = 0) {
-  __uint128_t tmp = static_cast<__uint128_t>(b) * c + a + carry;
-  MulResult<uint64_t> result;
-  result.lo = static_cast<uint64_t>(tmp);
-  result.hi = static_cast<uint64_t>(tmp >> 64);
-  return result;
-}
-#else
-#error Define MulAddWithCarry
-#endif
+MUL_ADD_WITH_CARRY_IMPL(uint64_t)
+MUL_ADD_WITH_CARRY_IMPL(uint32_t)
+MUL_ADD_WITH_CARRY_IMPL(uint16_t)
+MUL_ADD_WITH_CARRY_IMPL(uint8_t)
+
+#undef MUL_ADD_WITH_CARRY_IMPL
 
 }  // namespace zkx::math::internal
 
