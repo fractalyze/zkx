@@ -330,12 +330,10 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
     bool top_bit_is_zero = biggest_limb >> 63 == 0;
     bool all_remaining_bits_are_one =
         biggest_limb == std::numeric_limits<uint64_t>::max() >> 1;
-    for (size_t i = 1; i < N - 1; ++i) {
+    for (size_t i = 0; i < N - 1; ++i) {
       all_remaining_bits_are_one &=
           Config::kModulus[i] == std::numeric_limits<uint64_t>::max();
     }
-    all_remaining_bits_are_one &=
-        Config::kModulus[0] == std::numeric_limits<uint64_t>::max();
     return top_bit_is_zero && !all_remaining_bits_are_one;
   }
 
