@@ -475,7 +475,7 @@ mlir::AffineExpr AffineExprSimplifier::RewriteSum(
     ss << sum;
     LOG(WARNING) << "Unexpectedly large number of mods and divs in " << s
                  << ". Please open an issue on GitHub at "
-                 << "https://github.com/zk-rabbit/zkx.";
+                 << "https://github.com/fractalyze/zkx.";
   }
 
   if (!divs.empty()) {

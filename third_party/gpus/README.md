@@ -50,7 +50,7 @@ diff --color -r /path/to/openxla/xla/third_party/tsl/third_party/gpus/crosstool/
 > # NOTE(chokobole): Gemini suggested replacing `pipes` (deprecated since Python 3.3,
 > # removed in Python 3.9) with `shlex`, which is already imported in other scripts
 > # in this PR.
-> # See: https://github.com/zk-rabbit/zkx/pull/32#discussion_r2268367251
+> # See: https://github.com/fractalyze/zkx/pull/32#discussion_r2268367251
 > import shlex
 166c170
 <                re.search('\.cpp$|\.cc$|\.c$|\.cxx$|\.C$', f)]
@@ -73,7 +73,7 @@ diff --color -r /path/to/openxla/xla/third_party/tsl/third_party/gpus/crosstool/
 <   parser.add_argument('-sycl_compile', action='store_true')
 ---
 >   # NOTE(chokobole): Gemini said that we don't use this flag.
->   # See https://github.com/zk-rabbit/zkx/pull/32#discussion_r2268367247.
+>   # See https://github.com/fractalyze/zkx/pull/32#discussion_r2268367247.
 >   # parser.add_argument('-sycl_compile', action='store_true')
 diff --color -r /path/to/openxla/xla/third_party/tsl/third_party/gpus/crosstool/windows/msvc_wrapper_for_nvcc.py.tpl third_party/gpus/crosstool/windows/msvc_wrapper_for_nvcc.py.tpl
 1c1

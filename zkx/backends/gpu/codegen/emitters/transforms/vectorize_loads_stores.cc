@@ -167,7 +167,7 @@ mlir::VectorType GetVectorType(mlir::RankedTensorType tensor_type,
     return nullptr;  // Unsupported vector size.
   }
   // TODO(chokobole): Support misaligned start indices.
-  // See https://github.com/zk-rabbit/zkx/pull/81#discussion_r2347747425.
+  // See https://github.com/fractalyze/zkx/pull/81#discussion_r2347747425.
   if (tensor_type.getShape().back() % vector_size) {
     return nullptr;  // Misaligned start indices.
   }

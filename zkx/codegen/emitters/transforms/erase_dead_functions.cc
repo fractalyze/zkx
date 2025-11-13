@@ -48,7 +48,7 @@ llvm::DenseSet<mlir::func::FuncOp> FindLiveFunctions(mlir::ModuleOp module) {
       // NOTE(chokobole): `resolveCallableInTable()` can return nullptr for
       // indirect calls or unresolved symbols, and the callable might not be a
       // `mlir::func::FuncOp`.
-      // See https://github.com/zk-rabbit/zkx/pull/77#discussion_r2347138242
+      // See https://github.com/fractalyze/zkx/pull/77#discussion_r2347138242
       auto callee = mlir::dyn_cast_or_null<mlir::func::FuncOp>(
           call.resolveCallableInTable(&symbol_table));
       if (callee && live_funcs.insert(callee).second) {

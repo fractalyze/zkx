@@ -214,7 +214,7 @@ func.func @constant() -> tensor<2x3xf32> {
 
 // -----
 
-// TODO(chokobole): Enable this. This test doesn't work after applying this https://github.com/zk-rabbit/zkx/pull/77#discussion_r2338673311
+// TODO(chokobole): Enable this. This test doesn't work after applying this https://github.com/fractalyze/zkx/pull/77#discussion_r2338673311
 // func.func @dangling_cast(%arg0: tensor<6xf32>, %arg1: index) -> i32 {
 //   %v = tensor.extract %arg0[%arg1] : tensor<6xf32>
 //  %cast = builtin.unrealized_conversion_cast %v : f32 to i32
