@@ -38,6 +38,8 @@ limitations under the License.
 #include "zkx/hlo/parser/hlo_lexer.h"
 #include "zkx/literal.h"
 #include "zkx/literal_util.h"
+#include "zkx/math/field/prime_field.h"
+#include "zkx/math/geometry/point_declarations.h"
 #include "zkx/service/shape_inference.h"
 #include "zkx/shape.h"
 #include "zkx/util.h"
@@ -3619,19 +3621,33 @@ bool IsFinite(T val) {
 template <typename LiteralNativeT, typename ParsedElemT>
 bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
   if constexpr (math::IsPrimeField<LiteralNativeT>) {
-    if constexpr (LiteralNativeT::Config::kModulusBits > 64) {
+    if constexpr (math::IsPrimeField<ParsedElemT>) {
       return true;
     } else {
-      LOG(ERROR) << "Not implemented for small prime field";
-      return false;
+      static_assert(std::is_same_v<ParsedElemT, int64_t>,
+                    "Unimplemented checking for ParsedElemT");
+
+      if constexpr (LiteralNativeT::Config::kModulusBits > 64) {
+        return true;
+      } else {
+        LOG(ERROR) << "Not implemented for small prime field";
+        return false;
+      }
     }
   } else if constexpr (math::IsEcPoint<LiteralNativeT>) {
-    using ScalarField = typename LiteralNativeT::ScalarField;
-    if constexpr (ScalarField::Config::kModulusBits > 64) {
+    if constexpr (math::IsEcPoint<ParsedElemT>) {
       return true;
     } else {
-      LOG(ERROR) << "Not implemented for small prime field";
-      return false;
+      static_assert(std::is_same_v<ParsedElemT, int64_t>,
+                    "Unimplemented checking for ParsedElemT");
+
+      using ScalarField = typename LiteralNativeT::ScalarField;
+      if constexpr (ScalarField::Config::kModulusBits > 64) {
+        return true;
+      } else {
+        LOG(ERROR) << "Not implemented for small prime field";
+        return false;
+      }
     }
   } else {
     if constexpr (std::is_floating_point_v<ParsedElemT>) {
