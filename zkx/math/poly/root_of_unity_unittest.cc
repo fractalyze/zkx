@@ -82,12 +82,14 @@ TYPED_TEST(PrimeFieldBaseTest, GetRootOfUnity) {
         ASSERT_TRUE(root.Pow(n).IsOne());
       }
     }
-  } else {
+  } else if constexpr (F::Config::kHasTwoAdicRootOfUnity) {
     for (uint32_t i = 0; i <= F::Config::kTwoAdicity; ++i) {
       uint64_t n = uint64_t{1} << i;
       TF_ASSERT_OK_AND_ASSIGN(F root, GetRootOfUnity<F>(n));
       ASSERT_TRUE(root.Pow(n).IsOne());
     }
+  } else {
+    GTEST_SKIP() << "No RootOfUnity";
   }
 }
 
