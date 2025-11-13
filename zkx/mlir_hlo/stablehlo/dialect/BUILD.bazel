@@ -58,9 +58,71 @@ td_library(
     ],
 )
 
+gentbl_cc_library(
+    name = "stablehlo_attrs_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-attrdef-decls"],
+            "StablehloAttrs.h.inc",
+        ),
+        (
+            ["-gen-attrdef-defs"],
+            "StablehloAttrs.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "StablehloOps.td",
+    deps = [":stablehlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "stablehlo_enums_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-enum-decls"],
+            "StablehloEnums.h.inc",
+        ),
+        (
+            ["-gen-enum-defs"],
+            "StablehloEnums.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "StablehloOps.td",
+    deps = [":stablehlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "stablehlo_ops_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-op-decls"],
+            "StablehloOps.h.inc",
+        ),
+        (
+            ["-gen-op-defs"],
+            "StablehloOps.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "StablehloOps.td",
+    deps = [
+        ":stablehlo_ops_td_files",
+    ],
+)
+
 td_library(
     name = "stablehlo_ops_td_files",
-    srcs = ["StablehloAttrs.td"],
+    srcs = [
+        "Base.td",
+        "StablehloAttrs.td",
+        "StablehloEnums.td",
+        "StablehloOps.td",
+        "StablehloTypes.td",
+    ],
     includes = ["."],
     deps = [
         ":base_td_files",
@@ -68,6 +130,30 @@ td_library(
         "@llvm-project//mlir:OpBaseTdFiles",
         "@llvm-project//mlir:ShapeOpsTdFiles",
     ],
+)
+
+gentbl_cc_library(
+    name = "stablehlo_types_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            [
+                "-gen-typedef-decls",
+                "--typedefs-dialect=stablehlo",
+            ],
+            "StablehloTypeDefs.h.inc",
+        ),
+        (
+            [
+                "-gen-typedef-defs",
+                "--typedefs-dialect=stablehlo",
+            ],
+            "StablehloTypeDefs.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "StablehloOps.td",
+    deps = [":stablehlo_ops_td_files"],
 )
 
 cc_library(

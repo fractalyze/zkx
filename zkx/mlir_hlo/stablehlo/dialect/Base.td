@@ -17,6 +17,7 @@ limitations under the License.
 #ifndef ZKX_MLIR_HLO_STABLEHLO_DIALECT_BASE_TD
 #define ZKX_MLIR_HLO_STABLEHLO_DIALECT_BASE_TD
 
+include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/IR/OpBase.td"
 
@@ -123,6 +124,8 @@ def HLO_StaticShapeTensorOrToken : AnyTypeOf<[HLO_StaticShapeTensor, HLO_Token]>
 def HLO_StaticShapeOrBoundedDimTensor : RankedTensorOf<[HLO_Pred, HLO_Int],
     [HLO_HasStaticOrSingleBoundedShapePred], "statically shaped or single bounded dimension tensor">;
 
+def HLO_StaticShapeIntTensor : StaticShapeTensorOf<[HLO_Int]>;
+
 //===----------------------------------------------------------------------===//
 // HLO traits
 //===----------------------------------------------------------------------===//
@@ -139,19 +142,6 @@ def HLO_BroadcastingElementwise : HLO_NativeOpTrait<"BroadcastingElementwise">;
 // Upstream IsCommutative has default folders, and StableHLO aims to have no
 // default folders or canonicalization.
 def HLO_Commutative : HLO_NativeOpTrait<"IsCommutative">;
-
-// Op has pairwise operand and result type matching: the number of operands
-// must be equal to the number of results and the type of ith operand must
-// match the type of ith result.
-// TODO(b/195086460) Promote this to be an mlir trait and remove it here.
-def HLO_PairwiseSameOperandAndResultType :
-  HLO_NativeOpTrait<"PairwiseSameOperandAndResultType">;
-
-// Op has pairwise operand and result element type matching: the number of operands
-// must be equal to the number of results and the element type of ith operand must
-// match the element type of ith result.
-def HLO_PairwiseSameOperandAndResultElementType :
-  HLO_NativeOpTrait<"PairwiseSameOperandAndResultElementType">;
 
 // Op has operand and result types compatible with each other according to
 // the rules implemented in isCompatibleForHloTypeInference, which account for
@@ -190,5 +180,49 @@ def HLO_BoundedAttrInterface : AttrInterface<"BoundedAttrInterface"> {
     "::llvm::ArrayRef<int64_t>", "getBounds"
   >];
 }
+
+def HLO_SpeculatableIfStaticDimInOutputIsStaticInInputImplTrait
+  : HLO_NativeOpTrait<"SpeculatableIfStaticDimInOutputIsStaticInInputImplTrait">;
+
+// This trait can be used with ops where the result has the same rank as the
+// input and each dimension of the input maps to the same dimension in the
+// result. In that case, if a dim is static in the output but dynamic in the
+// input, the dimension could differ at runtime, leading to undefined behavior.
+// If the output dimension is dynamic, there is no expectation, so there
+// cannot be a mismatch. If the input dimension is static, the output dimension
+// can be inferred from it, so there cannot be a mismatch either.
+def HLO_SpeculatableIfStaticDimInOutputIsStaticInInput : TraitList<[
+    ConditionallySpeculatable, HLO_SpeculatableIfStaticDimInOutputIsStaticInInputImplTrait]>;
+
+def HLO_SpeculatableIfAllInputsStaticImplTrait
+  : HLO_NativeOpTrait<"SpeculatableIfAllInputsStaticImplTrait">;
+
+// This trait is appropriate to use for ops where the op is only speculatable
+// if all the inputs are static. This can happen if e.g. the inputs are expected
+// to all have the same shape. If all the inputs are static, the verifier can
+// validate statically that all the static dimensions are the same. However,
+// if there is any dynamic dimension, it could differ from the shape of another
+// input at runtime, leading to undefined behavior.
+def HLO_SpeculatableIfAllInputsStatic : TraitList<[
+    ConditionallySpeculatable, HLO_SpeculatableIfAllInputsStaticImplTrait]>;
+
+def HLO_RecursivelySpeculatableIfAllInputsStaticImplTrait
+  : HLO_NativeOpTrait<"RecursivelySpeculatableIfAllInputsStaticImplTrait">;
+
+// This trait is the same as HLO_SpeculatableIfAllInputsStatic, but for ops that
+// have regions. If all the inputs are static, such an op is
+// RecursivelySpeculatable (the ops in its regions have to be checked for
+// speculatability).
+def HLO_RecursivelySpeculatableIfAllInputsStatic : TraitList<[
+    ConditionallySpeculatable, HLO_RecursivelySpeculatableIfAllInputsStaticImplTrait]>;
+
+def HLO_SpeculatableIfAllInputsStaticAndShapeConstantImplTrait
+  : HLO_NativeOpTrait<"SpeculatableIfAllInputsStaticAndShapeConstantImplTrait">;
+
+// This trait is the same as HLO_SpeculatableIfAllInputsStatic, but for ops that
+// take a shape as their last operand. Such ops are speculatable if all inputs
+// are static and the shape is constant.
+def HLO_SpeculatableIfAllInputsStaticAndShapeConstant : TraitList<[
+    ConditionallySpeculatable, HLO_SpeculatableIfAllInputsStaticAndShapeConstantImplTrait]>;
 
 #endif // ZKX_MLIR_HLO_STABLEHLO_DIALECT_BASE_TD
