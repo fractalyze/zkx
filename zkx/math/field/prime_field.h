@@ -41,25 +41,33 @@ namespace base {
 template <typename Config>
 class Serde<math::PrimeField<Config>> {
  public:
-  constexpr static size_t N = math::PrimeField<Config>::N;
+  using UnderlyingType = typename math::PrimeField<Config>::UnderlyingType;
 
   static bool s_is_in_montgomery;
 
   static absl::Status WriteTo(const math::PrimeField<Config>& prime_field,
                               Buffer* buffer, Endian) {
-    if (s_is_in_montgomery) {
-      return buffer->Write(prime_field.value());
+    if constexpr (Config::kUseMontgomery) {
+      if (s_is_in_montgomery) {
+        return buffer->Write(prime_field.value());
+      } else {
+        return buffer->Write(prime_field.MontReduce().value());
+      }
     } else {
-      return buffer->Write(prime_field.MontReduce().value());
+      return buffer->Write(prime_field.value());
     }
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
                                math::PrimeField<Config>* prime_field, Endian) {
-    math::BigInt<N> v;
+    UnderlyingType v;
     TF_RETURN_IF_ERROR(buffer.Read(&v));
-    if (s_is_in_montgomery) {
-      *prime_field = math::PrimeField<Config>::FromUnchecked(v);
+    if constexpr (Config::kUseMontgomery) {
+      if (s_is_in_montgomery) {
+        *prime_field = math::PrimeField<Config>::FromUnchecked(v);
+      } else {
+        *prime_field = math::PrimeField<Config>(v);
+      }
     } else {
       *prime_field = math::PrimeField<Config>(v);
     }
@@ -67,7 +75,7 @@ class Serde<math::PrimeField<Config>> {
   }
 
   static size_t EstimateSize(const math::PrimeField<Config>& prime_field) {
-    return N * sizeof(uint64_t);
+    return math::PrimeField<Config>::kByteWidth;
   }
 };
 
@@ -78,28 +86,36 @@ bool Serde<math::PrimeField<Config>>::s_is_in_montgomery = true;
 template <typename Config>
 class JsonSerde<math::PrimeField<Config>> {
  public:
-  constexpr static size_t N = math::PrimeField<Config>::N;
+  using UnderlyingType = typename math::PrimeField<Config>::UnderlyingType;
 
   static bool s_is_in_montgomery;
 
   template <typename Allocator>
   static rapidjson::Value From(const math::PrimeField<Config>& value,
                                Allocator& allocator) {
-    if (s_is_in_montgomery) {
-      return JsonSerde<math::BigInt<N>>::From(value.value(), allocator);
+    if constexpr (Config::kUseMontgomery) {
+      if (s_is_in_montgomery) {
+        return JsonSerde<UnderlyingType>::From(value.value(), allocator);
+      } else {
+        return JsonSerde<UnderlyingType>::From(value.MontReduce().value(),
+                                               allocator);
+      }
     } else {
-      return JsonSerde<math::BigInt<N>>::From(value.MontReduce().value(),
-                                              allocator);
+      return JsonSerde<UnderlyingType>::From(value.value(), allocator);
     }
   }
 
   static absl::StatusOr<math::PrimeField<Config>> To(
       const rapidjson::Value& json_value, std::string_view key) {
-    TF_ASSIGN_OR_RETURN(math::BigInt<N> v,
-                        JsonSerde<math::BigInt<N>>::To(json_value, key));
+    TF_ASSIGN_OR_RETURN(UnderlyingType v,
+                        JsonSerde<UnderlyingType>::To(json_value, key));
 
-    if (s_is_in_montgomery) {
-      return math::PrimeField<Config>::FromUnchecked(v);
+    if constexpr (Config::kUseMontgomery) {
+      if (s_is_in_montgomery) {
+        return math::PrimeField<Config>::FromUnchecked(v);
+      } else {
+        return math::PrimeField<Config>(v);
+      }
     } else {
       return math::PrimeField<Config>(v);
     }
