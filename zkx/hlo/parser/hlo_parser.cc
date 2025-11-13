@@ -3630,8 +3630,13 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
       if constexpr (LiteralNativeT::Config::kModulusBits > 64) {
         return true;
       } else {
-        LOG(ERROR) << "Not implemented for small prime field";
-        return false;
+        if (value >= 0) {
+          return static_cast<uint64_t>(value) <
+                 uint64_t{LiteralNativeT::Config::kModulus};
+        } else {
+          return static_cast<uint64_t>(-value) <
+                 uint64_t{LiteralNativeT::Config::kModulus};
+        }
       }
     }
   } else if constexpr (math::IsEcPoint<LiteralNativeT>) {
@@ -3645,8 +3650,13 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
       if constexpr (ScalarField::Config::kModulusBits > 64) {
         return true;
       } else {
-        LOG(ERROR) << "Not implemented for small prime field";
-        return false;
+        if (value >= 0) {
+          return static_cast<uint64_t>(value) <
+                 uint64_t{ScalarField::Config::kModulus};
+        } else {
+          return static_cast<uint64_t>(-value) <
+                 uint64_t{ScalarField::Config::kModulus};
+        }
       }
     }
   } else {
