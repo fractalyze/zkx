@@ -15,6 +15,7 @@ zkx_cc_library(
         "//zkx/math/geometry:curve_type",
         "//zkx/math/geometry:point_declarations",
         "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:endian",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
     ],

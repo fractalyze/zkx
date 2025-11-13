@@ -5,22 +5,22 @@
 #include "zkx/math/elliptic_curve/short_weierstrass/jacobian_point.h"
 #include "zkx/math/elliptic_curve/short_weierstrass/point_xyzz.h"
 #include "zkx/math/elliptic_curve/short_weierstrass/sw_curve.h"
-#include "zkx/math/field/big_prime_field.h"
 #include "zkx/math/field/extension_field.h"
+#include "zkx/math/field/small_prime_field.h"
 
 namespace zkx::math::test {
 
 struct PrimeFieldBaseConfig {
  public:
   constexpr static size_t kModulusBits = 4;
-  constexpr static BigInt<1> kModulus = 7;
+  constexpr static uint8_t kModulus = 7;
 
-  constexpr static BigInt<1> kRSquared = UINT64_C(4);
-  constexpr static uint64_t kNPrime = UINT64_C(10540996613548315209);
+  constexpr static uint8_t kRSquared = UINT64_C(2);
+  constexpr static uint64_t kNPrime = UINT64_C(183);
 
   constexpr static uint32_t kTwoAdicity = 1;
 
-  constexpr static BigInt<1> kTrace = 3;
+  constexpr static uint8_t kTrace = 3;
 
   constexpr static bool kHasTwoAdicRootOfUnity = true;
   constexpr static bool kHasLargeSubgroupRootOfUnity = false;
@@ -31,9 +31,9 @@ struct PrimeFieldStdConfig : public PrimeFieldBaseConfig {
 
   using StdConfig = PrimeFieldStdConfig;
 
-  constexpr static BigInt<1> kOne = 1;
+  constexpr static uint8_t kOne = 1;
 
-  constexpr static BigInt<1> kTwoAdicRootOfUnity = 5;
+  constexpr static uint8_t kTwoAdicRootOfUnity = 6;
 };
 
 struct PrimeFieldConfig : public PrimeFieldBaseConfig {
@@ -41,9 +41,9 @@ struct PrimeFieldConfig : public PrimeFieldBaseConfig {
 
   using StdConfig = PrimeFieldStdConfig;
 
-  constexpr static BigInt<1> kOne = 2;
+  constexpr static uint8_t kOne = 4;
 
-  constexpr static BigInt<1> kTwoAdicRootOfUnity = 3;
+  constexpr static uint8_t kTwoAdicRootOfUnity = 3;
 };
 
 using Fq = PrimeField<PrimeFieldConfig>;

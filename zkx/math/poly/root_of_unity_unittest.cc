@@ -4,10 +4,22 @@
 
 #include "zkx/math/elliptic_curve/bn/bn254/fq.h"
 #include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/test/sw_curve_config.h"
+#include "zkx/math/field/babybear/babybear.h"
 
 namespace zkx::math {
 
-using PrimeFieldTypes = testing::Types<bn254::Fq, bn254::Fr>;
+using PrimeFieldTypes = testing::Types<
+    // clang-format off
+    // 8-bit prime fields
+    test::Fr,
+    // 32-bit prime fields
+    Babybear,
+    // 256-bit prime fields
+    bn254::Fq,
+    bn254::Fr
+    // clang-format on
+    >;
 
 namespace {
 

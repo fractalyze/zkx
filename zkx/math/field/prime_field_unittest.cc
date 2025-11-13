@@ -6,15 +6,31 @@
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/base/auto_reset.h"
 #include "zkx/base/buffer/vector_buffer.h"
+#include "zkx/base/random.h"
 #include "zkx/math/elliptic_curve/bn/bn254/fq.h"
 #include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/test/sw_curve_config.h"
+#include "zkx/math/field/babybear/babybear.h"
 
 namespace zkx::math {
 
 template <typename T>
 class PrimeFieldTypedTest : public testing::Test {};
 
-using PrimeFieldTypes = testing::Types<bn254::Fq, bn254::FqStd, bn254::Fr>;
+using PrimeFieldTypes = testing::Types<
+    // clang-format off
+    // 8-bit prime fields
+    test::Fr,
+    test::FrStd,
+    // 32-bit prime fields
+    Babybear,
+    BabybearStd,
+    // 256-bit prime fields
+    bn254::Fq,
+    bn254::FqStd,
+    bn254::Fr
+    // clang-format on
+    >;
 TYPED_TEST_SUITE(PrimeFieldTypedTest, PrimeFieldTypes);
 
 TYPED_TEST(PrimeFieldTypedTest, Zero) {
@@ -34,8 +50,14 @@ TYPED_TEST(PrimeFieldTypedTest, Operations) {
   using F = TypeParam;
   using UnderlyingType = typename F::UnderlyingType;
 
-  auto a_value = UnderlyingType::Random(F::Config::kModulus);
-  auto b_value = UnderlyingType::Random(F::Config::kModulus);
+  UnderlyingType a_value, b_value;
+  if constexpr (F::Config::kModulusBits <= 64) {
+    a_value = base::Uniform(UnderlyingType{0}, F::Config::kModulus);
+    b_value = base::Uniform(UnderlyingType{0}, F::Config::kModulus);
+  } else {
+    a_value = UnderlyingType::Random(F::Config::kModulus);
+    b_value = UnderlyingType::Random(F::Config::kModulus);
+  }
 
   F a = F(a_value);
   F b = F(b_value);
@@ -44,13 +66,24 @@ TYPED_TEST(PrimeFieldTypedTest, Operations) {
   EXPECT_EQ(a < b, a_value < b_value);
   EXPECT_EQ(a == b, a_value == b_value);
   if constexpr (F::HasSpareBit()) {
-    EXPECT_EQ(a + b, F(*((a_value + b_value) % F::Config::kModulus)));
-    EXPECT_EQ(a.Double(), F(*((a_value + a_value) % F::Config::kModulus)));
-    if (a >= b) {
-      EXPECT_EQ(a - b, F(*((a_value - b_value) % F::Config::kModulus)));
+    if constexpr (F::Config::kModulusBits <= 64) {
+      EXPECT_EQ(a + b, F((a_value + b_value) % F::Config::kModulus));
+      EXPECT_EQ(a.Double(), F((a_value + a_value) % F::Config::kModulus));
+      if (a >= b) {
+        EXPECT_EQ(a - b, F((a_value - b_value) % F::Config::kModulus));
+      } else {
+        EXPECT_EQ(a - b, F((a_value + F::Config::kModulus - b_value) %
+                           F::Config::kModulus));
+      }
     } else {
-      EXPECT_EQ(a - b, F(*((a_value + F::Config::kModulus - b_value) %
-                           F::Config::kModulus)));
+      EXPECT_EQ(a + b, F(*((a_value + b_value) % F::Config::kModulus)));
+      EXPECT_EQ(a.Double(), F(*((a_value + a_value) % F::Config::kModulus)));
+      if (a >= b) {
+        EXPECT_EQ(a - b, F(*((a_value - b_value) % F::Config::kModulus)));
+      } else {
+        EXPECT_EQ(a - b, F(*((a_value + F::Config::kModulus - b_value) %
+                             F::Config::kModulus)));
+      }
     }
   }
 

@@ -4,6 +4,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/internal/endian.h"
 #include "absl/base/optimization.h"
 #include "absl/log/log.h"
 #include "absl/strings/substitute.h"
@@ -381,7 +382,17 @@ class Serde<math::AffinePoint<
   static T ReadFromBytesBE(const BytesContainer& bytes) {
     using UnderlyingType = typename BasePrimeField::UnderlyingType;
 
-    return UnderlyingType::FromBytesBE(bytes);
+    if constexpr (std::is_same_v<UnderlyingType, uint64_t>) {
+      return BasePrimeField(absl::big_endian::Load64(bytes.data()));
+    } else if constexpr (std::is_same_v<UnderlyingType, uint32_t>) {
+      return BasePrimeField(absl::big_endian::Load32(bytes.data()));
+    } else if constexpr (std::is_same_v<UnderlyingType, uint16_t>) {
+      return BasePrimeField(absl::big_endian::Load16(bytes.data()));
+    } else if constexpr (std::is_same_v<UnderlyingType, uint8_t>) {
+      return bytes[0];
+    } else {
+      return UnderlyingType::FromBytesBE(bytes);
+    }
   }
 };
 

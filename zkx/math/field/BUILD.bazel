@@ -68,6 +68,23 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "small_prime_field",
+    hdrs = ["small_prime_field.h"],
+    deps = [
+        ":finite_field",
+        ":prime_field",
+        "//xla/tsl/platform:statusor",
+        "//zkx/math/base:big_int",
+        "//zkx/math/base:byinverter",
+        "//zkx/math/base:pow",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest_prod",
+    ],
+)
+
 zkx_cc_unittest(
     name = "field_unittests",
     srcs = [
@@ -78,9 +95,12 @@ zkx_cc_unittest(
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
         "//zkx/base:auto_reset",
+        "//zkx/base:random",
         "//zkx/base/buffer:vector_buffer",
         "//zkx/math/elliptic_curve/bn/bn254:fq",
         "//zkx/math/elliptic_curve/bn/bn254:fq2",
         "//zkx/math/elliptic_curve/bn/bn254:fr",
+        "//zkx/math/elliptic_curve/short_weierstrass/test:sw_curve_config",
+        "//zkx/math/field/babybear",
     ],
 )

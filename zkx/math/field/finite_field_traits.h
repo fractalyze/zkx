@@ -3,7 +3,7 @@
 
 namespace zkx::math {
 
-template <typename Config>
+template <typename Config, typename SFINAE = void>
 class PrimeField;
 
 template <typename Config>
