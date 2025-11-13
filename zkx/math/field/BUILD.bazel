@@ -103,5 +103,6 @@ zkx_cc_unittest(
         "//zkx/math/elliptic_curve/short_weierstrass/test:sw_curve_config",
         "//zkx/math/field/babybear",
         "//zkx/math/field/koalabear",
+        "//zkx/math/field/mersenne31",
     ],
 )

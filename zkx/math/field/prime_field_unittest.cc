@@ -12,6 +12,7 @@
 #include "zkx/math/elliptic_curve/short_weierstrass/test/sw_curve_config.h"
 #include "zkx/math/field/babybear/babybear.h"
 #include "zkx/math/field/koalabear/koalabear.h"
+#include "zkx/math/field/mersenne31/mersenne31.h"
 
 namespace zkx::math {
 
@@ -27,13 +28,13 @@ using PrimeFieldTypes = testing::Types<
     Babybear,
     BabybearStd,
     Koalabear,
+    Mersenne31,
     // 256-bit prime fields
     bn254::Fq,
     bn254::FqStd,
     bn254::Fr
     // clang-format on
     >;
-
 TYPED_TEST_SUITE(PrimeFieldTypedTest, PrimeFieldTypes);
 
 TYPED_TEST(PrimeFieldTypedTest, Zero) {
