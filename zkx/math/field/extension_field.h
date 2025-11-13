@@ -204,6 +204,11 @@ class ExtensionField : public FiniteField<ExtensionField<_Config>> {
     return math::Pow(*this, exponent);
   }
 
+  template <typename T, std::enable_if_t<std::is_integral_v<T>>* = nullptr>
+  constexpr ExtensionField Pow(T exponent) const {
+    return math::Pow(*this, BigInt<1>(exponent));
+  }
+
   constexpr absl::StatusOr<ExtensionField> Inverse() const {
     if constexpr (N == 2) {
       return DoInverse2(*this);
