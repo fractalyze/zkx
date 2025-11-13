@@ -8,7 +8,6 @@
 
 #include "absl/status/statusor.h"
 
-#include "xla/tsl/platform/statusor.h"
 #include "zkx/math/field/finite_field_traits.h"
 
 namespace zkx::math {

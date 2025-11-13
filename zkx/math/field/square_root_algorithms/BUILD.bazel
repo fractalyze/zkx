@@ -10,7 +10,6 @@ zkx_cc_library(
         "tonelli_shanks.h",
     ],
     deps = [
-        "//xla/tsl/platform:statusor",
         "//zkx/math/field:finite_field_traits",
         "@com_google_absl//absl/status:statusor",
     ],
