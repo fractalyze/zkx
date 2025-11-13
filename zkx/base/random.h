@@ -13,6 +13,11 @@ T Uniform() {
   return absl::Uniform<T>(GetAbslBitGen());
 }
 
+template <typename T>
+T Uniform(T low, T high) {
+  return absl::Uniform<T>(GetAbslBitGen(), low, high);
+}
+
 template <typename Iterator>
 void Shuffle(Iterator first, Iterator last) {
   absl::c_shuffle(absl::MakeSpan(first, last), GetAbslBitGen());
