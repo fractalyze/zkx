@@ -171,6 +171,7 @@ class Serde<math::AffinePoint<
   using BaseField = typename math::AffinePoint<Curve>::BaseField;
   using BasePrimeField =
       typename math::FiniteFieldTraits<BaseField>::BasePrimeField;
+  using UnderlyingType = typename BasePrimeField::UnderlyingType;
 
   static math::AffinePointSerdeMode s_mode;
 
@@ -284,28 +285,26 @@ class Serde<math::AffinePoint<
             TF_RETURN_IF_ERROR(buffer.Read(&bytes2));
             BaseField x, y;
             if constexpr (BaseField::ExtensionDegree() == 1) {
-              x = BasePrimeField(
-                  math::BigInt<BaseField::N>::FromBytesBE(bytes));
-              y = BasePrimeField(
-                  math::BigInt<BaseField::N>::FromBytesBE(bytes2));
+              x = BasePrimeField(ReadFromBytesBE<UnderlyingType>(bytes));
+              y = BasePrimeField(ReadFromBytesBE<UnderlyingType>(bytes2));
             } else if constexpr (BaseField::ExtensionDegree() == 2) {
               x = {
-                  BasePrimeField(math::BigInt<BasePrimeField::N>::FromBytesBE(
-                      absl::Span<const uint8_t>(
+                  BasePrimeField(
+                      UnderlyingType::FromBytesBE(absl::Span<const uint8_t>(
                           &bytes[BasePrimeField::kByteWidth],
                           BasePrimeField::kByteWidth))),
-                  BasePrimeField(math::BigInt<BasePrimeField::N>::FromBytesBE(
-                      absl::Span<const uint8_t>(&bytes[0],
-                                                BasePrimeField::kByteWidth))),
+                  BasePrimeField(
+                      UnderlyingType::FromBytesBE(absl::Span<const uint8_t>(
+                          &bytes[0], BasePrimeField::kByteWidth))),
               };
               y = {
-                  BasePrimeField(math::BigInt<BasePrimeField::N>::FromBytesBE(
-                      absl::Span<const uint8_t>(
+                  BasePrimeField(
+                      UnderlyingType::FromBytesBE(absl::Span<const uint8_t>(
                           &bytes2[BasePrimeField::kByteWidth],
                           BasePrimeField::kByteWidth))),
-                  BasePrimeField(math::BigInt<BasePrimeField::N>::FromBytesBE(
-                      absl::Span<const uint8_t>(&bytes2[0],
-                                                BasePrimeField::kByteWidth))),
+                  BasePrimeField(
+                      UnderlyingType::FromBytesBE(absl::Span<const uint8_t>(
+                          &bytes2[0], BasePrimeField::kByteWidth))),
               };
             } else {
               return absl::InvalidArgumentError(
@@ -323,17 +322,16 @@ class Serde<math::AffinePoint<
           case math::GnarkCompressedFlag::kCompressedLargest: {
             BaseField x;
             if constexpr (BaseField::ExtensionDegree() == 1) {
-              x = BasePrimeField(
-                  math::BigInt<BaseField::N>::FromBytesBE(bytes));
+              x = BasePrimeField(ReadFromBytesBE<UnderlyingType>(bytes));
             } else if constexpr (BaseField::ExtensionDegree() == 2) {
               x = {
-                  BasePrimeField(math::BigInt<BasePrimeField::N>::FromBytesBE(
-                      absl::Span<const uint8_t>(
+                  BasePrimeField(
+                      UnderlyingType::FromBytesBE(absl::Span<const uint8_t>(
                           &bytes[BasePrimeField::kByteWidth],
                           BasePrimeField::kByteWidth))),
-                  BasePrimeField(math::BigInt<BasePrimeField::N>::FromBytesBE(
-                      absl::Span<const uint8_t>(&bytes[0],
-                                                BasePrimeField::kByteWidth))),
+                  BasePrimeField(
+                      UnderlyingType::FromBytesBE(absl::Span<const uint8_t>(
+                          &bytes[0], BasePrimeField::kByteWidth))),
               };
             } else {
               return absl::InvalidArgumentError(
@@ -377,6 +375,13 @@ class Serde<math::AffinePoint<
     }
     ABSL_UNREACHABLE();
     return 0;
+  }
+
+  template <typename T, typename BytesContainer>
+  static T ReadFromBytesBE(const BytesContainer& bytes) {
+    using UnderlyingType = typename BasePrimeField::UnderlyingType;
+
+    return UnderlyingType::FromBytesBE(bytes);
   }
 };
 

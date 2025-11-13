@@ -34,6 +34,7 @@ class PrimeField : public FiniteField<PrimeField<_Config>> {
 
   using Config = _Config;
   using StdType = PrimeField<typename Config::StdConfig>;
+  using UnderlyingType = BigInt<N>;
 
   constexpr PrimeField() = default;
   template <typename T, std::enable_if_t<std::is_signed_v<T>>* = nullptr>
