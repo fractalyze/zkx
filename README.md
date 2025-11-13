@@ -41,3 +41,88 @@ for more details.
 We use GitHub Issues and Pull Requests to coordinate development, and
 longer-form discussions take place in the
 [zkx-discuss](https://github.com/fractalyze/zkx/discussions).
+
+## Status
+
+- ✅: **Complete**
+- 🟡: In Progress
+- ⚪: Not Yet Started
+
+### Primitive Type
+
+- ✅ Boolean
+- ✅ Integer
+- ⚪ Binary Field
+- 🟡 Koalabear
+- 🟡 Babybear
+- 🟡 Mersenne31
+- 🟡 Goldilocks
+- ✅ Bn254
+
+### HloPass
+
+- ⚪: SPMD Partition
+- ⚪: Algebraic Rewrite
+- ⚪: Layout Assignment
+- ⚪: Fusion
+
+### Instruction for single machine
+
+| HloOpcode              | CPU                     | GPU |
+| ---------------------- | ----------------------- | --- |
+| abs                    | ✅                      | ⚪  |
+| add                    | ✅                      | ✅  |
+| and                    | ✅                      | ⚪  |
+| bitcast                | ✅                      | ⚪  |
+| bitcast-convert        | ✅                      | ⚪  |
+| broadcast              | ✅                      | ⚪  |
+| call                   | ✅                      | ⚪  |
+| clamp                  | ✅                      | ⚪  |
+| count-leading-zeros    | ✅                      | ⚪  |
+| compare                | ✅                      | ⚪  |
+| concatenate            | ✅                      | ⚪  |
+| conditional            | ✅                      | ⚪  |
+| constant               | ✅                      | ✅  |
+| convert                | ✅                      | ✅  |
+| divide                 | ✅                      | ✅  |
+| dot                    | ✅ (SpMV with CSR only) | ⚪  |
+| dynamic-reshape        | ⚪                      | ⚪  |
+| dynamic-slice          | ✅                      | ⚪  |
+| dynamic-update-slice   | ✅                      | ⚪  |
+| fusion                 | 🟡                      | ✅  |
+| fft                    | ✅                      | ⚪  |
+| gather                 | 🟡                      | ⚪  |
+| get-dimension-size     | ⚪                      | ⚪  |
+| get-tuple-element      | ✅                      | ✅  |
+| iota                   | ✅                      | ⚪  |
+| inverse                | ✅                      | ⚪  |
+| map                    | ✅                      | ⚪  |
+| maximum                | ✅                      | ⚪  |
+| minimum                | ✅                      | ⚪  |
+| msm                    | ✅                      | ⚪  |
+| multiply               | ✅                      | ✅  |
+| negate                 | ✅                      | ✅  |
+| not                    | ✅                      | ⚪  |
+| or                     | ✅                      | ⚪  |
+| pad                    | ✅                      | ⚪  |
+| parameter              | ✅                      | ✅  |
+| popcnt                 | ✅                      | ⚪  |
+| power                  | ✅                      | ✅  |
+| reduce                 | ✅                      | ⚪  |
+| remainder              | ✅                      | ⚪  |
+| reshape                | ✅                      | ⚪  |
+| reverse                | ✅                      | ⚪  |
+| scatter                | 🟡                      | ⚪  |
+| select                 | ✅                      | ⚪  |
+| set-dimension-size     | ⚪                      | ⚪  |
+| shift-left             | ✅                      | ⚪  |
+| shift-right-arithmetic | ✅                      | ⚪  |
+| shift-right-logical    | ✅                      | ⚪  |
+| sign                   | ✅                      | ⚪  |
+| slice                  | ✅                      | ✅  |
+| sort                   | ✅                      | ⚪  |
+| subtract               | ✅                      | ✅  |
+| transpose              | ✅                      | ⚪  |
+| tuple                  | ✅                      | ✅  |
+| while                  | ✅                      | ⚪  |
+| xor                    | ✅                      | ⚪  |
