@@ -30,6 +30,11 @@ TYPED_TEST(FieldScalarBinaryTest, Div) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(FieldScalarBinaryTest, Double) {
+  this->SetUpDouble();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(FieldScalarBinaryTest, Mul) {
   this->SetUpMul();
   this->RunAndVerify();
@@ -37,6 +42,11 @@ TYPED_TEST(FieldScalarBinaryTest, Mul) {
 
 TYPED_TEST(FieldScalarBinaryTest, Pow) {
   this->SetUpPow();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(FieldScalarBinaryTest, Square) {
+  this->SetUpSquare();
   this->RunAndVerify();
 }
 
