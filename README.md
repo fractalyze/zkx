@@ -3,7 +3,7 @@
 ZKX is a computation framework inspired by
 [XLA](https://github.com/openxla/xla). It compiles ZK-specific high-level
 operations into efficient low-level code using
-[ZKIR](https://github.com/fractalyze/zkir)￼as its intermediate representation.
+[ZKIR](https://github.com/fractalyze/zkir) as its intermediate representation.
 ZKX is optimized for CPUs and GPUs, with plans to extend support to specialized
 ZK hardware for greater performance and portability.
 
