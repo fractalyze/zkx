@@ -1583,6 +1583,10 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
         reinterpret_cast<const char*>(data<cpp_type##Std>().data()),        \
         size_bytes_dense());                                                \
     break;
+      MONTABLE_CASE(KOALABEAR, koalabears, math::Koalabear)
+      MONTABLE_CASE(BABYBEAR, babybears, math::Babybear)
+      MONTABLE_CASE(MERSENNE31, mersenne31s, math::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, goldilockss, math::Goldilocks)
       MONTABLE_CASE(BN254_SCALAR, bn254_scalars, math::bn254::Fr)
       MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
                     math::bn254::G1AffinePoint)
@@ -1751,6 +1755,10 @@ absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
     memcpy(untyped_data(), s.data(), s.size());                                \
     break;                                                                     \
   }
+      MONTABLE_CASE(KOALABEAR, koalabears, math::Koalabear)
+      MONTABLE_CASE(BABYBEAR, babybears, math::Babybear)
+      MONTABLE_CASE(MERSENNE31, mersenne31s, math::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, goldilockss, math::Goldilocks)
       MONTABLE_CASE(BN254_SCALAR, bn254_scalars, math::bn254::Fr)
       MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
                     math::bn254::G1AffinePoint)

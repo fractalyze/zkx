@@ -2,7 +2,9 @@
 
 namespace zkx::cpu {
 
-using FieldTypes = testing::Types<math::bn254::Fr>;
+// TODO(chokobole): Add Goldilocks. See
+// https://github.com/fractalyze/zkir/issues/92
+using FieldTypes = testing::Types<math::Babybear, math::bn254::Fr>;
 TYPED_TEST_SUITE(FieldScalarUnaryTest, FieldTypes);
 
 TYPED_TEST(FieldScalarUnaryTest, Convert) {

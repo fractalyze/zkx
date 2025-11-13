@@ -11,6 +11,10 @@
 #include "zkx/math/elliptic_curve/bn/bn254/fr.h"
 #include "zkx/math/elliptic_curve/bn/bn254/g1.h"
 #include "zkx/math/elliptic_curve/bn/bn254/g2.h"
+#include "zkx/math/field/babybear/babybear.h"
+#include "zkx/math/field/goldilocks/goldilocks.h"
+#include "zkx/math/field/koalabear/koalabear.h"
+#include "zkx/math/field/mersenne31/mersenne31.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx::mlir_utils {
@@ -56,6 +60,10 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
     return GetMlir##type##Type<cpp_type>(context, true); \
   case enum##_STD:                                       \
     return GetMlir##type##Type<cpp_type##Std>(context, false);
+      MONTABLE_PRIME_FIELD_CASE(KOALABEAR, math::Koalabear, PrimeField)
+      MONTABLE_PRIME_FIELD_CASE(BABYBEAR, math::Babybear, PrimeField)
+      MONTABLE_PRIME_FIELD_CASE(MERSENNE31, math::Mersenne31, PrimeField)
+      MONTABLE_PRIME_FIELD_CASE(GOLDILOCKS, math::Goldilocks, PrimeField)
       MONTABLE_PRIME_FIELD_CASE(BN254_SCALAR, math::bn254::Fr, PrimeField)
 #undef MONTABLE_PRIME_FIELD_CASE
 

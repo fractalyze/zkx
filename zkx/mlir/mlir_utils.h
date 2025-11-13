@@ -24,6 +24,16 @@ namespace zkx::mlir_utils {
 
 void PopulateTypeConverterWithZkir(mlir::LLVMTypeConverter& converter);
 
+template <size_t N>
+llvm::APInt ConvertUnderlyingValueToAPInt(const math::BigInt<N>& value) {
+  return llvm_ir::ConvertBigIntToAPInt(value);
+}
+
+template <typename T, std::enable_if_t<std::is_integral_v<T>>* = nullptr>
+llvm::APInt ConvertUnderlyingValueToAPInt(T value) {
+  return {sizeof(T) * 8, value};
+}
+
 template <typename T>
 mlir::zkir::mod_arith::ModArithType GetMlirModArithType(
     mlir::MLIRContext* context) {
@@ -54,7 +64,7 @@ mlir::zkir::field::PrimeFieldType GetMlirPrimeFieldType(
   }
   auto type = mlir::IntegerType::get(context, T::kBitWidth);
   auto modulus = mlir::IntegerAttr::get(
-      type, llvm_ir::ConvertBigIntToAPInt(T::Config::kModulus));
+      type, ConvertUnderlyingValueToAPInt(T::Config::kModulus));
   return mlir::zkir::field::PrimeFieldType::get(context, modulus,
                                                 use_montgomery);
 }
@@ -68,17 +78,17 @@ mlir::zkir::field::PrimeFieldAttr GetMlirPrimeFieldAttr(
     if (use_montgomery) {
       return mlir::zkir::field::PrimeFieldAttr::get(
           GetMlirPrimeFieldType<T>(context, true),
-          llvm_ir::ConvertBigIntToAPInt(value.value()));
+          ConvertUnderlyingValueToAPInt(value.value()));
     } else {
       return mlir::zkir::field::PrimeFieldAttr::get(
           GetMlirPrimeFieldType<T>(context, false),
-          llvm_ir::ConvertBigIntToAPInt(value.MontReduce().value()));
+          ConvertUnderlyingValueToAPInt(value.MontReduce().value()));
     }
   } else {
     DCHECK(!use_montgomery);
     return mlir::zkir::field::PrimeFieldAttr::get(
         GetMlirPrimeFieldType<T>(context, false),
-        llvm_ir::ConvertBigIntToAPInt(value.value()));
+        ConvertUnderlyingValueToAPInt(value.value()));
   }
 }
 
