@@ -41,6 +41,14 @@ absl::StatusOr<PrimitiveType> ToPrimitiveType(DType dtype) {
     CASE(DType::kU64, PrimitiveType::U64);
     CASE(DType::kToken, PrimitiveType::TOKEN);
     CASE(DType::kOpaque, PrimitiveType::OPAQUE_TYPE);
+    CASE(DType::kKoalabear, PrimitiveType::KOALABEAR);
+    CASE(DType::kKoalabearStd, PrimitiveType::KOALABEAR_STD);
+    CASE(DType::kBabybear, PrimitiveType::BABYBEAR);
+    CASE(DType::kBabybearStd, PrimitiveType::BABYBEAR_STD);
+    CASE(DType::kMersenne31, PrimitiveType::MERSENNE31);
+    CASE(DType::kMersenne31Std, PrimitiveType::MERSENNE31_STD);
+    CASE(DType::kGoldilocks, PrimitiveType::GOLDILOCKS);
+    CASE(DType::kGoldilocksStd, PrimitiveType::GOLDILOCKS_STD);
     CASE(DType::kBn254Scalar, PrimitiveType::BN254_SCALAR);
     CASE(DType::kBn254ScalarStd, PrimitiveType::BN254_SCALAR_STD);
     CASE(DType::kBn254G1Affine, PrimitiveType::BN254_G1_AFFINE);
@@ -83,6 +91,14 @@ absl::StatusOr<DType> ToDType(PrimitiveType primitive_type) {
     case PrimitiveType::U64:
     case PrimitiveType::TOKEN:
     case PrimitiveType::OPAQUE_TYPE:
+    case PrimitiveType::KOALABEAR:
+    case PrimitiveType::KOALABEAR_STD:
+    case PrimitiveType::BABYBEAR:
+    case PrimitiveType::BABYBEAR_STD:
+    case PrimitiveType::MERSENNE31:
+    case PrimitiveType::MERSENNE31_STD:
+    case PrimitiveType::GOLDILOCKS:
+    case PrimitiveType::GOLDILOCKS_STD:
     case PrimitiveType::BN254_SCALAR:
     case PrimitiveType::BN254_SCALAR_STD:
     case PrimitiveType::BN254_G1_AFFINE:

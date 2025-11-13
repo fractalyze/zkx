@@ -732,25 +732,57 @@ class HloParserImpl : public HloParser {
   }
   template <typename T>
   bool ParsePrimeField(PrimitiveType type, T* result) {
-    constexpr size_t kLimbNums = T::kLimbNums;
+    using UnderlyingType = typename T::UnderlyingType;
+
     LocTy loc = lexer_.GetLoc();
     switch (lexer_.GetKind()) {
       case TokKind::kInt: {
-        int64_t value;
-        if (!ParseInt64(&value)) {
+        int64_t value64;
+        if (!ParseInt64(&value64)) {
           return Error(loc, absl::StrCat("expects integer for primitive type: ",
                                          PrimitiveType_Name(type)));
         }
-        *result = value;
+        if constexpr (T::kModulusBits > 64) {
+          *result = T(value64);
+        } else {
+          if (value64 < 0 || value64 > T::Config::kModulus) {
+            return Error(loc,
+                         absl::StrCat("value out of range for primitive type: ",
+                                      PrimitiveType_Name(type)));
+          }
+          *result = T(static_cast<UnderlyingType>(value64));
+        }
         break;
       }
       case TokKind::kString: {
-        math::BigInt<kLimbNums> bigint_value;
-        if (!ParseBigInt(&bigint_value)) {
-          return Error(loc, absl::StrCat("expects string for primitive type: ",
-                                         PrimitiveType_Name(type)));
+        UnderlyingType value;
+        if constexpr (T::kModulusBits > 64) {
+          if (!ParseBigInt(&value)) {
+            return Error(loc,
+                         absl::StrCat("expects string for primitive type: ",
+                                      PrimitiveType_Name(type)));
+          }
+          *result = T(value);
+        } else {
+          std::string str_val = lexer_.GetStrVal();
+          uint64_t value;
+          if (absl::StartsWith(str_val, "0x")) {
+            if (!absl::SimpleHexAtoi(str_val, &value)) {
+              return TokenError("expects hex string");
+            }
+          } else {
+            if (!absl::SimpleAtoi(str_val, &value)) {
+              return TokenError("expects decimal string");
+            }
+          }
+          if (value > T::Config::kModulus) {
+            return Error(loc,
+                         absl::StrCat("value out of range for primitive type: ",
+                                      PrimitiveType_Name(type)));
+          }
+          *result = T(static_cast<UnderlyingType>(value));
+          lexer_.Lex();
         }
-        *result = T(bigint_value);
         break;
       }
       default:
@@ -4015,6 +4047,10 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
     break;                                                         \
   }
 
+            MONTABLE_CASE(KOALABEAR, math::Koalabear)
+            MONTABLE_CASE(BABYBEAR, math::Babybear)
+            MONTABLE_CASE(MERSENNE31, math::Mersenne31)
+            MONTABLE_CASE(GOLDILOCKS, math::Goldilocks)
             MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
 #undef MONTABLE_CASE
             default:
