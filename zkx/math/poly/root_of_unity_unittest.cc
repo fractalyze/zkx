@@ -6,6 +6,7 @@
 #include "zkx/math/elliptic_curve/bn/bn254/fr.h"
 #include "zkx/math/elliptic_curve/short_weierstrass/test/sw_curve_config.h"
 #include "zkx/math/field/babybear/babybear.h"
+#include "zkx/math/field/goldilocks/goldilocks.h"
 #include "zkx/math/field/koalabear/koalabear.h"
 #include "zkx/math/field/mersenne31/mersenne31.h"
 
@@ -19,6 +20,8 @@ using PrimeFieldTypes = testing::Types<
     Babybear,
     Koalabear,
     Mersenne31,
+    // 64-bit prime fields
+    Goldilocks,
     // 256-bit prime fields
     bn254::Fq,
     bn254::Fr
