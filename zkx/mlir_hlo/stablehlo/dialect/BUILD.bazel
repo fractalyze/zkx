@@ -1,9 +1,9 @@
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
-zkx_cc_library(
+cc_library(
     name = "assembly_format",
     srcs = ["AssemblyFormat.cpp"],
     hdrs = ["AssemblyFormat.h"],
@@ -16,7 +16,7 @@ zkx_cc_library(
     ],
 )
 
-zkx_cc_library(
+cc_library(
     name = "base",
     srcs = ["Base.cpp"],
     hdrs = ["Base.h"],
@@ -45,7 +45,7 @@ gentbl_cc_library(
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Base.td",
-    deps = [":ops_td_files"],
+    deps = [":stablehlo_ops_td_files"],
 )
 
 td_library(
@@ -59,7 +59,7 @@ td_library(
 )
 
 td_library(
-    name = "ops_td_files",
+    name = "stablehlo_ops_td_files",
     srcs = ["StablehloAttrs.td"],
     includes = ["."],
     deps = [
@@ -70,7 +70,7 @@ td_library(
     ],
 )
 
-zkx_cc_library(
+cc_library(
     name = "type_inference",
     srcs = ["TypeInference.cpp"],
     hdrs = ["TypeInference.h"],
@@ -81,6 +81,180 @@ zkx_cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+gentbl_cc_library(
+    name = "vhlo_attr_interfaces_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-attr-interface-decls"],
+            "VhloAttrInterfaces.h.inc",
+        ),
+        (
+            ["-gen-attr-interface-defs"],
+            "VhloAttrInterfaces.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "VhloEnums.td",
+    deps = [":vhlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "vhlo_attrs_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-attrdef-decls"],
+            "VhloAttrs.h.inc",
+        ),
+        (
+            ["-gen-attrdef-defs"],
+            "VhloAttrs.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "VhloOps.td",
+    deps = [":vhlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "vhlo_enums_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-enum-decls"],
+            "VhloEnums.h.inc",
+        ),
+        (
+            ["-gen-enum-defs"],
+            "VhloEnums.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "VhloEnums.td",
+    deps = [":vhlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "vhlo_op_interfaces_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-op-interface-decls"],
+            "VhloOpInterfaces.h.inc",
+        ),
+        (
+            ["-gen-op-interface-defs"],
+            "VhloOpInterfaces.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "VhloOps.td",
+    deps = [":vhlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "vhlo_ops_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-op-decls"],
+            "VhloOps.h.inc",
+        ),
+        (
+            ["-gen-op-defs"],
+            "VhloOps.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "VhloOps.td",
+    deps = [":vhlo_ops_td_files"],
+)
+
+td_library(
+    name = "vhlo_ops_td_files",
+    srcs = [
+        "VhloAttrs.td",
+        "VhloBase.td",
+        "VhloDialect.td",
+        "VhloEnums.td",
+        "VhloOps.td",
+        "VhloTypes.td",
+    ],
+    includes = ["."],
+    deps = [
+        "@llvm-project//mlir:BuiltinDialectTdFiles",
+        "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:ShapeOpsTdFiles",
+    ],
+)
+
+cc_library(
+    name = "vhlo_types",
+    srcs = ["VhloTypes.cpp"],
+    hdrs = ["VhloTypes.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":assembly_format",
+        ":version",
+        ":vhlo_type_interfaces_inc_gen",
+        ":vhlo_types_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:ShapeDialect",
+        "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+gentbl_cc_library(
+    name = "vhlo_type_interfaces_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-type-interface-decls"],
+            "VhloTypeInterfaces.h.inc",
+        ),
+        (
+            ["-gen-type-interface-defs"],
+            "VhloTypeInterfaces.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "VhloTypes.td",
+    deps = [":vhlo_ops_td_files"],
+)
+
+gentbl_cc_library(
+    name = "vhlo_types_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-typedef-decls"],
+            "VhloTypeDefs.h.inc",
+        ),
+        (
+            ["-gen-typedef-defs"],
+            "VhloTypeDefs.cpp.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "VhloOps.td",
+    deps = [":vhlo_ops_td_files"],
+)
+
+cc_library(
+    name = "version",
+    srcs = ["Version.cpp"],
+    hdrs = ["Version.h"],
+    strip_include_prefix = ".",
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
     ],
 )
