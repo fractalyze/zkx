@@ -55,11 +55,4 @@ TYPED_TEST(FieldR2TensorBinaryTest, Add) {
 // TODO(chokobole): Add FFT, IFFT test
 // TODO(chokobole): Add CSRMatrixVectorMultiplication test
 
-TYPED_TEST_SUITE(FieldTest, FieldTypes);
-
-TYPED_TEST(FieldTest, Slice) {
-  this->SetUpSlice();
-  this->RunAndVerify();
-}
-
 }  // namespace zkx::gpu

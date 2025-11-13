@@ -532,7 +532,8 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
   // We define the number of module parts based on the total number of
   // compiled functions (kernels and comparators) that are called from thunks,
   // and the maximum number of parts that we want to split the module into.
-  size_t num_compiled_functions = thunk_emitter.kernels().size();
+  size_t num_compiled_functions =
+      thunk_emitter.kernels().size() + thunk_emitter.comparators().size();
   size_t num_parts =
       std::min(num_compiled_functions, parallel_codegen_split_count);
 
@@ -598,6 +599,14 @@ CpuCompiler::CompileCpuExecutable(std::unique_ptr<HloModule> module) {
     CHECK_OK(jit_compiler.AddModule(std::move(module)));
     // Simply roundrobin the kernel dylibs
     // kernel_dylib_index = (kernel_dylib_index + 1) % num_parts;
+  }
+  for (auto& [name, module] : thunk_emitter.comparators()) {
+    compiled_symbols.push_back(
+        FunctionLibrary::Sym<FunctionLibrary::Comparator>(name));
+    symbol_type_id_to_function_type_id.emplace(compiled_symbols.back().type_id,
+                                               SymbolProto::COMPARATOR);
+
+    CHECK_OK(jit_compiler.AddModule(std::move(module)));
   }
 
   TF_ASSIGN_OR_RETURN(std::unique_ptr<FunctionLibrary> function_library,

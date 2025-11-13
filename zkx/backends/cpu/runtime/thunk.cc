@@ -30,6 +30,8 @@ std::string_view Thunk::KindToString(Kind kind) {
       return "all-reduce";
     case Kind::kAllToAll:
       return "all-to-all";
+    case Kind::kCall:
+      return "call";
     case Kind::kCollectivePermute:
       return "collective-permute";
     case Kind::kConditional:
@@ -44,6 +46,8 @@ std::string_view Thunk::KindToString(Kind kind) {
       return "outfeed";
     case Kind::kReduceScatter:
       return "reduce-scatter";
+    case Kind::kSort:
+      return "sort";
     case Kind::kWhile:
       return "while";
     case Kind::kUnknown:

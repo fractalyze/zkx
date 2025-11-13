@@ -22,6 +22,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/all_gather_thunk.h"
 #include "zkx/backends/cpu/runtime/all_reduce_thunk.h"
 #include "zkx/backends/cpu/runtime/all_to_all_thunk.h"
+#include "zkx/backends/cpu/runtime/call_thunk.h"
 #include "zkx/backends/cpu/runtime/collective_permute_thunk.h"
 #include "zkx/backends/cpu/runtime/conditional_thunk.h"
 #include "zkx/backends/cpu/runtime/copy_thunk.h"
@@ -35,6 +36,7 @@ limitations under the License.
 #include "zkx/hlo/ir/hlo_casting_utils.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/service/collective_ops_utils.h"
+#include "zkx/service/pattern_matcher.h"
 
 namespace zkx::cpu {
 namespace {
@@ -163,6 +165,11 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
     case HloOpcode::kConstant:
       return ThunkSequence::Empty();
 
+    // Call operations are simply converted to a ThunkSequence emitted from the
+    // called computation and embedded into the "main" one.
+    case HloOpcode::kCall:
+      return EmitCallThunk(instr);
+
     // Control flow thunks check predicates on the host and launch nested thunk
     // sequences for branches and loops.
     case HloOpcode::kConditional:
@@ -228,6 +235,8 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
       return EmitOutfeedThunk(instr);
     case HloOpcode::kCopy:
       return EmitCopyThunk(instr);
+    case HloOpcode::kSort:
+      return EmitSortThunk(instr);
 
     default:
       return absl::InternalError(
@@ -237,7 +246,7 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitHloInstruction(
 }
 
 absl::StatusOr<BufferAllocation::Slice> ThunkEmitter::GetAllocationSlice(
-    const HloInstruction* instruction, const ShapeIndex& index) {
+    const HloInstruction* instruction, const ShapeIndex& index) const {
   return buffer_assignment_->GetUniqueSlice(instruction, index);
 }
 
@@ -445,6 +454,15 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitOutfeedThunk(
       ThunkInfo(instruction), outfeed_buffers, std::move(outfeed_resources));
 }
 
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitCallThunk(
+    const HloInstruction* instruction) {
+  TF_ASSIGN_OR_RETURN(
+      ThunkSequence called_sequence,
+      EmitHloComputation(instruction->called_computations().front()));
+  return ThunkSequence::Of<CallThunk>(ThunkInfo(instruction),
+                                      std::move(called_sequence));
+}
+
 absl::StatusOr<ThunkSequence> ThunkEmitter::EmitConditionThunk(
     const HloInstruction* instruction) {
   std::vector<ThunkSequence> branches;
@@ -491,6 +509,131 @@ absl::StatusOr<ThunkSequence> ThunkEmitter::EmitCopyThunk(
   return ThunkSequence::Of<CopyThunk>(ThunkInfo(instruction), source_buffer,
                                       source->shape(), destination_buffer,
                                       instruction->shape());
+}
+
+// Parse the sort comparator to determine the sort direction. Comparator is
+// expected to be an HloOpcode::kCompare with two parameters.
+std::optional<SortThunk::SortDirection> ThunkEmitter::MatchSortDirection(
+    const HloComputation* hlo_comparator) const {
+  namespace m = match;
+  std::optional<SortThunk::SortDirection> direction = std::nullopt;
+
+  // TODO(tsilytskyi): Handle more than two input parameters.
+  if (hlo_comparator->root_instruction()->opcode() == HloOpcode::kCompare &&
+      hlo_comparator->root_instruction()->operand(0)->opcode() ==
+          HloOpcode::kParameter &&
+      hlo_comparator->root_instruction()->operand(1)->opcode() ==
+          HloOpcode::kParameter &&
+      hlo_comparator->num_parameters() == 2) {
+    auto* compare =
+        Cast<HloCompareInstruction>(hlo_comparator->root_instruction());
+
+    // Take into account the order of the parameters. If they are swapped,
+    // the sort direction will be reversed.
+    const bool expected_param_order =
+        (Match(compare, m::Op()
+                            .WithOperand(0, m::Parameter(0))
+                            .WithOperand(1, m::Parameter(1))));
+    switch (compare->comparison_direction()) {
+      case ComparisonDirection::kGe:
+        direction = (expected_param_order)
+                        ? SortThunk::SortDirection::kDescending
+                        : SortThunk::SortDirection::kAscending;
+        break;
+      case ComparisonDirection::kLt:
+        direction = (expected_param_order)
+                        ? SortThunk::SortDirection::kAscending
+                        : SortThunk::SortDirection::kDescending;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return direction;
+}
+
+absl::StatusOr<ThunkSequence> ThunkEmitter::EmitSortThunk(
+    const HloInstruction* instruction) {
+  auto* sort = Cast<HloSortInstruction>(instruction);
+
+  HloComputation* hlo_comparator = sort->to_apply();
+
+  const std::optional<SortThunk::SortDirection> direction =
+      MatchSortDirection(hlo_comparator);
+
+  CpuKernelEmitter emitter(mlir_context_, instruction, buffer_assignment_);
+  TF_ASSIGN_OR_RETURN(std::unique_ptr<KernelSource> comparator_source,
+                      emitter.EmitComparator(hlo_comparator));
+  auto llvm_ir_comparator_source = absl::WrapUnique<LlvmIrKernelSource>(
+      tsl::down_cast<LlvmIrKernelSource*>(comparator_source.release()));
+
+  comparators_.push_back(
+      {std::string(hlo_comparator->name()),
+       std::move(*llvm_ir_comparator_source).thread_safe_module()});
+
+  TF_ASSIGN_OR_RETURN(ThunkSequence comparator_thunks,
+                      EmitHloComputation(hlo_comparator));
+
+  TF_ASSIGN_OR_RETURN(auto buffers, GetHostKernelAllocationSlices(sort));
+
+  if (buffers.arguments.size() != buffers.results.size()) {
+    return absl::InternalError(
+        "Sort operation expects the same number of operands and results");
+  }
+
+  ThunkSequence thunks;
+
+  std::vector<SortThunk::Input> inputs;
+  inputs.reserve(sort->operand_count());
+
+  for (size_t i = 0; i < sort->operand_count(); ++i) {
+    const Shape& shape = sort->operand(i)->shape();
+
+    BufferAllocation::Slice arg = buffers.arguments[i];
+    BufferAllocation::Slice result = buffers.results[i];
+
+    // Copy argument to result if they are not the same buffer.
+    if (arg != result) {
+      TF_ASSIGN_OR_RETURN(
+          thunks.emplace_back(),
+          CopyThunk::Create(ThunkInfo(instruction), arg, shape, result, shape));
+    }
+
+    // Add sort thunk input to sort result buffer inplace.
+    inputs.push_back(SortThunk::Input{result, shape});
+  }
+
+  TF_ASSIGN_OR_RETURN(
+      thunks.emplace_back(),
+      SortThunk::Create(ThunkInfo(instruction), inputs, sort->sort_dimension(),
+                        sort->is_stable(), comparators_.back().comparator_name,
+                        direction));
+
+  return thunks;
+}
+
+absl::StatusOr<ThunkEmitter::HostKernelAllocationSlices>
+ThunkEmitter::GetHostKernelAllocationSlices(
+    const HloInstruction* instruction) const {
+  HostKernelAllocationSlices slices;
+
+  auto add_buffers = [&](std::vector<BufferAllocation::Slice>& buffers,
+                         const HloInstruction* instr) -> absl::Status {
+    for (const auto& indexed : ShapeUtil::GetLeafShapes(instr->shape())) {
+      TF_ASSIGN_OR_RETURN(buffers.emplace_back(),
+                          GetAllocationSlice(instr, indexed.index));
+    }
+    return absl::OkStatus();
+  };
+
+  for (HloInstruction* operand : instruction->operands()) {
+    TF_RETURN_IF_ERROR(add_buffers(slices.arguments, operand));
+  }
+
+  TF_RETURN_IF_ERROR(add_buffers(slices.results, instruction));
+
+  return slices;
 }
 
 // static

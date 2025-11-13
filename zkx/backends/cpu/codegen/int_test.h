@@ -710,6 +710,31 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     });
   }
 
+  void SetUpCall() {
+    hlo_text_ = absl::Substitute(R"(
+      %func {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] add(%x, %y)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = $0[] call(%x, %y), to_apply=%func
+      }
+    )",
+                                 x_typename_);
+
+    auto x = BaseIntTest<T>::GetRandomValue();
+    auto y = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR0<T>(x));
+    literals_.push_back(LiteralUtil::CreateR0<T>(y));
+    expected_literal_ = LiteralUtil::CreateR0<T>(x + y);
+  }
+
   void SetUpConcatenate() {
     constexpr static int64_t D0 = 2;
     constexpr static int64_t D1 = 3;
@@ -1091,6 +1116,33 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     literals_.push_back(LiteralUtil::CreateR1<T>(x));
     expected_literal_ = LiteralUtil::CreateR1<T>(
         base::CreateVector(E - S, [&x](size_t i) { return x[i + S]; }));
+  }
+
+  void SetUpSort() {
+    constexpr static int64_t D0 = 8;
+
+    hlo_text_ = absl::Substitute(R"(
+      %compare {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT ret = pred[] compare(%x, %y), direction=LT
+      }
+
+      ENTRY %main {
+        %x = $0[$1] parameter(0)
+
+        ROOT %ret = $0[$1] sort(%x), dimensions={0}, to_apply=%compare
+      }
+    )",
+                                 x_typename_, D0);
+
+    auto x = base::CreateVector(
+        D0, []() { return BaseIntTest<T>::GetRandomValue(); });
+    literals_.push_back(LiteralUtil::CreateR1<T>(x));
+    auto expected = x;
+    std::sort(expected.begin(), expected.end(), std::less<T>());
+    expected_literal_ = LiteralUtil::CreateR1<T>(expected);
   }
 
   void SetUpTranspose() {

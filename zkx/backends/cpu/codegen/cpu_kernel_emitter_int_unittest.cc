@@ -4,7 +4,7 @@
 
 namespace zkx::cpu {
 
-using IntTypes = testing::Types<int32_t, uint32_t>;
+using IntTypes = testing::Types<uint32_t, int32_t>;
 TYPED_TEST_SUITE(IntScalarUnaryTest, IntTypes);
 
 TYPED_TEST(IntScalarUnaryTest, Abs) {
@@ -182,6 +182,11 @@ TYPED_TEST(IntTest, BroadcastTensorR1ToR3WithD2) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, Call) {
+  this->SetUpCall();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Concatenate) {
   this->SetUpConcatenate();
   this->RunAndVerify();
@@ -239,6 +244,11 @@ TYPED_TEST(IntTest, Reverse) {
 
 TYPED_TEST(IntTest, Slice) {
   this->SetUpSlice();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, Sort) {
+  this->SetUpSort();
   this->RunAndVerify();
 }
 

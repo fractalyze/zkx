@@ -70,6 +70,7 @@ class Thunk {
     kAllGather,
     kAllReduce,
     kAllToAll,
+    kCall,
     kCollectivePermute,
     kCopy,
     kConditional,
@@ -77,6 +78,7 @@ class Thunk {
     kKernel,
     kOutfeed,
     kReduceScatter,
+    kSort,
     kWhile,
   };
 

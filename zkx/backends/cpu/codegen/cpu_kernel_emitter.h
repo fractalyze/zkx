@@ -59,6 +59,13 @@ class CpuKernelEmitter final : public KernelEmitter {
 
   absl::StatusOr<KernelDefinition> EmitKernelDefinition() override;
 
+  // TODO(chokobole): Since CPU code generation is handled in CpuKernelEmitter,
+  // EmitComparator() is currently implemented here for code reuse. However,
+  // a comparator is not a kernel, so this logic should be refactored and moved
+  // to a more appropriate location.
+  absl::StatusOr<std::unique_ptr<KernelSource>> EmitComparator(
+      const HloComputation* comparator);
+
  private:
   absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncArguments() const;
   absl::StatusOr<llvm::SmallVector<mlir::Type>> MakeFuncReturnTypes() const;
