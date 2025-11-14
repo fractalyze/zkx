@@ -3665,7 +3665,8 @@ bool HloParserImpl::SetValueInLiteralHelper(LocTy loc, ParsedElemT value,
                                    " at linear index ", index,
                                    ", but the index is out of range"));
   }
-  literal->data<LiteralNativeT>().at(index) = value;
+  literal->data<LiteralNativeT>().at(index) =
+      static_cast<LiteralNativeT>(value);
   return true;
 }
 
