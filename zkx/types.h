@@ -19,6 +19,8 @@ limitations under the License.
 #include <limits>
 #include <type_traits>
 
+#include "zk_dtypes/include/intn.h"
+
 namespace zkx {
 
 template <typename T>
@@ -29,6 +31,13 @@ struct is_specialized_integral
 template <typename T>
 inline constexpr bool is_specialized_integral_v =
     is_specialized_integral<T>::value;
+
+using u1 = ::zk_dtypes::uint1;
+using s1 = ::zk_dtypes::int1;
+using u2 = ::zk_dtypes::uint2;
+using s2 = ::zk_dtypes::int2;
+using u4 = ::zk_dtypes::uint4;
+using s4 = ::zk_dtypes::int4;
 
 }  // namespace zkx
 

@@ -65,23 +65,20 @@ constexpr PrimitiveType NativeToPrimitiveType<bool>() {
 }
 
 // Unsigned integer
-// TODO(chokobole): Uncomment this. Dependency: u1
-// template <>
-// constexpr PrimitiveType NativeToPrimitiveType<u1>() {
-//   return U1;
-// }
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<u1>() {
+  return U1;
+}
 
-// TODO(chokobole): Uncomment this. Dependency: u2
-// template <>
-// constexpr PrimitiveType NativeToPrimitiveType<u2>() {
-//   return U2;
-// }
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<u2>() {
+  return U2;
+}
 
-// TODO(chokobole): Uncomment this. Dependency: u4
-// template <>
-// constexpr PrimitiveType NativeToPrimitiveType<u4>() {
-//   return U4;
-// }
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<u4>() {
+  return U4;
+}
 
 template <>
 constexpr PrimitiveType NativeToPrimitiveType<uint8_t>() {
@@ -104,23 +101,20 @@ constexpr PrimitiveType NativeToPrimitiveType<uint64_t>() {
 }
 
 // Signed integer
-// TODO(chokobole): Uncomment this. Dependency: s1
-// template <>
-// constexpr PrimitiveType NativeToPrimitiveType<s1>() {
-//   return S1;
-// }
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<s1>() {
+  return S1;
+}
 
-// TODO(chokobole): Uncomment this. Dependency: s2
-// template <>
-// constexpr PrimitiveType NativeToPrimitiveType<s2>() {
-//   return S2;
-// }
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<s2>() {
+  return S2;
+}
 
-// TODO(chokobole): Uncomment this. Dependency: s4
-// template <>
-// constexpr PrimitiveType NativeToPrimitiveType<s4>() {
-//   return S4;
-// }
+template <>
+constexpr PrimitiveType NativeToPrimitiveType<s4>() {
+  return S4;
+}
 
 template <>
 constexpr PrimitiveType NativeToPrimitiveType<int8_t>() {
@@ -177,23 +171,17 @@ struct PrimitiveTypeToNative<PRED> {
 // Unsigned integer
 template <>
 struct PrimitiveTypeToNative<U1> {
-  // TODO(chokobole): Uncomment this. Dependency: u1
-  // using type = u1;
-  using type = uint8_t;
+  using type = u1;
 };
 
 template <>
 struct PrimitiveTypeToNative<U2> {
-  // TODO(chokobole): Uncomment this. Dependency: u2
-  // using type = u2;
-  using type = uint8_t;
+  using type = u2;
 };
 
 template <>
 struct PrimitiveTypeToNative<U4> {
-  // TODO(chokobole): Uncomment this. Dependency: u4
-  // using type = u4;
-  using type = uint8_t;
+  using type = u4;
 };
 
 template <>
@@ -219,23 +207,17 @@ struct PrimitiveTypeToNative<U64> {
 // Signed integer
 template <>
 struct PrimitiveTypeToNative<S1> {
-  // TODO(chokobole): Uncomment this. Dependency: s1
-  // using type = s1;
-  using type = int8_t;
+  using type = s1;
 };
 
 template <>
 struct PrimitiveTypeToNative<S2> {
-  // TODO(chokobole): Uncomment this. Dependency: s2
-  // using type = s2;
-  using type = int8_t;
+  using type = s2;
 };
 
 template <>
 struct PrimitiveTypeToNative<S4> {
-  // TODO(chokobole): Uncomment this. Dependency: s4
-  // using type = s4;
-  using type = int8_t;
+  using type = s4;
 };
 
 template <>
@@ -611,7 +593,13 @@ inline void UnpackIntN(PrimitiveType input_type, absl::Span<const char> input,
 
 template <typename NativeT>
 std::string NativeTypeToString(NativeT value) {
-  if constexpr (math::IsField<NativeT> || math::IsEcPoint<NativeT>) {
+  // TODO(chokobole): XLA just uses absl::StrCat(). Maybe our absl is
+  // too old...
+  if constexpr (std::is_same_v<NativeT, u1> || std::is_same_v<NativeT, s1> ||
+                std::is_same_v<NativeT, u2> || std::is_same_v<NativeT, s2> ||
+                std::is_same_v<NativeT, u4> || std::is_same_v<NativeT, s4>) {
+    return value.ToString();
+  } else if constexpr (math::IsField<NativeT> || math::IsEcPoint<NativeT>) {
     return value.ToString();
   } else {
     return absl::StrCat(value);
