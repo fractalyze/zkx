@@ -453,7 +453,12 @@ CpuKernelEmitter::MakeFuncArguments() const {
           ShapeUtil::MakeShape(U8, {ShapeUtil::SparseArrayDataSize(shape)}),
           mlir_context_));
     } else {
-      args.push_back(mlir_utils::ShapeToMlirMemRefType(shape, mlir_context_));
+      if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
+        args.push_back(mlir_utils::ShapeToMlirMemRefType(
+            ShapeUtil::ChangeElementType(shape, U8), mlir_context_));
+      } else {
+        args.push_back(mlir_utils::ShapeToMlirMemRefType(shape, mlir_context_));
+      }
     }
   }
   return std::move(args);
@@ -466,8 +471,13 @@ CpuKernelEmitter::MakeFuncReturnTypes() const {
         "Unhandled sparse array layout: %s", instr_->ToString()));
   }
   llvm::SmallVector<mlir::Type> ret;
-  ret.push_back(
-      mlir_utils::ShapeToMlirMemRefType(instr_->shape(), mlir_context_));
+  if (primitive_util::IsSubByteNonPredType(instr_->shape().element_type())) {
+    ret.push_back(mlir_utils::ShapeToMlirMemRefType(
+        ShapeUtil::ChangeElementType(instr_->shape(), U8), mlir_context_));
+  } else {
+    ret.push_back(
+        mlir_utils::ShapeToMlirMemRefType(instr_->shape(), mlir_context_));
+  }
   return std::move(ret);
 }
 
@@ -641,10 +651,33 @@ CpuKernelEmitter::EmitOperands(EmitterLocOpBuilder& b,
             "Unhandled sparse array layout: %s", operand->ToString()));
       }
     } else if (ShapeUtil::IsScalar(shape)) {
-      values[operand] =
+      auto load =
           b.create<mlir::memref::LoadOp>(entry_block->getArgument(i), {});
+      if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
+        auto bit_width = primitive_util::BitWidth(shape.element_type());
+        if (bit_width == 2 || bit_width == 4) {
+          auto shr = b.create<mlir::arith::ShRUIOp>(
+              load, b.create<mlir::arith::ConstantOp>(
+                        b.getIntegerAttr(b.getI8Type(), 8 - bit_width)));
+          values[operand] = b.create<mlir::arith::TruncIOp>(
+              mlir_utils::PrimitiveTypeToMlirType(shape.element_type(),
+                                                  b.getContext()),
+              shr);
+        } else {
+          return absl::InternalError(absl::StrFormat(
+              "Unhandled sub byte non pred type: %s", operand->ToString()));
+        }
+      } else {
+        values[operand] = load;
+      }
     } else {
       pass_flag_.enable_one_shot_bufferize = true;
+
+      if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
+        return absl::UnimplementedError(absl::StrFormat(
+            "tensor input with sub byte non pred type is not supported: %s",
+            operand->ToString()));
+      }
 
       values[operand] = b.create<mlir::bufferization::ToTensorOp>(
           mlir_utils::ShapeToMlirTensorType(shape, mlir_context_),
@@ -667,9 +700,29 @@ absl::Status CpuKernelEmitter::EmitEpilog(EmitterLocOpBuilder& b,
         "Unhandled sparse array layout: %s", instr_->ToString()));
   } else if (ShapeUtil::IsScalar(shape)) {
     ret_value = b.create<mlir::memref::AllocOp>(ret_type);
-    b.create<mlir::memref::StoreOp>(result, ret_value, {});
+    if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
+      auto bit_width = primitive_util::BitWidth(shape.element_type());
+      if (bit_width == 2 || bit_width == 4) {
+        auto ext = b.create<mlir::arith::ExtUIOp>(b.getI8Type(), result);
+        auto shl = b.create<mlir::arith::ShLIOp>(
+            ext, b.create<mlir::arith::ConstantOp>(
+                     b.getIntegerAttr(b.getI8Type(), 8 - bit_width)));
+        b.create<mlir::memref::StoreOp>(shl, ret_value, {});
+      } else {
+        return absl::InternalError(absl::StrFormat(
+            "Unhandled sub byte non pred type: %s", instr_->ToString()));
+      }
+    } else {
+      b.create<mlir::memref::StoreOp>(result, ret_value, {});
+    }
   } else {
     pass_flag_.enable_one_shot_bufferize = true;
+
+    if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
+      return absl::UnimplementedError(absl::StrFormat(
+          "tensor output with sub byte non pred type is not supported: %s",
+          instr_->ToString()));
+    }
 
     ret_value = b.create<mlir::bufferization::ToBufferOp>(ret_type, result);
   }
