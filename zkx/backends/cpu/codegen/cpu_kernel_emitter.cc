@@ -1162,6 +1162,36 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> root;
   mlir::zkir::field::RootOfUnityAttr root_attr;
   switch (operand_type) {
+    case KOALABEAR: {
+      root = GetRootOfUnityAttr<math::Koalabear>(value.getContext(),
+                                                 instr->fft_length());
+      break;
+    }
+    case KOALABEAR_STD: {
+      root = GetRootOfUnityAttr<math::KoalabearStd>(value.getContext(),
+                                                    instr->fft_length());
+      break;
+    }
+    case BABYBEAR: {
+      root = GetRootOfUnityAttr<math::Babybear>(value.getContext(),
+                                                instr->fft_length());
+      break;
+    }
+    case BABYBEAR_STD: {
+      root = GetRootOfUnityAttr<math::BabybearStd>(value.getContext(),
+                                                   instr->fft_length());
+      break;
+    }
+    case GOLDILOCKS: {
+      root = GetRootOfUnityAttr<math::Goldilocks>(value.getContext(),
+                                                  instr->fft_length());
+      break;
+    }
+    case GOLDILOCKS_STD: {
+      root = GetRootOfUnityAttr<math::GoldilocksStd>(value.getContext(),
+                                                     instr->fft_length());
+      break;
+    }
     case BN254_SCALAR: {
       root = GetRootOfUnityAttr<math::bn254::Fr>(value.getContext(),
                                                  instr->fft_length());

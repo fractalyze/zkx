@@ -80,6 +80,14 @@ struct NumpyScalarTypes {
   nanobind::object np_uint64;
   nanobind::object np_longlong;
   nanobind::object np_intc;
+  nanobind::object np_koalabear;
+  nanobind::object np_koalabear_std;
+  nanobind::object np_babybear;
+  nanobind::object np_babybear_std;
+  nanobind::object np_mersenne31;
+  nanobind::object np_mersenne31_std;
+  nanobind::object np_goldilocks;
+  nanobind::object np_goldilocks_std;
   nanobind::object np_bn254_scalar;
   nanobind::object np_bn254_scalar_std;
   nanobind::object np_bn254_g1_affine;

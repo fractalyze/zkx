@@ -26,6 +26,13 @@ template <typename T, size_t N,
   return ret;
 }
 
+template <typename T, typename U,
+          std::enable_if_t<!std::is_integral_v<T> && std::is_integral_v<U>>* =
+              nullptr>
+[[nodiscard]] constexpr T Pow(const T& value, U exponent) {
+  return Pow(value, BigInt<1>(exponent));
+}
+
 template <typename T, std::enable_if_t<std::is_integral_v<T>>* = nullptr>
 [[nodiscard]] constexpr T Pow(T value, T exponent) {
   T ret = 1;

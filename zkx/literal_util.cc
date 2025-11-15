@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "zkx/literal_util.h"
 
+#include <random>
 #include <type_traits>
 
 #include "absl/log/check.h"
@@ -23,7 +24,7 @@ limitations under the License.
 
 #include "zkx/base/containers/container_util.h"
 #include "zkx/math/base/big_int.h"
-#include "zkx/math/base/prime_field.h"
+#include "zkx/math/field/prime_field.h"
 #include "zkx/math/geometry/point_declarations.h"
 
 namespace zkx {
@@ -238,21 +239,43 @@ void PopulateWithRandomIntegralDataWithBounds(Literal* literal,
 }
 
 template <typename T>
+auto GetUniformDistribution() {
+  using UnderlyingType = typename T::UnderlyingType;
+
+  if constexpr (std::is_same_v<UnderlyingType, uint64_t>) {
+    return std::uniform_int_distribution<uint64_t>(0, T::Config::kModulus);
+  } else if constexpr (std::is_same_v<UnderlyingType, uint32_t>) {
+    return std::uniform_int_distribution<uint32_t>(0, T::Config::kModulus);
+  } else if constexpr (std::is_same_v<UnderlyingType, uint16_t>) {
+    return std::uniform_int_distribution<uint16_t>(0, T::Config::kModulus);
+  } else if constexpr (std::is_same_v<UnderlyingType, uint8_t>) {
+    return std::uniform_int_distribution<uint8_t>(0, T::Config::kModulus);
+  } else {
+    return std::uniform_int_distribution<uint64_t>();
+  }
+}
+
+template <typename T>
 void PopulateWithRandomFieldTypeData(Literal* literal,
                                      std::minstd_rand0* engine) {
-  using BigInt = math::BigInt<T::kLimbNums>;
   CHECK(engine != nullptr);
   CHECK_EQ(literal->shape().element_type(),
            primitive_util::NativeToPrimitiveType<T>());
-  BigInt max_value = T::Config::kModulus;
-  std::uniform_int_distribution<uint64_t> generator;
+  auto generator = GetUniformDistribution<T>();
+
   for (T& value : literal->data<T>()) {
-    BigInt v;
-    do {
-      for (size_t i = 0; i < BigInt::kLimbNums; ++i) {
-        v[i] = static_cast<uint64_t>(generator(*engine));
-      }
-    } while (v >= max_value);
+    using UnderlyingType = typename T::UnderlyingType;
+    UnderlyingType v;
+    if constexpr (T::kModulusBits > 64) {
+      UnderlyingType max_value = T::Config::kModulus;
+      do {
+        for (size_t i = 0; i < UnderlyingType::kLimbNums; ++i) {
+          v[i] = generator(*engine);
+        }
+      } while (v >= max_value);
+    } else {
+      v = generator(*engine);
+    }
     value = T::FromUnchecked(v);
   }
 }
@@ -261,21 +284,26 @@ template <typename T>
 void PopulateWithRandomEcPointData(Literal* literal, std::minstd_rand0* engine,
                                    bool is_sorted) {
   using ScalarField = typename T::ScalarField;
-  using BigInt = math::BigInt<ScalarField::kLimbNums>;
+  using UnderlyingType = typename ScalarField::UnderlyingType;
   CHECK(engine != nullptr);
   CHECK_EQ(literal->shape().element_type(),
            primitive_util::NativeToPrimitiveType<T>());
-  BigInt max_value = ScalarField::Config::kModulus;
-  std::uniform_int_distribution<uint64_t> generator;
+
+  auto generator = GetUniformDistribution<ScalarField>();
   std::vector<ScalarField> scalars;
   scalars.reserve(literal->data<T>().size());
   for (size_t i = 0; i < literal->data<T>().size(); ++i) {
-    BigInt v;
-    do {
-      for (size_t j = 0; j < BigInt::kLimbNums; ++j) {
-        v[j] = static_cast<uint64_t>(generator(*engine));
-      }
-    } while (v >= max_value);
+    UnderlyingType v;
+    if constexpr (ScalarField::kModulusBits > 64) {
+      UnderlyingType max_value = ScalarField::Config::kModulus;
+      do {
+        for (size_t j = 0; j < UnderlyingType::kLimbNums; ++j) {
+          v[j] = generator(*engine);
+        }
+      } while (v >= max_value);
+    } else {
+      v = generator(*engine);
+    }
     scalars.push_back(ScalarField::FromUnchecked(v));
   }
   if (is_sorted) {

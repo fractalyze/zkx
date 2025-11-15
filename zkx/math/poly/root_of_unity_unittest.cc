@@ -2,12 +2,31 @@
 
 #include "gtest/gtest.h"
 
-#include "zkx/math/elliptic_curves/bn/bn254/fq.h"
-#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fq.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/short_weierstrass/test/sw_curve_config.h"
+#include "zkx/math/field/babybear/babybear.h"
+#include "zkx/math/field/goldilocks/goldilocks.h"
+#include "zkx/math/field/koalabear/koalabear.h"
+#include "zkx/math/field/mersenne31/mersenne31.h"
 
 namespace zkx::math {
 
-using PrimeFieldTypes = testing::Types<bn254::Fq, bn254::Fr>;
+using PrimeFieldTypes = testing::Types<
+    // clang-format off
+    // 8-bit prime fields
+    test::Fr,
+    // 32-bit prime fields
+    Babybear,
+    Koalabear,
+    Mersenne31,
+    // 64-bit prime fields
+    Goldilocks,
+    // 256-bit prime fields
+    bn254::Fq,
+    bn254::Fr
+    // clang-format on
+    >;
 
 namespace {
 
@@ -38,8 +57,13 @@ TYPED_TEST(PrimeFieldBaseTest, Decompose) {
 TYPED_TEST(PrimeFieldBaseTest, TwoAdicRootOfUnity) {
   using F = TypeParam;
 
-  F n = F(2).Pow(F::Config::kTwoAdicity);
-  ASSERT_TRUE(F::FromUnchecked(F::Config::kTwoAdicRootOfUnity).Pow(n).IsOne());
+  if constexpr (F::Config::kHasTwoAdicRootOfUnity) {
+    F n = F(2).Pow(F::Config::kTwoAdicity);
+    ASSERT_TRUE(
+        F::FromUnchecked(F::Config::kTwoAdicRootOfUnity).Pow(n).IsOne());
+  } else {
+    GTEST_SKIP() << "No TwoAdicRootOfUnity";
+  }
 }
 
 TYPED_TEST(PrimeFieldBaseTest, LargeSubgroupOfUnity) {
@@ -68,12 +92,14 @@ TYPED_TEST(PrimeFieldBaseTest, GetRootOfUnity) {
         ASSERT_TRUE(root.Pow(n).IsOne());
       }
     }
-  } else {
+  } else if constexpr (F::Config::kHasTwoAdicRootOfUnity) {
     for (uint32_t i = 0; i <= F::Config::kTwoAdicity; ++i) {
       uint64_t n = uint64_t{1} << i;
       TF_ASSERT_OK_AND_ASSIGN(F root, GetRootOfUnity<F>(n));
       ASSERT_TRUE(root.Pow(n).IsOne());
     }
+  } else {
+    GTEST_SKIP() << "No RootOfUnity";
   }
 }
 

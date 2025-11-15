@@ -67,7 +67,6 @@ absl::StatusOr<PrimeFieldFactors> Decompose(uint64_t n) {
 
 template <typename F>
 absl::StatusOr<F> GetRootOfUnity(uint64_t n) {
-  F omega;
   if constexpr (F::Config::kHasLargeSubgroupRootOfUnity) {
     TF_ASSIGN_OR_RETURN(internal::PrimeFieldFactors factors,
                         internal::Decompose<F>(n));
@@ -81,7 +80,7 @@ absl::StatusOr<F> GetRootOfUnity(uint64_t n) {
           F::Config::kSmallSubgroupAdicity));
     }
 
-    omega = F::FromUnchecked(F::Config::kLargeSubgroupRootOfUnity);
+    auto omega = F::FromUnchecked(F::Config::kLargeSubgroupRootOfUnity);
     for (size_t i = factors.q_adicity; i < F::Config::kSmallSubgroupAdicity;
          ++i) {
       omega = omega.Pow(F::Config::kSmallSubgroupBase);
@@ -90,7 +89,8 @@ absl::StatusOr<F> GetRootOfUnity(uint64_t n) {
     for (size_t i = factors.two_adicity; i < F::Config::kTwoAdicity; ++i) {
       omega = omega.Square();
     }
-  } else {
+    return omega;
+  } else if constexpr (F::Config::kHasTwoAdicRootOfUnity) {
     uint32_t log_size_of_group = base::Log2Ceiling(n);
     uint64_t size = uint64_t{1} << log_size_of_group;
 
@@ -101,12 +101,14 @@ absl::StatusOr<F> GetRootOfUnity(uint64_t n) {
                            n, F::Config::kTwoAdicity));
     }
 
-    omega = F::FromUnchecked(F::Config::kTwoAdicRootOfUnity);
+    auto omega = F::FromUnchecked(F::Config::kTwoAdicRootOfUnity);
     for (uint32_t i = log_size_of_group; i < F::Config::kTwoAdicity; ++i) {
       omega = omega.Square();
     }
+    return omega;
+  } else {
+    return absl::NotFoundError("No RootOfUnity");
   }
-  return omega;
 }
 
 }  // namespace zkx::math

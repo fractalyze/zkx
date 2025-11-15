@@ -68,6 +68,18 @@ enum PrimitiveType {
   // primitive type will have empty dimensions and tuple_shapes fields.
   TOKEN = 18;
 
+  KOALABEAR = 33;
+  KOALABEAR_STD = 34;
+
+  BABYBEAR = 35;
+  BABYBEAR_STD = 36;
+
+  MERSENNE31 = 37;
+  MERSENNE31_STD = 38;
+
+  GOLDILOCKS = 39;
+  GOLDILOCKS_STD = 40;
+
   BN254_SCALAR = 19;
   BN254_SCALAR_STD = 20;
   BN254_G1_AFFINE = 21;
@@ -494,6 +506,14 @@ message LiteralProto {
   repeated LiteralProto tuple_literals = 17;
   repeated int64 sparse_indices = 18;
 
+  bytes koalabears = 33;
+  bytes koalabears_std = 34;
+  bytes babybears = 35;
+  bytes babybears_std = 36;
+  bytes mersenne31s = 37;
+  bytes mersenne31s_std = 38;
+  bytes goldilockss = 39;
+  bytes goldilockss_std = 40;
   bytes bn254_scalars = 19;
   bytes bn254_scalars_std = 20;
   bytes bn254_g1_affines = 21;

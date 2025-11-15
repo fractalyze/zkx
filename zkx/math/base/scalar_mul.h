@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+#include <type_traits>
+
 #include "zkx/math/base/big_int.h"
 #include "zkx/math/base/bit_iterator.h"
 
@@ -21,6 +23,12 @@ template <typename T, size_t N>
     ++it;
   }
   return ret;
+}
+
+template <typename T, typename U,
+          std::enable_if_t<std::is_integral_v<U>>* = nullptr>
+[[nodiscard]] constexpr T ScalarMul(const T& value, U scalar) {
+  return ScalarMul(value, BigInt<1>(scalar));
 }
 
 }  // namespace zkx::math

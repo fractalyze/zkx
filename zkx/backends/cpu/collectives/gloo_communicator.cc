@@ -249,6 +249,10 @@ absl::Status GlooCommunicator::AllReduce(se::DeviceMemoryBase send_buffer,
     TF_RETURN_IF_ERROR(SetAllReduceOptions<cpp_type##Std>(          \
         reduction_kind, send_buffer, recv_buffer, count, options)); \
     break;
+      MONTABLE_CASE(KOALABEAR, math::Koalabear)
+      MONTABLE_CASE(BABYBEAR, math::Babybear)
+      MONTABLE_CASE(MERSENNE31, math::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, math::Goldilocks)
       MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
       MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
       MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
@@ -455,6 +459,10 @@ absl::Status GlooCommunicator::ReduceScatter(se::DeviceMemoryBase send_buffer,
     TF_RETURN_IF_ERROR(ReduceScatterHelper<cpp_type##Std>(                     \
         context_, reduction_kind, temp.get(), count));                         \
     break;
+      MONTABLE_CASE(KOALABEAR, math::Koalabear)
+      MONTABLE_CASE(BABYBEAR, math::Babybear)
+      MONTABLE_CASE(MERSENNE31, math::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, math::Goldilocks)
       MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
       MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
       MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
