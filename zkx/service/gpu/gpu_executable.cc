@@ -23,6 +23,7 @@ limitations under the License.
 
 #include "absl/container/inlined_vector.h"
 #include "absl/log/check.h"
+#include "absl/log/vlog_is_on.h"
 #include "absl/strings/str_format.h"
 #include "absl/time/time.h"
 

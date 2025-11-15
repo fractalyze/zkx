@@ -2,6 +2,7 @@
 
 #include "absl/base/optimization.h"
 #include "absl/log/log.h"
+#include "absl/log/vlog_is_on.h"
 #include "absl/strings/str_format.h"
 
 #include "xla/tsl/platform/env.h"

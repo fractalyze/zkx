@@ -102,6 +102,7 @@ zkx_cc_library(
         "//zkx/pjrt:utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:vlog_is_on",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

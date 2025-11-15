@@ -17,6 +17,7 @@ limitations under the License.
 
 #include "absl/base/thread_annotations.h"
 #include "absl/log/log.h"
+#include "absl/log/vlog_is_on.h"
 #include "absl/synchronization/mutex.h"
 
 namespace zkx {

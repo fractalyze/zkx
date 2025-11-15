@@ -41,6 +41,23 @@ def zkx_deps():
         ],
     )
 
+    tf_http_archive(
+        name = "com_google_absl",
+        sha256 = "9b2b72d4e8367c0b843fa2bcfa2b08debbe3cee34f7aaa27de55a6cbb3e843db",
+        strip_prefix = "abseil-cpp-20250814.0",
+        urls = tf_mirror_urls("https://github.com/abseil/abseil-cpp/archive/refs/tags/20250814.0.tar.gz"),
+        patch_file = [
+            "@zkx//third_party/absl:btree.patch",
+            "@zkx//third_party/absl:build_dll.patch",
+            "@zkx//third_party/absl:check_op.patch",
+            "@zkx//third_party/absl:check_op_2.patch",
+            "@zkx//third_party/absl:endian.patch",
+            "@zkx//third_party/absl:googletest.patch",
+            "@zkx//third_party/absl:if_constexpr.patch",
+            "@zkx//third_party/absl:rules_cc.patch",
+        ],
+    )
+
     # Needed by com_google_googletest
     tf_http_archive(
         name = "com_googlesource_code_re2",

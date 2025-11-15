@@ -18,6 +18,7 @@ limitations under the License.
 #include <cstdlib>
 #include <tuple>
 
+#include "absl/log/vlog_is_on.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 

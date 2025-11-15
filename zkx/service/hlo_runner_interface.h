@@ -110,16 +110,18 @@ class OpaqueExecutable {
   // !!! STOP !!!
 
  protected:
-  explicit OpaqueExecutable(absl::Nonnull<const HloRunnerInterface*> creator)
+  explicit OpaqueExecutable(const HloRunnerInterface* absl_nonnull creator)
       : creator_(ABSL_DIE_IF_NULL(creator)) {}
   // Cannot be moved or copied.
   OpaqueExecutable(const OpaqueExecutable&) = delete;
   OpaqueExecutable& operator=(const OpaqueExecutable&) = delete;
 
   template <typename T>
-  static absl::StatusOr<absl::Nonnull<T*>> TryUnwrap(
+  // clang-format off
+  static absl::StatusOr<T* absl_nonnull> TryUnwrap(
+      // clang-format on
       const HloRunnerInterface& runner,
-      absl::Nonnull<OpaqueExecutable*> const wrapped) {
+      OpaqueExecutable* absl_nonnull const wrapped) {
     static_assert(
         std::is_base_of_v<OpaqueExecutable, T>,
         "TryUnwrap must be used with a subclass of OpaqueExecutable.");
@@ -136,9 +138,11 @@ class OpaqueExecutable {
   }
 
   template <typename T>
-  static absl::StatusOr<absl::Nonnull<const T*>> TryUnwrap(
+  // clang-format off
+  static absl::StatusOr<const T* absl_nonnull> TryUnwrap(
+      // clang-format on
       const HloRunnerInterface& runner,
-      absl::Nonnull<const OpaqueExecutable*> const wrapped) {
+      const OpaqueExecutable* absl_nonnull const wrapped) {
     static_assert(
         std::is_base_of_v<OpaqueExecutable, T>,
         "TryUnwrap must be used with a subclass of OpaqueExecutable.");
@@ -360,7 +364,9 @@ class HloRunnerInterface {
   // OpaqueExecutable. Returns an error if the OpaqueExecutable cannot be
   // unwrapped, or if the OpaqueExecutable does not contain at least one
   // HloModule.
-  virtual absl::StatusOr<absl::Nonnull<const HloModule*>> HloModuleFromWrapped(
+  // clang-format off
+  virtual absl::StatusOr<const HloModule* absl_nonnull> HloModuleFromWrapped(
+      // clang-format on
       const OpaqueExecutable* wrapped) const = 0;
 };
 

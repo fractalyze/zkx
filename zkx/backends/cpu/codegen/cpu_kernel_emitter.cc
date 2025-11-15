@@ -16,6 +16,7 @@ limitations under the License.
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter.h"
 
 #include "absl/functional/bind_front.h"
+#include "absl/log/vlog_is_on.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "llvm/Linker/Linker.h"
