@@ -37,6 +37,11 @@ TYPED_TEST(FieldScalarBinaryTest, Div) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(FieldScalarBinaryTest, Double) {
+  this->SetUpDouble();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(FieldScalarBinaryTest, Maximum) {
   this->SetUpMaximum();
   this->RunAndVerify();
@@ -59,6 +64,11 @@ TYPED_TEST(FieldScalarBinaryTest, Pow) {
 
 TYPED_TEST(FieldScalarBinaryTest, PowWithSignedExponentShouldFail) {
   this->SetUpPowWithSignedExponentShouldFail();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(FieldScalarBinaryTest, Square) {
+  this->SetUpSquare();
   this->RunAndVerify();
 }
 

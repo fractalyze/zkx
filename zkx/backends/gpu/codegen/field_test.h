@@ -123,6 +123,25 @@ class FieldScalarBinaryTest : public CudaKernelEmitterTest {
     }
   }
 
+  void SetUpDouble() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] add(%x, %x)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] fusion(%x), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    literals_.pop_back();
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_.Double());
+  }
+
   void SetUpSub() {
     hlo_text_ = absl::Substitute(R"(
       %f {
@@ -184,6 +203,25 @@ class FieldScalarBinaryTest : public CudaKernelEmitterTest {
     )",
                                  x_typename_);
     expected_literal_ = LiteralUtil::CreateR0<F>(x_ * y_);
+  }
+
+  void SetUpSquare() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] multiply(%x, %x)
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+
+        ROOT %ret = $0[] fusion(%x), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    literals_.pop_back();
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_.Square());
   }
 
  private:
