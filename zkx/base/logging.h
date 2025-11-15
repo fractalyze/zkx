@@ -5,6 +5,7 @@
 #include <string>
 
 #include "absl/log/log.h"
+#include "absl/log/vlog_is_on.h"
 
 namespace zkx::base {
 

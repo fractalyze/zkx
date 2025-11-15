@@ -52,7 +52,7 @@ namespace {
 
 class HloRunnerExecutable : public OpaqueExecutable {
  public:
-  HloRunnerExecutable(absl::Nonnull<const HloRunner*> creator,
+  HloRunnerExecutable(const HloRunner* absl_nonnull creator,
                       std::unique_ptr<Executable> executable)
       : OpaqueExecutable(creator), executable_(std::move(executable)) {}
 
@@ -62,12 +62,12 @@ class HloRunnerExecutable : public OpaqueExecutable {
   }
 
   static absl::StatusOr<HloRunnerExecutable*> TryUnwrap(
-      const HloRunner& runner, absl::Nonnull<OpaqueExecutable*> const wrapped) {
+      const HloRunner& runner, OpaqueExecutable* absl_nonnull const wrapped) {
     return OpaqueExecutable::TryUnwrap<HloRunnerExecutable>(runner, wrapped);
   }
   static absl::StatusOr<const HloRunnerExecutable*> TryUnwrap(
       const HloRunner& runner,
-      absl::Nonnull<const OpaqueExecutable*> const wrapped) {
+      const OpaqueExecutable* absl_nonnull const wrapped) {
     return OpaqueExecutable::TryUnwrap<HloRunnerExecutable>(runner, wrapped);
   }
 
@@ -803,7 +803,9 @@ std::unique_ptr<OpaqueExecutable> HloRunner::WrapExecutable(
   return std::make_unique<HloRunnerExecutable>(this, std::move(executable));
 }
 
-absl::StatusOr<absl::Nonnull<const HloModule*>> HloRunner::HloModuleFromWrapped(
+// clang-format off
+absl::StatusOr<const HloModule* absl_nonnull> HloRunner::HloModuleFromWrapped(
+    // clang-format on
     const OpaqueExecutable* wrapped) const {
   TF_ASSIGN_OR_RETURN(const HloRunnerExecutable* const hlo_runner_executable,
                       HloRunnerExecutable::TryUnwrap(*this, wrapped));
@@ -813,7 +815,9 @@ absl::StatusOr<absl::Nonnull<const HloModule*>> HloRunner::HloModuleFromWrapped(
   return &hlo_runner_executable->executable()->module();
 }
 
-absl::StatusOr<absl::Nonnull<const HloProto*>> HloRunner::HloProtoFromWrapped(
+// clang-format off
+absl::StatusOr<const HloProto* absl_nonnull> HloRunner::HloProtoFromWrapped(
+    // clang-format on
     const OpaqueExecutable* wrapped) const {
   TF_ASSIGN_OR_RETURN(const HloRunnerExecutable* const hlo_runner_executable,
                       HloRunnerExecutable::TryUnwrap(*this, wrapped));

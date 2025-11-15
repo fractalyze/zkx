@@ -157,24 +157,25 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
         };
       };
 
-  auto make_repeated_string_setter =
-      [debug_options](void (DebugOptions::*adder)(std::string_view)) {
-        return [debug_options, adder](std::string_view comma_separated_values) {
-          for (const std::string_view passname :
-               absl::StrSplit(comma_separated_values, ',')) {
-            (debug_options->*adder)(passname);
-          }
-          return true;
-        };
-      };
-
   // Custom "sub-parser" lambda for zkx_disable_hlo_passes.
   auto setter_for_zkx_disable_hlo_passes =
-      make_repeated_string_setter(&DebugOptions::add_zkx_disable_hlo_passes);
+      [debug_options](std::string_view comma_separated_values) {
+        for (std::string_view passname :
+             absl::StrSplit(comma_separated_values, ',')) {
+          debug_options->add_zkx_disable_hlo_passes(std::string(passname));
+        }
+        return true;
+      };
 
   // Custom "sub-parser" lambda for zkx_enable_hlo_passes_only.
-  auto setter_for_zkx_enable_hlo_passes_only = make_repeated_string_setter(
-      &DebugOptions::add_zkx_enable_hlo_passes_only);
+  auto setter_for_zkx_enable_hlo_passes_only =
+      [debug_options](std::string_view comma_separated_values) {
+        for (std::string_view passname :
+             absl::StrSplit(comma_separated_values, ',')) {
+          debug_options->add_zkx_enable_hlo_passes_only(std::string(passname));
+        }
+        return true;
+      };
 
   // Custom "sub-parser" lambda for zkx_gpu_ptx_file.
   auto setter_for_zkx_gpu_ptx_file = [debug_options](const std::string& value) {

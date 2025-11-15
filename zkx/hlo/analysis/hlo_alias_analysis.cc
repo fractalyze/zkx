@@ -16,6 +16,7 @@ limitations under the License.
 #include "zkx/hlo/analysis/hlo_alias_analysis.h"
 
 #include "absl/log/check.h"
+#include "absl/log/vlog_is_on.h"
 #include "absl/strings/str_cat.h"
 
 #include "zkx/status_macros.h"

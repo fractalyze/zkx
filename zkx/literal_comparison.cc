@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include "absl/log/vlog_is_on.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/types/span.h"
