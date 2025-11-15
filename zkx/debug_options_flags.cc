@@ -158,11 +158,11 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
       };
 
   auto make_repeated_string_setter =
-      [debug_options](void (DebugOptions::*adder)(std::string_view)) {
+      [debug_options](void (DebugOptions::*adder)(const std::string&)) {
         return [debug_options, adder](std::string_view comma_separated_values) {
           for (const std::string_view passname :
                absl::StrSplit(comma_separated_values, ',')) {
-            (debug_options->*adder)(passname);
+            (debug_options->*adder)(std::string(passname));
           }
           return true;
         };

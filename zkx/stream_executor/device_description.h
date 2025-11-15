@@ -25,6 +25,7 @@ limitations under the License.
 #include <string>
 #include <variant>
 
+#include "absl/algorithm/container.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
