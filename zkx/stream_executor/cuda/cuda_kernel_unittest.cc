@@ -13,10 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include "absl/status/status_matchers.h"
 #include "gtest/gtest.h"
 #include "third_party/gpus/cuda/include/cuda.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/stream_executor/gpu/gpu_test_kernels.h"
 #include "zkx/stream_executor/platform.h"
@@ -26,8 +26,8 @@ limitations under the License.
 namespace stream_executor::gpu {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
 using testing::Ge;
-using tsl::testing::IsOkAndHolds;
 
 TEST(CudaKernelTest, GetMaxOccupiedBlocksPerCore) {
   TF_ASSERT_OK_AND_ASSIGN(Platform * platform,

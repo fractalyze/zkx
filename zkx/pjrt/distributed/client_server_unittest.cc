@@ -19,6 +19,7 @@ limitations under the License.
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/synchronization/barrier.h"
 #include "absl/synchronization/mutex.h"
@@ -38,7 +39,6 @@ limitations under the License.
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/net.h"
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "xla/tsl/platform/thread_pool.h"
 #include "zkx/pjrt/distributed/client.h"
@@ -52,10 +52,10 @@ limitations under the License.
 namespace zkx {
 namespace {
 
+using ::absl_testing::StatusIs;
 using ::testing::IsEmpty;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
-using tsl::testing::StatusIs;
 
 constexpr absl::Duration kHeartbeatInterval = absl::Milliseconds(500);
 constexpr int kMaxMissingHeartbeats = 5;

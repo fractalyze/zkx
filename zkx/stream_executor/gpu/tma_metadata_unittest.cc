@@ -18,19 +18,18 @@ limitations under the License.
 #include <cmath>
 
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "llvm/ADT/ArrayRef.h"
-
-#include "xla/tsl/platform/status_matchers.h"
 
 namespace stream_executor::gpu {
 namespace {
 
 using absl::StatusCode;
+using absl_testing::IsOk;
+using absl_testing::StatusIs;
 using testing::HasSubstr;
-using tsl::testing::IsOk;
-using tsl::testing::StatusIs;
 
 TEST(TmaMetadataTest, CreateValidTmaInfoReturnsOk) {
   EXPECT_THAT(TmaDescriptor::Create(/*global_dims=*/{500, 360},

@@ -15,12 +15,12 @@ limitations under the License.
 
 #include "zkx/client/executable_build_options.h"
 
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/casts.h"
 #include "xla/tsl/platform/status.h"
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/protobuf_util.h"
 #include "zkx/service/test_compilation_environment.pb.h"
@@ -89,7 +89,7 @@ TEST(ExecutableBuildOptionsTest, SerializationFailsOnNonSerializableFields) {
                                  1};
     options.set_compile_thread_pool(&pool);
     EXPECT_THAT(options.ToProto(),
-                tsl::testing::StatusIs(absl::StatusCode::kInvalidArgument));
+                absl_testing::StatusIs(absl::StatusCode::kInvalidArgument));
   }
   {
     ExecutableBuildOptions options;
@@ -99,7 +99,7 @@ TEST(ExecutableBuildOptionsTest, SerializationFailsOnNonSerializableFields) {
           return std::make_pair(std::vector<Shape>(), Shape());
         });
     EXPECT_THAT(options.ToProto(),
-                tsl::testing::StatusIs(absl::StatusCode::kInvalidArgument));
+                absl_testing::StatusIs(absl::StatusCode::kInvalidArgument));
   }
 }
 

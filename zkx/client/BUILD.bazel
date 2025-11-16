@@ -34,9 +34,9 @@ zkx_cc_unittest(
         ":executable_build_options",
         "//xla/tsl/platform:casts",
         "//xla/tsl/platform:status",
-        "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx:protobuf_util",
         "//zkx/service:test_compilation_environment_cc_proto",
+        "@com_google_absl//absl/status:status_matchers",
     ],
 )

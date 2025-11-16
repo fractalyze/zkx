@@ -16,15 +16,14 @@ limitations under the License.
 #include "zkx/stream_executor/cuda/cuda_compute_capability.h"
 
 #include "absl/hash/hash_testing.h"
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
-
 namespace stream_executor {
 namespace {
-using tsl::testing::IsOkAndHolds;
-using tsl::testing::StatusIs;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 
 TEST(CudaComputeCapabilityTest, ToString) {
   EXPECT_EQ(CudaComputeCapability(100, 52).ToString(), "100.52");

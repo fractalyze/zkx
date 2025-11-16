@@ -22,11 +22,11 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_replace.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "zkx/stream_executor/cuda/nvjitlink_support.h"
 
 namespace stream_executor {
@@ -153,29 +153,29 @@ class NvJitLinkTest : public ::testing::Test {
 
 TEST_F(NvJitLinkTest, GetVersion) {
   EXPECT_THAT(GetNvJitLinkVersion(),
-              tsl::testing::IsOkAndHolds(testing::Ge(NvJitLinkVersion{12, 0})));
+              absl_testing::IsOkAndHolds(testing::Ge(NvJitLinkVersion{12, 0})));
 }
 
 TEST_F(NvJitLinkTest, IdentifiesUnsupportedArchitecture) {
   EXPECT_THAT(
       CompileAndLinkHelper(CudaComputeCapability{100, 0}, {kStandalonePtx}),
-      tsl::testing::StatusIs(absl::StatusCode::kUnimplemented));
+      absl_testing::StatusIs(absl::StatusCode::kUnimplemented));
 }
 
 TEST_F(NvJitLinkTest, LinkingTwoCompilationUnitsSucceeds) {
   EXPECT_THAT(CompileAndLinkHelper(kDefaultComputeCapability,
                                    {kDependentPtx, kDependeePtx}),
-              tsl::testing::IsOk());
+              absl_testing::IsOk());
 }
 
 TEST_F(NvJitLinkTest, LinkingFailsWhenDependeeIsMissing) {
   EXPECT_THAT(CompileAndLinkHelper(kDefaultComputeCapability, {kDependentPtx}),
-              tsl::testing::StatusIs(absl::StatusCode::kUnknown));
+              absl_testing::StatusIs(absl::StatusCode::kUnknown));
 }
 
 TEST_F(NvJitLinkTest, CanAlsoJustCompileSingleCompilationUnit) {
   EXPECT_THAT(CompileAndLinkHelper(kDefaultComputeCapability, {kStandalonePtx}),
-              tsl::testing::IsOk());
+              absl_testing::IsOk());
 }
 
 TEST_F(NvJitLinkTest, CancelsOnRegSpill) {
@@ -188,14 +188,14 @@ TEST_F(NvJitLinkTest, CancelsOnRegSpill) {
                                    {dependent_ptx.c_str(), kDependeePtx},
                                    /*disable_gpuasm_optimizations=*/true,
                                    /*cancel_if_reg_spill=*/true),
-              tsl::testing::StatusIs(absl::StatusCode::kCancelled));
+              absl_testing::StatusIs(absl::StatusCode::kCancelled));
 
   // We also test the converse to ensure our test case isn't broken.
   EXPECT_THAT(CompileAndLinkHelper(kDefaultComputeCapability,
                                    {dependent_ptx.c_str(), kDependeePtx},
                                    /*disable_gpuasm_optimizations=*/true,
                                    /*cancel_if_reg_spill=*/false),
-              tsl::testing::IsOk());
+              absl_testing::IsOk());
 }
 
 }  // namespace

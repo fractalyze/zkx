@@ -24,12 +24,12 @@ limitations under the License.
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/stream_executor/cuda/cuda_event.h"
 #include "zkx/stream_executor/cuda/cuda_executor.h"
@@ -47,11 +47,11 @@ limitations under the License.
 namespace stream_executor::gpu {
 namespace {
 
+using ::absl_testing::IsOk;
+using ::absl_testing::StatusIs;
 using ::testing::Each;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
-using ::tsl::testing::IsOk;
-using ::tsl::testing::StatusIs;
 
 class CudaStreamTest : public ::testing::Test {
  public:

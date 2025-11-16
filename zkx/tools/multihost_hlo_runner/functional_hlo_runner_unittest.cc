@@ -15,11 +15,11 @@ limitations under the License.
 
 #include "zkx/tools/multihost_hlo_runner/functional_hlo_runner.h"
 
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/path.h"
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/subprocess.h"
 #include "xla/tsl/platform/test_util.h"
 #include "xla/tsl/util/command_line_flags.h"
@@ -30,8 +30,8 @@ limitations under the License.
 namespace zkx {
 namespace {
 
+using ::absl_testing::StatusIs;
 using ::testing::SizeIs;
-using ::tsl::testing::StatusIs;
 
 bool IsTestingCpu() {
 #ifdef ZKX_TEST_BACKEND_CPU

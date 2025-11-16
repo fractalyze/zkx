@@ -1,9 +1,9 @@
 #include "zkx/backends/kernel_emitter_test.h"
 
+#include "absl/status/status_matchers.h"
 #include "absl/types/span.h"
 #include "gmock/gmock.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/hlo/parser/hlo_parser.h"
 #include "zkx/service/platform_util.h"
@@ -22,7 +22,7 @@ void KernelEmitterTest::RunAndVerify() {
                                /*run_hlo_passes=*/false);
   if (expected_status_code_ != absl::StatusCode::kOk) {
     EXPECT_THAT(opaque_executable,
-                ::tsl::testing::StatusIs(expected_status_code_));
+                ::absl_testing::StatusIs(expected_status_code_));
     return;
   }
 

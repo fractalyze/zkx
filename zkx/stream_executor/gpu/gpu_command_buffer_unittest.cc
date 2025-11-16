@@ -22,6 +22,7 @@ limitations under the License.
 
 #include "absl/log/check.h"
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/ascii.h"
 #include "absl/types/span.h"
 #include "gmock/gmock.h"
@@ -29,7 +30,6 @@ limitations under the License.
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/status.h"
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/service/platform_util.h"
 #include "zkx/stream_executor/command_buffer.h"
@@ -51,9 +51,9 @@ limitations under the License.
 namespace stream_executor::gpu {
 namespace {
 
+using absl_testing::IsOkAndHolds;
 using testing::ElementsAre;
 using testing::IsEmpty;
-using tsl::testing::IsOkAndHolds;
 
 using ExecutionScopeId = CommandBuffer::ExecutionScopeId;
 

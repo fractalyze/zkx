@@ -290,8 +290,8 @@ zkx_cc_unittest(
         ":scoped_activate_context",
         ":tma_metadata",
         "//xla/tsl/platform:env",
-        "//xla/tsl/platform:status_matchers",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@llvm-project//llvm:Support",
     ] + if_cuda_is_configured([
         ":gpu_executor",

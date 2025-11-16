@@ -326,10 +326,10 @@ zkx_cc_unittest(
         ":pjrt_future",
         ":semaphore",
         "//xla/tsl/platform:status",
-        "//xla/tsl/platform:status_matchers",
         "//zkx:literal_util",
         "//zkx/pjrt/cpu:pjrt_test_client",
         "//zkx/tests:literal_test_util",
+        "@com_google_absl//absl/status:status_matchers",
     ],
 )
 

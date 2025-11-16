@@ -8,12 +8,12 @@ zkx_cc_library(
     srcs = ["kernel_emitter_test.cc"],
     hdrs = ["kernel_emitter_test.h"],
     deps = [
-        "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx:literal",
         "//zkx/hlo/parser:hlo_parser",
         "//zkx/service:hlo_runner",
         "//zkx/service:platform_util",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest",
     ],

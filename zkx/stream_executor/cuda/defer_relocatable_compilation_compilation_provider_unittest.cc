@@ -18,24 +18,24 @@ limitations under the License.
 #include <memory>
 #include <utility>
 
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/stream_executor/cuda/mock_compilation_provider.h"
 
 namespace stream_executor::cuda {
 namespace {
 
+using ::absl_testing::IsOk;
+using ::absl_testing::StatusIs;
 using ::testing::Args;
 using ::testing::ElementsAre;
 using ::testing::Field;
 using ::testing::FieldsAre;
 using ::testing::Return;
 using ::testing::VariantWith;
-using ::tsl::testing::IsOk;
-using ::tsl::testing::StatusIs;
 
 TEST(DeferRelocatableCompilationCompilationProviderTest,
      CreateFailsIfDelegateDoesNotSupportCompileAndLink) {

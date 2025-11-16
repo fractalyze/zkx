@@ -16,11 +16,11 @@ limitations under the License.
 #include "xla/tsl/distributed_runtime/coordination/coordination_service_agent.h"
 
 #include "absl/log/check.h"
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "xla/tsl/distributed_runtime/coordination/coordination_service_error_util.h"
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/protobuf/coordination_config.pb.h"
 
 namespace tsl {
@@ -30,6 +30,7 @@ using tensorflow::CoordinatedTask;
 using tensorflow::CoordinationServiceConfig;
 using tensorflow::KeyValueEntry;
 
+using ::absl_testing::StatusIs;
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::InvokeArgument;
@@ -37,7 +38,6 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::UnorderedPointwise;
 using ::testing::WithArgs;
-using ::tsl::testing::StatusIs;
 
 // TODO(b/229726259) Switch to OSS version after it's available.
 // Simple implementation of a proto matcher comparing string representations.

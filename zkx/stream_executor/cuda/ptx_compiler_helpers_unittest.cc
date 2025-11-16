@@ -15,16 +15,15 @@ limitations under the License.
 
 #include "zkx/stream_executor/cuda/ptx_compiler_helpers.h"
 
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#include "xla/tsl/platform/status_matchers.h"
 
 namespace stream_executor {
 namespace {
 
-using ::tsl::testing::IsOk;
-using ::tsl::testing::StatusIs;
+using ::absl_testing::IsOk;
+using ::absl_testing::StatusIs;
 
 // When the compilation succeeds, then the error log is empty.
 constexpr std::string_view kPtxasLogSuccessfulCompilation = R"(

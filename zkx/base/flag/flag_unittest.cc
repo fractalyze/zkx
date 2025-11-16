@@ -4,15 +4,15 @@
 
 #include "zkx/base/flag/flag.h"
 
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/status.h"
-#include "xla/tsl/platform/status_matchers.h"
 
 namespace zkx::base {
 
-using ::tsl::testing::StatusIs;
+using ::absl_testing::StatusIs;
 
 TEST(FlagTest, ShortName) {
   bool value;

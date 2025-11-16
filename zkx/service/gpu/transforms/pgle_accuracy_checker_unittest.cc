@@ -19,11 +19,11 @@ limitations under the License.
 #include <string>
 #include <utility>
 
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/hlo/testlib/hlo_hardware_independent_test_base.h"
@@ -35,9 +35,9 @@ namespace zkx::gpu {
 namespace {
 
 using PGLEAccuracyCheckerTest = HloHardwareIndependentTestBase;
+using ::absl_testing::StatusIs;
 using ::google::protobuf::TextFormat;
 using ::tensorflow::profiler::ProfiledInstructionsProto;
-using ::tsl::testing::StatusIs;
 
 // Constructs PGLE estimator for a given `profile`.
 std::unique_ptr<ProfileGuidedLatencyEstimator> GetProfileGuidedLatencyEstimator(

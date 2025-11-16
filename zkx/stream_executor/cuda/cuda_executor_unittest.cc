@@ -18,10 +18,10 @@ limitations under the License.
 #include <memory>
 
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/stream_executor/cuda/cuda_platform.h"
 #include "zkx/stream_executor/gpu/gpu_test_kernels.h"
@@ -31,13 +31,13 @@ limitations under the License.
 namespace stream_executor::gpu {
 namespace {
 
+using ::absl_testing::IsOk;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 using testing::Ge;
 using testing::IsEmpty;
 using testing::Not;
 using testing::VariantWith;
-using ::tsl::testing::IsOk;
-using ::tsl::testing::IsOkAndHolds;
-using ::tsl::testing::StatusIs;
 
 TEST(CudaExecutorTest, CreateDeviceDescription) {
   CudaPlatform platform;

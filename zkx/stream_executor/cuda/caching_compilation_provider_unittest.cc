@@ -21,20 +21,20 @@ limitations under the License.
 #include <utility>
 #include <vector>
 
+#include "absl/status/status_matchers.h"
 #include "absl/synchronization/mutex.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/env.h"
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/thread_pool.h"
 #include "zkx/stream_executor/cuda/mock_compilation_provider.h"
 
 namespace stream_executor::cuda {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
 using ::testing::Return;
-using ::tsl::testing::IsOkAndHolds;
 
 TEST(CachingCompilationProviderTest, CachingCompileCallsWorks) {
   auto mock_compilation_provider = std::make_unique<MockCompilationProvider>();

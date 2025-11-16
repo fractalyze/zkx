@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "xla/tsl/distributed_runtime/coordination/coordination_service.h"
 
+#include "absl/status/status_matchers.h"
 #include "absl/strings/match.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/notification.h"
@@ -24,7 +25,6 @@ limitations under the License.
 #include "xla/tsl/distributed_runtime/coordination/coordination_service_error_util.h"
 #include "xla/tsl/distributed_runtime/coordination/test_device.pb.h"
 #include "xla/tsl/platform/random.h"
-#include "xla/tsl/platform/status_matchers.h"
 
 namespace tsl {
 namespace {
@@ -33,11 +33,11 @@ using ::testing::Each;
 using ::testing::Eq;
 // TODO(chokobole): Uncomment this. Dependency: EqualsProto
 // using ::testing::EqualsProto;
+using ::absl_testing::StatusIs;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::UnorderedElementsAre;
 using ::testing::UnorderedPointwise;
-using ::tsl::testing::StatusIs;
 
 using tensorflow::CoordinatedJob;
 using tensorflow::CoordinatedTask;
