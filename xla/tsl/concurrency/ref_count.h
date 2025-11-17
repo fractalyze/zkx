@@ -121,7 +121,7 @@ class ReferenceCounted {
 // This is a smart pointer that keeps the specified reference counted value
 // around.
 template <typename T>
-class RCReference {
+class ABSL_NULLABILITY_COMPATIBLE RCReference {
  public:
   RCReference() : pointer_(nullptr) {}
 
