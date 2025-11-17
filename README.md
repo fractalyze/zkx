@@ -1,5 +1,7 @@
 # ZKX: Zero Knowledge Accelerator
 
+[![CI](https://github.com/fractalyze/zkx/actions/workflows/ci.yml/badge.svg)](https://github.com/fractalyze/zkx/actions/workflows/ci.yml)
+
 ZKX is a computation framework inspired by
 [XLA](https://github.com/openxla/xla). It compiles ZK-specific high-level
 operations into efficient low-level code using
