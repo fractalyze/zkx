@@ -18,83 +18,17 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
-    name = "arithmetics",
-    hdrs = ["arithmetics.h"],
-)
-
-zkx_cc_library(
-    name = "batch_inverse",
-    hdrs = ["batch_inverse.h"],
+    name = "big_int_serde",
+    hdrs = ["big_int_serde.h"],
     deps = [
-        "//xla/tsl/platform:statusor",
-        "//zkx/base:template_util",
-        "//zkx/base/containers:adapters",
-        "@com_google_absl//absl/base:core_headers",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/strings",
-    ],
-)
-
-zkx_cc_library(
-    name = "big_int",
-    srcs = ["big_int.cc"],
-    hdrs = ["big_int.h"],
-    deps = [
-        ":arithmetics",
-        ":bit_traits_forward",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
-        "//zkx/base:random",
         "//zkx/base/buffer:serde",
         "//zkx/base/json:json_serde",
-        "//zkx/base/strings:string_util",
-        "@com_google_absl//absl/base",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/numeric:int128",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-    ],
-)
-
-zkx_cc_library(
-    name = "bit_iterator",
-    hdrs = ["bit_iterator.h"],
-    deps = [
-        ":bit_traits_forward",
-        "@com_google_absl//absl/base",
-    ],
-)
-
-zkx_cc_library(
-    name = "bit_traits_forward",
-    hdrs = ["bit_traits_forward.h"],
-)
-
-zkx_cc_library(
-    name = "byinverter",
-    hdrs = ["byinverter.h"],
-    deps = [
-        ":big_int",
-        "@com_google_absl//absl/numeric:bits",
-        "@com_google_absl//absl/numeric:int128",
-    ],
-)
-
-zkx_cc_library(
-    name = "pow",
-    hdrs = ["pow.h"],
-    deps = [
-        ":big_int",
-        ":bit_iterator",
-    ],
-)
-
-zkx_cc_library(
-    name = "scalar_mul",
-    hdrs = ["scalar_mul.h"],
-    deps = [
-        ":big_int",
-        ":bit_iterator",
+        "@zk_dtypes_py//zk_dtypes:big_int",
     ],
 )
 
@@ -116,25 +50,14 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "base_unittests",
     srcs = [
-        "batch_inverse_unittest.cc",
-        "big_int_unittest.cc",
-        "bit_iterator_unittest.cc",
-        "byinverter_unittest.cc",
+        "big_int_serde_unittest.cc",
         "sparse_matrix_unittest.cc",
     ],
     deps = [
-        ":batch_inverse",
-        ":big_int",
-        ":bit_iterator",
-        ":byinverter",
+        ":big_int_serde",
         ":sparse_matrix",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
         "//zkx/base/buffer:vector_buffer",
-        "//zkx/math/elliptic_curve/bn/bn254:fr",
-        "@com_google_absl//absl/container:inlined_vector",
-        "@com_google_absl//absl/status:status_matchers",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/types:span",
     ],
 )

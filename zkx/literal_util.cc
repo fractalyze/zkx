@@ -22,11 +22,11 @@ limitations under the License.
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "zk_dtypes/include/big_int.h"
+#include "zk_dtypes/include/field/prime_field.h"
+#include "zk_dtypes/include/geometry/point_declarations.h"
 
 #include "zkx/base/containers/container_util.h"
-#include "zkx/math/base/big_int.h"
-#include "zkx/math/field/prime_field.h"
-#include "zkx/math/geometry/point_declarations.h"
 
 namespace zkx {
 namespace {
@@ -66,7 +66,7 @@ struct OneProvider {
 template <typename T>
 struct IsValidScalarType {
   static constexpr bool value =
-      std::is_integral_v<T> || math::IsField<T> || math::IsEcPoint<T>;
+      std::is_integral_v<T> || zk_dtypes::IsField<T> || zk_dtypes::IsEcPoint<T>;
 };
 
 template <PrimitiveType kType>
@@ -311,7 +311,7 @@ void PopulateWithRandomEcPointData(Literal* literal, std::minstd_rand0* engine,
     std::sort(scalars.begin(), scalars.end());
   }
 
-  if constexpr (math::IsAffinePoint<T>) {
+  if constexpr (zk_dtypes::IsAffinePoint<T>) {
     using JacobianPoint = typename T::JacobianPoint;
     std::vector<JacobianPoint> jacobian_points = base::Map(
         scalars,

@@ -151,7 +151,6 @@ zkx_cc_library(
         "//zkx:primitive_util",
         "//zkx:zkx_data_cc_proto",
         "//zkx/core/collectives:communicator",
-        "//zkx/math/field",
         "//zkx/service:collective_ops_utils",
         "//zkx/service:rendezvous",
         "//zkx/stream_executor:device_memory",
@@ -160,6 +159,7 @@ zkx_cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
+        "@zk_dtypes_py//zk_dtypes:field",
     ],
 )
 

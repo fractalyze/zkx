@@ -16,14 +16,13 @@ limitations under the License.
 #include "zkx/service/cpu/runtime_print.h"
 
 #include "mlir/ExecutionEngine/RunnerUtils.h"
-
-#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
-#include "zkx/math/elliptic_curve/bn/bn254/g1.h"
-#include "zkx/math/elliptic_curve/bn/bn254/g2.h"
-#include "zkx/math/field/babybear/babybear.h"
-#include "zkx/math/field/goldilocks/goldilocks.h"
-#include "zkx/math/field/koalabear/koalabear.h"
-#include "zkx/math/field/mersenne31/mersenne31.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/g1.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/g2.h"
+#include "zk_dtypes/include/field/babybear/babybear.h"
+#include "zk_dtypes/include/field/goldilocks/goldilocks.h"
+#include "zk_dtypes/include/field/koalabear/koalabear.h"
+#include "zk_dtypes/include/field/mersenne31/mersenne31.h"
 
 namespace zkx::cpu {
 
@@ -34,18 +33,18 @@ void PrintMemref(void* memref_in) {
 
 template <int N, typename T>
 void PrintMemref(void* memref_in) {
-  if constexpr (std::is_same_v<T, zkx::math::bn254::G1AffinePoint> ||
-                std::is_same_v<T, zkx::math::bn254::G1JacobianPoint> ||
-                std::is_same_v<T, zkx::math::bn254::G1PointXyzz>) {
+  if constexpr (std::is_same_v<T, zk_dtypes::bn254::G1AffinePoint> ||
+                std::is_same_v<T, zk_dtypes::bn254::G1JacobianPoint> ||
+                std::is_same_v<T, zk_dtypes::bn254::G1PointXyzz>) {
     impl::printMemRef(
-        *reinterpret_cast<StridedMemRefType<zkx::math::bn254::Fq, N + 1>*>(
+        *reinterpret_cast<StridedMemRefType<zk_dtypes::bn254::Fq, N + 1>*>(
             memref_in));
   } else if constexpr (  // NOLINT(readability/braces)
-      std::is_same_v<T, zkx::math::bn254::G2AffinePoint> ||
-      std::is_same_v<T, zkx::math::bn254::G2JacobianPoint> ||
-      std::is_same_v<T, zkx::math::bn254::G2PointXyzz>) {
+      std::is_same_v<T, zk_dtypes::bn254::G2AffinePoint> ||
+      std::is_same_v<T, zk_dtypes::bn254::G2JacobianPoint> ||
+      std::is_same_v<T, zk_dtypes::bn254::G2PointXyzz>) {
     impl::printMemRef(
-        *reinterpret_cast<StridedMemRefType<zkx::math::bn254::Fq, N + 2>*>(
+        *reinterpret_cast<StridedMemRefType<zk_dtypes::bn254::Fq, N + 2>*>(
             memref_in));
   } else {
     impl::printMemRef(*reinterpret_cast<StridedMemRefType<T, N>*>(memref_in));
@@ -62,17 +61,17 @@ void PrintMemref(void* memref_in) {
     zkx::cpu::PrintMemref<type>(memref);                                \
   }
 
-DEFINE_PRINT_MEMREF_FUNCTION(Koalabear, zkx::math::Koalabear)
-DEFINE_PRINT_MEMREF_FUNCTION(Babybear, zkx::math::Babybear)
-DEFINE_PRINT_MEMREF_FUNCTION(Mersenne31, zkx::math::Mersenne31)
-DEFINE_PRINT_MEMREF_FUNCTION(Goldilocks, zkx::math::Goldilocks)
-DEFINE_PRINT_MEMREF_FUNCTION(Bn254Scalar, zkx::math::bn254::Fr)
-DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Affine, zkx::math::bn254::G1AffinePoint)
-DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Jacobian, zkx::math::bn254::G1JacobianPoint)
-DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Xyzz, zkx::math::bn254::G1PointXyzz)
-DEFINE_PRINT_MEMREF_FUNCTION(Bn254G2Affine, zkx::math::bn254::G2AffinePoint)
-DEFINE_PRINT_MEMREF_FUNCTION(Bn254G2Jacobian, zkx::math::bn254::G2JacobianPoint)
-DEFINE_PRINT_MEMREF_FUNCTION(Bn254G2Xyz, zkx::math::bn254::G2PointXyzz)
+DEFINE_PRINT_MEMREF_FUNCTION(Koalabear, zk_dtypes::Koalabear)
+DEFINE_PRINT_MEMREF_FUNCTION(Babybear, zk_dtypes::Babybear)
+DEFINE_PRINT_MEMREF_FUNCTION(Mersenne31, zk_dtypes::Mersenne31)
+DEFINE_PRINT_MEMREF_FUNCTION(Goldilocks, zk_dtypes::Goldilocks)
+DEFINE_PRINT_MEMREF_FUNCTION(Bn254Scalar, zk_dtypes::bn254::Fr)
+DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Affine, zk_dtypes::bn254::G1AffinePoint)
+DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Jacobian, zk_dtypes::bn254::G1JacobianPoint)
+DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Xyzz, zk_dtypes::bn254::G1PointXyzz)
+DEFINE_PRINT_MEMREF_FUNCTION(Bn254G2Affine, zk_dtypes::bn254::G2AffinePoint)
+DEFINE_PRINT_MEMREF_FUNCTION(Bn254G2Jacobian, zk_dtypes::bn254::G2JacobianPoint)
+DEFINE_PRINT_MEMREF_FUNCTION(Bn254G2Xyz, zk_dtypes::bn254::G2PointXyzz)
 
 #undef DEFINE_PRINT_MEMREF_FUNCTION
 
@@ -85,22 +84,22 @@ DEFINE_PRINT_MEMREF_FUNCTION(Bn254G2Xyz, zkx::math::bn254::G2PointXyzz)
     zkx::cpu::PrintMemref<rank, type>(memref);                      \
   }
 
-DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Koalabear, zkx::math::Koalabear);
-DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Babybear, zkx::math::Babybear);
-DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Mersenne31, zkx::math::Mersenne31);
-DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Goldilocks, zkx::math::Goldilocks);
-DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254Scalar, zkx::math::bn254::Fr);
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Koalabear, zk_dtypes::Koalabear);
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Babybear, zk_dtypes::Babybear);
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Mersenne31, zk_dtypes::Mersenne31);
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Goldilocks, zk_dtypes::Goldilocks);
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254Scalar, zk_dtypes::bn254::Fr);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G1Affine,
-                                     zkx::math::bn254::G1AffinePoint);
+                                     zk_dtypes::bn254::G1AffinePoint);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G1Jacobian,
-                                     zkx::math::bn254::G1JacobianPoint);
+                                     zk_dtypes::bn254::G1JacobianPoint);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G1Xyzz,
-                                     zkx::math::bn254::G1PointXyzz);
+                                     zk_dtypes::bn254::G1PointXyzz);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G2Affine,
-                                     zkx::math::bn254::G2AffinePoint);
+                                     zk_dtypes::bn254::G2AffinePoint);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G2Jacobian,
-                                     zkx::math::bn254::G2JacobianPoint);
+                                     zk_dtypes::bn254::G2JacobianPoint);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G2Xyz,
-                                     zkx::math::bn254::G2PointXyzz);
+                                     zk_dtypes::bn254::G2PointXyzz);
 
 #undef DEFINE_PRINT_STRIDED_MEMREF_FUNCTION

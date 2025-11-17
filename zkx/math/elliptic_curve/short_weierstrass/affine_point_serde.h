@@ -1,5 +1,20 @@
-#ifndef ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_AFFINE_POINT_H_
-#define ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_AFFINE_POINT_H_
+/* Copyright 2025 The ZKX Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+#ifndef ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_AFFINE_POINT_SERDE_H_
+#define ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_AFFINE_POINT_SERDE_H_
 
 #include <string>
 #include <type_traits>
@@ -7,140 +22,21 @@
 #include "absl/base/internal/endian.h"
 #include "absl/base/optimization.h"
 #include "absl/log/log.h"
-#include "absl/strings/substitute.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "zk_dtypes/include/elliptic_curve/short_weierstrass/affine_point.h"
+#include "zk_dtypes/include/field/finite_field_traits.h"
+#include "zk_dtypes/include/geometry/curve_type.h"
 
 #include "xla/tsl/platform/errors.h"
+#include "xla/tsl/platform/statusor.h"
 #include "zkx/base/buffer/serde.h"
 #include "zkx/base/json/json_serde.h"
-#include "zkx/math/base/scalar_mul.h"
-#include "zkx/math/elliptic_curve/short_weierstrass/sw_curve.h"
-#include "zkx/math/field/finite_field_traits.h"
-#include "zkx/math/geometry/curve_type.h"
-#include "zkx/math/geometry/point_declarations.h"
+#include "zkx/math/field/extension_field_serde.h"
+#include "zkx/math/field/prime_field_serde.h"
 
 namespace zkx {
 namespace math {
-
-template <typename _Curve>
-class AffinePoint<
-    _Curve, std::enable_if_t<_Curve::kType == CurveType::kShortWeierstrass>>
-    final {
- public:
-  using Curve = _Curve;
-  using BaseField = typename Curve::BaseField;
-  using ScalarField = typename Curve::ScalarField;
-  using StdType = AffinePoint<SwCurve<typename Curve::Config::StdConfig>>;
-
-  using JacobianPoint = math::JacobianPoint<Curve>;
-  using PointXyzz = math::PointXyzz<Curve>;
-
-  constexpr static bool kUseMontgomery = Curve::kUseMontgomery;
-  constexpr static size_t kBitWidth = BaseField::kBitWidth * 2;
-
-  constexpr AffinePoint() : AffinePoint(BaseField::Zero(), BaseField::Zero()) {}
-  // NOTE(chokobole): This method is provided for testing purposes.
-  // For example, a user can create an affine point using this constructor:
-  //
-  //   Literal g1 = LiteralUtil::CreateR0<math::bn254::G1Affine>(1);
-  template <typename T, std::enable_if_t<
-                            std::is_constructible_v<ScalarField, T>>* = nullptr>
-  constexpr AffinePoint(T value) : AffinePoint(ScalarField(value)) {}
-  constexpr AffinePoint(ScalarField value) {
-    AffinePoint point = *(AffinePoint::Generator() * value).ToAffine();
-    x_ = point.x_;
-    y_ = point.y_;
-  }
-  constexpr AffinePoint(const BaseField& x, const BaseField& y)
-      : x_(x), y_(y) {}
-
-  constexpr static AffinePoint Zero() { return AffinePoint(); }
-
-  constexpr static AffinePoint One() { return Generator(); }
-
-  constexpr static AffinePoint Generator() {
-    return {Curve::Config::kX, Curve::Config::kY};
-  }
-
-  constexpr static absl::StatusOr<AffinePoint> CreateFromX(const BaseField& x) {
-    return Curve::GetPointFromX(x);
-  }
-
-  constexpr static AffinePoint Random() {
-    return *JacobianPoint::Random().ToAffine();
-  }
-
-  constexpr const BaseField& x() const { return x_; }
-  constexpr const BaseField& y() const { return y_; }
-
-  constexpr bool IsZero() const { return x_.IsZero() && y_.IsZero(); }
-  constexpr bool IsOne() const {
-    return x_ == Curve::Config::kX && y_ == Curve::Config::kY;
-  }
-
-  constexpr bool operator==(const AffinePoint& other) const {
-    return x_ == other.x_ && y_ == other.y_;
-  }
-
-  constexpr bool operator!=(const AffinePoint& other) const {
-    return !operator==(other);
-  }
-
-  constexpr JacobianPoint operator+(const AffinePoint& other) const {
-    return ToJacobian() + other;
-  }
-  constexpr JacobianPoint operator+(const JacobianPoint& other) const {
-    return other + *this;
-  }
-  constexpr AffinePoint& operator+=(const AffinePoint& other) {
-    LOG(FATAL) << "Invalid call to operator+=; this exists only to allow "
-                  "compilation with reduction. See in_process_communicator.cc "
-                  "for details";
-    return *this;
-  }
-  constexpr JacobianPoint operator-(const AffinePoint& other) const {
-    return ToJacobian() - other;
-  }
-  constexpr JacobianPoint operator-(const JacobianPoint& other) const {
-    return -(other - *this);
-  }
-  constexpr AffinePoint operator-() const { return {x_, -y_}; }
-
-  constexpr JacobianPoint operator*(const ScalarField& v) const {
-    if constexpr (kUseMontgomery) {
-      return ScalarMul(ToJacobian(), v.MontReduce().value());
-    } else {
-      return ScalarMul(ToJacobian(), v.value());
-    }
-  }
-
-  constexpr JacobianPoint ToJacobian() const {
-    if (IsZero()) return JacobianPoint::Zero();
-    return {x_, y_, BaseField::One()};
-  }
-
-  constexpr PointXyzz ToXyzz() const {
-    if (IsZero()) return PointXyzz::Zero();
-    return {x_, y_, BaseField::One(), BaseField::One()};
-  }
-
-  template <typename Curve2 = Curve,
-            std::enable_if_t<Curve2::kUseMontgomery>* = nullptr>
-  constexpr StdType MontReduce() const {
-    return {x_.MontReduce(), y_.MontReduce()};
-  }
-
-  std::string ToString() const {
-    return absl::Substitute("($0, $1)", x_.ToString(), y_.ToString());
-  }
-  std::string ToHexString(bool pad_zero = false) const {
-    return absl::Substitute("($0, $1)", x_.ToHexString(pad_zero),
-                            y_.ToHexString(pad_zero));
-  }
-
- private:
-  BaseField x_;
-  BaseField y_;
-};
 
 enum class AffinePointSerdeMode {
   kNone,
@@ -165,18 +61,18 @@ enum class GnarkCompressedFlag {
 namespace base {
 
 template <typename Curve>
-class Serde<math::AffinePoint<
-    Curve,
-    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+class Serde<zk_dtypes::AffinePoint<
+    Curve, std::enable_if_t<Curve::kType ==
+                            zk_dtypes::CurveType::kShortWeierstrass>>> {
  public:
-  using BaseField = typename math::AffinePoint<Curve>::BaseField;
+  using BaseField = typename zk_dtypes::AffinePoint<Curve>::BaseField;
   using BasePrimeField =
-      typename math::FiniteFieldTraits<BaseField>::BasePrimeField;
+      typename zk_dtypes::FiniteFieldTraits<BaseField>::BasePrimeField;
   using UnderlyingType = typename BasePrimeField::UnderlyingType;
 
   static math::AffinePointSerdeMode s_mode;
 
-  static absl::Status WriteTo(const math::AffinePoint<Curve>& point,
+  static absl::Status WriteTo(const zk_dtypes::AffinePoint<Curve>& point,
                               Buffer* buffer, Endian endian) {
     switch (s_mode) {
       case math::AffinePointSerdeMode::kNone:
@@ -249,12 +145,13 @@ class Serde<math::AffinePoint<
   }
 
   static absl::Status ReadFrom(const ReadOnlyBuffer& buffer,
-                               math::AffinePoint<Curve>* point, Endian endian) {
+                               zk_dtypes::AffinePoint<Curve>* point,
+                               Endian endian) {
     switch (s_mode) {
       case math::AffinePointSerdeMode::kNone: {
         BaseField x, y;
         TF_RETURN_IF_ERROR(buffer.ReadMany(&x, &y));
-        *point = math::AffinePoint<Curve>(x, y);
+        *point = zk_dtypes::AffinePoint<Curve>(x, y);
         return absl::OkStatus();
       }
       case math::AffinePointSerdeMode::kGnarkDefault:
@@ -312,11 +209,11 @@ class Serde<math::AffinePoint<
                   "Invalid extension degree: GnarkDefault and GnarkRaw modes "
                   "only support extension degree 1 or 2");
             }
-            *point = math::AffinePoint<Curve>(x, y);
+            *point = zk_dtypes::AffinePoint<Curve>(x, y);
             return absl::OkStatus();
           }
           case math::GnarkCompressedFlag::kCompressedInfinity: {
-            *point = math::AffinePoint<Curve>::Zero();
+            *point = zk_dtypes::AffinePoint<Curve>::Zero();
             return absl::OkStatus();
           }
           case math::GnarkCompressedFlag::kCompressedSmallest:
@@ -340,7 +237,7 @@ class Serde<math::AffinePoint<
                   "only support extension degree 1 or 2");
             }
             TF_ASSIGN_OR_RETURN(*point,
-                                math::AffinePoint<Curve>::CreateFromX(x));
+                                zk_dtypes::AffinePoint<Curve>::CreateFromX(x));
             if (point->y().LexicographicallyLargest()) {
               if (flag == math::GnarkCompressedFlag::kCompressedSmallest) {
                 *point = -*point;
@@ -360,7 +257,7 @@ class Serde<math::AffinePoint<
     return absl::InvalidArgumentError("Unsupported AffinePointSerdeMode value");
   }
 
-  static size_t EstimateSize(const math::AffinePoint<Curve>& point) {
+  static size_t EstimateSize(const zk_dtypes::AffinePoint<Curve>& point) {
     switch (s_mode) {
       case math::AffinePointSerdeMode::kNone:
         return base::EstimateSize(point.x(), point.y());
@@ -398,20 +295,20 @@ class Serde<math::AffinePoint<
 
 // static
 template <typename Curve>
-math::AffinePointSerdeMode Serde<math::AffinePoint<
+math::AffinePointSerdeMode Serde<zk_dtypes::AffinePoint<
     Curve, std::enable_if_t<Curve::kType ==
-                            math::CurveType::kShortWeierstrass>>>::s_mode =
+                            zk_dtypes::CurveType::kShortWeierstrass>>>::s_mode =
     math::AffinePointSerdeMode::kNone;
 
 template <typename Curve>
-class JsonSerde<math::AffinePoint<
-    Curve,
-    std::enable_if_t<Curve::kType == math::CurveType::kShortWeierstrass>>> {
+class JsonSerde<zk_dtypes::AffinePoint<
+    Curve, std::enable_if_t<Curve::kType ==
+                            zk_dtypes::CurveType::kShortWeierstrass>>> {
  public:
-  using Field = typename math::AffinePoint<Curve>::BaseField;
+  using Field = typename zk_dtypes::AffinePoint<Curve>::BaseField;
 
   template <typename Allocator>
-  static rapidjson::Value From(const math::AffinePoint<Curve>& value,
+  static rapidjson::Value From(const zk_dtypes::AffinePoint<Curve>& value,
                                Allocator& allocator) {
     rapidjson::Value object(rapidjson::kObjectType);
     AddJsonElement(object, "x", value.x(), allocator);
@@ -419,15 +316,15 @@ class JsonSerde<math::AffinePoint<
     return object;
   }
 
-  static absl::StatusOr<math::AffinePoint<Curve>> To(
+  static absl::StatusOr<zk_dtypes::AffinePoint<Curve>> To(
       const rapidjson::Value& json_value, std::string_view key) {
     TF_ASSIGN_OR_RETURN(Field x, ParseJsonElement<Field>(json_value, "x"));
     TF_ASSIGN_OR_RETURN(Field y, ParseJsonElement<Field>(json_value, "y"));
-    return math::AffinePoint<Curve>(x, y);
+    return zk_dtypes::AffinePoint<Curve>(x, y);
   }
 };
 
 }  // namespace base
 }  // namespace zkx
 
-#endif  // ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_AFFINE_POINT_H_
+#endif  // ZKX_MATH_ELLIPTIC_CURVE_SHORT_WEIERSTRASS_AFFINE_POINT_SERDE_H_

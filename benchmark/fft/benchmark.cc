@@ -18,13 +18,14 @@ limitations under the License.
 
 #include "absl/base/optimization.h"
 #include "absl/strings/substitute.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
 
 // clang-format off
 #include "benchmark/field_flag.h"
 #include "benchmark/runner.h"
 // clang-format on
 #include "zkx/literal_util.h"
-#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/field/prime_field_serde.h"
 
 namespace zkx::benchmark {
 
@@ -79,7 +80,7 @@ absl::Status RealMain(int argc, char** argv) {
 
   switch (field) {
     case Field::kBn254Fr:
-      return RunBenchmark<math::bn254::Fr>(runner, field, inverse);
+      return RunBenchmark<zk_dtypes::bn254::Fr>(runner, field, inverse);
   }
   ABSL_UNREACHABLE();
   return absl::InternalError("Invalid field");

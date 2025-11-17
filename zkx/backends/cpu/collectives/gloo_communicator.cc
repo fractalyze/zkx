@@ -44,7 +44,7 @@ void EcPointSum(void* c_, const void* a_, const void* b_, size_t n) {
   absl::Span<T> c = absl::MakeSpan(static_cast<T*>(c_), n);
   absl::Span<const T> a = absl::MakeConstSpan(static_cast<const T*>(a_), n);
   absl::Span<const T> b = absl::MakeConstSpan(static_cast<const T*>(b_), n);
-  if constexpr (zkx::math::IsAffinePoint<T>) {
+  if constexpr (zk_dtypes::IsAffinePoint<T>) {
     using JacobianPoint = typename T::JacobianPoint;
     std::vector<JacobianPoint> jacobian_points;
     jacobian_points.reserve(n);
@@ -87,10 +87,10 @@ void EcPointSum(T* a, const T* b, size_t n) {
   const ReductionFunction<Type>* ReductionFunction<Type>::sum =         \
       new ReductionFunction<Type>(SUM, &EcPointSum<Type>)
 
-ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G1AffinePoint);
-ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G1AffinePointStd);
-ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G2AffinePoint);
-ADD_EC_REDUCTION_FUNCTION(zkx::math::bn254::G2AffinePointStd);
+ADD_EC_REDUCTION_FUNCTION(zk_dtypes::bn254::G1AffinePoint);
+ADD_EC_REDUCTION_FUNCTION(zk_dtypes::bn254::G1AffinePointStd);
+ADD_EC_REDUCTION_FUNCTION(zk_dtypes::bn254::G2AffinePoint);
+ADD_EC_REDUCTION_FUNCTION(zk_dtypes::bn254::G2AffinePointStd);
 
 #undef ADD_EC_REDUCTION_FUNCTION
 
@@ -116,7 +116,7 @@ absl::Status SetAllReduceOptions(ReductionKind reduction_kind,
 
   using ReductionFn = void (*)(void*, const void*, const void*, size_t);
 
-  if constexpr (math::IsEcPoint<T>) {
+  if constexpr (zk_dtypes::IsEcPoint<T>) {
     switch (reduction_kind) {
       case ReductionKind::kSum:
         options.setReduceFunction(
@@ -154,7 +154,7 @@ absl::Status ReduceScatterHelper(std::shared_ptr<gloo::Context> context,
                                  size_t chunk_elems) {
   const gloo::ReductionFunction<T>* reduction_function = nullptr;
 
-  if constexpr (math::IsEcPoint<T>) {
+  if constexpr (zk_dtypes::IsEcPoint<T>) {
     switch (reduction_kind) {
       case ReductionKind::kSum:
         reduction_function = gloo::ReductionFunction<T>::sum;
@@ -250,17 +250,17 @@ absl::Status GlooCommunicator::AllReduce(se::DeviceMemoryBase send_buffer,
     TF_RETURN_IF_ERROR(SetAllReduceOptions<cpp_type##Std>(          \
         reduction_kind, send_buffer, recv_buffer, count, options)); \
     break;
-      MONTABLE_CASE(KOALABEAR, math::Koalabear)
-      MONTABLE_CASE(BABYBEAR, math::Babybear)
-      MONTABLE_CASE(MERSENNE31, math::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, math::Goldilocks)
-      MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
-      MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
+      MONTABLE_CASE(KOALABEAR, zk_dtypes::Koalabear)
+      MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
+      MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
+      MONTABLE_CASE(BN254_SCALAR, zk_dtypes::bn254::Fr)
+      MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
+      MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
+      MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
 #undef MONTABLE_CASE
     default:
       return absl::InvalidArgumentError("Unknown datatype in allreduce");
@@ -460,17 +460,17 @@ absl::Status GlooCommunicator::ReduceScatter(se::DeviceMemoryBase send_buffer,
     TF_RETURN_IF_ERROR(ReduceScatterHelper<cpp_type##Std>(                     \
         context_, reduction_kind, temp.get(), count));                         \
     break;
-      MONTABLE_CASE(KOALABEAR, math::Koalabear)
-      MONTABLE_CASE(BABYBEAR, math::Babybear)
-      MONTABLE_CASE(MERSENNE31, math::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, math::Goldilocks)
-      MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
-      MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
+      MONTABLE_CASE(KOALABEAR, zk_dtypes::Koalabear)
+      MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
+      MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
+      MONTABLE_CASE(BN254_SCALAR, zk_dtypes::bn254::Fr)
+      MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
+      MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
+      MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
 #undef MONTABLE_CASE
     default:
       return absl::InvalidArgumentError("Unknown datatype in reduce-scatter");

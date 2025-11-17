@@ -22,6 +22,8 @@ limitations under the License.
 
 #include "absl/log/check.h"
 #include "absl/strings/substitute.h"
+#include "zk_dtypes/include/batch_inverse.h"
+#include "zk_dtypes/include/field/root_of_unity.h"
 
 #include "xla/tsl/platform/status.h"
 #include "zkx/array2d.h"
@@ -29,9 +31,8 @@ limitations under the License.
 #include "zkx/base/containers/container_util.h"
 #include "zkx/comparison_util.h"
 #include "zkx/literal_util.h"
-#include "zkx/math/base/batch_inverse.h"
 #include "zkx/math/base/sparse_matrix.h"
-#include "zkx/math/poly/root_of_unity.h"
+#include "zkx/math/field/prime_field_serde.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx::cpu {
@@ -375,7 +376,7 @@ class FieldR1TensorUnaryTest : public CpuKernelEmitterTest {
                                  x_typename_, N);
 
     std::vector<F> expected;
-    TF_ASSERT_OK(math::BatchInverse(x_, &expected));
+    TF_ASSERT_OK(zk_dtypes::BatchInverse(x_, &expected));
 
     expected_ = base::Map(expected, [](const absl::StatusOr<F>& x) {
       return std::optional<F>(x.value());
@@ -442,7 +443,7 @@ class FieldR1TensorUnaryTest : public CpuKernelEmitterTest {
 
  private:
   std::vector<F> ComputeTwiddles(const std::vector<F>& x) {
-    absl::StatusOr<F> w_or = math::GetRootOfUnity<F>(x.size());
+    absl::StatusOr<F> w_or = zk_dtypes::GetRootOfUnity<F>(x.size());
     CHECK_OK(w_or);
     F w = w_or.value();
     std::vector<F> twiddles(x.size());
@@ -473,7 +474,7 @@ class FieldR1TensorUnaryTest : public CpuKernelEmitterTest {
 
   std::vector<F> ComputeInverseTwiddles(const std::vector<F>& x) {
     std::vector<F> twiddles = ComputeTwiddles(x);
-    CHECK_OK(math::BatchInverse(twiddles, &twiddles));
+    CHECK_OK(zk_dtypes::BatchInverse(twiddles, &twiddles));
     return twiddles;
   }
 

@@ -24,6 +24,8 @@ limitations under the License.
 // clang-format off
 #include "benchmark/field_flag.h"
 // clang-format on
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
+
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
@@ -32,7 +34,7 @@ limitations under the License.
 #include "zkx/base/flag/numeric_flags.h"
 #include "zkx/base/openmp_util.h"
 #include "zkx/base/random.h"
-#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/field/prime_field_serde.h"
 
 namespace zkx::benchmark {
 
@@ -97,8 +99,8 @@ absl::Status RealMain(int argc, char** argv) {
 
   switch (field) {
     case Field::kBn254Fr:
-      TF_ASSIGN_OR_RETURN(write_buf,
-                          GenerateScalars<math::bn254::Fr>(degree, condensed));
+      TF_ASSIGN_OR_RETURN(
+          write_buf, GenerateScalars<zk_dtypes::bn254::Fr>(degree, condensed));
       break;
   }
 

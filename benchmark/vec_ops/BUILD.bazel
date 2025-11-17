@@ -22,8 +22,9 @@ zkx_cc_binary(
         "//benchmark:field_flag",
         "//benchmark:runner",
         "//zkx:literal_util",
-        "//zkx/math/elliptic_curve/bn/bn254:fr",
+        "//zkx/math/field:prime_field_serde",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/strings",
+        "@zk_dtypes_py//zk_dtypes:bn254_fr",
     ],
 )

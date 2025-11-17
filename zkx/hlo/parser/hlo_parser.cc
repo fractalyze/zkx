@@ -28,6 +28,8 @@ limitations under the License.
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "google/protobuf/message.h"
+#include "zk_dtypes/include/field/prime_field.h"
+#include "zk_dtypes/include/geometry/point_declarations.h"
 
 #include "xla/tsl/lib/gtl/map_util.h"
 #include "zkx/comparison_util.h"
@@ -39,8 +41,6 @@ limitations under the License.
 #include "zkx/hlo/parser/hlo_lexer.h"
 #include "zkx/literal.h"
 #include "zkx/literal_util.h"
-#include "zkx/math/field/prime_field.h"
-#include "zkx/math/geometry/point_declarations.h"
 #include "zkx/service/shape_inference.h"
 #include "zkx/shape.h"
 #include "zkx/util.h"
@@ -794,23 +794,23 @@ class HloParserImpl : public HloParser {
     return true;
   }
   template <size_t N>
-  bool ParseBigInt(math::BigInt<N>* result) {
+  bool ParseBigInt(zk_dtypes::BigInt<N>* result) {
     VLOG(kDebugLevel) << "ParseBigInt";
     if (lexer_.GetKind() != TokKind::kString) {
       return TokenError("expects string");
     }
     std::string value = lexer_.GetStrVal();
     if (absl::StartsWith(value, "0x")) {
-      absl::StatusOr<math::BigInt<N>> big_int =
-          math::BigInt<N>::FromHexString(value);
+      absl::StatusOr<zk_dtypes::BigInt<N>> big_int =
+          zk_dtypes::BigInt<N>::FromHexString(value);
       if (big_int.ok()) {
         *result = std::move(*big_int);
       } else {
         return TokenError("expects hex string");
       }
     } else {
-      absl::StatusOr<math::BigInt<N>> big_int =
-          math::BigInt<N>::FromDecString(value);
+      absl::StatusOr<zk_dtypes::BigInt<N>> big_int =
+          zk_dtypes::BigInt<N>::FromDecString(value);
       if (big_int.ok()) {
         *result = std::move(*big_int);
       } else {
@@ -3621,8 +3621,8 @@ bool IsFinite(T val) {
 
 template <typename LiteralNativeT, typename ParsedElemT>
 bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
-  if constexpr (math::IsPrimeField<LiteralNativeT>) {
-    if constexpr (math::IsPrimeField<ParsedElemT>) {
+  if constexpr (zk_dtypes::IsPrimeField<LiteralNativeT>) {
+    if constexpr (zk_dtypes::IsPrimeField<ParsedElemT>) {
       return true;
     } else {
       static_assert(std::is_same_v<ParsedElemT, int64_t>,
@@ -3640,8 +3640,8 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
         }
       }
     }
-  } else if constexpr (math::IsEcPoint<LiteralNativeT>) {
-    if constexpr (math::IsEcPoint<ParsedElemT>) {
+  } else if constexpr (zk_dtypes::IsEcPoint<LiteralNativeT>) {
+    if constexpr (zk_dtypes::IsEcPoint<ParsedElemT>) {
       return true;
     } else {
       static_assert(std::is_same_v<ParsedElemT, int64_t>,
@@ -3996,14 +3996,16 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
     break;                                                         \
   }
 
-            MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint, G1Affine)
-            MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint,
+            MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint,
+                          G1Affine)
+            MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint,
                           G1Jacobian)
-            MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz, G1Xyzz)
-            MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint, G2Affine)
-            MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint,
+            MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz, G1Xyzz)
+            MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint,
+                          G2Affine)
+            MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint,
                           G2Jacobian)
-            MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz, G2Xyzz)
+            MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz, G2Xyzz)
 #undef MONTABLE_CASE
             default:
               return TokenError(
@@ -4075,11 +4077,11 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
     break;                                                         \
   }
 
-            MONTABLE_CASE(KOALABEAR, math::Koalabear)
-            MONTABLE_CASE(BABYBEAR, math::Babybear)
-            MONTABLE_CASE(MERSENNE31, math::Mersenne31)
-            MONTABLE_CASE(GOLDILOCKS, math::Goldilocks)
-            MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
+            MONTABLE_CASE(KOALABEAR, zk_dtypes::Koalabear)
+            MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
+            MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
+            MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
+            MONTABLE_CASE(BN254_SCALAR, zk_dtypes::bn254::Fr)
 #undef MONTABLE_CASE
             default:
               return TokenError(
@@ -4114,18 +4116,18 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
     break;                                                         \
   }
 
-            MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::Fr,
-                          math::bn254::G1AffinePoint)
-            MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::Fr,
-                          math::bn254::G1JacobianPoint)
-            MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::Fr,
-                          math::bn254::G1PointXyzz)
-            MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::Fr,
-                          math::bn254::G2AffinePoint)
-            MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::Fr,
-                          math::bn254::G2JacobianPoint)
-            MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::Fr,
-                          math::bn254::G2PointXyzz)
+            MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::Fr,
+                          zk_dtypes::bn254::G1AffinePoint)
+            MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::Fr,
+                          zk_dtypes::bn254::G1JacobianPoint)
+            MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::Fr,
+                          zk_dtypes::bn254::G1PointXyzz)
+            MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::Fr,
+                          zk_dtypes::bn254::G2AffinePoint)
+            MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::Fr,
+                          zk_dtypes::bn254::G2JacobianPoint)
+            MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::Fr,
+                          zk_dtypes::bn254::G2PointXyzz)
 #undef MONTABLE_CASE
             default:
               return TokenError(
