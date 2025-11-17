@@ -17,7 +17,7 @@
 #include "zkx/base/flag/numeric_flags.h"
 #include "zkx/base/openmp_util.h"
 #include "zkx/base/random.h"
-#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
 
 namespace zkx::benchmark {
 

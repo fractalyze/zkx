@@ -2,7 +2,13 @@
 
 namespace zkx::gpu {
 
-using FieldTypes = testing::Types<math::bn254::Fr>;
+using FieldTypes = testing::Types<
+    // clang-format off
+    math::Babybear,
+    math::Goldilocks,
+    math::bn254::Fr
+    // clang-format on
+    >;
 TYPED_TEST_SUITE(FieldScalarUnaryTest, FieldTypes);
 
 TYPED_TEST(FieldScalarUnaryTest, Convert) {

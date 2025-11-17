@@ -2,9 +2,13 @@
 
 #include "mlir/ExecutionEngine/RunnerUtils.h"
 
-#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
-#include "zkx/math/elliptic_curves/bn/bn254/g1.h"
-#include "zkx/math/elliptic_curves/bn/bn254/g2.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g1.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g2.h"
+#include "zkx/math/field/babybear/babybear.h"
+#include "zkx/math/field/goldilocks/goldilocks.h"
+#include "zkx/math/field/koalabear/koalabear.h"
+#include "zkx/math/field/mersenne31/mersenne31.h"
 
 namespace zkx::cpu {
 
@@ -43,6 +47,10 @@ void PrintMemref(void* memref_in) {
     zkx::cpu::PrintMemref<type>(memref);                                \
   }
 
+DEFINE_PRINT_MEMREF_FUNCTION(Koalabear, zkx::math::Koalabear)
+DEFINE_PRINT_MEMREF_FUNCTION(Babybear, zkx::math::Babybear)
+DEFINE_PRINT_MEMREF_FUNCTION(Mersenne31, zkx::math::Mersenne31)
+DEFINE_PRINT_MEMREF_FUNCTION(Goldilocks, zkx::math::Goldilocks)
 DEFINE_PRINT_MEMREF_FUNCTION(Bn254Scalar, zkx::math::bn254::Fr)
 DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Affine, zkx::math::bn254::G1AffinePoint)
 DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Jacobian, zkx::math::bn254::G1JacobianPoint)
@@ -62,6 +70,10 @@ DEFINE_PRINT_MEMREF_FUNCTION(Bn254G2Xyz, zkx::math::bn254::G2PointXyzz)
     zkx::cpu::PrintMemref<rank, type>(memref);                      \
   }
 
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Koalabear, zkx::math::Koalabear);
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Babybear, zkx::math::Babybear);
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Mersenne31, zkx::math::Mersenne31);
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Goldilocks, zkx::math::Goldilocks);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254Scalar, zkx::math::bn254::Fr);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G1Affine,
                                      zkx::math::bn254::G1AffinePoint);

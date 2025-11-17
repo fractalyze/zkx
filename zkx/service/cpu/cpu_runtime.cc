@@ -121,6 +121,10 @@ extern const char* const kHandleFfiCallSymbolName =
   extern const char* const kMlirCiface##name##SymbolName =                   \
       "_mlir_ciface___zkx_cpu_runtime_" #name
 
+DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefKoalabear);
+DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBabybear);
+DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefMersenne31);
+DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefGoldilocks);
 DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254Scalar);
 DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G1Affine);
 DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G1Jacobian);
@@ -129,6 +133,10 @@ DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G2Affine);
 DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G2Jacobian);
 DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G2Xyz);
 
+DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DKoalabear);
+DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBabybear);
+DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DMersenne31);
+DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DGoldilocks);
 DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254Scalar);
 DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G1Affine);
 DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G1Jacobian);

@@ -38,6 +38,22 @@ class PrimitiveTypeNameGenerator {
       PrimitiveType t = static_cast<PrimitiveType>(idx + PrimitiveType_MIN);
       if (t == OPAQUE_TYPE) {
         lowercase_name_[idx] = "opaque";
+      } else if (t == KOALABEAR) {
+        lowercase_name_[idx] = "koalabear";
+      } else if (t == KOALABEAR_STD) {
+        lowercase_name_[idx] = "koalabear_std";
+      } else if (t == BABYBEAR) {
+        lowercase_name_[idx] = "babybear";
+      } else if (t == BABYBEAR_STD) {
+        lowercase_name_[idx] = "babybear_std";
+      } else if (t == MERSENNE31) {
+        lowercase_name_[idx] = "mersenne31";
+      } else if (t == MERSENNE31_STD) {
+        lowercase_name_[idx] = "mersenne31_std";
+      } else if (t == GOLDILOCKS) {
+        lowercase_name_[idx] = "goldilocks";
+      } else if (t == GOLDILOCKS_STD) {
+        lowercase_name_[idx] = "goldilocks_std";
       } else if (t == BN254_SCALAR) {
         lowercase_name_[idx] = "bn254.sf";
       } else if (t == BN254_SCALAR_STD) {

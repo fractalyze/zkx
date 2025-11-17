@@ -1,0 +1,96 @@
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "affine_point",
+    hdrs = ["affine_point.h"],
+    deps = [
+        ":sw_curve",
+        "//xla/tsl/platform:errors",
+        "//zkx/base/buffer:serde",
+        "//zkx/base/json:json_serde",
+        "//zkx/math/base:scalar_mul",
+        "//zkx/math/field:finite_field_traits",
+        "//zkx/math/geometry:curve_type",
+        "//zkx/math/geometry:point_declarations",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:endian",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "jacobian_point",
+    hdrs = [
+        "jacobian_point.h",
+        "jacobian_point_impl.h",
+    ],
+    deps = [
+        ":sw_curve",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:template_util",
+        "//zkx/base/buffer:serde",
+        "//zkx/base/containers:container_util",
+        "//zkx/base/json:json_serde",
+        "//zkx/math/base:batch_inverse",
+        "//zkx/math/base:scalar_mul",
+        "//zkx/math/geometry:curve_type",
+        "//zkx/math/geometry:point_declarations",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "point_xyzz",
+    hdrs = [
+        "point_xyzz.h",
+        "point_xyzz_impl.h",
+    ],
+    deps = [
+        ":sw_curve",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/base:template_util",
+        "//zkx/base/containers:container_util",
+        "//zkx/base/json:json_serde",
+        "//zkx/math/base:batch_inverse",
+        "//zkx/math/base:scalar_mul",
+        "//zkx/math/geometry:curve_type",
+        "//zkx/math/geometry:point_declarations",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
+    name = "sw_curve",
+    hdrs = ["sw_curve.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/math/geometry:curve_type",
+        "//zkx/math/geometry:point_declarations",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "short_weierstrass_unittests",
+    srcs = [
+        "affine_point_unittest.cc",
+        "jacobian_point_unittest.cc",
+        "point_xyzz_unittest.cc",
+    ],
+    deps = [
+        ":affine_point",
+        ":jacobian_point",
+        ":point_xyzz",
+        "//xla/tsl/platform:status",
+        "//zkx/base:auto_reset",
+        "//zkx/base/buffer:vector_buffer",
+        "//zkx/math/elliptic_curve/short_weierstrass/test:sw_curve_config",
+    ],
+)

@@ -69,6 +69,18 @@ class DType {
     // dtype will have empty dimensions.
     kToken = 18,
 
+    kKoalabear = 33,
+    kKoalabearStd = 34,
+
+    kBabybear = 35,
+    kBabybearStd = 36,
+
+    kMersenne31 = 37,
+    kMersenne31Std = 38,
+
+    kGoldilocks = 39,
+    kGoldilocksStd = 40,
+
     kBn254Scalar = 19,
     kBn254ScalarStd = 20,
     kBn254G1Affine = 21,

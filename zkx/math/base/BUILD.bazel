@@ -5,7 +5,6 @@ package(default_visibility = ["//visibility:public"])
 zkx_cc_library(
     name = "arithmetics",
     hdrs = ["arithmetics.h"],
-    deps = ["@com_google_absl//absl/numeric:int128"],
 )
 
 zkx_cc_library(
@@ -67,65 +66,11 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
-    name = "extension_field",
-    hdrs = ["extension_field.h"],
-    deps = [
-        ":finite_field",
-        ":pow",
-        "//xla/tsl/platform:statusor",
-        "//zkx/base/buffer:serde",
-        "//zkx/base/json:json_serde",
-        "//zkx/base/strings:string_util",
-        "//zkx/base/types:always_false",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/strings",
-    ],
-)
-
-zkx_cc_library(
-    name = "field",
-    hdrs = ["field.h"],
-)
-
-zkx_cc_library(
-    name = "finite_field",
-    hdrs = ["finite_field.h"],
-    deps = [
-        ":field",
-        ":finite_field_traits",
-        "//zkx/base/types:always_false",
-        "//zkx/math/base/square_root_algorithms",
-    ],
-)
-
-zkx_cc_library(
-    name = "finite_field_traits",
-    hdrs = ["finite_field_traits.h"],
-)
-
-zkx_cc_library(
     name = "pow",
     hdrs = ["pow.h"],
     deps = [
         ":big_int",
         ":bit_iterator",
-    ],
-)
-
-zkx_cc_library(
-    name = "prime_field",
-    hdrs = ["prime_field.h"],
-    deps = [
-        ":big_int",
-        ":byinverter",
-        ":finite_field",
-        ":pow",
-        "//xla/tsl/platform:errors",
-        "//xla/tsl/platform:statusor",
-        "//zkx/base/buffer:serde",
-        "//zkx/base/json:json_serde",
-        "@com_google_absl//absl/log:check",
-        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -160,8 +105,6 @@ zkx_cc_unittest(
         "big_int_unittest.cc",
         "bit_iterator_unittest.cc",
         "byinverter_unittest.cc",
-        "extension_field_unittest.cc",
-        "prime_field_unittest.cc",
         "sparse_matrix_unittest.cc",
     ],
     deps = [
@@ -169,16 +112,11 @@ zkx_cc_unittest(
         ":big_int",
         ":bit_iterator",
         ":byinverter",
-        ":extension_field",
-        ":prime_field",
         ":sparse_matrix",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
-        "//zkx/base:auto_reset",
         "//zkx/base/buffer:vector_buffer",
-        "//zkx/math/elliptic_curves/bn/bn254:fq",
-        "//zkx/math/elliptic_curves/bn/bn254:fq2",
-        "//zkx/math/elliptic_curves/bn/bn254:fr",
+        "//zkx/math/elliptic_curve/bn/bn254:fr",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/strings",

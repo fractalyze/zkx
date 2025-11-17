@@ -238,9 +238,13 @@ zkx_cc_library(
     srcs = ["runtime_print.cc"],
     hdrs = ["runtime_print.h"],
     deps = [
-        "//zkx/math/elliptic_curves/bn/bn254:fr",
-        "//zkx/math/elliptic_curves/bn/bn254:g1",
-        "//zkx/math/elliptic_curves/bn/bn254:g2",
+        "//zkx/math/elliptic_curve/bn/bn254:fr",
+        "//zkx/math/elliptic_curve/bn/bn254:g1",
+        "//zkx/math/elliptic_curve/bn/bn254:g2",
+        "//zkx/math/field/babybear",
+        "//zkx/math/field/goldilocks",
+        "//zkx/math/field/koalabear",
+        "//zkx/math/field/mersenne31",
         "@llvm-project//mlir:mlir_runner_utils",
     ],
 )

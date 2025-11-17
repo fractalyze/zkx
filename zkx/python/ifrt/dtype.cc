@@ -40,6 +40,16 @@ std::optional<int> DType::byte_size() const {
     case kS64:
     case kU64:
       return 8;
+    case kKoalabear:
+    case kKoalabearStd:
+    case kBabybear:
+    case kBabybearStd:
+    case kMersenne31:
+    case kMersenne31Std:
+      return 4;
+    case kGoldilocks:
+    case kGoldilocksStd:
+      return 8;
     case kBn254Scalar:
     case kBn254ScalarStd:
       return 32;
@@ -89,6 +99,16 @@ std::optional<int> DType::bit_size() const {
       return 32;
     case kS64:
     case kU64:
+      return 64;
+    case kKoalabear:
+    case kKoalabearStd:
+    case kBabybear:
+    case kBabybearStd:
+    case kMersenne31:
+    case kMersenne31Std:
+      return 32;
+    case kGoldilocks:
+    case kGoldilocksStd:
       return 64;
     case kBn254Scalar:
     case kBn254ScalarStd:
@@ -152,6 +172,14 @@ absl::StatusOr<DType> DType::FromProto(const DTypeProto& dtype_proto) {
 #define CASE(X, Y)           \
   case DTypeProto::KIND_##X: \
     return DType(DType::Kind::k##Y);
+      CASE(KOALABEAR, Koalabear);
+      CASE(KOALABEAR_STD, KoalabearStd);
+      CASE(BABYBEAR, Babybear);
+      CASE(BABYBEAR_STD, BabybearStd);
+      CASE(MERSENNE31, Mersenne31);
+      CASE(MERSENNE31_STD, Mersenne31Std);
+      CASE(GOLDILOCKS, Goldilocks);
+      CASE(GOLDILOCKS_STD, GoldilocksStd);
       CASE(BN254_SCALAR, Bn254Scalar);
       CASE(BN254_SCALAR_STD, Bn254ScalarStd);
       CASE(BN254_G1_AFFINE, Bn254G1Affine);
@@ -214,6 +242,14 @@ DTypeProto DType::ToProto(SerDesVersion version) const {
   case DType::Kind::k##X:                       \
     dtype_proto.set_kind(DTypeProto::KIND_##Y); \
     break;
+      CASE(Koalabear, KOALABEAR);
+      CASE(KoalabearStd, KOALABEAR_STD);
+      CASE(Babybear, BABYBEAR);
+      CASE(BabybearStd, BABYBEAR_STD);
+      CASE(Mersenne31, MERSENNE31);
+      CASE(Mersenne31Std, MERSENNE31_STD);
+      CASE(Goldilocks, GOLDILOCKS);
+      CASE(GoldilocksStd, GOLDILOCKS_STD);
       CASE(Bn254Scalar, BN254_SCALAR);
       CASE(Bn254ScalarStd, BN254_SCALAR_STD);
       CASE(Bn254G1Affine, BN254_G1_AFFINE);
@@ -273,6 +309,22 @@ std::string DType::DebugString() const {
       return "TOKEN";
     case kOpaque:
       return "OPAQUE";
+    case kKoalabear:
+      return "KOALABEAR";
+    case kKoalabearStd:
+      return "KOALABEAR_STD";
+    case kBabybear:
+      return "BABYBEAR";
+    case kBabybearStd:
+      return "BABYBEAR_STD";
+    case kMersenne31:
+      return "MERSENNE31";
+    case kMersenne31Std:
+      return "MERSENNE31_STD";
+    case kGoldilocks:
+      return "GOLDILOCKS";
+    case kGoldilocksStd:
+      return "GOLDILOCKS_STD";
     case kBn254Scalar:
       return "BN254_SCALAR";
     case kBn254ScalarStd:

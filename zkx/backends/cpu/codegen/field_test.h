@@ -280,7 +280,7 @@ class FieldScalarTernaryTest : public CpuKernelEmitterTest {
   }
 
   void SetUpSelect() {
-    bool cond = x_[0] % 2 == 0;
+    bool cond = static_cast<uint64_t>(x_.value()) % 2 == 0;
     literals_[0] = LiteralUtil::CreateR0<bool>(cond);
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {

@@ -34,10 +34,14 @@ limitations under the License.
 #include "absl/types/span.h"
 
 #include "xla/tsl/lib/math/math_util.h"
-#include "zkx/math/base/field.h"
-#include "zkx/math/elliptic_curves/bn/bn254/fr.h"
-#include "zkx/math/elliptic_curves/bn/bn254/g1.h"
-#include "zkx/math/elliptic_curves/bn/bn254/g2.h"
+#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g1.h"
+#include "zkx/math/elliptic_curve/bn/bn254/g2.h"
+#include "zkx/math/field/babybear/babybear.h"
+#include "zkx/math/field/field.h"
+#include "zkx/math/field/goldilocks/goldilocks.h"
+#include "zkx/math/field/koalabear/koalabear.h"
+#include "zkx/math/field/mersenne31/mersenne31.h"
 #include "zkx/types.h"
 #include "zkx/util.h"
 #include "zkx/zkx_data.pb.h"
@@ -152,6 +156,10 @@ constexpr PrimitiveType NativeToPrimitiveType<int64_t>() {
     return enum##_STD;                                             \
   }
 
+MONTABLE_CONVERSION(KOALABEAR, math::Koalabear)
+MONTABLE_CONVERSION(BABYBEAR, math::Babybear)
+MONTABLE_CONVERSION(MERSENNE31, math::Mersenne31)
+MONTABLE_CONVERSION(GOLDILOCKS, math::Goldilocks)
 MONTABLE_CONVERSION(BN254_SCALAR, math::bn254::Fr)
 MONTABLE_CONVERSION(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
 MONTABLE_CONVERSION(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
@@ -274,6 +282,10 @@ struct PrimitiveTypeToNative<TOKEN> {
     using type = cpp_type##Std;                   \
   }
 
+MONTABLE_CONVERSION(KOALABEAR, math::Koalabear);
+MONTABLE_CONVERSION(BABYBEAR, math::Babybear);
+MONTABLE_CONVERSION(MERSENNE31, math::Mersenne31);
+MONTABLE_CONVERSION(GOLDILOCKS, math::Goldilocks);
 MONTABLE_CONVERSION(BN254_SCALAR, math::bn254::Fr);
 MONTABLE_CONVERSION(BN254_G1_AFFINE, math::bn254::G1AffinePoint);
 MONTABLE_CONVERSION(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint);
@@ -317,18 +329,24 @@ constexpr bool Is8BitIntegralType(PrimitiveType type) {
 }
 
 constexpr bool IsFieldType(PrimitiveType type) {
-  return type == BN254_SCALAR || type == BN254_SCALAR_STD;
+  return type == KOALABEAR || type == KOALABEAR_STD || type == BABYBEAR ||
+         type == BABYBEAR_STD || type == MERSENNE31 || type == MERSENNE31_STD ||
+         type == GOLDILOCKS || type == GOLDILOCKS_STD || type == BN254_SCALAR ||
+         type == BN254_SCALAR_STD;
 }
 
 constexpr bool IsMontgomeryForm(PrimitiveType type) {
-  return type == BN254_SCALAR || type == BN254_G1_AFFINE ||
-         type == BN254_G1_JACOBIAN || type == BN254_G1_XYZZ ||
-         type == BN254_G2_AFFINE || type == BN254_G2_JACOBIAN ||
-         type == BN254_G2_XYZZ;
+  return type == KOALABEAR || type == BABYBEAR || type == MERSENNE31 ||
+         type == GOLDILOCKS || type == BN254_SCALAR ||
+         type == BN254_G1_AFFINE || type == BN254_G1_JACOBIAN ||
+         type == BN254_G1_XYZZ || type == BN254_G2_AFFINE ||
+         type == BN254_G2_JACOBIAN || type == BN254_G2_XYZZ;
 }
 
 constexpr bool IsStandardForm(PrimitiveType type) {
-  return type == BN254_SCALAR_STD || type == BN254_G1_AFFINE_STD ||
+  return type == KOALABEAR_STD || type == BABYBEAR_STD ||
+         type == MERSENNE31_STD || type == GOLDILOCKS_STD ||
+         type == BN254_SCALAR_STD || type == BN254_G1_AFFINE_STD ||
          type == BN254_G1_JACOBIAN_STD || type == BN254_G1_XYZZ_STD ||
          type == BN254_G2_AFFINE_STD || type == BN254_G2_JACOBIAN_STD ||
          type == BN254_G2_XYZZ_STD;
@@ -393,6 +411,10 @@ constexpr R FieldTypeSwitch(F&& f, PrimitiveType type) {
     return std::forward<F>(f)(                                               \
         PrimitiveTypeConstant<PrimitiveType::enum##_STD>());
 
+      MONTABLE_CASE(KOALABEAR, math::Koalabear)
+      MONTABLE_CASE(BABYBEAR, math::Babybear)
+      MONTABLE_CASE(MERSENNE31, math::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, math::Goldilocks)
       MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
 #undef MONTABLE_CASE
       default:
