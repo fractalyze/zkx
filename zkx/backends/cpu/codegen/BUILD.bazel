@@ -171,6 +171,7 @@ zkx_cc_library(
         "//zkx:primitive_util",
         "//zkx/base/containers:container_util",
         "//zkx/math/base:batch_inverse",
+        "//zkx/math/base:sparse_matrix",
         "//zkx/math/poly:root_of_unity",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
