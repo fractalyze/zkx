@@ -550,6 +550,7 @@ zkx_cc_unittest(
         "//zkx:literal_util",
         "//zkx:shape_util",
         "//zkx/base:random",
+        "//zkx/base/containers:container_util",
         "//zkx/service:buffer_assignment",
         "//zkx/stream_executor:device_memory",
         "@com_google_absl//absl/algorithm:container",
