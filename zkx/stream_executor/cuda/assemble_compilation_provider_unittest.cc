@@ -19,12 +19,12 @@ limitations under the License.
 #include <string>
 
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/cuda_root_path.h"
 #include "xla/tsl/platform/path.h"
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/stream_executor/cuda/nvjitlink_support.h"
 #include "zkx/stream_executor/cuda/ptx_compiler_support.h"
@@ -32,9 +32,9 @@ limitations under the License.
 namespace stream_executor::cuda {
 
 namespace {
+using ::absl_testing::StatusIs;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
-using ::tsl::testing::StatusIs;
 
 TEST(AssembleCompilationProviderTest,
      ReturnsErrorIfNoCompilationProviderIsAvailable) {

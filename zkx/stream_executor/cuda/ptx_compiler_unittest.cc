@@ -22,11 +22,11 @@ limitations under the License.
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "zkx/stream_executor/cuda/ptx_compiler_support.h"
 
 namespace stream_executor {
@@ -172,12 +172,12 @@ class PtxCompilerTest : public ::testing::Test {
 
 TEST_F(PtxCompilerTest, IdentifiesUnsupportedArchitecture) {
   EXPECT_THAT(CompileHelper(CudaComputeCapability{100, 0}, kSimplePtx),
-              tsl::testing::StatusIs(absl::StatusCode::kUnimplemented));
+              absl_testing::StatusIs(absl::StatusCode::kUnimplemented));
 }
 
 TEST_F(PtxCompilerTest, CanCompileSingleCompilationUnit) {
   EXPECT_THAT(CompileHelper(kDefaultComputeCapability, kSimplePtx),
-              tsl::testing::IsOk());
+              absl_testing::IsOk());
 }
 
 TEST_F(PtxCompilerTest, CancelsOnRegSpill) {
@@ -186,13 +186,13 @@ TEST_F(PtxCompilerTest, CancelsOnRegSpill) {
   EXPECT_THAT(CompileHelper(kDefaultComputeCapability, kSpillingPtx,
                             /*disable_gpuasm_optimizations=*/true,
                             /*cancel_if_reg_spill=*/true),
-              tsl::testing::StatusIs(absl::StatusCode::kCancelled));
+              absl_testing::StatusIs(absl::StatusCode::kCancelled));
 
   // We also test the converse to ensure our test case isn't broken.
   EXPECT_THAT(CompileHelper(kDefaultComputeCapability, kSpillingPtx,
                             /*disable_gpuasm_optimizations=*/true,
                             /*cancel_if_reg_spill=*/false),
-              tsl::testing::IsOk());
+              absl_testing::IsOk());
 }
 
 TEST_F(PtxCompilerTest, AcceptsExtraArguments) {
@@ -207,8 +207,8 @@ TEST_F(PtxCompilerTest, AcceptsExtraArguments) {
                     /*disable_gpuasm_optimizations=*/false,
                     /*cancel_if_reg_spill=*/false, {"--generate-line-info"});
 
-  EXPECT_THAT(reference_cubin, tsl::testing::IsOk());
-  EXPECT_THAT(cubin_with_line_info, tsl::testing::IsOk());
+  EXPECT_THAT(reference_cubin, absl_testing::IsOk());
+  EXPECT_THAT(cubin_with_line_info, absl_testing::IsOk());
   EXPECT_GT(cubin_with_line_info->size(), reference_cubin->size());
 
   // We also test whether invalid flags lead to a compilation error.
@@ -216,14 +216,14 @@ TEST_F(PtxCompilerTest, AcceptsExtraArguments) {
       CompileHelper(kDefaultComputeCapability, kSimplePtx,
                     /*disable_gpuasm_optimizations=*/false,
                     /*cancel_if_reg_spill=*/false, {"--flag-does-not-exist"}),
-      tsl::testing::StatusIs(absl::StatusCode::kInternal));
+      absl_testing::StatusIs(absl::StatusCode::kInternal));
 }
 
 TEST_F(PtxCompilerTest, ReturnsReasonableVersion) {
   constexpr SemanticVersion kMinSupportedVersion = {12, 0, 0};
 
   EXPECT_THAT(GetLibNvPtxCompilerVersion(),
-              tsl::testing::IsOkAndHolds(testing::Ge(kMinSupportedVersion)));
+              absl_testing::IsOkAndHolds(testing::Ge(kMinSupportedVersion)));
 }
 
 }  // namespace

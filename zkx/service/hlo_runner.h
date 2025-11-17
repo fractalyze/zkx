@@ -211,7 +211,9 @@ class HloRunner : public HloRunnerInterface {
       std::unique_ptr<OpaqueExecutable> wrapped) const;
   std::unique_ptr<OpaqueExecutable> WrapExecutable(
       std::unique_ptr<Executable> executable) const;
-  absl::StatusOr<absl::Nonnull<const HloModule*>> HloModuleFromWrapped(
+  // clang-format off
+  absl::StatusOr<const HloModule* absl_nonnull> HloModuleFromWrapped(
+      // clang-format on
       const OpaqueExecutable* wrapped) const override;
   // Returns the HloProto of the Executable wrapped by the given
   // OpaqueExecutable. This is a temporary API to help move to OpaqueExecutable.
@@ -221,7 +223,9 @@ class HloRunner : public HloRunnerInterface {
   // information is not available from a PjRt(Loaded)Executable.
   //
   // TODO: b/393183864 - Remove this API.
-  absl::StatusOr<absl::Nonnull<const HloProto*>> HloProtoFromWrapped(
+  // clang-format off
+  absl::StatusOr<const HloProto* absl_nonnull> HloProtoFromWrapped(
+      // clang-format on
       const OpaqueExecutable* wrapped) const;
 
  private:

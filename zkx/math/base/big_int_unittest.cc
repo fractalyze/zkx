@@ -3,17 +3,17 @@
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
+#include "absl/status/status_matchers.h"
 #include "absl/types/span.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/status.h"
-#include "xla/tsl/platform/status_matchers.h"
 #include "zkx/base/buffer/vector_buffer.h"
 
 namespace zkx::math {
 
-using ::tsl::testing::StatusIs;
+using ::absl_testing::StatusIs;
 
 TEST(BigIntTest, Zero) {
   BigInt<2> big_int = BigInt<2>::Zero();

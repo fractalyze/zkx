@@ -35,6 +35,6 @@ zkx_cc_unittest(
     deps = [
         ":json",
         ":json_serde",
-        "//xla/tsl/platform:status_matchers",
+        "@com_google_absl//absl/status:status_matchers",
     ],
 )

@@ -15,17 +15,17 @@ limitations under the License.
 
 #include "zkx/service/gpu/matmul_indexing_utils.h"
 
+#include "absl/status/status_matchers.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/hlo/parser/hlo_parser.h"
 
 namespace zkx::gpu {
 namespace {
 
+using ::absl_testing::IsOkAndHolds;
 using ::testing::ElementsAre;
-using ::tsl::testing::IsOkAndHolds;
 
 TEST(MatMulIndexingUtilsTest, GetNonContractingDims) {
   TF_ASSERT_OK_AND_ASSIGN(Shape shape, ParseShape("u32[1,2,3,4,5,6]"))

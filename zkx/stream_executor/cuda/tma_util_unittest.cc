@@ -15,16 +15,15 @@ limitations under the License.
 
 #include "zkx/stream_executor/cuda/tma_util.h"
 
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#include "xla/tsl/platform/status_matchers.h"
 
 namespace stream_executor::gpu {
 namespace {
 
-using ::tsl::testing::IsOkAndHolds;
-using ::tsl::testing::StatusIs;
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
 
 TEST(TmaUtilTest, GetTensorMapDataTypeReturnsCorrectDataType) {
   EXPECT_THAT(GetTensorMapDataType(1),

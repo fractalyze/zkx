@@ -53,7 +53,7 @@ class HloRunnerPjRt : public HloRunnerInterface {
 
   // Transfers data between the host and device.
   absl::StatusOr<std::unique_ptr<PjRtBuffer>> TransferLiteralToDevice(
-      const Literal& literal, absl::Nonnull<PjRtMemorySpace*> memory_space,
+      const Literal& literal, PjRtMemorySpace* absl_nonnull memory_space,
       const Layout& on_device_layout);
   absl::StatusOr<std::vector<std::unique_ptr<PjRtBuffer>>>
   TransferLiteralsToDevice(const ComputationLayout& entry_layout,
@@ -128,7 +128,9 @@ class HloRunnerPjRt : public HloRunnerInterface {
 
   bool HasProperty(HloRunnerPropertyTag::Type tag) const override;
 
-  absl::StatusOr<absl::Nonnull<const HloModule*>> HloModuleFromWrapped(
+  // clang-format off
+  absl::StatusOr<const HloModule* absl_nonnull> HloModuleFromWrapped(
+      // clang-format on
       const OpaqueExecutable* wrapped) const override;
 
  private:

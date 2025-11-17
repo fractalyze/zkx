@@ -73,7 +73,6 @@ zkx_cc_unittest(
         ":pgle_accuracy_checker",
         ":schedule_postprocessing",
         ":scheduling_instruction_annotator",
-        "//xla/tsl/platform:status_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx:util",
         "//zkx/hlo/ir:hlo",
@@ -84,6 +83,7 @@ zkx_cc_unittest(
         "//zkx/service:latency_hiding_scheduler",
         "//zkx/service:profile_guided_latency_estimator",
         "//zkx/service/gpu:gpu_latency_hiding_scheduler",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_protobuf//:protobuf",
     ],
 )

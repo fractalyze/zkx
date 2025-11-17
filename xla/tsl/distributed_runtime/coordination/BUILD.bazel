@@ -149,9 +149,9 @@ zkx_cc_unittest(
     deps = [
         ":coordination_service_agent",
         ":coordination_service_error_util",
-        "//xla/tsl/platform:status_matchers",
         "//xla/tsl/protobuf:coordination_config_cc_proto",
         "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:status_matchers",
     ],
 )
 
@@ -164,7 +164,7 @@ zkx_cc_unittest(
         ":coordination_service_error_util",
         ":test_device_cc_proto",
         "//xla/tsl/platform:random",
-        "//xla/tsl/platform:status_matchers",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
     ],

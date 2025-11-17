@@ -17,18 +17,18 @@ limitations under the License.
 
 #include <string>
 
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include "xla/tsl/platform/path.h"
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 
 namespace stream_executor {
 namespace {
+using absl_testing::IsOkAndHolds;
+using absl_testing::StatusIs;
 using testing::Not;
-using tsl::testing::IsOkAndHolds;
-using tsl::testing::StatusIs;
 
 TEST(SubprocessCompilationTest, GetToolVersion) {
   std::string cuda_dir;

@@ -43,6 +43,7 @@ def zkx_safe_code():
         #    |                   ^
         # 1 error generated.
         "-Wno-deprecated-declarations",
+        "-Wno-nullability-completeness",
     ]
 
 def zkx_warnings(safe_code):

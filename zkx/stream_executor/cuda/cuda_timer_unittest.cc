@@ -20,11 +20,11 @@ limitations under the License.
 #include <optional>
 
 #include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/time/time.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/stream_executor/cuda/cuda_platform_id.h"
 #include "zkx/stream_executor/device_memory.h"
@@ -40,8 +40,8 @@ limitations under the License.
 namespace stream_executor::gpu {
 namespace {
 
+using ::absl_testing::IsOk;
 using ::testing::Gt;
-using ::tsl::testing::IsOk;
 
 class CudaTimerTest : public ::testing::TestWithParam<CudaTimer::TimerType> {
  public:
@@ -94,7 +94,7 @@ TEST_P(CudaTimerTest, Create) {
                           timer.GetElapsedDuration());
   EXPECT_THAT(timer_result, Gt(absl::ZeroDuration()));
   EXPECT_THAT(timer.GetElapsedDuration(),
-              tsl::testing::StatusIs(absl::StatusCode::kFailedPrecondition));
+              absl_testing::StatusIs(absl::StatusCode::kFailedPrecondition));
 }
 
 INSTANTIATE_TEST_SUITE_P(CudaTimerTest, CudaTimerTest,

@@ -14,15 +14,15 @@ limitations under the License.
 ==============================================================================*/
 #include "zkx/pjrt/pjrt_executable.h"
 
+#include "absl/status/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include "xla/tsl/platform/status_matchers.h"
 #include "zkx/shape_util.h"
 
 namespace zkx {
 
-using ::tsl::testing::StatusIs;
+using ::absl_testing::StatusIs;
 
 TEST(CompileOptionsTest, Serialization) {
   CompileOptions src;

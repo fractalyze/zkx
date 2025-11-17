@@ -162,8 +162,10 @@ std::vector<std::vector<PjRtBuffer*>> BufferMatToPointerMat(
 
 constexpr int kDeviceIdx = 0;
 
-absl::StatusOr<absl::Nonnull<PjRtMemorySpace*>> GetMemorySpaceFromLayout(
-    absl::Nonnull<PjRtDevice*> const device, const Layout& layout) {
+// clang-format off
+absl::StatusOr<PjRtMemorySpace* absl_nonnull> GetMemorySpaceFromLayout(
+    // clang-format on
+    PjRtDevice* absl_nonnull const device, const Layout& layout) {
   PjRtMemorySpace* memory_space = nullptr;
   if (layout.memory_space() == Layout::kHostMemorySpace) {
     TF_ASSIGN_OR_RETURN(memory_space, device->memory_space_by_kind(
@@ -180,7 +182,7 @@ absl::StatusOr<absl::Nonnull<PjRtMemorySpace*>> GetMemorySpaceFromLayout(
 class HloRunnerPjRtExecutable : public OpaqueExecutable {
  public:
   HloRunnerPjRtExecutable(
-      absl::Nonnull<const HloRunnerPjRt*> creator,
+      const HloRunnerPjRt* absl_nonnull creator,
       std::unique_ptr<PjRtLoadedExecutable> pjrt_loaded_executable)
       : OpaqueExecutable(creator),
         pjrt_loaded_executable_(std::move(pjrt_loaded_executable)) {}
@@ -191,13 +193,13 @@ class HloRunnerPjRtExecutable : public OpaqueExecutable {
 
   static absl::StatusOr<HloRunnerPjRtExecutable*> TryUnwrap(
       const HloRunnerPjRt& runner,
-      absl::Nonnull<OpaqueExecutable*> const wrapped) {
+      OpaqueExecutable* absl_nonnull const wrapped) {
     return OpaqueExecutable::TryUnwrap<HloRunnerPjRtExecutable>(runner,
                                                                 wrapped);
   }
   static absl::StatusOr<const HloRunnerPjRtExecutable*> TryUnwrap(
       const HloRunnerPjRt& runner,
-      absl::Nonnull<const OpaqueExecutable*> const wrapped) {
+      const OpaqueExecutable* absl_nonnull const wrapped) {
     return OpaqueExecutable::TryUnwrap<HloRunnerPjRtExecutable>(runner,
                                                                 wrapped);
   }
@@ -275,7 +277,7 @@ absl::StatusOr<Literal> HloRunnerPjRt::TransferLiteralFromDevice(
 
 absl::StatusOr<std::unique_ptr<PjRtBuffer>>
 HloRunnerPjRt::TransferLiteralToDevice(
-    const Literal& literal, absl::Nonnull<PjRtMemorySpace*> const memory_space,
+    const Literal& literal, PjRtMemorySpace* absl_nonnull const memory_space,
     const Layout& on_device_layout) {
   // Whenever possible, we want to respect the provided on-device layout. This
   // layout was either provided by the user or was inferred by the compiler. The
@@ -318,7 +320,9 @@ HloRunnerPjRt::TransferLiteralsToDevice(
       const Literal* literal = input_literals[i];
       TF_RET_CHECK(literal != nullptr);
       const Layout& on_device_layout = parameter_layouts[i];
-      TF_ASSIGN_OR_RETURN(absl::Nonnull<PjRtMemorySpace*> memory_space,
+      // clang-format off
+      TF_ASSIGN_OR_RETURN(PjRtMemorySpace* absl_nonnull memory_space,
+                          // clang-format on
                           GetMemorySpaceFromLayout(device, on_device_layout));
       TF_ASSIGN_OR_RETURN(
           std::unique_ptr<PjRtBuffer> buffer,
@@ -695,7 +699,9 @@ bool HloRunnerPjRt::HasProperty(const HloRunnerPropertyTag::Type tag) const {
   return false;
 }
 
-absl::StatusOr<absl::Nonnull<const HloModule*>>
+// clang-format off
+absl::StatusOr<const HloModule* absl_nonnull>
+// clang-format on
 HloRunnerPjRt::HloModuleFromWrapped(const OpaqueExecutable* wrapped) const {
   TF_ASSIGN_OR_RETURN(
       const HloRunnerPjRtExecutable* const hlo_runner_pjrt_executable,

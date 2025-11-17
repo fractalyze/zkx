@@ -50,6 +50,6 @@ zkx_cc_unittest(
         ":flag",
         ":flag_parser",
         "//xla/tsl/platform:status",
-        "//xla/tsl/platform:status_matchers",
+        "@com_google_absl//absl/status:status_matchers",
     ],
 )
