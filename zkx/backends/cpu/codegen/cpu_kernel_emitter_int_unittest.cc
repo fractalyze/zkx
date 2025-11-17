@@ -8,7 +8,7 @@ using IntTypes = testing::Types<uint32_t, int32_t>;
 TYPED_TEST_SUITE(IntScalarUnaryTest, IntTypes);
 
 TYPED_TEST(IntScalarUnaryTest, Abs) {
-  if (std::is_signed_v<TypeParam>) {
+  if constexpr (std::is_signed_v<TypeParam>) {
     this->SetUpAbs();
     this->RunAndVerify();
   } else {
@@ -37,7 +37,7 @@ TYPED_TEST(IntScalarUnaryTest, ConvertDown) {
 }
 
 TYPED_TEST(IntScalarUnaryTest, Negate) {
-  if (std::is_signed_v<TypeParam>) {
+  if constexpr (std::is_signed_v<TypeParam>) {
     this->SetUpNegate();
     this->RunAndVerify();
   } else {
@@ -56,7 +56,7 @@ TYPED_TEST(IntScalarUnaryTest, PopulationCount) {
 }
 
 TYPED_TEST(IntScalarUnaryTest, Sign) {
-  if (std::is_signed_v<TypeParam>) {
+  if constexpr (std::is_signed_v<TypeParam>) {
     this->SetUpSign();
     this->RunAndVerify();
   } else {

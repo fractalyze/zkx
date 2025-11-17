@@ -366,8 +366,21 @@ std::string LiteralBase::GetAsString(absl::Span<const int64_t> multi_index,
       [&](auto primitive_type_constant) -> std::string {
         using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
         if constexpr (primitive_util::IsIntegralType(primitive_type_constant)) {
-          return absl::StrCat(Get<NativeT>(multi_index, shape_index));
+          // TODO(chokobole): XLA just uses absl::StrCat(). Maybe our absl is
+          // too old...
+          if constexpr (std::is_same_v<NativeT, u1> ||
+                        std::is_same_v<NativeT, s1> ||
+                        std::is_same_v<NativeT, u2> ||
+                        std::is_same_v<NativeT, s2> ||
+                        std::is_same_v<NativeT, u4> ||
+                        std::is_same_v<NativeT, s4>) {
+            return Get<NativeT>(multi_index, shape_index).ToString();
+          } else {
+            return absl::StrCat(Get<NativeT>(multi_index, shape_index));
+          }
         }
+        // TODO(chokobole): XLA just uses absl::StrCat(). Maybe our absl is
+        // too old...
         if constexpr (primitive_util::IsFieldType(primitive_type_constant) ||
                       primitive_util::IsEcPointType(primitive_type_constant)) {
           return Get<NativeT>(multi_index, shape_index).ToString();
@@ -623,18 +636,11 @@ namespace {
 template <typename NativeSrcT, typename NativeDestT>
 void ConvertBetweenNativeTypes(absl::Span<const NativeSrcT> src_data,
                                void* dst_base) {
-  if constexpr (std::is_same_v<NativeSrcT, NativeDestT>) {
-    // TODO(chokobole): Implement this. Dependency: s1, s2, s4, u1, u2, u4
-    static_assert(std::is_same_v<NativeSrcT, uint8_t> ||
-                  std::is_same_v<NativeSrcT, int8_t>);
-    return;
-  } else {
-    static_assert(!std::is_same_v<NativeSrcT, NativeDestT>);
+  static_assert(!std::is_same_v<NativeSrcT, NativeDestT>);
 
-    NativeDestT* dest_data = static_cast<NativeDestT*>(dst_base);
-    for (const NativeSrcT& src : src_data) {
-      *(dest_data++) = static_cast<NativeDestT>(src);
-    }
+  NativeDestT* dest_data = static_cast<NativeDestT*>(dst_base);
+  for (const NativeSrcT& src : src_data) {
+    *(dest_data++) = static_cast<NativeDestT>(src);
   }
 }
 
@@ -1479,31 +1485,16 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
       CopyToRepeatedField(proto->mutable_preds(), data<bool>());
       break;
     case U1:
-      // TODO(chokobole): Uncomment this. Dependency: u1
-      // *proto->mutable_u1s() =
-      //     std::string(reinterpret_cast<const char*>(data<u8>().data()),
-      //                 size_bytes_dense());
-      *proto->mutable_u1s() =
-          std::string(reinterpret_cast<const char*>(data<uint8_t>().data()),
-                      size_bytes_dense());
+      *proto->mutable_u1s() = std::string(
+          reinterpret_cast<const char*>(data<u1>().data()), size_bytes_dense());
       break;
     case U2:
-      // TODO(chokobole): Uncomment this. Dependency: u2
-      // *proto->mutable_u2s() = std::string(
-      //     reinterpret_cast<const char*>(data<u2>().data()),
-      //     size_bytes_dense());
-      *proto->mutable_u2s() =
-          std::string(reinterpret_cast<const char*>(data<uint8_t>().data()),
-                      size_bytes_dense());
+      *proto->mutable_u2s() = std::string(
+          reinterpret_cast<const char*>(data<u2>().data()), size_bytes_dense());
       break;
     case U4:
-      // TODO(chokobole): Uncomment this. Dependency: u1
-      // *proto->mutable_u4s() =
-      //     std::string(reinterpret_cast<const char*>(data<u4>().data()),
-      //                 size_bytes_dense());
-      *proto->mutable_u4s() =
-          std::string(reinterpret_cast<const char*>(data<uint8_t>().data()),
-                      size_bytes_dense());
+      *proto->mutable_u4s() = std::string(
+          reinterpret_cast<const char*>(data<u4>().data()), size_bytes_dense());
       break;
     case U8:
       proto->set_u8s(static_cast<const unsigned char*>(data<uint8_t>().data()),
@@ -1524,31 +1515,16 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
       CopyToRepeatedField(proto->mutable_u64s(), data<uint64_t>());
       break;
     case S1:
-      // TODO(chokobole): Uncomment this. Dependency: s1
-      // *proto->mutable_s1s() = std::string(
-      //     reinterpret_cast<const char*>(data<s1>().data()),
-      //     size_bytes_dense());
-      *proto->mutable_s1s() =
-          std::string(reinterpret_cast<const char*>(data<int8_t>().data()),
-                      size_bytes_dense());
+      *proto->mutable_s1s() = std::string(
+          reinterpret_cast<const char*>(data<s1>().data()), size_bytes_dense());
       break;
     case S2:
-      // TODO(chokobole): Uncomment this. Dependency: s2
-      // *proto->mutable_s2s() =
-      //       std::string(reinterpret_cast<const char*>(data<s2>().data()),
-      //                   size_bytes_dense());
-      *proto->mutable_s2s() =
-          std::string(reinterpret_cast<const char*>(data<int8_t>().data()),
-                      size_bytes_dense());
+      *proto->mutable_s2s() = std::string(
+          reinterpret_cast<const char*>(data<s2>().data()), size_bytes_dense());
       break;
     case S4:
-      // TODO(chokobole): Uncomment this. Dependency: s4
-      // *proto->mutable_s4s() = std::string(
-      //     reinterpret_cast<const char*>(data<s4>().data()),
-      //     size_bytes_dense());
-      *proto->mutable_s4s() =
-          std::string(reinterpret_cast<const char*>(data<int8_t>().data()),
-                      size_bytes_dense());
+      *proto->mutable_s4s() = std::string(
+          reinterpret_cast<const char*>(data<s4>().data()), size_bytes_dense());
       break;
     case S8:
       proto->set_s8s(static_cast<const signed char*>(data<int8_t>().data()),
@@ -1666,17 +1642,13 @@ absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
       break;
     case S2: {
       const std::string& s(proto.s2s());
-      // TODO(chokobole): Uncomment this. Dependency: s2
-      // TF_RET_CHECK(data<s2>().size() * sizeof(s2) == s.size());
-      TF_RET_CHECK(data<uint8_t>().size() * sizeof(uint8_t) == s.size());
+      TF_RET_CHECK(data<s2>().size() * sizeof(s2) == s.size());
       memcpy(untyped_data(), s.data(), s.size());
       break;
     }
     case S4: {
       const std::string& s(proto.s4s());
-      // TODO(chokobole): Uncomment this. Dependency: s4
-      // TF_RET_CHECK(data<s4>().size() * sizeof(s4) == s.size());
-      TF_RET_CHECK(data<uint8_t>().size() * sizeof(uint8_t) == s.size());
+      TF_RET_CHECK(data<s4>().size() * sizeof(s4) == s.size());
       memcpy(untyped_data(), s.data(), s.size());
       break;
     }
@@ -1703,17 +1675,13 @@ absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
       break;
     case U2: {
       const std::string& s(proto.u2s());
-      // TODO(chokobole): Uncomment this. Dependency: u2
-      // TF_RET_CHECK(data<u2>().size() * sizeof(u2) == s.size());
-      TF_RET_CHECK(data<uint8_t>().size() * sizeof(uint8_t) == s.size());
+      TF_RET_CHECK(data<u2>().size() * sizeof(u2) == s.size());
       memcpy(untyped_data(), s.data(), s.size());
       break;
     }
     case U4: {
       const std::string& s(proto.u4s());
-      // TODO(chokobole): Uncomment this. Dependency: u4
-      // TF_RET_CHECK(data<u4>().size() * sizeof(u4) == s.size());
-      TF_RET_CHECK(data<uint8_t>().size() * sizeof(uint8_t) == s.size());
+      TF_RET_CHECK(data<u4>().size() * sizeof(u4) == s.size());
       memcpy(untyped_data(), s.data(), s.size());
       break;
     }

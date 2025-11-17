@@ -9,6 +9,7 @@ load("@zkx//third_party/implib_so:workspace.bzl", implib_so = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/nanobind:workspace.bzl", nanobind = "repo")
 load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
+load("@zkx//third_party/py/zk_dtypes:workspace.bzl", zk_dtypes = "repo")
 load("@zkx//third_party/robin_map:workspace.bzl", robin_map = "repo")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 
@@ -24,6 +25,7 @@ def zkx_deps():
     nanobind()
     robin_map()
     uv()
+    zk_dtypes()
 
     # Load the raw llvm-project.  llvm does not have build rules set up by default,
     # but provides a script for setting up build rules via overlays.
