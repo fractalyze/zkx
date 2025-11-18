@@ -1,4 +1,4 @@
-""" Root ml_dtypes_py package. """
+""" Root zk_dtypes_py package. """
 
 package(
     default_visibility = ["//visibility:public"],
