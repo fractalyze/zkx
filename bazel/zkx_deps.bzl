@@ -54,10 +54,12 @@ def zkx_deps():
             "@zkx//third_party/absl:check_op.patch",
             "@zkx//third_party/absl:check_op_2.patch",
             "@zkx//third_party/absl:endian.patch",
-            "@zkx//third_party/absl:googletest.patch",
             "@zkx//third_party/absl:if_constexpr.patch",
             "@zkx//third_party/absl:rules_cc.patch",
         ],
+        repo_mapping = {
+            "@googletest": "@com_google_googletest",
+        },
     )
 
     # Needed by com_google_googletest
