@@ -1,4 +1,5 @@
 /* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
+Copyright 2025 The ZKX Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,10 +41,6 @@ namespace tsl {
 class Thread;
 struct ThreadOptions;
 
-// NOTE(chokobole): This class includes portions of the Env class to enable
-// zkx::thread::ThreadPool and zkx::cpu::ThunkExecutor from:
-// https://github.com/openxla/xla/blob/8bac4a2/xla/tsl/platform/env.h.
-// It is planned to be replaced with Chromium's implementation in the future.
 class Env {
  public:
   Env();
@@ -466,8 +463,6 @@ class Env {
   void operator=(const Env&) = delete;
 };
 
-// NOTE(chokobole): It is planned to be replaced with Chromium's implementation
-// in the future.
 /// Represents a thread used to run a TSL function.
 class Thread {
  public:
@@ -490,8 +485,6 @@ int setenv(const char* name, const char* value, int overwrite);
 /// Cross-platform unsetenv.
 int unsetenv(const char* name);
 
-// NOTE(chokobole): It is planned to be replaced with Chromium's implementation
-// in the future.
 /// \brief Options to configure a Thread.
 ///
 /// Note that the options are all hints, and the
