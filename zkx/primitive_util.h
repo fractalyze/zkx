@@ -33,16 +33,16 @@ limitations under the License.
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/g1.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/g2.h"
+#include "zk_dtypes/include/field/babybear/babybear.h"
+#include "zk_dtypes/include/field/field.h"
+#include "zk_dtypes/include/field/goldilocks/goldilocks.h"
+#include "zk_dtypes/include/field/koalabear/koalabear.h"
+#include "zk_dtypes/include/field/mersenne31/mersenne31.h"
 
 #include "xla/tsl/lib/math/math_util.h"
-#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
-#include "zkx/math/elliptic_curve/bn/bn254/g1.h"
-#include "zkx/math/elliptic_curve/bn/bn254/g2.h"
-#include "zkx/math/field/babybear/babybear.h"
-#include "zkx/math/field/field.h"
-#include "zkx/math/field/goldilocks/goldilocks.h"
-#include "zkx/math/field/koalabear/koalabear.h"
-#include "zkx/math/field/mersenne31/mersenne31.h"
 #include "zkx/types.h"
 #include "zkx/util.h"
 #include "zkx/zkx_data.pb.h"
@@ -151,17 +151,17 @@ constexpr PrimitiveType NativeToPrimitiveType<int64_t>() {
     return enum##_STD;                                             \
   }
 
-MONTABLE_CONVERSION(KOALABEAR, math::Koalabear)
-MONTABLE_CONVERSION(BABYBEAR, math::Babybear)
-MONTABLE_CONVERSION(MERSENNE31, math::Mersenne31)
-MONTABLE_CONVERSION(GOLDILOCKS, math::Goldilocks)
-MONTABLE_CONVERSION(BN254_SCALAR, math::bn254::Fr)
-MONTABLE_CONVERSION(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
-MONTABLE_CONVERSION(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
-MONTABLE_CONVERSION(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
-MONTABLE_CONVERSION(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
-MONTABLE_CONVERSION(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
-MONTABLE_CONVERSION(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
+MONTABLE_CONVERSION(KOALABEAR, zk_dtypes::Koalabear)
+MONTABLE_CONVERSION(BABYBEAR, zk_dtypes::Babybear)
+MONTABLE_CONVERSION(MERSENNE31, zk_dtypes::Mersenne31)
+MONTABLE_CONVERSION(GOLDILOCKS, zk_dtypes::Goldilocks)
+MONTABLE_CONVERSION(BN254_SCALAR, zk_dtypes::bn254::Fr)
+MONTABLE_CONVERSION(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
+MONTABLE_CONVERSION(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
+MONTABLE_CONVERSION(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
+MONTABLE_CONVERSION(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
+MONTABLE_CONVERSION(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
+MONTABLE_CONVERSION(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
 
 #undef MONTABLE_CONVERSION
 
@@ -265,17 +265,17 @@ struct PrimitiveTypeToNative<TOKEN> {
     using type = cpp_type##Std;                   \
   }
 
-MONTABLE_CONVERSION(KOALABEAR, math::Koalabear);
-MONTABLE_CONVERSION(BABYBEAR, math::Babybear);
-MONTABLE_CONVERSION(MERSENNE31, math::Mersenne31);
-MONTABLE_CONVERSION(GOLDILOCKS, math::Goldilocks);
-MONTABLE_CONVERSION(BN254_SCALAR, math::bn254::Fr);
-MONTABLE_CONVERSION(BN254_G1_AFFINE, math::bn254::G1AffinePoint);
-MONTABLE_CONVERSION(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint);
-MONTABLE_CONVERSION(BN254_G1_XYZZ, math::bn254::G1PointXyzz);
-MONTABLE_CONVERSION(BN254_G2_AFFINE, math::bn254::G2AffinePoint);
-MONTABLE_CONVERSION(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint);
-MONTABLE_CONVERSION(BN254_G2_XYZZ, math::bn254::G2PointXyzz);
+MONTABLE_CONVERSION(KOALABEAR, zk_dtypes::Koalabear);
+MONTABLE_CONVERSION(BABYBEAR, zk_dtypes::Babybear);
+MONTABLE_CONVERSION(MERSENNE31, zk_dtypes::Mersenne31);
+MONTABLE_CONVERSION(GOLDILOCKS, zk_dtypes::Goldilocks);
+MONTABLE_CONVERSION(BN254_SCALAR, zk_dtypes::bn254::Fr);
+MONTABLE_CONVERSION(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint);
+MONTABLE_CONVERSION(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint);
+MONTABLE_CONVERSION(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz);
+MONTABLE_CONVERSION(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint);
+MONTABLE_CONVERSION(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint);
+MONTABLE_CONVERSION(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz);
 
 #undef MONTABLE_CONVERSION
 
@@ -394,11 +394,11 @@ constexpr R FieldTypeSwitch(F&& f, PrimitiveType type) {
     return std::forward<F>(f)(                                               \
         PrimitiveTypeConstant<PrimitiveType::enum##_STD>());
 
-      MONTABLE_CASE(KOALABEAR, math::Koalabear)
-      MONTABLE_CASE(BABYBEAR, math::Babybear)
-      MONTABLE_CASE(MERSENNE31, math::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, math::Goldilocks)
-      MONTABLE_CASE(BN254_SCALAR, math::bn254::Fr)
+      MONTABLE_CASE(KOALABEAR, zk_dtypes::Koalabear)
+      MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
+      MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
+      MONTABLE_CASE(BN254_SCALAR, zk_dtypes::bn254::Fr)
 #undef MONTABLE_CASE
       default:
         ABSL_UNREACHABLE();
@@ -418,12 +418,12 @@ constexpr R EcPointTypeSwitch(F&& f, PrimitiveType type) {
     return std::forward<F>(f)(                                               \
         PrimitiveTypeConstant<PrimitiveType::enum##_STD>());
 
-      MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
+      MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
+      MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
+      MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
 #undef MONTABLE_CASE
       default:
         ABSL_UNREACHABLE();
@@ -622,7 +622,9 @@ std::string NativeTypeToString(NativeT value) {
                 std::is_same_v<NativeT, u2> || std::is_same_v<NativeT, s2> ||
                 std::is_same_v<NativeT, u4> || std::is_same_v<NativeT, s4>) {
     return value.ToString();
-  } else if constexpr (math::IsField<NativeT> || math::IsEcPoint<NativeT>) {
+    // NOLINTNEXTLINE(readability/braces)
+  } else if constexpr (zk_dtypes::IsField<NativeT> ||
+                       zk_dtypes::IsEcPoint<NativeT>) {
     return value.ToString();
   } else {
     return absl::StrCat(value);

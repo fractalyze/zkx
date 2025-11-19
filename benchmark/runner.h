@@ -28,6 +28,7 @@ limitations under the License.
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
+#include "zkx/base/buffer/read_only_buffer.h"
 #include "zkx/base/flag/flag_parser.h"
 #include "zkx/hlo/parser/hlo_parser.h"
 #include "zkx/literal.h"

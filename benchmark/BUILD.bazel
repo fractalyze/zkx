@@ -52,6 +52,7 @@ zkx_cc_library(
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
         "//zkx:literal",
+        "//zkx/base/buffer:read_only_buffer",
         "//zkx/base/console:table_writer",
         "//zkx/base/csv:csv_writer",
         "//zkx/base/flag:flag_parser",
@@ -81,8 +82,9 @@ zkx_cc_binary(
         "//zkx/base/buffer:vector_buffer",
         "//zkx/base/flag:flag_parser",
         "//zkx/base/flag:numeric_flags",
-        "//zkx/math/elliptic_curve/bn/bn254:fr",
+        "//zkx/math/field:prime_field_serde",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
+        "@zk_dtypes_py//zk_dtypes:bn254_fr",
     ],
 )

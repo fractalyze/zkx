@@ -57,6 +57,7 @@ limitations under the License.
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
+#include "zk_dtypes/include/field/root_of_unity.h"
 
 #ifdef ZKX_HAS_OPENMP
 #include "mlir/Conversion/SCFToOpenMP/SCFToOpenMP.h"
@@ -86,7 +87,6 @@ limitations under the License.
 #include "zkx/hlo/ir/hlo_casting_utils.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/layout_util.h"
-#include "zkx/math/poly/root_of_unity.h"
 #include "zkx/mlir/codegen_utils.h"
 #include "zkx/mlir/mlir_utils.h"
 #include "zkx/primitive_util.h"
@@ -100,7 +100,8 @@ namespace {
 template <typename T>
 absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> GetRootOfUnityAttr(
     mlir::MLIRContext* mlir_context, int64_t fft_length) {
-  TF_ASSIGN_OR_RETURN(T root_of_unity, math::GetRootOfUnity<T>(fft_length));
+  TF_ASSIGN_OR_RETURN(T root_of_unity,
+                      zk_dtypes::GetRootOfUnity<T>(fft_length));
   return mlir::zkir::field::RootOfUnityAttr::get(
       mlir_context, /*root=*/
       mlir_utils::GetMlirPrimeFieldAttr(mlir_context, root_of_unity,
@@ -118,12 +119,12 @@ absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,
     return mlir_utils::CreateMlirEcPointConstant(b, cpp_type::Zero()); \
   case enum##_STD:                                                     \
     return mlir_utils::CreateMlirEcPointConstant(b, cpp_type##Std::Zero());
-    MONTABLE_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint)
-    MONTABLE_CASE(BN254_G1_JACOBIAN, math::bn254::G1JacobianPoint)
-    MONTABLE_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz)
-    MONTABLE_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint)
-    MONTABLE_CASE(BN254_G2_JACOBIAN, math::bn254::G2JacobianPoint)
-    MONTABLE_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz)
+    MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
+    MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
+    MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
+    MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
+    MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
+    MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
 #undef MONTABLE_CASE
     default:
       return absl::InvalidArgumentError(absl::StrFormat(
@@ -1218,43 +1219,43 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   mlir::zkir::field::RootOfUnityAttr root_attr;
   switch (operand_type) {
     case KOALABEAR: {
-      root = GetRootOfUnityAttr<math::Koalabear>(value.getContext(),
-                                                 instr->fft_length());
+      root = GetRootOfUnityAttr<zk_dtypes::Koalabear>(value.getContext(),
+                                                      instr->fft_length());
       break;
     }
     case KOALABEAR_STD: {
-      root = GetRootOfUnityAttr<math::KoalabearStd>(value.getContext(),
-                                                    instr->fft_length());
+      root = GetRootOfUnityAttr<zk_dtypes::KoalabearStd>(value.getContext(),
+                                                         instr->fft_length());
       break;
     }
     case BABYBEAR: {
-      root = GetRootOfUnityAttr<math::Babybear>(value.getContext(),
-                                                instr->fft_length());
-      break;
-    }
-    case BABYBEAR_STD: {
-      root = GetRootOfUnityAttr<math::BabybearStd>(value.getContext(),
-                                                   instr->fft_length());
-      break;
-    }
-    case GOLDILOCKS: {
-      root = GetRootOfUnityAttr<math::Goldilocks>(value.getContext(),
-                                                  instr->fft_length());
-      break;
-    }
-    case GOLDILOCKS_STD: {
-      root = GetRootOfUnityAttr<math::GoldilocksStd>(value.getContext(),
+      root = GetRootOfUnityAttr<zk_dtypes::Babybear>(value.getContext(),
                                                      instr->fft_length());
       break;
     }
+    case BABYBEAR_STD: {
+      root = GetRootOfUnityAttr<zk_dtypes::BabybearStd>(value.getContext(),
+                                                        instr->fft_length());
+      break;
+    }
+    case GOLDILOCKS: {
+      root = GetRootOfUnityAttr<zk_dtypes::Goldilocks>(value.getContext(),
+                                                       instr->fft_length());
+      break;
+    }
+    case GOLDILOCKS_STD: {
+      root = GetRootOfUnityAttr<zk_dtypes::GoldilocksStd>(value.getContext(),
+                                                          instr->fft_length());
+      break;
+    }
     case BN254_SCALAR: {
-      root = GetRootOfUnityAttr<math::bn254::Fr>(value.getContext(),
-                                                 instr->fft_length());
+      root = GetRootOfUnityAttr<zk_dtypes::bn254::Fr>(value.getContext(),
+                                                      instr->fft_length());
       break;
     }
     case BN254_SCALAR_STD: {
-      root = GetRootOfUnityAttr<math::bn254::FrStd>(value.getContext(),
-                                                    instr->fft_length());
+      root = GetRootOfUnityAttr<zk_dtypes::bn254::FrStd>(value.getContext(),
+                                                         instr->fft_length());
       break;
     }
     default:

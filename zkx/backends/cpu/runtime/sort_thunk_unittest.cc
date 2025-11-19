@@ -31,6 +31,7 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/buffer_allocations.h"
 #include "zkx/backends/cpu/runtime/function_library.h"
 #include "zkx/backends/cpu/runtime/thunk_testlib.h"
+#include "zkx/base/containers/container_util.h"
 #include "zkx/base/random.h"
 #include "zkx/layout.h"
 #include "zkx/layout_util.h"

@@ -38,7 +38,8 @@ using mlir::AffineMap;
 template <typename CppType>
 absl::StatusOr<mlir::DenseElementsAttr> CreateDenseAttrFromLiteral(
     const mlir::ShapedType& type, const LiteralBase& literal) {
-  if constexpr (math::IsPrimeField<CppType> || math::IsEcPoint<CppType>) {
+  if constexpr (zk_dtypes::IsPrimeField<CppType> ||
+                zk_dtypes::IsEcPoint<CppType>) {
     return absl::UnimplementedError(
         "Not implemented for prime field or ec point");
   } else {

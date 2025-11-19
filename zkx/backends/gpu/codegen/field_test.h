@@ -21,6 +21,7 @@ limitations under the License.
 #include "zkx/array2d.h"
 #include "zkx/backends/gpu/codegen/cuda_kernel_emitter_test.h"
 #include "zkx/base/containers/container_util.h"
+#include "zkx/base/random.h"
 #include "zkx/literal_util.h"
 #include "zkx/primitive_util.h"
 

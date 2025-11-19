@@ -46,6 +46,7 @@ zkx_cc_library(
         "//zkx:array2d",
         "//zkx:literal_util",
         "//zkx:primitive_util",
+        "//zkx/base:random",
         "//zkx/base/containers:container_util",
         "@com_google_absl//absl/strings",
     ],

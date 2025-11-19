@@ -77,7 +77,6 @@ zkx_cc_library(
         "//zkx/codegen:emitter_loc_op_builder",
         "//zkx/codegen:kernel_emitter",
         "//zkx/codegen:llvm_ir_kernel_source",
-        "//zkx/math/poly:root_of_unity",
         "//zkx/mlir:codegen_utils",
         "//zkx/mlir:mlir_utils",
         "//zkx/service:buffer_assignment",
@@ -112,6 +111,7 @@ zkx_cc_library(
         "@llvm-project//mlir:TensorInferTypeOpInterfaceImpl",
         "@llvm-project//mlir:TensorToLinalg",
         "@llvm-project//mlir:Transforms",
+        "@zk_dtypes_py//zk_dtypes:root_of_unity",
         "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField",
         "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",
         "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
@@ -170,10 +170,12 @@ zkx_cc_library(
         "//zkx:literal_util",
         "//zkx:primitive_util",
         "//zkx/base/containers:container_util",
-        "//zkx/math/base:batch_inverse",
-        "//zkx/math/poly:root_of_unity",
+        "//zkx/math/base:sparse_matrix",
+        "//zkx/math/field:prime_field_serde",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
+        "@zk_dtypes_py//zk_dtypes:batch_inverse",
+        "@zk_dtypes_py//zk_dtypes:root_of_unity",
     ],
 )
 
@@ -205,9 +207,9 @@ zkx_cc_library(
         "//zkx:primitive_util",
         "//zkx/base:random",
         "//zkx/base/containers:container_util",
-        "//zkx/math/base:pow",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/strings",
+        "@zk_dtypes_py//zk_dtypes:pow",
     ],
 )
 

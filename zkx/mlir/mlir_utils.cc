@@ -4,17 +4,17 @@
 #include "absl/log/log.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/g1.h"
+#include "zk_dtypes/include/elliptic_curve/bn/bn254/g2.h"
+#include "zk_dtypes/include/field/babybear/babybear.h"
+#include "zk_dtypes/include/field/goldilocks/goldilocks.h"
+#include "zk_dtypes/include/field/koalabear/koalabear.h"
+#include "zk_dtypes/include/field/mersenne31/mersenne31.h"
 
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
 #include "zkir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
 #include "zkx/layout_util.h"
-#include "zkx/math/elliptic_curve/bn/bn254/fr.h"
-#include "zkx/math/elliptic_curve/bn/bn254/g1.h"
-#include "zkx/math/elliptic_curve/bn/bn254/g2.h"
-#include "zkx/math/field/babybear/babybear.h"
-#include "zkx/math/field/goldilocks/goldilocks.h"
-#include "zkx/math/field/koalabear/koalabear.h"
-#include "zkx/math/field/mersenne31/mersenne31.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx::mlir_utils {
@@ -60,11 +60,11 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
     return GetMlir##type##Type<cpp_type>(context, true); \
   case enum##_STD:                                       \
     return GetMlir##type##Type<cpp_type##Std>(context, false);
-      MONTABLE_PRIME_FIELD_CASE(KOALABEAR, math::Koalabear, PrimeField)
-      MONTABLE_PRIME_FIELD_CASE(BABYBEAR, math::Babybear, PrimeField)
-      MONTABLE_PRIME_FIELD_CASE(MERSENNE31, math::Mersenne31, PrimeField)
-      MONTABLE_PRIME_FIELD_CASE(GOLDILOCKS, math::Goldilocks, PrimeField)
-      MONTABLE_PRIME_FIELD_CASE(BN254_SCALAR, math::bn254::Fr, PrimeField)
+      MONTABLE_PRIME_FIELD_CASE(KOALABEAR, zk_dtypes::Koalabear, PrimeField)
+      MONTABLE_PRIME_FIELD_CASE(BABYBEAR, zk_dtypes::Babybear, PrimeField)
+      MONTABLE_PRIME_FIELD_CASE(MERSENNE31, zk_dtypes::Mersenne31, PrimeField)
+      MONTABLE_PRIME_FIELD_CASE(GOLDILOCKS, zk_dtypes::Goldilocks, PrimeField)
+      MONTABLE_PRIME_FIELD_CASE(BN254_SCALAR, zk_dtypes::bn254::Fr, PrimeField)
 #undef MONTABLE_PRIME_FIELD_CASE
 
 #define MONTABLE_NON_PRIME_FIELD_CASE(enum, cpp_type, type) \
@@ -72,18 +72,18 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
     return GetMlir##type##Type<cpp_type>(context);          \
   case enum##_STD:                                          \
     return GetMlir##type##Type<cpp_type##Std>(context);
-      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G1_AFFINE, math::bn254::G1AffinePoint,
-                                    AffinePoint)
-      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G1_JACOBIAN,
-                                    math::bn254::G1JacobianPoint, JacobianPoint)
-      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G1_XYZZ, math::bn254::G1PointXyzz,
-                                    PointXyzz)
-      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G2_AFFINE, math::bn254::G2AffinePoint,
-                                    AffinePoint)
-      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G2_JACOBIAN,
-                                    math::bn254::G2JacobianPoint, JacobianPoint)
-      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G2_XYZZ, math::bn254::G2PointXyzz,
-                                    PointXyzz)
+      MONTABLE_NON_PRIME_FIELD_CASE(
+          BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint, AffinePoint)
+      MONTABLE_NON_PRIME_FIELD_CASE(
+          BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint, JacobianPoint)
+      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G1_XYZZ,
+                                    zk_dtypes::bn254::G1PointXyzz, PointXyzz)
+      MONTABLE_NON_PRIME_FIELD_CASE(
+          BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint, AffinePoint)
+      MONTABLE_NON_PRIME_FIELD_CASE(
+          BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint, JacobianPoint)
+      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G2_XYZZ,
+                                    zk_dtypes::bn254::G2PointXyzz, PointXyzz)
 #undef MONTABLE_NON_PRIME_FIELD_CASE
     default:
       LOG(FATAL) << "unsupported type " << element_type;

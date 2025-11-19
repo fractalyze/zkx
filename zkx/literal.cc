@@ -1560,21 +1560,23 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
         reinterpret_cast<const char*>(data<cpp_type##Std>().data()),        \
         size_bytes_dense());                                                \
     break;
-      MONTABLE_CASE(KOALABEAR, koalabears, math::Koalabear)
-      MONTABLE_CASE(BABYBEAR, babybears, math::Babybear)
-      MONTABLE_CASE(MERSENNE31, mersenne31s, math::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, goldilockss, math::Goldilocks)
-      MONTABLE_CASE(BN254_SCALAR, bn254_scalars, math::bn254::Fr)
+      MONTABLE_CASE(KOALABEAR, koalabears, zk_dtypes::Koalabear)
+      MONTABLE_CASE(BABYBEAR, babybears, zk_dtypes::Babybear)
+      MONTABLE_CASE(MERSENNE31, mersenne31s, zk_dtypes::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, goldilockss, zk_dtypes::Goldilocks)
+      MONTABLE_CASE(BN254_SCALAR, bn254_scalars, zk_dtypes::bn254::Fr)
       MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
-                    math::bn254::G1AffinePoint)
+                    zk_dtypes::bn254::G1AffinePoint)
       MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,
-                    math::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs, math::bn254::G1PointXyzz)
+                    zk_dtypes::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs,
+                    zk_dtypes::bn254::G1PointXyzz)
       MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affines,
-                    math::bn254::G2AffinePoint)
+                    zk_dtypes::bn254::G2AffinePoint)
       MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobians,
-                    math::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs, math::bn254::G2PointXyzz)
+                    zk_dtypes::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs,
+                    zk_dtypes::bn254::G2PointXyzz)
 #undef MONTABLE_CASE
     default:
       // TODO(b/111551621): Support serializing more PrimitiveTypes.
@@ -1724,21 +1726,23 @@ absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
     memcpy(untyped_data(), s.data(), s.size());                                \
     break;                                                                     \
   }
-      MONTABLE_CASE(KOALABEAR, koalabears, math::Koalabear)
-      MONTABLE_CASE(BABYBEAR, babybears, math::Babybear)
-      MONTABLE_CASE(MERSENNE31, mersenne31s, math::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, goldilockss, math::Goldilocks)
-      MONTABLE_CASE(BN254_SCALAR, bn254_scalars, math::bn254::Fr)
+      MONTABLE_CASE(KOALABEAR, koalabears, zk_dtypes::Koalabear)
+      MONTABLE_CASE(BABYBEAR, babybears, zk_dtypes::Babybear)
+      MONTABLE_CASE(MERSENNE31, mersenne31s, zk_dtypes::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, goldilockss, zk_dtypes::Goldilocks)
+      MONTABLE_CASE(BN254_SCALAR, bn254_scalars, zk_dtypes::bn254::Fr)
       MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
-                    math::bn254::G1AffinePoint)
+                    zk_dtypes::bn254::G1AffinePoint)
       MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,
-                    math::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs, math::bn254::G1PointXyzz)
+                    zk_dtypes::bn254::G1JacobianPoint)
+      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs,
+                    zk_dtypes::bn254::G1PointXyzz)
       MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affines,
-                    math::bn254::G2AffinePoint)
+                    zk_dtypes::bn254::G2AffinePoint)
       MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobians,
-                    math::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs, math::bn254::G2PointXyzz)
+                    zk_dtypes::bn254::G2JacobianPoint)
+      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs,
+                    zk_dtypes::bn254::G2PointXyzz)
 #undef MONTABLE_CASE
     default:
       return absl::InvalidArgumentError(

@@ -24,11 +24,11 @@ limitations under the License.
 #include "absl/algorithm/container.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/log.h"
+#include "zk_dtypes/include/field/field.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
-#include "zkx/math/field/field.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/service/rendezvous.h"
@@ -43,7 +43,7 @@ bool ByRank(const Participant* a, const Participant* b) {
 
 template <typename T>
 T GetInitialValue(ReductionKind reduction_kind) {
-  if constexpr (math::IsField<T>) {
+  if constexpr (zk_dtypes::IsField<T>) {
     switch (reduction_kind) {
       case ReductionKind::kSum:
         return T::Zero();
@@ -54,7 +54,7 @@ T GetInitialValue(ReductionKind reduction_kind) {
       case ReductionKind::kMax:
         return T::Zero();
     }
-  } else if constexpr (math::IsEcPoint<T>) {
+  } else if constexpr (zk_dtypes::IsEcPoint<T>) {
     switch (reduction_kind) {
       case ReductionKind::kSum:
         return T::Zero();
@@ -95,7 +95,7 @@ void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kProduct) {
-    if constexpr (math::IsEcPoint<T>) {
+    if constexpr (zk_dtypes::IsEcPoint<T>) {
       LOG(FATAL) << "Product reduction is not supported for EcPoint types.";
     } else {
       for (size_t j = 0; j < inputs.size(); ++j) {
@@ -105,7 +105,7 @@ void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kMin) {
-    if constexpr (math::IsEcPoint<T>) {
+    if constexpr (zk_dtypes::IsEcPoint<T>) {
       LOG(FATAL) << "Min reduction is not supported for EcPoint types.";
     } else {
       for (size_t j = 0; j < inputs.size(); ++j) {
@@ -115,7 +115,7 @@ void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kMax) {
-    if constexpr (math::IsEcPoint<T>) {
+    if constexpr (zk_dtypes::IsEcPoint<T>) {
       LOG(FATAL) << "Max reduction is not supported for EcPoint types.";
     } else {
       for (size_t j = 0; j < inputs.size(); ++j) {

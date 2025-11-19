@@ -25,7 +25,7 @@ namespace zkx::mlir_utils {
 void PopulateTypeConverterWithZkir(mlir::LLVMTypeConverter& converter);
 
 template <size_t N>
-llvm::APInt ConvertUnderlyingValueToAPInt(const math::BigInt<N>& value) {
+llvm::APInt ConvertUnderlyingValueToAPInt(const zk_dtypes::BigInt<N>& value) {
   return llvm_ir::ConvertBigIntToAPInt(value);
 }
 
@@ -236,13 +236,13 @@ mlir::Value CreateMlirFieldConstant(mlir::ImplicitLocOpBuilder& b,
 template <typename T>
 mlir::Value CreateMlirEcPointConstant(mlir::ImplicitLocOpBuilder& b,
                                       const T& value) {
-  if constexpr (math::IsAffinePoint<T>) {
+  if constexpr (zk_dtypes::IsAffinePoint<T>) {
     llvm::SmallVector<mlir::Value, 2> values;
     values.push_back(CreateMlirFieldConstant(b, value.x()));
     values.push_back(CreateMlirFieldConstant(b, value.y()));
     return b.create<mlir::zkir::elliptic_curve::PointOp>(
         GetMlirAffinePointType<T>(b.getContext()), values);
-  } else if constexpr (math::IsJacobianPoint<T>) {
+  } else if constexpr (zk_dtypes::IsJacobianPoint<T>) {
     llvm::SmallVector<mlir::Value, 3> values;
     values.push_back(CreateMlirFieldConstant(b, value.x()));
     values.push_back(CreateMlirFieldConstant(b, value.y()));
@@ -250,7 +250,7 @@ mlir::Value CreateMlirEcPointConstant(mlir::ImplicitLocOpBuilder& b,
     return b.create<mlir::zkir::elliptic_curve::PointOp>(
         GetMlirJacobianPointType<T>(b.getContext()), values);
   } else {
-    static_assert(math::IsPointXyzz<T>);
+    static_assert(zk_dtypes::IsPointXyzz<T>);
     llvm::SmallVector<mlir::Value, 4> values;
     values.push_back(CreateMlirFieldConstant(b, value.x()));
     values.push_back(CreateMlirFieldConstant(b, value.y()));

@@ -24,6 +24,7 @@ limitations under the License.
 
 #include "absl/base/casts.h"
 #include "absl/strings/substitute.h"
+#include "zk_dtypes/include/pow.h"
 
 #include "zkx/array2d.h"
 #include "zkx/backends/cpu/codegen/cpu_kernel_emitter_test.h"
@@ -31,7 +32,6 @@ limitations under the License.
 #include "zkx/base/random.h"
 #include "zkx/comparison_util.h"
 #include "zkx/literal_util.h"
-#include "zkx/math/base/pow.h"
 #include "zkx/primitive_util.h"
 
 namespace zkx::cpu {
@@ -409,7 +409,7 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     } else if (x_ == 1) {
       expected = 1;
     } else if (y_ >= 0) {
-      expected = math::Pow(x_, y_);
+      expected = zk_dtypes::Pow(x_, y_);
     } else {
       expected = 0;
     }
