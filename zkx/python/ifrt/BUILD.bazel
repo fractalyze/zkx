@@ -50,6 +50,16 @@ cc_proto_library(
 )
 
 proto_library(
+    name = "serdes_proto",
+    srcs = ["serdes.proto"],
+)
+
+cc_proto_library(
+    name = "serdes_cc_proto",
+    deps = [":serdes_proto"],
+)
+
+proto_library(
     name = "shape_proto",
     srcs = ["shape.proto"],
 )
@@ -105,6 +115,27 @@ cc_library(
     name = "future",
     hdrs = ["future.h"],
     deps = ["//zkx/pjrt:pjrt_future"],
+)
+
+cc_library(
+    name = "serdes",
+    srcs = ["serdes.cc"],
+    hdrs = ["serdes.h"],
+    deps = [
+        ":serdes_cc_proto",
+        ":serdes_default_version_accessor",
+        ":serdes_version",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@llvm-project//llvm:Support",
+    ],
 )
 
 cc_library(
@@ -271,6 +302,7 @@ zkx_cc_unittest(
         "attribute_map_unittest.cc",
         "dtype_unittest.cc",
         "future_unittest.cc",
+        "serdes_unittest.cc",
         "shape_unittest.cc",
         "user_context_registry_unittest.cc",
         "user_context_status_util_unittest.cc",
@@ -280,6 +312,7 @@ zkx_cc_unittest(
         ":attribute_map",
         ":dtype",
         ":future",
+        ":serdes",
         ":serdes_test_util",
         ":shape",
         ":user_context_registry",
@@ -287,6 +320,7 @@ zkx_cc_unittest(
         ":user_context_test_util",
         "//xla/tsl/concurrency:ref_count",
         "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
         "@com_google_absl//absl/hash:hash_testing",
