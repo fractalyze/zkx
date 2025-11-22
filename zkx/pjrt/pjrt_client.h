@@ -1162,7 +1162,7 @@ class PjRtBuffer {
       } else {
         device_shape = ShapeUtil::MakeShape(element_type(), literal_dims);
         // TODO(b/327524065): use PjRtLayout directly instead of xla::Layout
-        *device_shape.mutable_layout() = layout()->layout();
+        *device_shape.mutable_layout() = layout()->zkx_layout();
       }
     } else {
       // TODO(skyewm): does anything need to create tuple literals? The PJRT C
