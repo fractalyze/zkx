@@ -161,6 +161,14 @@ Literal LiteralUtil::CreateFromDimensions(
 }
 
 // static
+Literal LiteralUtil::CreateR1(const tsl::core::Bitmap& values) {
+  Literal literal(
+      ShapeUtil::MakeShape(PRED, {static_cast<int64_t>(values.bits())}));
+  literal.PopulateR1(values);
+  return literal;
+}
+
+// static
 Literal LiteralUtil::GetFirstScalarLiteral(const LiteralSlice& literal) {
   CHECK(literal.shape().IsArray());
   CHECK_GT(ShapeUtil::ElementsIn(literal.shape()), 0);
