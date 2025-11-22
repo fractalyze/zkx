@@ -85,8 +85,51 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "zkx_sharding",
+    srcs = ["zkx_sharding.cc"],
+    hdrs = ["zkx_sharding.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/python/ifrt",
+        "//zkx/python/ifrt:device",
+        "//zkx/python/ifrt:index",
+        "//zkx/python/ifrt:index_domain",
+        "//zkx/python/ifrt:memory",
+        "//zkx/python/ifrt:shape",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
 zkx_cc_unittest(
     name = "pjrt_ifrt_unittests",
-    srcs = ["pjrt_attribute_map_util_unittest.cc"],
-    deps = [":pjrt_attribute_map_util"],
+    srcs = [
+        "pjrt_attribute_map_util_unittest.cc",
+        "zkx_sharding_unittest.cc",
+    ],
+    deps = [
+        ":pjrt_attribute_map_util",
+        ":zkx_sharding",
+        "//xla/tsl/platform:statusor",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:tile_assignment",
+        "//zkx/python/ifrt:basic_device_list",
+        "//zkx/python/ifrt:device_test_util",
+        "//zkx/python/ifrt:index",
+        "//zkx/python/ifrt:index_domain",
+        "@com_google_absl//absl/hash:hash_testing",
+        "@com_google_absl//absl/status:status_matchers",
+    ],
 )
