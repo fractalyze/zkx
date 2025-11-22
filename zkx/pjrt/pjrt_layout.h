@@ -33,10 +33,10 @@ namespace zkx {
 // Represents the memory layout of a PjRtBuffer.
 class PjRtLayout {
  public:
-  explicit PjRtLayout(Layout layout) : layout_(std::move(layout)) {
+  explicit PjRtLayout(Layout layout) : zkx_layout_(std::move(layout)) {
     // Strip memory space and set it to the default. PJRT tracks memory space
     // separately from layout.
-    layout_.set_memory_space(Layout::kDefaultMemorySpace);
+    zkx_layout_.set_memory_space(Layout::kDefaultMemorySpace);
   }
 
   PjRtLayout(PjRtLayout& other) = delete;
@@ -48,25 +48,25 @@ class PjRtLayout {
     return std::make_shared<PjRtLayout>(std::move(layout));
   }
 
-  const Layout& layout() const { return layout_; }
+  const Layout& zkx_layout() const { return zkx_layout_; }
 
   // Returns the serialized layout as a string.
-  std::string Serialize() const { return layout_.ToString(); }
+  std::string Serialize() const { return zkx_layout_.ToString(); }
 
   // Human-readable string for error messages, user introspection, etc.
-  std::string ToString() const { return layout_.ToString(); }
+  std::string ToString() const { return zkx_layout_.ToString(); }
 
   bool operator==(const PjRtLayout& other) const {
-    return layout_ == other.layout_;
+    return zkx_layout_ == other.zkx_layout_;
   }
 
   template <typename H>
   friend H AbslHashValue(H state, const PjRtLayout& layout) {
-    return H::combine(std::move(state), layout.layout_);
+    return H::combine(std::move(state), layout.zkx_layout_);
   }
 
  private:
-  Layout layout_;
+  Layout zkx_layout_;
 };
 
 }  // namespace zkx
