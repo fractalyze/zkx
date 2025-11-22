@@ -14,8 +14,46 @@
 # ==============================================================================
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "pjrt_attribute_map_util",
+    srcs = ["pjrt_attribute_map_util.cc"],
+    hdrs = ["pjrt_attribute_map_util.h"],
+    deps = [
+        "//zkx/pjrt:pjrt_common",
+        "//zkx/python/ifrt:attribute_map",
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
+)
+
+cc_library(
+    name = "basic_string_array",
+    srcs = ["basic_string_array.cc"],
+    hdrs = ["basic_string_array.h"],
+    deps = [
+        "//xla/tsl/concurrency:ref_count",
+        "//xla/tsl/platform:statusor",
+        "//zkx/pjrt:pjrt_layout",
+        "//zkx/python/ifrt",
+        "//zkx/python/ifrt:device",
+        "//zkx/python/ifrt:dtype",
+        "//zkx/python/ifrt:future",
+        "//zkx/python/ifrt:memory",
+        "//zkx/python/ifrt:shape",
+        "//zkx/python/ifrt:user_context",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
 
 cc_library(
     name = "pjrt_dtype",
@@ -27,4 +65,28 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
     ],
+)
+
+cc_library(
+    name = "pjrt_topology",
+    srcs = ["pjrt_topology.cc"],
+    hdrs = ["pjrt_topology.h"],
+    deps = [
+        ":pjrt_attribute_map_util",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/pjrt:pjrt_compiler",
+        "//zkx/pjrt:pjrt_device_description",
+        "//zkx/python/ifrt:attribute_map",
+        "//zkx/python/ifrt:topology",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "pjrt_ifrt_unittests",
+    srcs = ["pjrt_attribute_map_util_unittest.cc"],
+    deps = [":pjrt_attribute_map_util"],
 )
