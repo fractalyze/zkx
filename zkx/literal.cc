@@ -2002,6 +2002,16 @@ absl::Status MutableLiteralBase::CopySliceFrom(
       shape().element_type());
 }
 
+void MutableLiteralBase::PopulateR1(const tsl::core::Bitmap& values) {
+  CHECK(shape().IsArray());
+  CHECK_EQ(shape().rank(), 1);
+  CHECK_EQ(element_count(), values.bits());
+  CHECK_EQ(shape().element_type(), PRED);
+  for (int64_t i = 0; i < static_cast<int64_t>(values.bits()); ++i) {
+    Set({i}, values.get(i));
+  }
+}
+
 void MutableLiteralBase::PopulateInplaceInternal(
     absl::FunctionRef<void(void*, absl::Span<const int64_t>, int)> populator,
     bool parallel) {

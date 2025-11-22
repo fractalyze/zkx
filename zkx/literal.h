@@ -34,6 +34,7 @@ limitations under the License.
 #include "absl/functional/function_ref.h"
 #include "absl/log/check.h"
 
+#include "xla/tsl/lib/core/bitmap.h"
 #include "zkx/array.h"
 #include "zkx/array2d.h"
 #include "zkx/array3d.h"
@@ -878,8 +879,7 @@ class MutableLiteralBase : public LiteralBase {
   // array of S32.
   template <typename NativeT>
   void PopulateR1(absl::Span<const NativeT> values);
-  // TODO(chokobole): Uncomment this. Dependency: Bitmap
-  // void PopulateR1(const tsl::core::Bitmap& values);
+  void PopulateR1(const tsl::core::Bitmap& values);
   template <typename NativeT>
   void PopulateR2(std::initializer_list<std::initializer_list<NativeT>> values);
   template <typename NativeT>

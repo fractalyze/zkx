@@ -24,6 +24,7 @@ limitations under the License.
 
 #include "absl/types/span.h"
 
+#include "xla/tsl/lib/core/bitmap.h"
 #include "zkx/literal.h"
 #include "zkx/primitive_util.h"
 #include "zkx/shape_util.h"
@@ -57,8 +58,7 @@ class LiteralUtil {
   static Literal CreateR0(PrimitiveType primitive_type, T value);
   template <typename NativeT>
   static Literal CreateR1(absl::Span<const NativeT> values);
-  // TODO(chokobole): Uncomment this. Dependency: Bitmap
-  // static Literal CreateR1(const tsl::core::Bitmap& values);
+  static Literal CreateR1(const tsl::core::Bitmap& values);
   template <typename NativeT>
   static Literal CreateR2(
       std::initializer_list<std::initializer_list<NativeT>> values);
