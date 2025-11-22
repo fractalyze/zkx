@@ -306,6 +306,7 @@ zkx_cc_library(
         "//xla/tsl/platform:statusor",
         "//zkx:primitive_util",
         "//zkx:shape_util",
+        "//zkx:status_macros",
         "//zkx:zkx_data_cc_proto",
         "//zkx/client:executable_build_options",
         "//zkx/hlo/builder:zkx_computation",
