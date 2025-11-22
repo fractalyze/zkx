@@ -131,6 +131,21 @@ cc_proto_library(
     deps = [":sharding_proto"],
 )
 
+proto_library(
+    name = "sharding_serdes_proto",
+    srcs = ["sharding_serdes.proto"],
+    deps = [
+        ":device_proto",
+        ":shape_proto",
+        "//zkx/python/ifrt/ir:sharding_param_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "sharding_serdes_cc_proto",
+    deps = [":sharding_serdes_proto"],
+)
+
 cc_library(
     name = "attribute_map",
     srcs = ["attribute_map.cc"],
@@ -175,6 +190,26 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
         "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
+    name = "device_test_util",
+    testonly = True,
+    srcs = ["device_test_util.cc"],
+    hdrs = ["device_test_util.h"],
+    deps = [
+        ":basic_device_list",
+        ":device",
+        ":ifrt",
+        ":memory",
+        ":mock",
+        ":test_util",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
@@ -472,6 +507,55 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_library(
+    name = "sharding_serdes",
+    srcs = ["sharding_serdes.cc"],
+    deps = [
+        ":device",
+        ":ifrt",
+        ":memory",
+        ":serdes",
+        ":serdes_version",
+        ":shape",
+        ":sharding_serdes_cc_proto",
+        "//xla/tsl/platform:statusor",
+        "//zkx/python/ifrt/ir:sharding_param",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Support",
+    ],
+    alwayslink = True,
+)
+
+cc_library(
+    name = "test_util",
+    testonly = True,
+    srcs = ["test_util.cc"],
+    hdrs = ["test_util.h"],
+    deps = [
+        ":device",
+        ":dtype",
+        ":ifrt",
+        ":shape",
+        ":user_context",
+        ":user_context_test_util",
+        "//xla/tsl/concurrency:ref_count",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
     ],
 )
 

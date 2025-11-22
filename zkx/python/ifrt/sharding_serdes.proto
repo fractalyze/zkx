@@ -1,0 +1,70 @@
+/* Copyright 2023 The OpenXLA Authors.
+Copyright 2025 The ZKX Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
+syntax = "proto3";
+
+package zkx.ifrt;
+
+import "zkx/python/ifrt/device.proto";
+import "zkx/python/ifrt/ir/sharding_param.proto";
+import "zkx/python/ifrt/shape.proto";
+
+// Proto equivalent of C++ `SingleDeviceSharding`.
+message SingleDeviceShardingProto {
+  int32 version_number = 1;
+  // Serialization and deserialization are expected to ensure that device ids
+  // are stable across proto construction and consumption.
+  int32 device_id = 2;
+  optional string memory_kind = 3;
+}
+
+// Proto equivalent of C++ `OpaqueSharding`.
+message OpaqueShardingProto {
+  int32 version_number = 1;
+  DeviceListProto devices = 2;
+  optional string memory_kind = 3;
+}
+
+// Proto equivalent of C++ `ConcreteSharding`.
+message ConcreteShardingProto {
+  int32 version_number = 1;
+  DeviceListProto devices = 2;
+  optional string memory_kind = 3;
+  oneof shape_or_dynamic_shape {
+    ShapeProto shape = 4;
+    DynamicShapeProto dynamic_shape = 5;
+  }
+  repeated ShapeProto shard_shapes = 6;
+  repeated DynamicShapeProto shard_dynamic_shapes = 7;
+}
+
+// Proto equivalent of C++ `ConcreteEvenSharding`.
+message ConcreteEvenShardingProto {
+  int32 version_number = 1;
+  DeviceListProto devices = 2;
+  optional string memory_kind = 3;
+  ShapeProto shape = 4;
+  ShapeProto shard_shape = 5;
+  bool is_fully_replicated = 6;
+}
+
+// Proto equivalent of C++ `ShardingParamSharding`.
+message ShardingParamShardingProto {
+  int32 version_number = 1;
+  ShardingParamProto sharding_param = 2;
+  DeviceListProto devices = 3;
+  optional string memory_kind = 4;
+}
