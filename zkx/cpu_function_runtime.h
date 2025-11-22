@@ -32,7 +32,7 @@ struct EncodedBufferInfo {
   uint32_t result_param_number = -1;
 };
 
-// Stores information about one buffer used by an ZKX:CPU compiled function.
+// Stores information about one buffer used by a ZKX:CPU compiled function.
 // These buffers are used for holding inputs to the computation, outputs from
 // the computation and as temporary scratch space.
 class BufferInfo {

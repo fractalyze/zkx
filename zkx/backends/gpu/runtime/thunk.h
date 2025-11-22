@@ -55,7 +55,7 @@ namespace zkx::gpu {
 
 // Execution stream id allows to specify what Gpu stream Thunk should be using
 // for launching device work (kernels, library calls, etc.). By default all
-// thunks use stream #0, which is the default compute stream of an ZKX
+// thunks use stream #0, which is the default compute stream of a ZKX
 // executable.
 //
 // Stream synchronizations are explicit and represented as WaitForStreams thunk

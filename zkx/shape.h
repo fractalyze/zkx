@@ -359,7 +359,7 @@ class Shape {
   std::optional<Layout> layout_;
 };
 
-// Shape of the parameters and output of an ZKX computation. This is analogous
+// Shape of the parameters and output of a ZKX computation. This is analogous
 // to a traditional function signature.
 class ProgramShape {
  public:

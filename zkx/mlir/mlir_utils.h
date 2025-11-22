@@ -1,3 +1,18 @@
+/* Copyright 2025 The ZKX Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+==============================================================================*/
+
 #ifndef ZKX_MLIR_MLIR_UTILS_H_
 #define ZKX_MLIR_MLIR_UTILS_H_
 
@@ -35,21 +50,24 @@ llvm::APInt ConvertUnderlyingValueToAPInt(T value) {
 }
 
 template <typename T>
+mlir::IntegerAttr GetModulus(mlir::MLIRContext* context) {
+  auto type = mlir::IntegerType::get(context, T::kBitWidth);
+  return mlir::IntegerAttr::get(
+      type, ConvertUnderlyingValueToAPInt(T::Config::kModulus));
+}
+
+template <typename T>
 mlir::zkir::mod_arith::ModArithType GetMlirModArithType(
     mlir::MLIRContext* context) {
-  auto type = mlir::IntegerType::get(context, T::kBitWidth);
-  auto modulus = mlir::IntegerAttr::get(
-      type, llvm_ir::ConvertBigIntToAPInt(T::Config::kModulus));
-  return mlir::zkir::mod_arith::ModArithType::get(context, modulus);
+  return mlir::zkir::mod_arith::ModArithType::get(context,
+                                                  GetModulus<T>(context));
 }
 
 template <typename T>
 mlir::zkir::mod_arith::MontgomeryAttr GetMlirMontgomeryAttr(
     mlir::MLIRContext* context) {
-  auto type = mlir::IntegerType::get(context, T::kBitWidth);
-  auto modulus = mlir::IntegerAttr::get(
-      type, llvm_ir::ConvertBigIntToAPInt(T::Config::kModulus));
-  return mlir::zkir::mod_arith::MontgomeryAttr::get(context, modulus);
+  return mlir::zkir::mod_arith::MontgomeryAttr::get(context,
+                                                    GetModulus<T>(context));
 }
 
 // TODO(chokobole): Remove the `use_montgomery` parameter once
@@ -62,10 +80,7 @@ mlir::zkir::field::PrimeFieldType GetMlirPrimeFieldType(
   if constexpr (!T::kUseMontgomery) {
     DCHECK(!use_montgomery);
   }
-  auto type = mlir::IntegerType::get(context, T::kBitWidth);
-  auto modulus = mlir::IntegerAttr::get(
-      type, ConvertUnderlyingValueToAPInt(T::Config::kModulus));
-  return mlir::zkir::field::PrimeFieldType::get(context, modulus,
+  return mlir::zkir::field::PrimeFieldType::get(context, GetModulus<T>(context),
                                                 use_montgomery);
 }
 
@@ -112,7 +127,7 @@ mlir::zkir::field::QuadraticExtFieldAttr GetMlirExtQuadraticExtFieldAttr(
 }
 
 template <typename T>
-mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMLIRG1ShortWeierstrassAttr(
+mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMlirG1ShortWeierstrassAttr(
     mlir::MLIRContext* context) {
   mlir::zkir::field::PrimeFieldAttr a =
       GetMlirPrimeFieldAttr(context, T::Curve::Config::kA, T::kUseMontgomery);
@@ -146,7 +161,7 @@ mlir::zkir::elliptic_curve::AffineType GetMlirAffinePointType(
   using BaseField = typename T::BaseField;
   if constexpr (BaseField::ExtensionDegree() == 1) {
     return mlir::zkir::elliptic_curve::AffineType::get(
-        context, GetMLIRG1ShortWeierstrassAttr<T>(context));
+        context, GetMlirG1ShortWeierstrassAttr<T>(context));
   } else {
     return mlir::zkir::elliptic_curve::AffineType::get(
         context, GetMlirG2ShortWeierstrassAttr<T>(context));
@@ -159,7 +174,7 @@ mlir::zkir::elliptic_curve::JacobianType GetMlirJacobianPointType(
   using BaseField = typename T::BaseField;
   if constexpr (BaseField::ExtensionDegree() == 1) {
     return mlir::zkir::elliptic_curve::JacobianType::get(
-        context, GetMLIRG1ShortWeierstrassAttr<T>(context));
+        context, GetMlirG1ShortWeierstrassAttr<T>(context));
   } else {
     return mlir::zkir::elliptic_curve::JacobianType::get(
         context, GetMlirG2ShortWeierstrassAttr<T>(context));
@@ -172,7 +187,7 @@ mlir::zkir::elliptic_curve::XYZZType GetMlirPointXyzzType(
   using BaseField = typename T::BaseField;
   if constexpr (BaseField::ExtensionDegree() == 1) {
     return mlir::zkir::elliptic_curve::XYZZType::get(
-        context, GetMLIRG1ShortWeierstrassAttr<T>(context));
+        context, GetMlirG1ShortWeierstrassAttr<T>(context));
   } else {
     return mlir::zkir::elliptic_curve::XYZZType::get(
         context, GetMlirG2ShortWeierstrassAttr<T>(context));
@@ -205,6 +220,11 @@ mlir::RankedTensorType ShapeToMlirTensorType(const Shape& shape,
 
 llvm::SmallVector<mlir::Type> ShapeToMlirTypes(const Shape& shape,
                                                mlir::MLIRContext* context);
+
+// Returns a ZKX PrimitiveType equivalent of an MLIR Type that represents
+// a primitive type (e.g., i8), else returns PRIMITIVE_TYPE_INVALID.
+// Signless MLIR types are converted to signed ZKX primitive types.
+PrimitiveType MlirTypeToPrimitiveTypeWithSign(mlir::Type type);
 
 template <typename T>
 mlir::Value CreateMlirPrimeFieldConstant(mlir::ImplicitLocOpBuilder& b,

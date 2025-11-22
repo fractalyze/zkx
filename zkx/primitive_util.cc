@@ -24,6 +24,51 @@ limitations under the License.
 #include "absl/strings/ascii.h"
 
 namespace zkx::primitive_util {
+
+PrimitiveType UnsignedIntegralTypeForBitWidth(int64_t src_bitwidth) {
+  switch (src_bitwidth) {
+    case 1:
+      return U1;
+    case 2:
+      return U2;
+    case 4:
+      return U4;
+    case 8:
+      return U8;
+    case 16:
+      return U16;
+    case 32:
+      return U32;
+    case 64:
+      return U64;
+    default:
+      return PRIMITIVE_TYPE_INVALID;
+  }
+}
+
+PrimitiveType SignedIntegralTypeForBitWidth(int64_t src_bitwidth) {
+  switch (src_bitwidth) {
+    // NOTE(chokobole): Original XLA code doesn't have S1 branch. See
+    // https://github.com/openxla/xla/blob/3191140/xla/primitive_util.cc#L122-L139
+    case 1:
+      return S1;
+    case 2:
+      return S2;
+    case 4:
+      return S4;
+    case 8:
+      return S8;
+    case 16:
+      return S16;
+    case 32:
+      return S32;
+    case 64:
+      return S64;
+    default:
+      return PRIMITIVE_TYPE_INVALID;
+  }
+}
+
 namespace {
 
 // Class to memoize the computation of

@@ -69,7 +69,7 @@ absl::Status ResourceRequests::AddClique(const GpuCliqueKey& clique_key,
       return absl::InternalError(absl::StrFormat(
           "Clique request for a clique key %s has number of local "
           "participants %d different from previously requested value of %d. "
-          "This will lead to deadlock at run time and is an ZKX compiler "
+          "This will lead to deadlock at run time and is a ZKX compiler "
           "bug. Please report it to ZKX team.",
           clique_key.ToString(), num_local_participants,
           it->second.num_local_participants));

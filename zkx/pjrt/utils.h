@@ -45,7 +45,7 @@ absl::Status ParseDeviceAssignmentCompileOptions(
     int* num_replicas, int* num_partitions,
     std::shared_ptr<DeviceAssignment>* device_assignment);
 
-// Returns pointers to the argument layouts given an ZkxComputation and
+// Returns pointers to the argument layouts given a ZkxComputation and
 // ExecutableBuildOptions.
 absl::Status DetermineArgumentLayoutsFromCompileOptions(
     const ZkxComputation& computation,

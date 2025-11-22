@@ -30,11 +30,11 @@ limitations under the License.
 
 namespace zkx::cpu {
 
-// A library of functions required by the ZKX:CPU runtime to execute an ZKX
+// A library of functions required by the ZKX:CPU runtime to execute a ZKX
 // program.
 //
 // ZKX:CPU program compiles to a collection of functions that are dispatched by
-// the runtime. The most common type of compiled function is an ZKX CPU Kernel,
+// the runtime. The most common type of compiled function is a ZKX CPU Kernel,
 // however some operations can be compiled to auxiliary functions that are
 // invoked by operation-specific Thunks, e.g. `sort` operation comparator
 // compiles to a separate function used by a SortThunk in combination with an

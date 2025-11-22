@@ -533,6 +533,10 @@ inline constexpr int ByteWidth(PrimitiveType type) {
   return internal::WidthForType<internal::kByteWidths>(type);
 }
 
+PrimitiveType UnsignedIntegralTypeForBitWidth(int64_t src_bitwidth);
+
+PrimitiveType SignedIntegralTypeForBitWidth(int64_t src_bitwidth);
+
 // Returns the higher-precision element type if a and b are both floating
 // point types; otherwise, checks that they have the same element type
 // and returns it.
