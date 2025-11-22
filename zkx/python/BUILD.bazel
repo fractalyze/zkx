@@ -91,6 +91,16 @@ cc_library(
 )
 
 cc_library(
+    name = "safe_static_init",
+    hdrs = ["safe_static_init.h"],
+    deps = [
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/synchronization",
+        "@nanobind",
+    ],
+)
+
+cc_library(
     name = "types",
     srcs = ["types.cc"],
     hdrs = ["types.h"],
