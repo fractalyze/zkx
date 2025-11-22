@@ -25,6 +25,7 @@ limitations under the License.
 
 namespace zkx::ifrt {
 
+// static
 absl::StatusOr<AttributeMap> AttributeMap::FromProto(
     const AttributeMapProto& proto) {
   const SerDesVersionNumber version_number(proto.version_number());

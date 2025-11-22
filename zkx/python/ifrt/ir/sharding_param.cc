@@ -288,6 +288,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& os, ShardingParam sharding) {
   return os;
 }
 
+// static
 absl::StatusOr<ShardingParam> ShardingParam::FromProto(
     const ShardingParamProto& proto) {
   const SerDesVersionNumber version_number(proto.version_number());
