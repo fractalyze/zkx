@@ -50,6 +50,16 @@ cc_proto_library(
 )
 
 proto_library(
+    name = "serdes_proto",
+    srcs = ["serdes.proto"],
+)
+
+cc_proto_library(
+    name = "serdes_cc_proto",
+    deps = [":serdes_proto"],
+)
+
+proto_library(
     name = "shape_proto",
     srcs = ["shape.proto"],
 )
@@ -105,6 +115,43 @@ cc_library(
     name = "future",
     hdrs = ["future.h"],
     deps = ["//zkx/pjrt:pjrt_future"],
+)
+
+cc_library(
+    name = "memory",
+    srcs = ["memory.cc"],
+    hdrs = ["memory.h"],
+    deps = [
+        ":device",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:node_hash_set",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
+    name = "serdes",
+    srcs = ["serdes.cc"],
+    hdrs = ["serdes.h"],
+    deps = [
+        ":serdes_cc_proto",
+        ":serdes_default_version_accessor",
+        ":serdes_version",
+        "//xla/tsl/platform:statusor",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/debugging:leak_check",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@llvm-project//llvm:Support",
+    ],
 )
 
 cc_library(
@@ -169,6 +216,34 @@ cc_library(
 )
 
 cc_library(
+    name = "topology",
+    srcs = ["topology.cc"],
+    hdrs = ["topology.h"],
+    deps = [
+        ":attribute_map",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/pjrt:pjrt_compiler",
+        "//zkx/pjrt:pjrt_device_description",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
+    name = "tuple",
+    srcs = ["tuple.cc"],
+    hdrs = ["tuple.h"],
+    deps = [
+        ":value",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "user_context",
     srcs = ["user_context.cc"],
     hdrs = ["user_context.h"],
@@ -222,6 +297,17 @@ cc_library(
         ":user_context",
         "//xla/tsl/concurrency:ref_count",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "value",
+    srcs = ["value.cc"],
+    hdrs = ["value.h"],
+    deps = [
+        ":future",
+        ":user_context",
+        "//xla/tsl/concurrency:ref_count",
         "@llvm-project//llvm:Support",
     ],
 )
@@ -232,6 +318,8 @@ zkx_cc_unittest(
         "attribute_map_unittest.cc",
         "dtype_unittest.cc",
         "future_unittest.cc",
+        "memory_unittest.cc",
+        "serdes_unittest.cc",
         "shape_unittest.cc",
         "user_context_registry_unittest.cc",
         "user_context_status_util_unittest.cc",
@@ -241,6 +329,8 @@ zkx_cc_unittest(
         ":attribute_map",
         ":dtype",
         ":future",
+        ":memory",
+        ":serdes",
         ":serdes_test_util",
         ":shape",
         ":user_context_registry",
@@ -248,6 +338,7 @@ zkx_cc_unittest(
         ":user_context_test_util",
         "//xla/tsl/concurrency:ref_count",
         "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
         "@com_google_absl//absl/hash:hash_testing",

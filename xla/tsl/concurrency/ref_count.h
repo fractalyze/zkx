@@ -24,6 +24,8 @@ limitations under the License.
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/nullability.h"
+
 namespace tsl {
 
 namespace internal {

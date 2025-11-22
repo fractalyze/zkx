@@ -131,4 +131,5 @@ cc_library(
     hdrs = ["ref_count.h"],
     # TODO(chokobole): Do we need this?
     # compatible_with = get_compatible_with_portable(),
+    deps = ["@com_google_absl//absl/base:nullability"],
 )
