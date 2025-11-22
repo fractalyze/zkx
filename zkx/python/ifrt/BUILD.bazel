@@ -673,6 +673,7 @@ zkx_cc_unittest(
         "remap_plan_unittest.cc",
         "serdes_unittest.cc",
         "shape_unittest.cc",
+        "sharding_unittest.cc",
         "user_context_registry_unittest.cc",
         "user_context_status_util_unittest.cc",
         "user_context_unittest.cc",
