@@ -148,3 +148,11 @@ def zkx_deps():
         strip_prefix = "rapidjson-1.1.0",
         urls = tf_mirror_urls("https://github.com/Tencent/rapidjson/archive/v1.1.0.zip"),
     )
+
+    tf_http_archive(
+        name = "pybind11",
+        urls = tf_mirror_urls("https://github.com/pybind/pybind11/archive/v2.13.6.tar.gz"),
+        sha256 = "e08cb87f4773da97fa7b5f035de8763abc656d87d5773e62f6da0587d1f0ec20",
+        strip_prefix = "pybind11-2.13.6",
+        build_file = "@zkx//third_party:pybind11.BUILD",
+    )
