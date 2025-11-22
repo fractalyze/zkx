@@ -148,6 +148,24 @@ cc_library(
 )
 
 cc_library(
+    name = "basic_device_list",
+    srcs = ["basic_device_list.cc"],
+    hdrs = ["basic_device_list.h"],
+    deps = [
+        ":device",
+        ":ifrt",
+        "//xla/tsl/concurrency:ref_count",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
     name = "device",
     srcs = ["device.cc"],
     hdrs = ["device.h"],
@@ -259,6 +277,16 @@ cc_library(
         "@highwayhash",
         "@highwayhash//:arch_specific",
         "@highwayhash//:hh_types",
+    ],
+)
+
+cc_library(
+    name = "host_callback",
+    srcs = ["host_callback.cc"],
+    hdrs = ["host_callback.h"],
+    deps = [
+        "//xla/tsl/concurrency:ref_count",
+        "@com_google_absl//absl/status:statusor",
         "@llvm-project//llvm:Support",
     ],
 )
@@ -298,6 +326,40 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+cc_library(
+    name = "mock",
+    testonly = True,
+    srcs = ["mock.cc"],
+    hdrs = ["mock.h"],
+    deps = [
+        ":attribute_map",
+        ":basic_device_list",
+        ":device",
+        ":dtype",
+        ":future",
+        ":host_callback",
+        ":index_domain",
+        ":memory",
+        ":program",
+        ":shape",
+        ":topology",
+        ":tuple",
+        ":user_context",
+        ":value",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/pjrt:pjrt_executable",
+        "//zkx/pjrt:pjrt_layout",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:no_destructor",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
         "@llvm-project//llvm:Support",
     ],
 )
