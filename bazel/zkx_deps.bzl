@@ -16,6 +16,7 @@
 """ZKX dependencies."""
 
 load("@zkx//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
+load("@zkx//third_party/dlpack:workspace.bzl", dlpack = "repo")
 load("@zkx//third_party/eigen3:workspace.bzl", eigen3 = "repo")
 load("@zkx//third_party/farmhash:workspace.bzl", farmhash = "repo")
 load("@zkx//third_party/gloo:workspace.bzl", gloo = "repo")
@@ -40,6 +41,7 @@ def zkx_deps():
     highwayhash()
     implib_so()
     nanobind()
+    dlpack()
     robin_map()
     uv()
     zk_dtypes()
