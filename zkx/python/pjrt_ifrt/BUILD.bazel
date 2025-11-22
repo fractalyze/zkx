@@ -30,6 +30,20 @@ cc_proto_library(
     deps = [":zkx_compiler_proto"],
 )
 
+proto_library(
+    name = "zkx_host_callback_proto",
+    srcs = ["zkx_host_callback.proto"],
+    deps = [
+        "//zkx:zkx_data_proto",
+        "@com_google_protobuf//:any_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "zkx_host_callback_cc_proto",
+    deps = [":zkx_host_callback_proto"],
+)
+
 cc_library(
     name = "pjrt_attribute_map_util",
     srcs = ["pjrt_attribute_map_util.cc"],
