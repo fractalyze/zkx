@@ -62,7 +62,7 @@ Value materializeCastToIllegal(OpBuilder &builder, Type type, ValueRange inputs,
       ->getResult(0);
 }
 
-}  // namespace
+} // namespace
 
 RemoveSignTypeConverter::RemoveSignTypeConverter() {
   addConversion([](Type type) { return type; });
@@ -74,4 +74,4 @@ RemoveSignTypeConverter::RemoveSignTypeConverter() {
   addTargetMaterialization(materializeCastFromIllegal);
 }
 
-}  // namespace mlir::mhlo
+} // namespace mlir::mhlo

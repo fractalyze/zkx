@@ -42,7 +42,7 @@ limitations under the License.
 namespace mlir::mhlo {
 
 class MhloDialect : public Dialect {
- public:
+public:
   explicit MhloDialect(MLIRContext *context);
   static StringRef getDialectNamespace() { return "mhlo"; }
 
@@ -77,14 +77,14 @@ class MhloDialect : public Dialect {
 };
 
 class TokenType : public Type::TypeBase<TokenType, Type, TypeStorage> {
- public:
+public:
   using Base::Base;
   static constexpr StringLiteral name = "mhlo.token";
 };
 
-}  // namespace mlir::mhlo
+} // namespace mlir::mhlo
 
 #define GET_OP_CLASSES
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h.inc"
 
-#endif  // ZKX_MLIR_HLO_MHLO_IR_HLO_OPS_H_
+#endif // ZKX_MLIR_HLO_MHLO_IR_HLO_OPS_H_

@@ -25,7 +25,7 @@ limitations under the License.
 
 namespace mlir::hlo {
 
-ElementsAttr convertElementsAttr(const ElementsAttr& elements, Type newType) {
+ElementsAttr convertElementsAttr(const ElementsAttr &elements, Type newType) {
   Type oldType = getElementTypeOrSelf(elements);
   if (!isa<IntegerType>(oldType) || !isa<IntegerType>(newType)) {
     return {};
@@ -37,9 +37,9 @@ ElementsAttr convertElementsAttr(const ElementsAttr& elements, Type newType) {
 
   // Int -> Int
   return cast<DenseIntElementsAttr>(elements).mapValues(
-      newType, [&](const APInt& intVal) -> APInt {
+      newType, [&](const APInt &intVal) -> APInt {
         return APSInt(intVal, isOldTypeUnsigned).extOrTrunc(bitWidth);
       });
 }
 
-}  // namespace mlir::hlo
+} // namespace mlir::hlo

@@ -31,8 +31,8 @@ namespace mlir::mhlo {
 std::unique_ptr<OperationPass<ModuleOp>> createConvertToSignlessPass();
 
 #define GEN_PASS_REGISTRATION
-#include "zkx/mlir_hlo/mhlo/transforms/mhlo_passes.h.inc"  // NOLINT(build/include)
+#include "zkx/mlir_hlo/mhlo/transforms/mhlo_passes.h.inc" // NOLINT(build/include)
 
-}  // namespace mlir::mhlo
+} // namespace mlir::mhlo
 
-#endif  // ZKX_MLIR_HLO_MHLO_TRANSFORMS_PASSES_H_
+#endif // ZKX_MLIR_HLO_MHLO_TRANSFORMS_PASSES_H_
