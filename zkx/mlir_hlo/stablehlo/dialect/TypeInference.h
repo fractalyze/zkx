@@ -49,22 +49,22 @@ namespace mlir::hlo {
 // order in which they are declared in the ODS.
 
 LogicalResult inferConstantOp(std::optional<Location>, ElementsAttr value,
-                              SmallVectorImpl<Type>& inferredReturnTypes);
+                              SmallVectorImpl<Type> &inferredReturnTypes);
 
-LogicalResult inferConvertOp(
-    std::optional<Location> location, Value operand,
-    SmallVectorImpl<ShapedTypeComponents>& inferredReturnShapes);
+LogicalResult
+inferConvertOp(std::optional<Location> location, Value operand,
+               SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes);
 
 LogicalResult inferSliceOp(std::optional<Location> location, Type operandType,
                            ArrayRef<int64_t> startIndices,
                            ArrayRef<int64_t> limitIndices,
                            ArrayRef<int64_t> strides,
-                           SmallVectorImpl<Type>& inferredReturnTypes);
+                           SmallVectorImpl<Type> &inferredReturnTypes);
 
-LogicalResult inferTupleOp(MLIRContext* context,
+LogicalResult inferTupleOp(MLIRContext *context,
                            std::optional<Location> location, ValueRange val,
-                           SmallVectorImpl<Type>& inferredReturnTypes);
+                           SmallVectorImpl<Type> &inferredReturnTypes);
 
-}  // namespace mlir::hlo
+} // namespace mlir::hlo
 
-#endif  // ZKX_MLIR_HLO_STABLEHLO_DIALECT_TYPEINFERENCE_H_
+#endif // ZKX_MLIR_HLO_STABLEHLO_DIALECT_TYPEINFERENCE_H_

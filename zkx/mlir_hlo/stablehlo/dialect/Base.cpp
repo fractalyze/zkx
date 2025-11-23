@@ -31,15 +31,18 @@ limitations under the License.
 namespace mlir::hlo {
 
 LogicalResult verifyCompatibleShapeWithBounds(Type type1, Type type2) {
-  if (failed(verifyCompatibleShape(type1, type2))) return failure();
+  if (failed(verifyCompatibleShape(type1, type2)))
+    return failure();
 
   // Verify shapes against bounds
   auto isCompatible = [](ArrayRef<int64_t> shape,
                          BoundedAttrInterface boundedAttr) {
-    if (shape.empty() || !boundedAttr) return true;
+    if (shape.empty() || !boundedAttr)
+      return true;
     auto bounds = boundedAttr.getBounds();
-    for (auto [dim_size, bound] : llvm::zip(shape, bounds))  // NOLINT
-      if (isStaticDimSize(bound) && bound < dim_size) return false;
+    for (auto [dim_size, bound] : llvm::zip(shape, bounds)) // NOLINT
+      if (isStaticDimSize(bound) && bound < dim_size)
+        return false;
     return true;
   };
 
@@ -95,46 +98,54 @@ bool isCompatibleForHloTypeInference(Type tp1, Type tp2) {
 }
 
 bool isCompatibleForHloTypeInference(TypeRange tp1, TypeRange tp2) {
-  if (tp1.size() != tp2.size()) return false;
+  if (tp1.size() != tp2.size())
+    return false;
   for (auto [lt, rt] : llvm::zip(tp1, tp2))
-    if (!isCompatibleForHloTypeInference(lt, rt)) return false;
+    if (!isCompatibleForHloTypeInference(lt, rt))
+      return false;
   return true;
 }
 
 bool isCompatibleForHloTypeInference(ArrayRef<int64_t> shape1, Type tp2) {
   // NOLINTNEXTLINE(readability/braces)
-  if (llvm::any_of(shape1, [&](int64_t x) { return x < 0; })) return false;
+  if (llvm::any_of(shape1, [&](int64_t x) { return x < 0; }))
+    return false;
   auto stp2 = dyn_cast<ShapedType>(tp2);
-  if (!stp2) return false;
+  if (!stp2)
+    return false;
   return isCompatibleForHloTypeInference(
       RankedTensorType::get(shape1, stp2.getElementType()), tp2);
 }
 
 bool isCompatibleForHloTypeInference(Value shape1, Type tp2) {
   SmallVector<int64_t> shapeVec1;
-  if (!succeeded(matchInts(shape1, shapeVec1))) return true;
+  if (!succeeded(matchInts(shape1, shapeVec1)))
+    return true;
   return isCompatibleForHloTypeInference(shapeVec1, tp2);
 }
 
-LogicalResult matchInt(Value value, int64_t& result) {
+LogicalResult matchInt(Value value, int64_t &result) {
   APInt constValue;
-  if (!matchPattern(value, m_ConstantInt(&constValue))) return failure();
+  if (!matchPattern(value, m_ConstantInt(&constValue)))
+    return failure();
   result = constValue.getSExtValue();
   return success();
 }
 
-LogicalResult matchInts(Value value, SmallVector<int64_t>& result) {
+LogicalResult matchInts(Value value, SmallVector<int64_t> &result) {
   DenseIntElementsAttr attr;
-  if (!matchPattern(value, m_Constant(&attr))) return failure();
+  if (!matchPattern(value, m_Constant(&attr)))
+    return failure();
   for (auto element : attr.getValues<APInt>()) {
     result.push_back(element.getSExtValue());
   }
   return success();
 }
 
-LogicalResult matchInts(Value value, SmallVector<APSInt>& result) {
+LogicalResult matchInts(Value value, SmallVector<APSInt> &result) {
   DenseIntElementsAttr attr;
-  if (!matchPattern(value, m_Constant(&attr))) return failure();
+  if (!matchPattern(value, m_Constant(&attr)))
+    return failure();
 
   // Signless types are treated as signed, per StableHLO convention.
   // Unless the type is i1 (which models boolean type from the StableHLO spec),
@@ -153,9 +164,9 @@ LogicalResult matchInts(Value value) {
   return success(/*isSuccess=*/matchPattern(value, m_Constant(&attr)));
 }
 
-LogicalResult deriveShapeFromOperand(
-    OpBuilder* builder, Operation* op, Value operand,
-    SmallVectorImpl<Value>* reifiedReturnShapes) {
+LogicalResult
+deriveShapeFromOperand(OpBuilder *builder, Operation *op, Value operand,
+                       SmallVectorImpl<Value> *reifiedReturnShapes) {
   auto shapedTy = dyn_cast<ShapedType>(operand.getType());
   if (!shapedTy) {
     op->emitOpError() << "operand is not a shaped type";
@@ -198,7 +209,8 @@ ArrayRef<int64_t> encodingToBounds(Attribute encoding) {
 }
 
 Attribute boundsToEncoding(Attribute prototype, ArrayRef<int64_t> bounds) {
-  if (bounds.empty()) return prototype;
+  if (bounds.empty())
+    return prototype;
   if (llvm::all_of(bounds, [&](auto b) { return isDynamicDimSize(b); }))
     return {};
   if (!prototype)
@@ -209,9 +221,10 @@ Attribute boundsToEncoding(Attribute prototype, ArrayRef<int64_t> bounds) {
   return dialect->createTypeExtensions(bounds);
 }
 
-FailureOr<std::pair<int64_t, int64_t>> inferMostSpecificDimAndBound(
-    std::optional<Location> location, int64_t dim, int64_t leftSize,
-    int64_t rightSize, int64_t leftBound, int64_t rightBound) {
+FailureOr<std::pair<int64_t, int64_t>>
+inferMostSpecificDimAndBound(std::optional<Location> location, int64_t dim,
+                             int64_t leftSize, int64_t rightSize,
+                             int64_t leftBound, int64_t rightBound) {
   bool isLeftStaticDim = isStaticDimSize(leftSize);
   bool isRightStaticDim = isStaticDimSize(rightSize);
   bool isLeftStaticBound = isStaticDimSize(leftBound);
@@ -241,9 +254,10 @@ FailureOr<std::pair<int64_t, int64_t>> inferMostSpecificDimAndBound(
   return std::make_pair(inferredSize, inferredBound);
 }
 
-FailureOr<std::pair<int64_t, int64_t>> inferLeastSpecificDimAndBound(
-    std::optional<Location> location, int64_t dim, int64_t leftSize,
-    int64_t rightSize, int64_t leftBound, int64_t rightBound) {
+FailureOr<std::pair<int64_t, int64_t>>
+inferLeastSpecificDimAndBound(std::optional<Location> location, int64_t dim,
+                              int64_t leftSize, int64_t rightSize,
+                              int64_t leftBound, int64_t rightBound) {
   bool isLeftStaticDim = isStaticDimSize(leftSize);
   bool isRightStaticDim = isStaticDimSize(rightSize);
   bool isLeftStaticBound = isStaticDimSize(leftBound);
@@ -286,7 +300,8 @@ FailureOr<ShapedType> inferTypeWithCustomFn(
   SmallVector<int64_t> inferredSizes = to_vector(rankedTypes[0].getShape());
   SmallVector<int64_t> inferredBounds(rank, ShapedType::kDynamic);
   ArrayRef<int64_t> bounds = encodingToBounds(rankedTypes[0].getEncoding());
-  if (!bounds.empty()) inferredBounds = to_vector(bounds);
+  if (!bounds.empty())
+    inferredBounds = to_vector(bounds);
   bool anyInputHaveBounds = !bounds.empty();
 
   for (size_t i = 1; i < rankedTypes.size(); ++i) {
@@ -300,7 +315,8 @@ FailureOr<ShapedType> inferTypeWithCustomFn(
                              /*rightBound=*/bounds.empty()
                                  ? ShapedType::kDynamic
                                  : bounds[dim]);
-      if (failed(inferredDimAndBoundOrErr)) return failure();
+      if (failed(inferredDimAndBoundOrErr))
+        return failure();
       inferredSizes[dim] = (*inferredDimAndBoundOrErr).first;
       inferredBounds[dim] = (*inferredDimAndBoundOrErr).second;
     }
@@ -334,7 +350,8 @@ FailureOr<Type> inferMostSpecificShapedType(std::optional<Location> location,
   for (Type inputType : inputTypes)
     if (auto rankedType = dyn_cast<RankedTensorType>(inputType))
       rankedTypes.push_back(rankedType);
-  if (rankedTypes.empty()) return inputTypes[0];
+  if (rankedTypes.empty())
+    return inputTypes[0];
   return inferTypeWithCustomFn(location, rankedTypes,
                                inferMostSpecificDimAndBound);
 }
@@ -372,7 +389,8 @@ FailureOr<Type> mapOverTupleElements(
       for (TupleType tupleType : tupleTypes)
         ithElements.push_back(tupleType.getType(i));
       FailureOr<Type> result = fn(location, ithElements);
-      if (failed(result)) return failure();
+      if (failed(result))
+        return failure();
       results[i] = *result;
     }
     return TupleType::get(tupleTypes[0].getContext(), results);
@@ -380,7 +398,7 @@ FailureOr<Type> mapOverTupleElements(
   return fn(location, inputTypes);
 }
 
-}  // namespace
+} // namespace
 
 FailureOr<Type> inferLeastSpecificType(std::optional<Location> location,
                                        TypeRange inputTypes) {
@@ -398,17 +416,20 @@ bool hasSingleBoundedDimension(Type type) {
   RankedTensorType rankedType = dyn_cast<RankedTensorType>(type);
   auto boundedAttr =
       dyn_cast_or_null<BoundedAttrInterface>(rankedType.getEncoding());
-  if (!boundedAttr) return false;
+  if (!boundedAttr)
+    return false;
 
   // Count if bounded attr size is not kDynamic
-  int64_t numBoundedDims = llvm::count_if(
-      boundedAttr.getBounds(),
-      [](int64_t bound) { return !ShapedType::isDynamic(bound); });
+  int64_t numBoundedDims =
+      llvm::count_if(boundedAttr.getBounds(), [](int64_t bound) {
+        return !ShapedType::isDynamic(bound);
+      });
   // Also check that there are only bounded dims and no unbounded dims.
-  int64_t numDynamicDims = llvm::count_if(
-      rankedType.getShape(),
-      [](int64_t bound) { return ShapedType::isDynamic(bound); });
+  int64_t numDynamicDims =
+      llvm::count_if(rankedType.getShape(), [](int64_t bound) {
+        return ShapedType::isDynamic(bound);
+      });
   return numBoundedDims == 1 && numDynamicDims == 1;
 }
 
-}  // namespace mlir::hlo
+} // namespace mlir::hlo

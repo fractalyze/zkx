@@ -40,9 +40,9 @@ namespace {
 // printSameOperandsAndResultType. Given a FunctionType, assign the types
 // to operands and results, erroring if any mismatch in number of operands
 // or results occurs.
-ParseResult assignFromFunctionType(OpAsmParser& parser, llvm::SMLoc loc,
-                                   ArrayRef<Type*> operands, Type& result,
-                                   FunctionType& fnType) {
+ParseResult assignFromFunctionType(OpAsmParser &parser, llvm::SMLoc loc,
+                                   ArrayRef<Type *> operands, Type &result,
+                                   FunctionType &fnType) {
   assert(fnType);
   if (fnType.getInputs().size() != operands.size())
     return parser.emitError(loc)
@@ -61,11 +61,11 @@ ParseResult assignFromFunctionType(OpAsmParser& parser, llvm::SMLoc loc,
   return success();
 }
 
-}  // namespace
+} // namespace
 
 namespace detail {
 
-void printSameOperandsAndResultTypeImpl(OpAsmPrinter& p, Operation* op,
+void printSameOperandsAndResultTypeImpl(OpAsmPrinter &p, Operation *op,
                                         TypeRange operands, Type result) {
   // Handle zero operand types `() -> a` prints `a`
   if (operands.empty()) {
@@ -85,48 +85,51 @@ void printSameOperandsAndResultTypeImpl(OpAsmPrinter& p, Operation* op,
   p.printFunctionalType(op);
 }
 
-ParseResult parseSameOperandsAndResultTypeImpl(OpAsmParser& parser,
-                                               ArrayRef<Type*> operands,
-                                               Type& result) {
+ParseResult parseSameOperandsAndResultTypeImpl(OpAsmParser &parser,
+                                               ArrayRef<Type *> operands,
+                                               Type &result) {
   llvm::SMLoc loc = parser.getCurrentLocation();
   Type type;
-  if (parser.parseType(type)) return failure();
+  if (parser.parseType(type))
+    return failure();
 
   // Handle if function type, all operand types did not match result type.
   if (auto fnType = dyn_cast<FunctionType>(type))
     return assignFromFunctionType(parser, loc, operands, result, fnType);
 
   // Handle bare types. ` : type` indicating all input/output types match.
-  for (Type* t : operands) *t = type;
+  for (Type *t : operands)
+    *t = type;
   result = type;
   return success();
 }
 
-}  // namespace detail
+} // namespace detail
 
-void printVariadicSameOperandsAndResultType(OpAsmPrinter& p, Operation* op,
+void printVariadicSameOperandsAndResultType(OpAsmPrinter &p, Operation *op,
                                             OperandRange operands,
                                             TypeRange opTypes, Type result) {
   return detail::printSameOperandsAndResultTypeImpl(p, op, opTypes, result);
 }
 
 ParseResult parseVariadicSameOperandsAndResultType(
-    OpAsmParser& parser,
-    SmallVectorImpl<OpAsmParser::UnresolvedOperand>& operands,
-    SmallVectorImpl<Type>& opTypes, Type& result) {
+    OpAsmParser &parser,
+    SmallVectorImpl<OpAsmParser::UnresolvedOperand> &operands,
+    SmallVectorImpl<Type> &opTypes, Type &result) {
   // Insert a type for each operand. Need to do this since passing the type of
   // a variadic op gives no indication of how many operands were provided.
   opTypes.resize(operands.size());
 
   // Make a pointer list to the operands
-  SmallVector<Type*> typePtrs;
+  SmallVector<Type *> typePtrs;
   typePtrs.reserve(opTypes.size());
-  for (Type& t : opTypes) typePtrs.push_back(&t);
+  for (Type &t : opTypes)
+    typePtrs.push_back(&t);
 
   return detail::parseSameOperandsAndResultTypeImpl(parser, typePtrs, result);
 }
 
-void printConstantOp(OpAsmPrinter& p, Operation* op, ElementsAttr value) {
+void printConstantOp(OpAsmPrinter &p, Operation *op, ElementsAttr value) {
   assert(op->getNumResults() == 1);
   // If not all types are the same, use generic form.
   if (value.getType() != op->getResultTypes().front()) {
@@ -139,10 +142,11 @@ void printConstantOp(OpAsmPrinter& p, Operation* op, ElementsAttr value) {
   p.printStrippedAttrOrType(value);
 }
 
-ParseResult parseConstantOp(OpAsmParser& parser, OperationState& result) {
+ParseResult parseConstantOp(OpAsmParser &parser, OperationState &result) {
   // Parse the generic form.
   if (succeeded(parser.parseOptionalLParen())) {
-    if (failed(parser.parseRParen())) return failure();
+    if (failed(parser.parseRParen()))
+      return failure();
     // Parse optional properties
     if (succeeded(parser.parseOptionalLess()) &&
         (failed(parser.parseAttribute(result.propertiesAttr)) ||
@@ -158,13 +162,15 @@ ParseResult parseConstantOp(OpAsmParser& parser, OperationState& result) {
         failed(parser.parseRParen()) || failed(parser.parseArrow()))
       return failure();
     Type resultTy;
-    if (failed(parser.parseType(resultTy))) return failure();
+    if (failed(parser.parseType(resultTy)))
+      return failure();
     result.addTypes(resultTy);
     return success();
   }
 
   ElementsAttr valueAttr;
-  if (failed(parser.parseOptionalAttrDict(result.attributes))) return failure();
+  if (failed(parser.parseOptionalAttrDict(result.attributes)))
+    return failure();
   if (failed(parser.parseCustomAttributeWithFallback(valueAttr, Type{}, "value",
                                                      result.attributes)))
     return failure();
@@ -172,33 +178,35 @@ ParseResult parseConstantOp(OpAsmParser& parser, OperationState& result) {
   return success();
 }
 
-void printTupleOpType(OpAsmPrinter& p, Operation*, TypeRange operands,
+void printTupleOpType(OpAsmPrinter &p, Operation *, TypeRange operands,
                       Type result) {
   p.printType(result);
 }
 
-ParseResult parseTupleOpType(OpAsmParser& parser,
-                             SmallVectorImpl<Type>& operands, Type& result) {
+ParseResult parseTupleOpType(OpAsmParser &parser,
+                             SmallVectorImpl<Type> &operands, Type &result) {
   // Result type must be tuple type.
   llvm::SMLoc loc = parser.getCurrentLocation();
-  if (failed(parser.parseType(result))) return failure();
+  if (failed(parser.parseType(result)))
+    return failure();
 
   auto tupType = dyn_cast<TupleType>(result);
-  if (!tupType) return parser.emitError(loc, "expected tuple type");
+  if (!tupType)
+    return parser.emitError(loc, "expected tuple type");
 
   // Assign operand types to tuple types
   llvm::append_range(operands, tupType.getTypes());
   return success();
 }
 
-void printPairwiseOpType(OpAsmPrinter& p, Operation*, TypeRange operands,
+void printPairwiseOpType(OpAsmPrinter &p, Operation *, TypeRange operands,
                          TypeRange results) {
   llvm::interleaveComma(operands, p);
 }
 
-ParseResult parsePairwiseOpType(OpAsmParser& parser,
-                                SmallVectorImpl<Type>& operands,
-                                SmallVectorImpl<Type>& results) {
+ParseResult parsePairwiseOpType(OpAsmParser &parser,
+                                SmallVectorImpl<Type> &operands,
+                                SmallVectorImpl<Type> &results) {
   llvm::SMLoc loc = parser.getCurrentLocation();
   if (failed(parser.parseTypeList(operands)))
     return parser.emitError(loc, "expected type list");
@@ -206,22 +214,23 @@ ParseResult parsePairwiseOpType(OpAsmParser& parser,
   return success();
 }
 
-void printVariadicOperandWithAttribute(OpAsmPrinter& p, Operation*,
+void printVariadicOperandWithAttribute(OpAsmPrinter &p, Operation *,
                                        OperandRange operands) {
   llvm::interleaveComma(operands, p);
   p << ",";
 }
 
 ParseResult parseVariadicOperandWithAttribute(
-    OpAsmParser& parser,
-    SmallVectorImpl<OpAsmParser::UnresolvedOperand>& operands) {
+    OpAsmParser &parser,
+    SmallVectorImpl<OpAsmParser::UnresolvedOperand> &operands) {
   // Parse operands as well as trailing commas. Stops when first non-ssa value
   // seen.
   OpAsmParser::UnresolvedOperand operand;
   OptionalParseResult resultOpt = parser.parseOptionalOperand(operand);
   while (resultOpt.has_value() && succeeded(resultOpt.value())) {
     operands.push_back(operand);
-    if (failed(parser.parseComma())) return failure();
+    if (failed(parser.parseComma()))
+      return failure();
     resultOpt = parser.parseOptionalOperand(operand);
   }
   return success();
@@ -235,7 +244,7 @@ ParseResult parseVariadicOperandWithAttribute(
 // Attribute Printers and Parsers
 //===----------------------------------------------------------------------===//
 
-void printSliceRanges(OpAsmPrinter& p, Operation* op,
+void printSliceRanges(OpAsmPrinter &p, Operation *op,
                       ArrayRef<int64_t> startIndices,
                       ArrayRef<int64_t> limitIndices,
                       ArrayRef<int64_t> strides) {
@@ -265,11 +274,12 @@ void printSliceRanges(OpAsmPrinter& p, Operation* op,
   p << "]";
 }
 
-ParseResult parseSliceRanges(OpAsmParser& parser,
-                             DenseI64ArrayAttr& startIndices,
-                             DenseI64ArrayAttr& limitIndices,
-                             DenseI64ArrayAttr& strides) {
-  if (parser.parseLSquare()) return failure();
+ParseResult parseSliceRanges(OpAsmParser &parser,
+                             DenseI64ArrayAttr &startIndices,
+                             DenseI64ArrayAttr &limitIndices,
+                             DenseI64ArrayAttr &strides) {
+  if (parser.parseLSquare())
+    return failure();
   // Parse groups of comma-separated: `start`:`limit`[:`stride`]
   // If the stride isn't provided it'll be 1.
   SmallVector<int64_t> start, limit, stride;
@@ -285,10 +295,13 @@ ParseResult parseSliceRanges(OpAsmParser& parser,
         stride.push_back(1);
       } else {
         stride.emplace_back();
-        if (failed(parser.parseInteger(stride.back()))) return failure();
+        if (failed(parser.parseInteger(stride.back())))
+          return failure();
       }
-      if (succeeded(parser.parseOptionalRSquare())) break;
-      if (failed(parser.parseComma())) return failure();
+      if (succeeded(parser.parseOptionalRSquare()))
+        break;
+      if (failed(parser.parseComma()))
+        return failure();
     } while (true);
   }
 
@@ -299,7 +312,7 @@ ParseResult parseSliceRanges(OpAsmParser& parser,
   return success();
 }
 
-ParseResult dimSizeFromString(AsmParser& parser, int64_t& result) {
+ParseResult dimSizeFromString(AsmParser &parser, int64_t &result) {
   if (succeeded(parser.parseOptionalQuestion())) {
     result = ShapedType::kDynamic;
     return success();
@@ -308,12 +321,13 @@ ParseResult dimSizeFromString(AsmParser& parser, int64_t& result) {
 }
 
 std::string dimSizeToString(int64_t dimSize) {
-  if (hlo::isDynamicDimSize(dimSize)) return "?";
+  if (hlo::isDynamicDimSize(dimSize))
+    return "?";
   return std::to_string(dimSize);
 }
 
 template <typename Stream>
-void printDimSizes(Stream& stream, ArrayRef<int64_t> dimSizes) {
+void printDimSizes(Stream &stream, ArrayRef<int64_t> dimSizes) {
   stream << '[';
   llvm::interleaveComma(dimSizes, stream, [&](int64_t dimSize) {
     stream << dimSizeToString(dimSize);
@@ -328,20 +342,21 @@ std::string dimSizesToString(ArrayRef<int64_t> dimSizes) {
   return buffer;
 }
 
-void printDimSizes(AsmPrinter& p, ArrayRef<int64_t> dimSizes) {
+void printDimSizes(AsmPrinter &p, ArrayRef<int64_t> dimSizes) {
   printDimSizes<AsmPrinter>(p, dimSizes);
 }
 
-FailureOr<SmallVector<int64_t>> parseDimSizes(AsmParser& parser) {
+FailureOr<SmallVector<int64_t>> parseDimSizes(AsmParser &parser) {
   SmallVector<int64_t> dimSizes;
-  if (failed(parseDimSizes(parser, dimSizes))) return failure();
+  if (failed(parseDimSizes(parser, dimSizes)))
+    return failure();
   return dimSizes;
 }
 
-ParseResult parseDimSizes(AsmParser& parser, SmallVector<int64_t>& dimSizes) {
+ParseResult parseDimSizes(AsmParser &parser, SmallVector<int64_t> &dimSizes) {
   return parser.parseCommaSeparatedList(AsmParser::Delimiter::Square, [&]() {
     return dimSizeFromString(parser, dimSizes.emplace_back());
   });
 }
 
-}  // namespace mlir::hlo
+} // namespace mlir::hlo

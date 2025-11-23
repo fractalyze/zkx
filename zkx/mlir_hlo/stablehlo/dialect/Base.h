@@ -51,7 +51,7 @@ inline bool isDynamicDimSize(int64_t val) { return ShapedType::isDynamic(val); }
 
 inline bool isStaticDimSize(int64_t val) { return !isDynamicDimSize(val); }
 
-}  // namespace
+} // namespace
 
 // Checks whether every position in the given array contains the given value.
 bool isSplatArray(ArrayRef<int64_t> arr, int64_t val);
@@ -95,9 +95,10 @@ bool isCompatibleForHloTypeInference(ArrayRef<int64_t> shape1, Type tp2);
 //  c4:  ?              ?               ?
 //  c5:  ?              ?, B            ?, B
 //  c6:  ?, B           ?, C            ?, min(B, C)
-FailureOr<std::pair<int64_t, int64_t>> inferMostSpecificDimAndBound(
-    std::optional<Location> location, int64_t dim, int64_t leftSize,
-    int64_t rightSize, int64_t leftBound, int64_t rightBound);
+FailureOr<std::pair<int64_t, int64_t>>
+inferMostSpecificDimAndBound(std::optional<Location> location, int64_t dim,
+                             int64_t leftSize, int64_t rightSize,
+                             int64_t leftBound, int64_t rightBound);
 
 // Inference rules for conditional branches (lhs/rhs are commutative):
 //       Dim of lhs     Dim of rhs      Infer
@@ -107,9 +108,10 @@ FailureOr<std::pair<int64_t, int64_t>> inferMostSpecificDimAndBound(
 //  c3:  ?              ?               ?
 //  c4:  ?              ?, B            ?
 //  c5:  ?, B           ?, C            ?, max(B, C)
-FailureOr<std::pair<int64_t, int64_t>> inferLeastSpecificDimAndBound(
-    std::optional<Location> location, int64_t dim, int64_t leftSize,
-    int64_t rightSize, int64_t leftBound, int64_t rightBound);
+FailureOr<std::pair<int64_t, int64_t>>
+inferLeastSpecificDimAndBound(std::optional<Location> location, int64_t dim,
+                              int64_t leftSize, int64_t rightSize,
+                              int64_t leftBound, int64_t rightBound);
 
 // Infer single least specific return type from inputTypes with support for
 // bounds. (Size, bound) of each dimension of the return type will be merged
@@ -157,9 +159,9 @@ LogicalResult matchInts(Value value);
 //    : (i64, i64) -> tensor<2xi64>
 //
 // and returns %4 as the shape value.
-LogicalResult deriveShapeFromOperand(
-    OpBuilder *builder, Operation *op, Value operand,
-    SmallVectorImpl<Value> *reifiedReturnShapes);
+LogicalResult
+deriveShapeFromOperand(OpBuilder *builder, Operation *op, Value operand,
+                       SmallVectorImpl<Value> *reifiedReturnShapes);
 
 // Verify bounds expressed by HLO_BoundedAttrInterface against the provided
 // type. See documentation for HLO_BoundedAttrInterface for the list of checks.
@@ -181,12 +183,15 @@ template <typename ConcreteType>
 class CompatibleOperandsAndResultType
     : public mlir::OpTrait::TraitBase<ConcreteType,
                                       CompatibleOperandsAndResultType> {
- public:
+public:
   static LogicalResult verifyTrait(Operation *op) {
     Type expected;
-    if (op->getNumResults() != 0) expected = op->getResult(0).getType();
-    if (op->getNumOperands() != 0) expected = op->getOperand(0).getType();
-    if (!expected) return failure();
+    if (op->getNumResults() != 0)
+      expected = op->getResult(0).getType();
+    if (op->getNumOperands() != 0)
+      expected = op->getOperand(0).getType();
+    if (!expected)
+      return failure();
 
     auto typeMatch = [&](Type actual) {
       return isCompatibleForHloTypeInference(actual, expected);
@@ -201,11 +206,11 @@ class CompatibleOperandsAndResultType
     return success(allMatch);
   }
 
-  static LogicalResult inferReturnTypes(
-      MLIRContext * /*context*/, std::optional<Location> location,
-      ValueRange operands, DictionaryAttr /*attributes*/,
-      OpaqueProperties /*properties*/, RegionRange /*regions*/,
-      SmallVectorImpl<Type> &inferredReturnTypes) {
+  static LogicalResult
+  inferReturnTypes(MLIRContext * /*context*/, std::optional<Location> location,
+                   ValueRange operands, DictionaryAttr /*attributes*/,
+                   OpaqueProperties /*properties*/, RegionRange /*regions*/,
+                   SmallVectorImpl<Type> &inferredReturnTypes) {
     // TODO(b/231358795): Review the use of InferTypeOpInterface for ops that
     // support sparsity.
     if (operands.empty())
@@ -215,7 +220,8 @@ class CompatibleOperandsAndResultType
 
     FailureOr<Type> inferredTypeOrErr =
         inferMostSpecificType(location, operands.getTypes());
-    if (failed(inferredTypeOrErr)) return failure();
+    if (failed(inferredTypeOrErr))
+      return failure();
     inferredReturnTypes.emplace_back(*inferredTypeOrErr);
     return success();
   }
@@ -233,21 +239,23 @@ class CompatibleOperandsAndResultType
                                 attributes, properties, regions,
                                 inferredReturnTypes)))
       return failure();
-    if (inferredReturnTypes.size() != 1) return failure();
+    if (inferredReturnTypes.size() != 1)
+      return failure();
     auto inferredReturnType = dyn_cast<ShapedType>(inferredReturnTypes[0]);
-    if (!inferredReturnType) return failure();
+    if (!inferredReturnType)
+      return failure();
     inferredReturnShapes.push_back(inferredReturnType);
     return success();
   }
 };
 
-}  // namespace OpTrait
+} // namespace OpTrait
 
 // This interface is implemented by both StableHLO and MHLO dialects
 // and is used as the foundation for sharing verification, type inference and
 // prettyprinting logic between them.
 class HloDialectInterface : public DialectInterface::Base<HloDialectInterface> {
- public:
+public:
   HloDialectInterface(Dialect *dialect) : Base(dialect) {}
 
   // Creates a TokenType type, specific to this dialect.
@@ -265,6 +273,6 @@ class HloDialectInterface : public DialectInterface::Base<HloDialectInterface> {
 // Returns true if the given type has a single bounded dimension.
 bool hasSingleBoundedDimension(Type type);
 
-}  // namespace mlir::hlo
+} // namespace mlir::hlo
 
-#endif  // ZKX_MLIR_HLO_STABLEHLO_DIALECT_BASE_H_
+#endif // ZKX_MLIR_HLO_STABLEHLO_DIALECT_BASE_H_
