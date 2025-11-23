@@ -55,10 +55,10 @@ longer-form discussions take place in the
 - ✅ Boolean
 - ✅ Integer
 - ⚪ Binary Field
-- 🟡 Koalabear
-- 🟡 Babybear
-- 🟡 Mersenne31
-- 🟡 Goldilocks
+- ✅ Koalabear
+- ✅ Babybear
+- ✅ Mersenne31
+- ✅ Goldilocks
 - ✅ Bn254
 
 ### HloPass
