@@ -25,8 +25,8 @@ namespace mlir::hlo {
 // Converts the given elements attr to the specified elements type.
 // Requires type of the elements and new_type to be either integer or float
 // type.
-ElementsAttr convertElementsAttr(const ElementsAttr& elements, Type newType);
+ElementsAttr convertElementsAttr(const ElementsAttr &elements, Type newType);
 
-}  // namespace mlir::hlo
+} // namespace mlir::hlo
 
-#endif  // ZKX_MLIR_HLO_UTILS_CONVERT_OP_FOLDER_H_
+#endif // ZKX_MLIR_HLO_UTILS_CONVERT_OP_FOLDER_H_

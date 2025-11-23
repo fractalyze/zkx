@@ -36,57 +36,60 @@ int64_t parseNumber(llvm::StringRef numRef) {
 // Validate version argument is `#.#.#` (ex: 0.9.0, 0.99.0, 1.2.3)
 // Returns the vector of 3 matches (major, minor, patch) if successful,
 // else returns failure.
-FailureOr<std::array<int64_t, 3>> extractVersionNumbers(
-    llvm::StringRef versionRef) {
+FailureOr<std::array<int64_t, 3>>
+extractVersionNumbers(llvm::StringRef versionRef) {
   llvm::Regex versionRegex("^([0-9]+)\\.([0-9]+)\\.([0-9]+)$");
   llvm::SmallVector<llvm::StringRef> matches;
-  if (!versionRegex.match(versionRef, &matches)) return failure();
+  if (!versionRegex.match(versionRef, &matches))
+    return failure();
   return std::array<int64_t, 3>{parseNumber(matches[1]),
                                 parseNumber(matches[2]),
                                 parseNumber(matches[3])};
 }
 
-}  // namespace
+} // namespace
 
 // static
 FailureOr<Version> Version::fromString(llvm::StringRef versionRef) {
   auto failOrVersionArray = extractVersionNumbers(versionRef);
-  if (failed(failOrVersionArray)) return failure();
+  if (failed(failOrVersionArray))
+    return failure();
   auto versionArr = *failOrVersionArray;
   return Version(versionArr[0], versionArr[1], versionArr[2]);
 }
 
 FailureOr<int64_t> Version::getBytecodeVersion() const {
-  if (*this <= getCurrentVersion()) return 0;
+  if (*this <= getCurrentVersion())
+    return 0;
   return failure();
 }
 
 // static
-Version Version::fromCompatibilityRequirement(
-    CompatibilityRequirement requirement) {
+Version
+Version::fromCompatibilityRequirement(CompatibilityRequirement requirement) {
   // Compatibility requirement versions can be updated as needed, as long as the
   // version satisfies the requirement.
   // The time frames used are from the date that the release was tagged on, not
   // merged. The tag date is when the version has been verified and exported to
   // XLA. See: https://github.com/openxla/stablehlo/tags
   switch (requirement) {
-    case CompatibilityRequirement::NONE:
-    // TODO(chokobole): Add versions for WEEK_4 and WEEK_12.
-    case CompatibilityRequirement::WEEK_4:
-    case CompatibilityRequirement::WEEK_12:
-      return Version::getCurrentVersion();
-    case CompatibilityRequirement::MAX:
-      return Version::getMinimumVersion();
+  case CompatibilityRequirement::NONE:
+  // TODO(chokobole): Add versions for WEEK_4 and WEEK_12.
+  case CompatibilityRequirement::WEEK_4:
+  case CompatibilityRequirement::WEEK_12:
+    return Version::getCurrentVersion();
+  case CompatibilityRequirement::MAX:
+    return Version::getMinimumVersion();
   }
   llvm::report_fatal_error("Unhandled compatibility requirement");
 }
 
-mlir::Diagnostic& operator<<(mlir::Diagnostic& diag, const Version& version) {
+mlir::Diagnostic &operator<<(mlir::Diagnostic &diag, const Version &version) {
   return diag << version.toString();
 }
 
-llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Version& version) {
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Version &version) {
   return os << version.toString();
 }
 
-}  // namespace mlir::vhlo
+} // namespace mlir::vhlo

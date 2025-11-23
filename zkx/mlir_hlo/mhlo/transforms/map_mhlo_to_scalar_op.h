@@ -81,7 +81,7 @@ template <typename... Args>
 struct MapMhloOpToScalarOpImpl {
   Value operator()(Location /*loc*/, ArrayRef<Type> /*ResultTypes*/,
                    ArrayRef<Type> /*argTypes*/, ValueRange /*args*/,
-                   ArrayRef<NamedAttribute> /*attributes*/, OpBuilder* /*b*/) {
+                   ArrayRef<NamedAttribute> /*attributes*/, OpBuilder * /*b*/) {
     return nullptr;
   }
 };
@@ -90,7 +90,7 @@ template <typename StdScalarOp>
 struct MapMhloOpToScalarOpImpl<StdScalarOp> {
   Value operator()(Location loc, ArrayRef<Type> resultTypes,
                    ArrayRef<Type> /*argTypes*/, ValueRange args,
-                   ArrayRef<NamedAttribute> attributes, OpBuilder* b) {
+                   ArrayRef<NamedAttribute> attributes, OpBuilder *b) {
     return b->template create<StdScalarOp>(loc, resultTypes, args, attributes);
   }
 };
@@ -99,7 +99,7 @@ template <typename SupportedType, typename StdScalarOp, typename... Args>
 struct MapMhloOpToScalarOpImpl<SupportedType, StdScalarOp, Args...> {
   Value operator()(Location loc, ArrayRef<Type> resultTypes,
                    ArrayRef<Type> argTypes, ValueRange args,
-                   ArrayRef<NamedAttribute> attributes, OpBuilder* b) {
+                   ArrayRef<NamedAttribute> attributes, OpBuilder *b) {
     Type elementType = getElementTypeOrSelf(argTypes.front());
     if (SupportedType{}(elementType)) {
       return b->template create<StdScalarOp>(loc, resultTypes, args,
@@ -114,7 +114,7 @@ template <typename SupportedType, typename... Args>
 struct MapMhloOpToScalarOpImpl<SupportedType, void, Args...> {
   Value operator()(Location loc, ArrayRef<Type> resultTypes,
                    ArrayRef<Type> argTypes, ValueRange args,
-                   ArrayRef<NamedAttribute> attributes, OpBuilder* b) {
+                   ArrayRef<NamedAttribute> attributes, OpBuilder *b) {
     return MapMhloOpToScalarOpImpl<Args...>{}(loc, resultTypes, argTypes, args,
                                               attributes, b);
   }
@@ -170,7 +170,7 @@ inline Value mapMhloOpToStdScalarOp(Location loc, ArrayRef<Type> resultTypes,
                                     ArrayRef<Type> argTypes,
                                     typename MhloOpTy::Adaptor adaptor,
                                     ArrayRef<NamedAttribute> attributes,
-                                    OpBuilder* b) {
+                                    OpBuilder *b) {
   using ScalarIOpOrVoid = typename MapableIf<ScalarIOp, MhloOpTy>::type;
   using ScalarUOpOrVoid = typename MapableIf<ScalarUOp, MhloOpTy>::type;
   using ScalarFOpOrVoid = typename MapableIf<ScalarFOp, MhloOpTy>::type;
@@ -183,7 +183,7 @@ inline Value mapMhloOpToStdScalarOp(Location loc, ArrayRef<Type> resultTypes,
 }
 
 // Return a constant for v of type t, splat if t is a vector type.
-inline Value getConstantOrSplat(OpBuilder* b, Location loc, Type t,
+inline Value getConstantOrSplat(OpBuilder *b, Location loc, Type t,
                                 Attribute v) {
   if (VectorType vecType = dyn_cast<VectorType>(t)) {
     v = SplatElementsAttr::get(vecType, v);
@@ -194,7 +194,7 @@ inline Value getConstantOrSplat(OpBuilder* b, Location loc, Type t,
 inline Value makeFieldConvert(Location loc, ArrayRef<Type> resultTypes,
                               Type sourceType, Type targetType, ValueRange args,
                               ArrayRef<NamedAttribute> attributes,
-                              OpBuilder* b) {
+                              OpBuilder *b) {
   if (zkir::field::isMontgomery(sourceType)) {
     if (zkir::field::isMontgomery(targetType)) {
       return args[0];
@@ -216,7 +216,7 @@ inline Value makeEcPointConvert(Location loc, ArrayRef<Type> resultTypes,
                                 Type sourceType, Type targetType,
                                 ValueRange args,
                                 ArrayRef<NamedAttribute> attributes,
-                                OpBuilder* b) {
+                                OpBuilder *b) {
   if (isa<zkir::elliptic_curve::AffineType>(sourceType)) {
     if (isa<zkir::elliptic_curve::JacobianType>(targetType) ||
         isa<zkir::elliptic_curve::XYZZType>(targetType)) {
@@ -243,7 +243,7 @@ inline Value mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
                                        ArrayRef<Type> resultTypes,
                                        ArrayRef<Type> argTypes, ValueRange args,
                                        ArrayRef<NamedAttribute> attributes,
-                                       OpBuilder* b) {
+                                       OpBuilder *b) {
   assert(targetTypes.size() == 1 && "ConvertOp should return a single result");
   assert(resultTypes.size() == 1 && "ConvertOp should return a single result");
   assert(argTypes.size() == 1 && "ConvertOp should take a single argument");
@@ -274,7 +274,7 @@ template <>
 inline Value mapMhloOpToStdScalarOp<mhlo::MulOp>(
     Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
     mhlo::MulOp::Adaptor adaptor, ArrayRef<NamedAttribute> attributes,
-    OpBuilder* b) {
+    OpBuilder *b) {
   Type leftType = adaptor.getLhs().getType();
   Type leftElementType = getElementTypeOrSelf(leftType);
   if (IsAnyIntegerType{}(leftElementType)) {
@@ -298,13 +298,13 @@ inline Value mapMhloOpToStdScalarOp<mhlo::MulOp>(
 }
 
 template <typename U, typename S>
-inline Value makeSafeIntDiv(ImplicitLocOpBuilder& lb, Type originalType,
+inline Value makeSafeIntDiv(ImplicitLocOpBuilder &lb, Type originalType,
                             Value lhs, Value rhs, Value returnedOnZero,
                             Value returnedOnSignedOverflow) {
   Type type = lhs.getType();
   auto elementType = cast<IntegerType>(getElementTypeOrSelf(type));
   Value zero = lb.create<arith::ConstantOp>(lb.getZeroAttr(type));
-  auto makeConstant = [&](const APInt& i) {
+  auto makeConstant = [&](const APInt &i) {
     return getConstantOrSplat(&lb, lb.getLoc(), type,
                               lb.getIntegerAttr(elementType, i));
   };
@@ -339,7 +339,7 @@ template <>
 inline Value mapMhloOpToStdScalarOp<mhlo::DivOp>(
     Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
     mhlo::DivOp::Adaptor adaptor, ArrayRef<NamedAttribute> attributes,
-    OpBuilder* b) {
+    OpBuilder *b) {
   Type type = adaptor.getLhs().getType();
   Type elementType = getElementTypeOrSelf(type);
   if (IsAnyIntegerType{}(elementType)) {
@@ -350,7 +350,7 @@ inline Value mapMhloOpToStdScalarOp<mhlo::DivOp>(
     ImplicitLocOpBuilder lb(loc, *b);
 
     auto integerElementType = cast<IntegerType>(elementType);
-    auto makeConstant = [&](const APInt& i) {
+    auto makeConstant = [&](const APInt &i) {
       return getConstantOrSplat(&lb, lb.getLoc(), type,
                                 lb.getIntegerAttr(integerElementType, i));
     };
@@ -374,7 +374,7 @@ template <>
 inline Value mapMhloOpToStdScalarOp<mhlo::NegOp>(
     Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
     mhlo::NegOp::Adaptor adaptor, ArrayRef<NamedAttribute> attributes,
-    OpBuilder* b) {
+    OpBuilder *b) {
   Type elementType = getElementTypeOrSelf(adaptor.getOperand().getType());
   if (IsAnyIntegerType{}(elementType)) {
     // lmhlo.neg(x, result) -> result = sub(0, x)
@@ -394,7 +394,7 @@ template <>
 inline Value mapMhloOpToStdScalarOp<mhlo::PowOp>(
     Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
     mhlo::PowOp::Adaptor adaptor, ArrayRef<NamedAttribute> attributes,
-    OpBuilder* b) {
+    OpBuilder *b) {
   Type type = adaptor.getLhs().getType();
   Type elementType = getElementTypeOrSelf(type);
   if (IsAnyIntegerType{}(elementType)) {
@@ -408,13 +408,13 @@ inline Value mapMhloOpToStdScalarOp<mhlo::PowOp>(
   return nullptr;
 }
 
-}  // namespace impl
+} // namespace impl
 
 struct MhloOpToStdScalarOp {
   // Converts mhlo 'op' to linalg and arith ops.
   template <typename MhloOpTy>
   static Value mapOp(MhloOpTy op, ArrayRef<Type> resultTypes, ValueRange args,
-                     ArrayRef<NamedAttribute> attributes, OpBuilder* b) {
+                     ArrayRef<NamedAttribute> attributes, OpBuilder *b) {
     auto argTypes = llvm::to_vector(op->getOperandTypes());
     return mapOpWithArgTypes(op, resultTypes, argTypes, args, attributes, b);
   }
@@ -425,7 +425,7 @@ struct MhloOpToStdScalarOp {
   static Value mapOpWithArgTypes(MhloOpTy op, ArrayRef<Type> resultTypes,
                                  ArrayRef<Type> argTypes, ValueRange args,
                                  ArrayRef<NamedAttribute> attributes,
-                                 OpBuilder* b) {
+                                 OpBuilder *b) {
     static_assert(!std::is_same<MhloOpTy, mhlo::ConvertOp>::value);
     typename MhloOpTy::Adaptor adaptor(args, op->getAttrDictionary(),
                                        op->getPropertiesStorage(),
@@ -437,7 +437,7 @@ struct MhloOpToStdScalarOp {
   static Value mapOpWithArgTypes(mhlo::ConvertOp op, ArrayRef<Type> resultTypes,
                                  ArrayRef<Type> argTypes, ValueRange args,
                                  ArrayRef<NamedAttribute> attributes,
-                                 OpBuilder* b) {
+                                 OpBuilder *b) {
     return impl::mapConvertOpToStdScalarOp(
         op.getLoc(), op.getType(), resultTypes, argTypes, args, attributes, b);
   }
@@ -447,20 +447,21 @@ struct MhloOpToStdScalarOp {
   static Value mapOpOfType(Location loc, ArrayRef<Type> resultTypes,
                            ArrayRef<Type> argTypes,
                            typename MhloOpTy::Adaptor adaptor,
-                           ArrayRef<NamedAttribute> attributes, OpBuilder* b) {
+                           ArrayRef<NamedAttribute> attributes, OpBuilder *b) {
     return impl::mapMhloOpToStdScalarOp<MhloOpTy>(loc, resultTypes, argTypes,
                                                   adaptor, attributes, b);
   }
 
-  static Value mapConvertOpToStdScalarOp(
-      Location loc, ArrayRef<Type> targetTypes, ArrayRef<Type> resultTypes,
-      ArrayRef<Type> argTypes, ValueRange args,
-      ArrayRef<NamedAttribute> attributes, OpBuilder* b) {
+  static Value
+  mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
+                            ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
+                            ValueRange args,
+                            ArrayRef<NamedAttribute> attributes, OpBuilder *b) {
     return impl::mapConvertOpToStdScalarOp(loc, targetTypes, resultTypes,
                                            argTypes, args, attributes, b);
   }
 };
 
-}  // namespace mlir::mhlo
+} // namespace mlir::mhlo
 
-#endif  // ZKX_MLIR_HLO_MHLO_TRANSFORMS_MAP_MHLO_TO_SCALAR_OP_H_
+#endif // ZKX_MLIR_HLO_MHLO_TRANSFORMS_MAP_MHLO_TO_SCALAR_OP_H_

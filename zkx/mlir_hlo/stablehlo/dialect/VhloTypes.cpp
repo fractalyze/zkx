@@ -18,13 +18,13 @@ limitations under the License.
 
 #include <cstdint>
 
-#include "llvm/ADT/SmallVectorExtras.h"  // IWYU pragma: keep
+#include "llvm/ADT/SmallVectorExtras.h" // IWYU pragma: keep
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/TypeSwitch.h"  // IWYU pragma: keep
+#include "llvm/ADT/TypeSwitch.h" // IWYU pragma: keep
 #include "mlir/Dialect/Shape/IR/Shape.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/DialectImplementation.h"  // IWYU pragma: keep
+#include "mlir/IR/DialectImplementation.h" // IWYU pragma: keep
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/TypeSupport.h"
 #include "mlir/IR/Types.h"
@@ -37,9 +37,10 @@ namespace mlir::vhlo {
 namespace {
 
 Type convertBuiltinIntegerType(IntegerType type) {
-  if (!type.isSignless() && !type.isUnsigned()) return {};
+  if (!type.isSignless() && !type.isUnsigned())
+    return {};
 
-  if (type.getWidth() == 1 && type.isSignless()) {  // Predicate
+  if (type.getWidth() == 1 && type.isSignless()) { // Predicate
     return BooleanV1Type::get(type.getContext());
   }
 
@@ -48,36 +49,38 @@ Type convertBuiltinIntegerType(IntegerType type) {
   bool isSignless = type.isSignless();
   auto ctx = type.getContext();
   switch (type.getWidth()) {
-    case 2:
-      return isSignless ? cast<Type>(IntegerSI2V1Type::get(ctx))
-                        : cast<Type>(IntegerUI2V1Type::get(ctx));
-    case 4:
-      return isSignless ? cast<Type>(IntegerSI4V1Type::get(ctx))
-                        : cast<Type>(IntegerUI4V1Type::get(ctx));
-    case 8:
-      return isSignless ? cast<Type>(IntegerSI8V1Type::get(ctx))
-                        : cast<Type>(IntegerUI8V1Type::get(ctx));
-    case 16:
-      return isSignless ? cast<Type>(IntegerSI16V1Type::get(ctx))
-                        : cast<Type>(IntegerUI16V1Type::get(ctx));
-    case 32:
-      return isSignless ? cast<Type>(IntegerSI32V1Type::get(ctx))
-                        : cast<Type>(IntegerUI32V1Type::get(ctx));
-    case 64:
-      return isSignless ? cast<Type>(IntegerSI64V1Type::get(ctx))
-                        : cast<Type>(IntegerUI64V1Type::get(ctx));
+  case 2:
+    return isSignless ? cast<Type>(IntegerSI2V1Type::get(ctx))
+                      : cast<Type>(IntegerUI2V1Type::get(ctx));
+  case 4:
+    return isSignless ? cast<Type>(IntegerSI4V1Type::get(ctx))
+                      : cast<Type>(IntegerUI4V1Type::get(ctx));
+  case 8:
+    return isSignless ? cast<Type>(IntegerSI8V1Type::get(ctx))
+                      : cast<Type>(IntegerUI8V1Type::get(ctx));
+  case 16:
+    return isSignless ? cast<Type>(IntegerSI16V1Type::get(ctx))
+                      : cast<Type>(IntegerUI16V1Type::get(ctx));
+  case 32:
+    return isSignless ? cast<Type>(IntegerSI32V1Type::get(ctx))
+                      : cast<Type>(IntegerUI32V1Type::get(ctx));
+  case 64:
+    return isSignless ? cast<Type>(IntegerSI64V1Type::get(ctx))
+                      : cast<Type>(IntegerUI64V1Type::get(ctx));
   }
   return {};
 }
 
-}  // namespace
+} // namespace
 
 void VhloTypeConverter::addBuiltinToVhloConversions() {
   addConversion([&](FunctionType type) -> Type {
     SmallVector<Type> convertedInputs;
     SmallVector<Type> convertedResults;
-    if (failed(convertTypes(type.getInputs(), convertedInputs))) return {};
-    if (failed(convertTypes(type.getResults(), convertedResults))) return {};
+    if (failed(convertTypes(type.getInputs(), convertedInputs)))
+      return {};
+    if (failed(convertTypes(type.getResults(), convertedResults)))
+      return {};
     return FunctionV1Type::get(type.getContext(), convertedInputs,
                                convertedResults);
   });
@@ -91,18 +94,21 @@ void VhloTypeConverter::addBuiltinToVhloConversions() {
     auto encoding = type.getEncoding();
     auto convertedEncoding = encoding ? convertEncoding(encoding) : encoding;
     auto convertedElementType = convertType(type.getElementType());
-    if ((encoding && !convertedEncoding) || !convertedElementType) return {};
+    if ((encoding && !convertedEncoding) || !convertedElementType)
+      return {};
     return RankedTensorV1Type::get(type.getContext(), type.getShape(),
                                    convertedElementType, convertedEncoding);
   });
   addConversion([&](TupleType type) -> Type {
     SmallVector<Type> convertedTypes;
-    if (failed(convertTypes(type.getTypes(), convertedTypes))) return {};
+    if (failed(convertTypes(type.getTypes(), convertedTypes)))
+      return {};
     return vhlo::TupleV1Type::get(type.getContext(), convertedTypes);
   });
   addConversion([&](UnrankedTensorType type) -> Type {
     auto convertedElementType = convertType(type.getElementType());
-    if (!convertedElementType) return {};
+    if (!convertedElementType)
+      return {};
     return UnrankedTensorV1Type::get(type.getContext(), convertedElementType);
   });
   addConversion([&](shape::WitnessType type) -> Type {
@@ -117,8 +123,10 @@ void VhloTypeConverter::addVhloToBuiltinConversions() {
   addConversion([&](FunctionV1Type type) -> Type {
     SmallVector<Type> convertedInputs;
     SmallVector<Type> convertedOutputs;
-    if (failed(convertTypes(type.getInputs(), convertedInputs))) return {};
-    if (failed(convertTypes(type.getOutputs(), convertedOutputs))) return {};
+    if (failed(convertTypes(type.getInputs(), convertedInputs)))
+      return {};
+    if (failed(convertTypes(type.getOutputs(), convertedOutputs)))
+      return {};
     return FunctionType::get(type.getContext(), convertedInputs,
                              convertedOutputs);
   });
@@ -166,18 +174,21 @@ void VhloTypeConverter::addVhloToBuiltinConversions() {
     auto encoding = type.getEncoding();
     auto convertedEncoding = encoding ? convertEncoding(encoding) : encoding;
     auto convertedElementType = convertType(type.getElementType());
-    if ((encoding && !convertedEncoding) || !convertedElementType) return {};
+    if ((encoding && !convertedEncoding) || !convertedElementType)
+      return {};
     return RankedTensorType::get(type.getShape(), convertedElementType,
                                  convertedEncoding);
   });
   addConversion([&](TupleV1Type type) -> Type {
     SmallVector<Type> convertedTypes;
-    if (failed(convertTypes(type.getTypes(), convertedTypes))) return {};
+    if (failed(convertTypes(type.getTypes(), convertedTypes)))
+      return {};
     return TupleType::get(type.getContext(), convertedTypes);
   });
   addConversion([&](UnrankedTensorV1Type type) -> Type {
     auto convertedElementType = convertType(type.getElementType());
-    if (!convertedElementType) return {};
+    if (!convertedElementType)
+      return {};
     return UnrankedTensorType::get(convertedElementType);
   });
   addConversion([&](WitnessV1Type type) -> Type {
@@ -199,27 +210,30 @@ bool allFromVhlo(ArrayRef<TypeOrAttr> range) {
 }
 
 // Helper functions for VHLO type printers and parsers.
-void printEncoding(AsmPrinter& os, Attribute encoding) {
-  if (!encoding) return;
+void printEncoding(AsmPrinter &os, Attribute encoding) {
+  if (!encoding)
+    return;
   os << ", " << encoding;
 }
 
-ParseResult parseEncoding(AsmParser& parser, Attribute& encoding) {
+ParseResult parseEncoding(AsmParser &parser, Attribute &encoding) {
   if (failed(parser.parseOptionalComma())) {
     return success();
   }
-  if (failed(parser.parseAttribute(encoding))) return failure();
+  if (failed(parser.parseAttribute(encoding)))
+    return failure();
   return success();
 }
 
-void printShape(AsmPrinter& os, ArrayRef<int64_t> dimSizes) {
-  if (dimSizes.empty()) return;
+void printShape(AsmPrinter &os, ArrayRef<int64_t> dimSizes) {
+  if (dimSizes.empty())
+    return;
   for (int64_t dimSize : dimSizes) {
     os << hlo::dimSizeToString(dimSize) << 'x';
   }
 }
 
-ParseResult parseShape(AsmParser& parser, SmallVector<int64_t>& dimSizes) {
+ParseResult parseShape(AsmParser &parser, SmallVector<int64_t> &dimSizes) {
   if (failed(parser.parseDimensionList(dimSizes))) {
     return failure();
   }
@@ -227,13 +241,14 @@ ParseResult parseShape(AsmParser& parser, SmallVector<int64_t>& dimSizes) {
 }
 
 // Print types in parentheses: (!vhlo.type, !vhlo.type)
-static void printTypeArray(AsmPrinter& os, ArrayRef<Type> typeArray) {
-  if (typeArray.empty()) os << "()";
+static void printTypeArray(AsmPrinter &os, ArrayRef<Type> typeArray) {
+  if (typeArray.empty())
+    os << "()";
   os << typeArray;
 }
 
 // Parse types in parentheses: (!vhlo.type, !vhlo.type)
-ParseResult parseTypeArray(AsmParser& parser, SmallVector<Type>& typeArray) {
+ParseResult parseTypeArray(AsmParser &parser, SmallVector<Type> &typeArray) {
   if (succeeded(parser.parseOptionalLParen()) &&
       succeeded(parser.parseOptionalRParen())) {
     return success();
@@ -246,8 +261,8 @@ ParseResult parseTypeArray(AsmParser& parser, SmallVector<Type>& typeArray) {
   return success();
 }
 
-}  // namespace
-}  // namespace mlir::vhlo
+} // namespace
+} // namespace mlir::vhlo
 
 // Include order matters
 #include "zkx/mlir_hlo/stablehlo/dialect/VhloTypeInterfaces.cpp.inc"
@@ -256,27 +271,27 @@ ParseResult parseTypeArray(AsmParser& parser, SmallVector<Type>& typeArray) {
 
 namespace mlir::vhlo {
 
-LogicalResult printVhloType(Type type, AsmPrinter& printer) {
+LogicalResult printVhloType(Type type, AsmPrinter &printer) {
   return generatedTypePrinter(type, printer);
 }
 
-OptionalParseResult parseVhloType(mlir::AsmParser& parser,
-                                  llvm::StringRef* mnemonic, mlir::Type& type) {
+OptionalParseResult parseVhloType(mlir::AsmParser &parser,
+                                  llvm::StringRef *mnemonic, mlir::Type &type) {
   return generatedTypeParser(parser, mnemonic, type);
 }
 
 namespace {
 template <typename... Types>
-void registerVhloTypes(MLIRContext* context) {
+void registerVhloTypes(MLIRContext *context) {
   (mlir::detail::TypeUniquer::registerType<Types>(context), ...);
 }
-}  // namespace
+} // namespace
 
-void registerVhloTypes(MLIRContext* context) {
+void registerVhloTypes(MLIRContext *context) {
   registerVhloTypes<
 #define GET_TYPEDEF_LIST
-#include "zkx/mlir_hlo/stablehlo/dialect/VhloTypeDefs.cpp.inc"  // NOLINT(build/include)
+#include "zkx/mlir_hlo/stablehlo/dialect/VhloTypeDefs.cpp.inc" // NOLINT(build/include)
       >(context);
 }
 
-}  // namespace mlir::vhlo
+} // namespace mlir::vhlo
