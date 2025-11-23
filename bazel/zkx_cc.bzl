@@ -20,7 +20,6 @@ load(
     "//bazel:zkx.bzl",
     "if_has_exception",
     "if_has_openmp",
-    "if_has_rtti",
 )
 
 def zkx_safe_code():
@@ -70,14 +69,11 @@ def zkx_warnings(safe_code):
 def zkx_exceptions(force_exceptions):
     return if_has_exception(["-fexceptions"], (["-fexceptions"] if force_exceptions else ["-fno-exceptions"]))
 
-def zkx_rtti(force_rtti):
-    return if_has_rtti(["-frtti"], (["-frtti"] if force_rtti else ["-fno-rtti"]))
-
 def zkx_copts(safe_code = True):
     return zkx_warnings(safe_code)
 
-def zkx_cxxopts(safe_code = True, force_exceptions = False, force_rtti = False):
-    return zkx_copts(safe_code) + zkx_exceptions(force_exceptions) + zkx_rtti(force_rtti)
+def zkx_cxxopts(safe_code = True, force_exceptions = False):
+    return zkx_copts(safe_code) + zkx_exceptions(force_exceptions)
 
 def zkx_openmp_defines():
     return if_has_openmp(["ZKX_HAS_OPENMP"])
@@ -113,11 +109,10 @@ def zkx_cc_library(
         alwayslink = True,
         safe_code = True,
         force_exceptions = False,
-        force_rtti = False,
         **kwargs):
     cc_library(
         name = name,
-        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions, force_rtti = force_rtti),
+        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions),
         defines = defines + zkx_defines(),
         local_defines = local_defines + zkx_local_defines(),
         linkopts = linkopts + zkx_linkopts(),
@@ -133,11 +128,10 @@ def zkx_cc_binary(
         linkopts = [],
         safe_code = True,
         force_exceptions = False,
-        force_rtti = False,
         **kwargs):
     cc_binary(
         name = name,
-        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions, force_rtti = force_rtti),
+        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions),
         defines = defines + zkx_defines(),
         local_defines = local_defines + zkx_local_defines(),
         linkopts = linkopts + zkx_linkopts(),
@@ -154,11 +148,10 @@ def zkx_cc_test(
         deps = [],
         safe_code = True,
         force_exceptions = False,
-        force_rtti = False,
         **kwargs):
     cc_test(
         name = name,
-        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions, force_rtti = force_rtti),
+        copts = copts + zkx_cxxopts(safe_code = safe_code, force_exceptions = force_exceptions),
         defines = defines + zkx_defines(),
         local_defines = local_defines + zkx_local_defines(),
         linkopts = linkopts + zkx_linkopts(),
