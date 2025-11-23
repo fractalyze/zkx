@@ -401,6 +401,12 @@ class PjRtFuture : public internal::PjRtFutureBase<absl::StatusOr<T>> {
       Base::Promise::emplace(std::move(value));
     }
 
+    // A helper function to convert move-only Promise to shared_ptr, which is
+    // useful when the promise has to be captured by a std::function.
+    std::shared_ptr<Promise> ToShared() && {
+      return std::make_shared<Promise>(std::move(*this));
+    }
+
    private:
     friend class PjRtFuture<T>;
   };
@@ -457,6 +463,12 @@ class PjRtFuture<void> : public internal::PjRtFutureBase<absl::Status> {
     // PjRtFuture constructed from a promise, via blocking or callbacks.
     void Set(absl::Status status = absl::OkStatus()) {
       Base::Promise::emplace(std::move(status));
+    }
+
+    // A helper function to convert move-only Promise to shared_ptr, which is
+    // useful when the promise has to be captured by a std::function.
+    std::shared_ptr<Promise> ToShared() && {
+      return std::make_shared<Promise>(std::move(*this));
     }
 
    private:

@@ -26,6 +26,10 @@ limitations under the License.
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/Support/LLVM.h"
 
 #include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/statusor.h"
@@ -152,6 +156,84 @@ absl::Status ParseDeviceAssignmentCompileOptions(
         std::make_shared<DeviceAssignment>(build_options->device_assignment());
   }
   return absl::OkStatus();
+}
+
+namespace {
+
+// Helper method that takes an ArrayAttr of DictionaryAttrs for each arg or
+// result of a function, and looks for "mhlo.layout_mode". `all_attrs` can be
+// nullptr. `num_values` is the number of arguments or results.
+absl::StatusOr<std::vector<LayoutMode>> MlirAttrsToLayoutModes(
+    mlir::ArrayAttr all_attrs, size_t num_values) {
+  if (all_attrs == nullptr) {
+    return std::vector<LayoutMode>(num_values);
+  }
+  if (all_attrs.size() != num_values) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "MlirAttrsToLayoutModes got unexpected number of attributes: %d, "
+        "expected: %d",
+        all_attrs.size(), num_values));
+  }
+
+  std::vector<LayoutMode> result;
+  result.reserve(all_attrs.size());
+  for (const mlir::Attribute& dict_attr : all_attrs) {
+    mlir::StringAttr attr =
+        mlir::cast<mlir::DictionaryAttr>(dict_attr).getAs<mlir::StringAttr>(
+            "mhlo.layout_mode");
+    if (attr != nullptr) {
+      TF_ASSIGN_OR_RETURN(LayoutMode mode,
+                          LayoutMode::FromString(attr.getValue().str()));
+      result.emplace_back(std::move(mode));
+    } else {
+      result.emplace_back();
+    }
+  }
+  return result;
+}
+
+// Helper function for getting default LayoutModes for tupled arguments or
+// outputs. Returns nullopt if the arguments/outputs are not tupled. Raises an
+// error if layout modes are requested on tupled values.
+absl::StatusOr<std::optional<std::vector<LayoutMode>>> GetTupleLayoutModes(
+    mlir::ArrayRef<mlir::Type> types, mlir::ArrayAttr all_attrs) {
+  if (types.size() != 1 || !llvm::isa<mlir::TupleType>(types[0])) {
+    return std::nullopt;
+  }
+  if (all_attrs != nullptr) {
+    if (all_attrs.size() != 1) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "GetTupleLayoutModes expected single tuple attr, got %d attrs",
+          all_attrs.size()));
+    }
+    mlir::StringAttr attr = mlir::cast<mlir::DictionaryAttr>(*all_attrs.begin())
+                                .getAs<mlir::StringAttr>("mhlo.layout_mode");
+    if (attr != nullptr) {
+      return absl::UnimplementedError(
+          "mhlo.layout_mode not supported with tupled values");
+    }
+  }
+  // Use default layout for all outputs.
+  return std::vector<LayoutMode>(mlir::cast<mlir::TupleType>(types[0]).size());
+}
+
+}  // namespace
+
+absl::StatusOr<std::vector<LayoutMode>> GetOutputLayoutModes(
+    mlir::ModuleOp module) {
+  mlir::func::FuncOp main = module.lookupSymbol<mlir::func::FuncOp>("main");
+  if (main == nullptr) {
+    return absl::InvalidArgumentError(
+        "GetOutputLayoutModes passed module without main function");
+  }
+
+  // Special case: tupled outputs
+  TF_ASSIGN_OR_RETURN(std::optional<std::vector<LayoutMode>> maybe_tuple_result,
+                      GetTupleLayoutModes(main.getFunctionType().getResults(),
+                                          main.getAllResultAttrs()));
+  if (maybe_tuple_result) return *maybe_tuple_result;
+
+  return MlirAttrsToLayoutModes(main.getAllResultAttrs(), main.getNumResults());
 }
 
 absl::Status DetermineArgumentLayoutsFromCompileOptions(

@@ -93,6 +93,19 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "layout_mode",
+    srcs = ["layout_mode.cc"],
+    hdrs = ["layout_mode.h"],
+    deps = [
+        "//zkx:shape_util",
+        "//zkx/hlo/parser:hlo_parser",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "lru_cache",
     hdrs = ["lru_cache.h"],
     deps = [
@@ -302,6 +315,7 @@ zkx_cc_library(
     srcs = ["utils.cc"],
     hdrs = ["utils.h"],
     deps = [
+        ":layout_mode",
         "//xla/tsl/platform:cpu_info",
         "//xla/tsl/platform:statusor",
         "//zkx:primitive_util",
@@ -322,6 +336,9 @@ zkx_cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:span",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
     ],
 )
 

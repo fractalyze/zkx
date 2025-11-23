@@ -27,10 +27,12 @@ limitations under the License.
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
+#include "mlir/IR/BuiltinOps.h"
 
 #include "zkx/client/executable_build_options.h"
 #include "zkx/hlo/builder/zkx_computation.h"
 #include "zkx/hlo/ir/hlo_module.h"
+#include "zkx/pjrt/layout_mode.h"
 #include "zkx/service/computation_placer.h"
 #include "zkx/zkx_data.pb.h"
 
@@ -54,6 +56,12 @@ absl::Status DetermineArgumentLayoutsFromCompileOptions(
     std::optional<std::vector<Shape>>& argument_layouts,
     ExecutableBuildOptions* build_options,
     std::vector<const Shape*>* argument_layout_pointers);
+
+// Returns the LayoutMode for each output of the main function in the
+// module. Checks for the "mhlo.layout_mode" attr, and if not present, assumes
+// LayoutMode::Mode::kDefault.
+absl::StatusOr<std::vector<LayoutMode>> GetOutputLayoutModes(
+    mlir::ModuleOp module);
 
 // Return max parallelism level.
 int DefaultThreadPoolSize();
