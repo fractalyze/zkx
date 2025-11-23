@@ -95,9 +95,3 @@ def if_has_openmp_on_macos(a, b = []):
         "@zkx//:zkx_has_openmp_on_macos": a,
         "//conditions:default": b,
     })
-
-def if_has_rtti(a, b = []):
-    return select({
-        "@zkx//:zkx_has_rtti": a,
-        "//conditions:default": b,
-    })
