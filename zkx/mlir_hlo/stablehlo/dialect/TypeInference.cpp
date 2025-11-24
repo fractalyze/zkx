@@ -26,14 +26,14 @@ limitations under the License.
 namespace mlir::hlo {
 
 LogicalResult inferConstantOp(std::optional<Location>, ElementsAttr value,
-                              SmallVectorImpl<Type>& inferredReturnTypes) {
+                              SmallVectorImpl<Type> &inferredReturnTypes) {
   inferredReturnTypes.push_back(value.getType());
   return success();
 }
 
-LogicalResult inferConvertOp(
-    std::optional<Location> location, Value operand,
-    SmallVectorImpl<ShapedTypeComponents>& inferredReturnShapes) {
+LogicalResult
+inferConvertOp(std::optional<Location> location, Value operand,
+               SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
   auto operandType = cast<ShapedType>(operand.getType());
   // convert_c1
   inferredReturnShapes.emplace_back(operandType.getShape());
@@ -44,7 +44,7 @@ LogicalResult inferSliceOp(std::optional<Location> location, Type operandType,
                            ArrayRef<int64_t> startIndices,
                            ArrayRef<int64_t> limitIndices,
                            ArrayRef<int64_t> strides,
-                           SmallVectorImpl<Type>& inferredReturnTypes) {
+                           SmallVectorImpl<Type> &inferredReturnTypes) {
   auto rankedTy = cast<RankedTensorType>(operandType);
 
   // slice_c2
@@ -101,12 +101,12 @@ LogicalResult inferSliceOp(std::optional<Location> location, Type operandType,
   return success();
 }
 
-LogicalResult inferTupleOp(MLIRContext* context, std::optional<Location>,
+LogicalResult inferTupleOp(MLIRContext *context, std::optional<Location>,
                            ValueRange val,
-                           SmallVectorImpl<Type>& inferredReturnTypes) {
+                           SmallVectorImpl<Type> &inferredReturnTypes) {
   // tuple_c1
   inferredReturnTypes.push_back(TupleType::get(context, val.getTypes()));
   return success();
 }
 
-}  // namespace mlir::hlo
+} // namespace mlir::hlo

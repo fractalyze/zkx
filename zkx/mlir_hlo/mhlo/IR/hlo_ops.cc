@@ -48,7 +48,7 @@ limitations under the License.
 
 namespace mlir {
 #include "zkx/mlir_hlo/mhlo/IR/hlo_patterns.cc.inc"
-}  // namespace mlir
+} // namespace mlir
 
 using mlir::hlo::parseDimSizes;
 using mlir::hlo::printDimSizes;
@@ -74,7 +74,7 @@ constexpr int64_t kFoldOpEltLimit = 65536;
 
 // Clamps value to the range [lower, upper]. Requires lower <= upper.
 template <typename T>
-T clamp(const T& value, const T& lower, const T& upper) {
+T clamp(const T &value, const T &lower, const T &upper) {
   assert(lower <= upper);
   return std::max(lower, std::min(value, upper));
 }
@@ -99,7 +99,7 @@ LogicalResult verifyDimAttr(OpT op) {
   return success();
 }
 
-}  // namespace
+} // namespace
 
 // TODO(chokobole): Uncomment this. Dependency: mhlo_canonicalize.td
 // #include "zkx/mlir_hlo/mhlo/IR/mhlo_canonicalize.inc"
@@ -121,7 +121,7 @@ LogicalResult verify1dTensor(std::optional<Location> loc,
   return success();
 }
 
-}  // namespace
+} // namespace
 
 LogicalResult TypeExtensionsAttr::verifyEncoding(
     ArrayRef<int64_t> shape, mlir::Type elementType,
@@ -136,15 +136,15 @@ LogicalResult TypeExtensionsAttr::verifyEncoding(
 
 // TODO(b/231358795): Review the use of InferTypeOpInterface for ops that
 // support sparsity.
-#define INFER_RETURN_TYPE_COMPONENTS_FROM_OPERANDS(Op)                \
-  LogicalResult Op::inferReturnTypeComponents(                        \
-      MLIRContext* context, std::optional<Location> location,         \
-      ValueShapeRange operands, DictionaryAttr attributes,            \
-      OpaqueProperties properties, RegionRange regions,               \
-      SmallVectorImpl<ShapedTypeComponents>& inferredReturnShapes) {  \
-    return inferReturnTypeComponentsFromOperands(                     \
-        context, location, operands, attributes, properties, regions, \
-        inferredReturnShapes);                                        \
+#define INFER_RETURN_TYPE_COMPONENTS_FROM_OPERANDS(Op)                         \
+  LogicalResult Op::inferReturnTypeComponents(                                 \
+      MLIRContext *context, std::optional<Location> location,                  \
+      ValueShapeRange operands, DictionaryAttr attributes,                     \
+      OpaqueProperties properties, RegionRange regions,                        \
+      SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {           \
+    return inferReturnTypeComponentsFromOperands(                              \
+        context, location, operands, attributes, properties, regions,          \
+        inferredReturnShapes);                                                 \
   }
 
 INFER_RETURN_TYPE_COMPONENTS_FROM_OPERANDS(AddOp)
@@ -199,9 +199,9 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
 
 // static
 // Builds a constant op with the specified attribute `value`.
-void ConstantOp::build(OpBuilder& /*builder*/, OperationState& result,
+void ConstantOp::build(OpBuilder & /*builder*/, OperationState &result,
                        Attribute value) {
-  Properties& properties = result.getOrAddProperties<Properties>();
+  Properties &properties = result.getOrAddProperties<Properties>();
   Type type;
   if (auto elemAttr = dyn_cast<ElementsAttr>(value)) {
     type = elemAttr.getType();
@@ -220,27 +220,29 @@ void ConstantOp::build(OpBuilder& /*builder*/, OperationState& result,
   result.types.push_back(type);
 }
 
-LogicalResult ConstantOp::inferReturnTypes(
-    MLIRContext*, std::optional<Location> location, ValueRange operands,
-    DictionaryAttr attributes, OpaqueProperties properties, RegionRange regions,
-    SmallVectorImpl<Type>& inferredReturnTypes) {
+LogicalResult
+ConstantOp::inferReturnTypes(MLIRContext *, std::optional<Location> location,
+                             ValueRange operands, DictionaryAttr attributes,
+                             OpaqueProperties properties, RegionRange regions,
+                             SmallVectorImpl<Type> &inferredReturnTypes) {
   ConstantOpAdaptor adaptor(operands, attributes, properties, regions);
   return hlo::inferConstantOp(location, adaptor.getValue(),
                               inferredReturnTypes);
 }
 
 bool ConstantOp::isCompatibleReturnTypes(TypeRange l, TypeRange r) {
-  if (l.size() != r.size() || l.size() != 1) return false;
+  if (l.size() != r.size() || l.size() != 1)
+    return false;
   auto lhsTy = cast<ShapedType>(l.front());
   auto rhsTy = cast<ShapedType>(r.front());
   return lhsTy == rhsTy;
 }
 
-ParseResult ConstantOp::parse(OpAsmParser& parser, OperationState& result) {
+ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
   return hlo::parseConstantOp(parser, result);
 }
 
-void ConstantOp::print(OpAsmPrinter& p) {
+void ConstantOp::print(OpAsmPrinter &p) {
   hlo::printConstantOp(p, getOperation(), getValue());
 }
 
@@ -248,7 +250,7 @@ void ConstantOp::print(OpAsmPrinter& p) {
 // ConvertOp
 //===----------------------------------------------------------------------===//
 
-void ConvertOp::build(OpBuilder& builder, OperationState& result, Value operand,
+void ConvertOp::build(OpBuilder &builder, OperationState &result, Value operand,
                       Type resultElementTy) {
   auto rankedTy = cast<RankedTensorType>(operand.getType());
   auto resultTy = RankedTensorType::get(rankedTy.getShape(), resultElementTy);
@@ -259,18 +261,22 @@ OpFoldResult ConvertOp::fold(FoldAdaptor adaptor) {
   ArrayRef<Attribute> operands = adaptor.getOperands();
   auto operandTy = cast<TensorType>(getOperand().getType());
   auto resultTy = cast<TensorType>(getResult().getType());
-  if (operandTy == resultTy) return getOperand();
+  if (operandTy == resultTy)
+    return getOperand();
 
   // If the result has non-static shape, a convert op is necessary to go from
   // static shape to non-static shape.
-  if (!resultTy.hasStaticShape()) return {};
+  if (!resultTy.hasStaticShape())
+    return {};
 
   // If the operand is constant, we can do the conversion now.
   auto elementsAttr = dyn_cast_or_null<ElementsAttr>(operands.front());
-  if (!elementsAttr) return {};
+  if (!elementsAttr)
+    return {};
 
   // Prevent folding if the result is too large.
-  if (elementsAttr.getNumElements() > kFoldOpEltLimit) return {};
+  if (elementsAttr.getNumElements() > kFoldOpEltLimit)
+    return {};
   return hlo::convertElementsAttr(elementsAttr,
                                   getElementTypeOrSelf(getResult()));
 }
@@ -280,7 +286,7 @@ namespace {
 struct EliminateRedundantConvert : public OpRewritePattern<ConvertOp> {
   using OpRewritePattern<ConvertOp>::OpRewritePattern;
   LogicalResult matchAndRewrite(ConvertOp op,
-                                PatternRewriter& rewriter) const override {
+                                PatternRewriter &rewriter) const override {
     auto convertOp = op.getOperand().getDefiningOp<ConvertOp>();
     if (!convertOp) {
       return failure();
@@ -308,10 +314,10 @@ struct EliminateRedundantConvert : public OpRewritePattern<ConvertOp> {
   }
 };
 
-}  // namespace
+} // namespace
 
-void ConvertOp::getCanonicalizationPatterns(RewritePatternSet& results,
-                                            MLIRContext* context) {
+void ConvertOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                            MLIRContext *context) {
   results.add<EliminateIdentityConvert>(context);
   results.add<EliminateRedundantConvert>(context);
 }
@@ -324,20 +330,20 @@ namespace {
 
 template <typename ValType>
 struct AnyValue {
-  bool operator()(const ValType&) { return true; }
+  bool operator()(const ValType &) { return true; }
 };
 
 template <typename ValType>
 struct NonNegativeValue {
-  bool operator()(const ValType& v) { return !v.isNegative(); }
+  bool operator()(const ValType &v) { return !v.isNegative(); }
 };
 
 template <typename ValType>
 struct PositiveValue {
-  bool operator()(const ValType& v) { return !v.isNegative() && !v.isZero(); }
+  bool operator()(const ValType &v) { return !v.isNegative() && !v.isZero(); }
 };
 
-APSInt addSign(const APInt& v, Type t) {
+APSInt addSign(const APInt &v, Type t) {
   // Add signedness information to the value, treating signless as signed,
   // unless it's i1.
   return APSInt(v, t.isUnsignedInteger() || t.isSignlessInteger(1));
@@ -345,11 +351,13 @@ APSInt addSign(const APInt& v, Type t) {
 
 template <typename Op, typename ElementType, typename ValType, typename Convert,
           typename Validate = AnyValue<ValType>>
-Attribute UnaryFolder(Op* op, ArrayRef<Attribute> attrs) {
-  if (!attrs[0]) return {};
+Attribute UnaryFolder(Op *op, ArrayRef<Attribute> attrs) {
+  if (!attrs[0])
+    return {};
 
   auto val = dyn_cast<DenseElementsAttr>(attrs[0]);
-  if (!val) return {};
+  if (!val)
+    return {};
 
   auto type = cast<ShapedType>(op->getType());
   if (!type.hasStaticShape()) {
@@ -364,29 +372,32 @@ Attribute UnaryFolder(Op* op, ArrayRef<Attribute> attrs) {
   }
 
   // Prevent folding if the result is too large.
-  if (val.getNumElements() > kFoldOpEltLimit) return {};
+  if (val.getNumElements() > kFoldOpEltLimit)
+    return {};
 
   SmallVector<ValType, 6> values;
   values.reserve(val.getNumElements());
   for (const auto v : val.getValues<ValType>()) {
-    if (!Validate()(v)) return {};
+    if (!Validate()(v))
+      return {};
     std::optional<ValType> r = Convert()(addSign(v, type));
-    if (!r) return {};
+    if (!r)
+      return {};
     values.push_back(r.value());
   }
 
   return DenseElementsAttr::get(type, values);
 }
 
-}  // namespace
+} // namespace
 
 // NOLINTBEGIN(bugprone-macro-parentheses)
-#define UNARY_FOLDER(Op, Func)                                              \
-  OpFoldResult Op::fold(FoldAdaptor adaptor) {                              \
-    auto attrs = adaptor.getOperands();                                     \
-    if (isa<IntegerType>(getElementTypeOrSelf(getType())))                  \
-      return UnaryFolder<Op, IntegerType, APInt, Func<APInt>>(this, attrs); \
-    return {};                                                              \
+#define UNARY_FOLDER(Op, Func)                                                 \
+  OpFoldResult Op::fold(FoldAdaptor adaptor) {                                 \
+    auto attrs = adaptor.getOperands();                                        \
+    if (isa<IntegerType>(getElementTypeOrSelf(getType())))                     \
+      return UnaryFolder<Op, IntegerType, APInt, Func<APInt>>(this, attrs);    \
+    return {};                                                                 \
   }
 
 UNARY_FOLDER(NegOp, std::negate)
@@ -407,12 +418,14 @@ namespace {
 
 template <typename Op, typename ElementType = Type, typename ValType,
           typename Convert>
-Attribute BinaryFolder(Op* op, ArrayRef<Attribute> attrs) {
-  if (!attrs[0] || !attrs[1]) return {};
+Attribute BinaryFolder(Op *op, ArrayRef<Attribute> attrs) {
+  if (!attrs[0] || !attrs[1])
+    return {};
 
   auto lhs = dyn_cast<DenseElementsAttr>(attrs[0]);
   auto rhs = dyn_cast<DenseElementsAttr>(attrs[1]);
-  if (!lhs || !rhs) return {};
+  if (!lhs || !rhs)
+    return {};
 
   auto type = cast<ShapedType>(op->getType());
   if (!type.hasStaticShape()) {
@@ -440,7 +453,8 @@ Attribute BinaryFolder(Op* op, ArrayRef<Attribute> attrs) {
   }
 
   // Prevent folding if the result is too large.
-  if (lhs.getNumElements() > kFoldOpEltLimit) return {};
+  if (lhs.getNumElements() > kFoldOpEltLimit)
+    return {};
 
   SmallVector<ValType, 6> values;
   values.reserve(lhs.getNumElements());
@@ -463,33 +477,34 @@ struct Divide : std::divides<T> {};
 
 template <>
 struct Divide<APSInt> {
-  FailureOr<APSInt> operator()(const APSInt& a, const APSInt& b) const {
-    if (b.isZero()) return failure();
+  FailureOr<APSInt> operator()(const APSInt &a, const APSInt &b) const {
+    if (b.isZero())
+      return failure();
     return a / b;
   }
 };
 
 template <typename T>
 struct Max {
-  T operator()(const T& a, const T& b) const { return std::max<T>(a, b); }
+  T operator()(const T &a, const T &b) const { return std::max<T>(a, b); }
 };
 
 template <typename T>
 struct Min {
-  T operator()(const T& a, const T& b) const { return std::min<T>(a, b); }
+  T operator()(const T &a, const T &b) const { return std::min<T>(a, b); }
 };
 
-}  // namespace
+} // namespace
 
-#define BINARY_FOLDER_INTERNAL(Op, Func)                                    \
-  if (isa<IntegerType>(getElementTypeOrSelf(getType())))                    \
-    return BinaryFolder<Op, IntegerType, APInt, Func<APSInt>>(this, attrs); \
+#define BINARY_FOLDER_INTERNAL(Op, Func)                                       \
+  if (isa<IntegerType>(getElementTypeOrSelf(getType())))                       \
+    return BinaryFolder<Op, IntegerType, APInt, Func<APSInt>>(this, attrs);    \
   return {};
 
-#define BINARY_FOLDER(Op, Func)                \
-  OpFoldResult Op::fold(FoldAdaptor adaptor) { \
-    auto attrs = adaptor.getOperands();        \
-    BINARY_FOLDER_INTERNAL(Op, Func)           \
+#define BINARY_FOLDER(Op, Func)                                                \
+  OpFoldResult Op::fold(FoldAdaptor adaptor) {                                 \
+    auto attrs = adaptor.getOperands();                                        \
+    BINARY_FOLDER_INTERNAL(Op, Func)                                           \
   }
 
 // Addition, subtraction and multiplication use the std:: versions of the ops.
@@ -508,14 +523,15 @@ BINARY_FOLDER(DivOp, Divide)
 namespace {
 
 bool isSplatZero(SplatElementsAttr attr) {
-  if (!attr) return false;
+  if (!attr)
+    return false;
   if (isa<IntegerType>(attr.getElementType())) {
     return attr.getSplatValue<APInt>().isZero();
   }
   return false;
 }
 
-}  // namespace
+} // namespace
 
 OpFoldResult AddOp::fold(FoldAdaptor adaptor) {
   auto attrs = adaptor.getOperands();
@@ -537,14 +553,15 @@ OpFoldResult AddOp::fold(FoldAdaptor adaptor) {
 namespace {
 
 bool isSplatOne(SplatElementsAttr attr) {
-  if (!attr) return false;
+  if (!attr)
+    return false;
   if (isa<IntegerType>(attr.getElementType())) {
     return attr.getSplatValue<APInt>().getSExtValue() == 1;
   }
   return false;
 }
 
-}  // namespace
+} // namespace
 
 OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
   auto attrs = adaptor.getOperands();
@@ -571,9 +588,9 @@ OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
 //===----------------------------------------------------------------------===//
 
 LogicalResult SliceOp::inferReturnTypes(
-    MLIRContext* /*context*/, std::optional<Location> location,
+    MLIRContext * /*context*/, std::optional<Location> location,
     ValueRange operands, DictionaryAttr attributes, OpaqueProperties properties,
-    RegionRange regions, SmallVectorImpl<Type>& inferredReturnTypes) {
+    RegionRange regions, SmallVectorImpl<Type> &inferredReturnTypes) {
   SliceOpAdaptor adaptor(operands, attributes, properties, regions);
   if (failed(verify1dTensor(location, adaptor.getStartIndices(),
                             "start_indices")) ||
@@ -594,10 +611,11 @@ namespace {
 template <typename I, typename E>
 void sliceElements(I values, ArrayRef<int64_t> sizes, ArrayRef<int64_t> starts,
                    ArrayRef<int64_t> limits, ArrayRef<int64_t> strides,
-                   llvm::SmallVectorImpl<E>* outValues) {
+                   llvm::SmallVectorImpl<E> *outValues) {
   assert(starts.size() == limits.size());
   assert(starts.size() == strides.size());
-  if (starts.empty()) return;
+  if (starts.empty())
+    return;
 
   int64_t start = starts.front();
   int64_t limit = limits.front();
@@ -617,14 +635,15 @@ void sliceElements(I values, ArrayRef<int64_t> sizes, ArrayRef<int64_t> starts,
 }
 
 template <typename I, typename E>
-Attribute foldSlice(SliceOp* op, I values) {
+Attribute foldSlice(SliceOp *op, I values) {
   auto start = llvm::to_vector<6>(op->getStartIndices().getValues<int64_t>());
   auto limit = llvm::to_vector<6>(op->getLimitIndices().getValues<int64_t>());
   auto stride = llvm::to_vector<6>(op->getStrides().getValues<int64_t>());
 
   // TODO(b/235903849): This should be op->getType().case<ShapedType>().
   auto resultType = cast<ShapedType>(op->getOperand().getType());
-  if (!resultType.hasStaticShape()) return {};
+  if (!resultType.hasStaticShape())
+    return {};
 
   ArrayRef<int64_t> shape = resultType.getShape();
   int64_t count = resultType.getNumElements();
@@ -643,7 +662,8 @@ Attribute foldSlice(SliceOp* op, I values) {
   }
 
   // Prevent folding if the result is too large.
-  if (resultType.getNumElements() > kFoldOpEltLimit) return {};
+  if (resultType.getNumElements() > kFoldOpEltLimit)
+    return {};
 
   llvm::SmallVector<E, 6> outValues;
   outValues.reserve(resultType.getNumElements());
@@ -653,7 +673,7 @@ Attribute foldSlice(SliceOp* op, I values) {
                                 outValues);
 }
 
-}  // namespace
+} // namespace
 
 OpFoldResult SliceOp::fold(FoldAdaptor adaptor) {
   ArrayRef<Attribute> operands = adaptor.getOperands();
@@ -666,11 +686,13 @@ OpFoldResult SliceOp::fold(FoldAdaptor adaptor) {
     return getOperand();
   }
 
-  if (operands.empty() || !operands.front()) return {};
+  if (operands.empty() || !operands.front())
+    return {};
 
   // Evaluate for statically valued inputs.
   auto elements = dyn_cast<DenseElementsAttr>(operands.front());
-  if (!elements) return {};
+  if (!elements)
+    return {};
 
   auto etype = elements.getType().getElementType();
   if (isa<IntegerType>(etype)) {
@@ -692,7 +714,7 @@ struct UnpackRepackSameTuple : public OpRewritePattern<TupleOp> {
   using OpRewritePattern<TupleOp>::OpRewritePattern;
 
   LogicalResult matchAndRewrite(TupleOp op,
-                                PatternRewriter& rewriter) const override {
+                                PatternRewriter &rewriter) const override {
     // TODO(chokobole): Uncomment this. Dependency: GetTupleElementOp
     // if (op.getVal().empty()) return failure();
 
@@ -721,23 +743,23 @@ struct UnpackRepackSameTuple : public OpRewritePattern<TupleOp> {
   }
 };
 
-}  // namespace
+} // namespace
 
-void TupleOp::getCanonicalizationPatterns(RewritePatternSet& results,
-                                          MLIRContext* context) {
+void TupleOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                          MLIRContext *context) {
   results.add<UnpackRepackSameTuple>(context);
 }
 
 LogicalResult TupleOp::inferReturnTypes(
-    MLIRContext* context, std::optional<Location> location, ValueRange operands,
+    MLIRContext *context, std::optional<Location> location, ValueRange operands,
     DictionaryAttr attributes, OpaqueProperties properties, RegionRange regions,
-    SmallVectorImpl<Type>& inferredReturnTypes) {
+    SmallVectorImpl<Type> &inferredReturnTypes) {
   TupleOp::Adaptor adaptor(operands, attributes, properties, regions);
   return hlo::inferTupleOp(context, location, adaptor.getVal(),
                            inferredReturnTypes);
 }
 
-}  // namespace mlir::mhlo
+} // namespace mlir::mhlo
 
 using mlir::hlo::parseSameOperandsAndResultType;
 using mlir::hlo::parseTupleOpType;
@@ -759,19 +781,19 @@ struct MhloDialectInlinerInterface : public DialectInlinerInterface {
   using DialectInlinerInterface::DialectInlinerInterface;
 
   // Allow all call operations to be inlined.
-  bool isLegalToInline(Operation* call, Operation* callable,
+  bool isLegalToInline(Operation *call, Operation *callable,
                        bool wouldBeCloned) const final {
     return true;
   }
   // We don't have any special restrictions on what can be inlined into
   // destination regions (e.g. while/conditional bodies). Always allow it.
-  bool isLegalToInline(Region* dest, Region* src, bool wouldBeCloned,
-                       IRMapping& valueMapping) const final {
+  bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
+                       IRMapping &valueMapping) const final {
     return true;
   }
   // Operations in mhlo dialect are always legal to inline since they are
   // pure.
-  bool isLegalToInline(Operation*, Region*, bool, IRMapping&) const final {
+  bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const final {
     return true;
   }
 };
@@ -789,17 +811,17 @@ struct MhloHloDialectInterface : public hlo::HloDialectInterface {
     return TypeExtensionsAttr::get(getDialect()->getContext(), bounds);
   }
 };
-}  // namespace
+} // namespace
 
 //===----------------------------------------------------------------------===//
 // mhlo Dialect Constructor
 //===----------------------------------------------------------------------===//
 
-MhloDialect::MhloDialect(MLIRContext* context)
+MhloDialect::MhloDialect(MLIRContext *context)
     : Dialect(getDialectNamespace(), context, TypeID::get<MhloDialect>()) {
   addOperations<
 #define GET_OP_LIST
-#include "zkx/mlir_hlo/mhlo/IR/hlo_ops.cc.inc"  // NOLINT(build/include)
+#include "zkx/mlir_hlo/mhlo/IR/hlo_ops.cc.inc" // NOLINT(build/include)
       >();
   addInterfaces<MhloHloDialectInterface>();
   addInterfaces<MhloDialectInlinerInterface>();
@@ -809,26 +831,27 @@ MhloDialect::MhloDialect(MLIRContext* context)
   // addTypes<TokenType, AsyncBundleType>();
   addAttributes<
 #define GET_ATTRDEF_LIST
-#include "zkx/mlir_hlo/mhlo/IR/hlo_ops_attrs.cc.inc"  // NOLINT(build/include)
+#include "zkx/mlir_hlo/mhlo/IR/hlo_ops_attrs.cc.inc" // NOLINT(build/include)
       >();
 }
 
 // Entry point for Attribute parsing, TableGen generated code will handle the
 // dispatch to the individual classes.
-Attribute MhloDialect::parseAttribute(DialectAsmParser& parser,
+Attribute MhloDialect::parseAttribute(DialectAsmParser &parser,
                                       Type type) const {
   StringRef attrTag;
   Attribute attr;
   OptionalParseResult parseResult =
       generatedAttributeParser(parser, &attrTag, type, attr);
-  if (parseResult.has_value()) return attr;
+  if (parseResult.has_value())
+    return attr;
   parser.emitError(parser.getNameLoc(), "unknown mhlo attribute");
   return Attribute();
 }
 
 // Entry point for Attribute printing, TableGen generated code will handle the
 // dispatch to the individual classes.
-void MhloDialect::printAttribute(Attribute attr, DialectAsmPrinter& os) const {
+void MhloDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
   LogicalResult result = generatedAttributePrinter(attr, os);
   std::ignore = result;
   assert(succeeded(result));
@@ -838,24 +861,26 @@ void MhloDialect::printAttribute(Attribute attr, DialectAsmPrinter& os) const {
 // MHLO Dialect Hooks
 //===----------------------------------------------------------------------===//
 
-Operation* MhloDialect::materializeConstant(OpBuilder& builder, Attribute value,
+Operation *MhloDialect::materializeConstant(OpBuilder &builder, Attribute value,
                                             Type type, Location loc) {
   auto elementsAttr = dyn_cast<ElementsAttr>(value);
   // HLO dialect constants only support ElementsAttr unlike standard dialect
   // constant which supports all attributes.
-  if (!elementsAttr) return nullptr;
+  if (!elementsAttr)
+    return nullptr;
   auto resultShapedType = dyn_cast<ShapedType>(type);
   auto attrShapedType = dyn_cast<ShapedType>(elementsAttr.getType());
   if (resultShapedType && attrShapedType) {
     return builder.create<mhlo::ConstantOp>(loc, type, elementsAttr);
   }
   // HLO dialect constants require the type of value and result to match
-  if (type != elementsAttr.getType()) return nullptr;
+  if (type != elementsAttr.getType())
+    return nullptr;
 
   return builder.create<mhlo::ConstantOp>(loc, type, elementsAttr);
 }
 
-LogicalResult MhloDialect::verifyRegionArgAttribute(Operation* op,
+LogicalResult MhloDialect::verifyRegionArgAttribute(Operation *op,
                                                     unsigned /*regionIndex*/,
                                                     unsigned argIndex,
                                                     NamedAttribute attr) {
@@ -892,7 +917,7 @@ LogicalResult MhloDialect::verifyRegionArgAttribute(Operation* op,
   return success();
 }
 
-LogicalResult MhloDialect::verifyOperationAttribute(Operation* op,
+LogicalResult MhloDialect::verifyOperationAttribute(Operation *op,
                                                     NamedAttribute attr) {
   // TODO(chokobole): Uncomment this. Dependency: ArgResultAliasAttr
   // if (auto aliasAttr = dyn_cast<ArgResultAliasAttr>(attr.getValue())) {
@@ -942,4 +967,4 @@ LogicalResult MhloDialect::verifyOperationAttribute(Operation* op,
   return success();
 }
 
-}  // namespace mlir::mhlo
+} // namespace mlir::mhlo

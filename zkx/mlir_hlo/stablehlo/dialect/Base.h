@@ -23,6 +23,7 @@ limitations under the License.
 #include <optional>
 
 #include "llvm/ADT/APSInt.h"
+#include "mlir/Bytecode/BytecodeImplementation.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
@@ -32,10 +33,12 @@ limitations under the License.
 #include "mlir/IR/DialectInterface.h"
 #include "mlir/IR/Region.h"
 #include "mlir/IR/TypeRange.h"
+#include "mlir/IR/TypeUtilities.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 
@@ -51,7 +54,7 @@ inline bool isDynamicDimSize(int64_t val) { return ShapedType::isDynamic(val); }
 
 inline bool isStaticDimSize(int64_t val) { return !isDynamicDimSize(val); }
 
-}  // namespace
+} // namespace
 
 // Checks whether every position in the given array contains the given value.
 bool isSplatArray(ArrayRef<int64_t> arr, int64_t val);
@@ -95,9 +98,10 @@ bool isCompatibleForHloTypeInference(ArrayRef<int64_t> shape1, Type tp2);
 //  c4:  ?              ?               ?
 //  c5:  ?              ?, B            ?, B
 //  c6:  ?, B           ?, C            ?, min(B, C)
-FailureOr<std::pair<int64_t, int64_t>> inferMostSpecificDimAndBound(
-    std::optional<Location> location, int64_t dim, int64_t leftSize,
-    int64_t rightSize, int64_t leftBound, int64_t rightBound);
+FailureOr<std::pair<int64_t, int64_t>>
+inferMostSpecificDimAndBound(std::optional<Location> location, int64_t dim,
+                             int64_t leftSize, int64_t rightSize,
+                             int64_t leftBound, int64_t rightBound);
 
 // Inference rules for conditional branches (lhs/rhs are commutative):
 //       Dim of lhs     Dim of rhs      Infer
@@ -107,9 +111,10 @@ FailureOr<std::pair<int64_t, int64_t>> inferMostSpecificDimAndBound(
 //  c3:  ?              ?               ?
 //  c4:  ?              ?, B            ?
 //  c5:  ?, B           ?, C            ?, max(B, C)
-FailureOr<std::pair<int64_t, int64_t>> inferLeastSpecificDimAndBound(
-    std::optional<Location> location, int64_t dim, int64_t leftSize,
-    int64_t rightSize, int64_t leftBound, int64_t rightBound);
+FailureOr<std::pair<int64_t, int64_t>>
+inferLeastSpecificDimAndBound(std::optional<Location> location, int64_t dim,
+                              int64_t leftSize, int64_t rightSize,
+                              int64_t leftBound, int64_t rightBound);
 
 // Infer single least specific return type from inputTypes with support for
 // bounds. (Size, bound) of each dimension of the return type will be merged
@@ -157,9 +162,9 @@ LogicalResult matchInts(Value value);
 //    : (i64, i64) -> tensor<2xi64>
 //
 // and returns %4 as the shape value.
-LogicalResult deriveShapeFromOperand(
-    OpBuilder *builder, Operation *op, Value operand,
-    SmallVectorImpl<Value> *reifiedReturnShapes);
+LogicalResult
+deriveShapeFromOperand(OpBuilder *builder, Operation *op, Value operand,
+                       SmallVectorImpl<Value> *reifiedReturnShapes);
 
 // Verify bounds expressed by HLO_BoundedAttrInterface against the provided
 // type. See documentation for HLO_BoundedAttrInterface for the list of checks.
@@ -175,18 +180,122 @@ ArrayRef<int64_t> encodingToBounds(Attribute encoding);
 // the underlying dialect that knows how to create these attributes.
 Attribute boundsToEncoding(Attribute prototype, ArrayRef<int64_t> bounds);
 
+namespace bytecode {
+
+// Helper methods for bytecode.
+// Enum reader and writer. Many attrs have a single enum type to serialize.
+// Use the attributes underlying type to get the numeric value.
+// Note this may cause issues if enums use an int64_t and have a large value.
+// All enums in StableHLO and CHLO currently use uint32_t.
+template <typename EnumTypeAttr, typename SymbolizeFn>
+EnumTypeAttr readEnumAttribute(DialectBytecodeReader &reader,
+                               MLIRContext *context, SymbolizeFn symbolizeFn) {
+  uint64_t code;
+  if (failed(reader.readVarInt(code)))
+    return EnumTypeAttr();
+
+  auto enumOpt = symbolizeFn(static_cast<uint32_t>(code));
+  if (!enumOpt.has_value())
+    return EnumTypeAttr();
+
+  return EnumTypeAttr::get(context, enumOpt.value());
+}
+
+template <typename EnumType, typename EnumTypeAttr>
+void writeEnumAttribute(EnumTypeAttr val, DialectBytecodeWriter &writer) {
+  static_assert(
+      std::is_same<typename std::underlying_type<EnumType>::type,
+                   uint32_t>::value,
+      "writeEnumAttribute is only implemented for uint32_t enum values");
+
+  uint32_t enumVal = static_cast<typename std::underlying_type<EnumType>::type>(
+      val.getValue());
+  writer.writeVarInt(enumVal);
+}
+
+} // namespace bytecode
+
+// Determines the speculatability for a shaped operation `op` with `shapeCount`
+// shape operands. The last `count` operands are assumed to be shape operands.
+// To be speculatable, such an op must have only static inputs and constant
+// shape operands.
+mlir::Speculation::Speculatability getShapedSpeculatability(Operation *op,
+                                                            int64_t shapeCount);
+
 namespace OpTrait {
+
+template <typename ConcreteType>
+class BroadcastingElementwise
+    : public mlir::OpTrait::TraitBase<ConcreteType, BroadcastingElementwise> {};
+
+template <typename ConcreteType>
+class IsCommutative
+    : public mlir::OpTrait::TraitBase<ConcreteType, IsCommutative> {};
+
+template <typename ConcreteType>
+class CompatibleOperandsAndResultElementType
+    : public mlir::OpTrait::TraitBase<ConcreteType,
+                                      CompatibleOperandsAndResultElementType> {
+public:
+  static LogicalResult verifyTrait(Operation *op) {
+    Type expected;
+    if (op->getNumResults() != 0)
+      expected = op->getResult(0).getType();
+    if (op->getNumOperands() != 0)
+      expected = op->getOperand(0).getType();
+    if (!expected)
+      return failure();
+
+    auto typeMatch = [&](Type actual) {
+      return isCompatibleElementTypeForHloTypeInference(actual, expected);
+    };
+    bool allMatch = llvm::all_of(op->getOperandTypes(), typeMatch) &&
+                    llvm::all_of(op->getResultTypes(), typeMatch);
+    if (!allMatch) {
+      return op->emitOpError(
+          "requires compatible element types for all operands and results");
+    }
+
+    return success(allMatch);
+  }
+};
+
+template <typename ConcreteType>
+class CompatibleOperandsElementType
+    : public mlir::OpTrait::TraitBase<ConcreteType,
+                                      CompatibleOperandsElementType> {
+public:
+  static LogicalResult verifyTrait(Operation *op) {
+    if (failed(mlir::OpTrait::impl::verifyAtLeastNOperands(op, 1)))
+      return failure();
+
+    Type expected = op->getOperand(0).getType();
+    auto typeMatch = [&](Type actual) {
+      return isCompatibleElementTypeForHloTypeInference(actual, expected);
+    };
+    bool allMatch = llvm::all_of(op->getOperandTypes(), typeMatch);
+    if (!allMatch) {
+      return op->emitOpError(
+          "requires compatible element types for all operands");
+    }
+
+    return success();
+  }
+};
 
 template <typename ConcreteType>
 class CompatibleOperandsAndResultType
     : public mlir::OpTrait::TraitBase<ConcreteType,
                                       CompatibleOperandsAndResultType> {
- public:
+public:
   static LogicalResult verifyTrait(Operation *op) {
     Type expected;
-    if (op->getNumResults() != 0) expected = op->getResult(0).getType();
-    if (op->getNumOperands() != 0) expected = op->getOperand(0).getType();
-    if (!expected) return failure();
+    if (op->getNumResults() != 0)
+      expected = op->getResult(0).getType();
+    if (op->getNumOperands() != 0)
+      expected = op->getOperand(0).getType();
+    if (!expected)
+      return failure();
 
     auto typeMatch = [&](Type actual) {
       return isCompatibleForHloTypeInference(actual, expected);
@@ -201,11 +310,11 @@ class CompatibleOperandsAndResultType
     return success(allMatch);
   }
 
-  static LogicalResult inferReturnTypes(
-      MLIRContext * /*context*/, std::optional<Location> location,
-      ValueRange operands, DictionaryAttr /*attributes*/,
-      OpaqueProperties /*properties*/, RegionRange /*regions*/,
-      SmallVectorImpl<Type> &inferredReturnTypes) {
+  static LogicalResult
+  inferReturnTypes(MLIRContext * /*context*/, std::optional<Location> location,
+                   ValueRange operands, DictionaryAttr /*attributes*/,
+                   OpaqueProperties /*properties*/, RegionRange /*regions*/,
+                   SmallVectorImpl<Type> &inferredReturnTypes) {
     // TODO(b/231358795): Review the use of InferTypeOpInterface for ops that
     // support sparsity.
     if (operands.empty())
@@ -215,7 +324,8 @@ class CompatibleOperandsAndResultType
 
     FailureOr<Type> inferredTypeOrErr =
         inferMostSpecificType(location, operands.getTypes());
-    if (failed(inferredTypeOrErr)) return failure();
+    if (failed(inferredTypeOrErr))
+      return failure();
     inferredReturnTypes.emplace_back(*inferredTypeOrErr);
     return success();
   }
@@ -233,21 +343,102 @@ class CompatibleOperandsAndResultType
                                 attributes, properties, regions,
                                 inferredReturnTypes)))
       return failure();
-    if (inferredReturnTypes.size() != 1) return failure();
+    if (inferredReturnTypes.size() != 1)
+      return failure();
     auto inferredReturnType = dyn_cast<ShapedType>(inferredReturnTypes[0]);
-    if (!inferredReturnType) return failure();
+    if (!inferredReturnType)
+      return failure();
     inferredReturnShapes.push_back(inferredReturnType);
     return success();
   }
 };
 
-}  // namespace OpTrait
+template <typename ConcreteType>
+struct SpeculatableIfStaticDimInOutputIsStaticInInputImplTrait
+    : public mlir::OpTrait::TraitBase<
+          ConcreteType,
+          SpeculatableIfStaticDimInOutputIsStaticInInputImplTrait> {
+  // A unary elementwise op is not speculatable if a dimension of the result
+  // type is static while the corresponding dimension in the input type is
+  // dynamic. Indeed, the input dimension could differ at runtime.
+  // If the output dimension is dynamic, there is no expectation, so there
+  // cannot be a mismatch.
+  // If the input dimension is static, the output dimension can be inferred from
+  // it, so there cannot be a mismatch.
+  mlir::Speculation::Speculatability getSpeculatability() {
+    auto op = this->getOperation();
+    auto inputType = cast<RankedTensorType>(op->getOperand(0).getType());
+    auto resultType = cast<RankedTensorType>(op->getResult(0).getType());
+    for (size_t i : llvm::seq(resultType.getRank())) {
+      if (!resultType.isDynamicDim(i) && inputType.isDynamicDim(i))
+        return mlir::Speculation::NotSpeculatable;
+    }
+    return mlir::Speculation::Speculatable;
+  }
+};
+
+template <typename ConcreteType>
+struct RecursivelySpeculatableIfStaticDimInOutputIsStaticInInputImplTrait
+    : public mlir::OpTrait::TraitBase<
+          ConcreteType,
+          RecursivelySpeculatableIfStaticDimInOutputIsStaticInInputImplTrait> {
+  mlir::Speculation::Speculatability getSpeculatability() {
+    auto op = this->getOperation();
+    auto inputType = cast<RankedTensorType>(op->getOperand(0).getType());
+    auto resultType = cast<RankedTensorType>(op->getResult(0).getType());
+    for (size_t i : llvm::seq(resultType.getRank())) {
+      if (!resultType.isDynamicDim(i) && inputType.isDynamicDim(i))
+        return mlir::Speculation::NotSpeculatable;
+    }
+    return mlir::Speculation::RecursivelySpeculatable;
+  }
+};
+
+template <typename ConcreteType>
+struct SpeculatableIfAllInputsStaticImplTrait
+    : public mlir::OpTrait::TraitBase<ConcreteType,
+                                      SpeculatableIfAllInputsStaticImplTrait> {
+  mlir::Speculation::Speculatability getSpeculatability() {
+    return llvm::all_of(this->getOperation()->getOperandTypes(),
+                        [](Type t) {
+                          return cast<RankedTensorType>(t).hasStaticShape();
+                        })
+               ? mlir::Speculation::Speculatable
+               : mlir::Speculation::NotSpeculatable;
+  }
+};
+
+template <typename ConcreteType>
+struct RecursivelySpeculatableIfAllInputsStaticImplTrait
+    : public mlir::OpTrait::TraitBase<
+          ConcreteType, RecursivelySpeculatableIfAllInputsStaticImplTrait> {
+  mlir::Speculation::Speculatability getSpeculatability() {
+    return llvm::all_of(this->getOperation()->getOperandTypes(),
+                        [](Type t) {
+                          return cast<RankedTensorType>(t).hasStaticShape();
+                        })
+               ? mlir::Speculation::RecursivelySpeculatable
+               : mlir::Speculation::NotSpeculatable;
+  }
+};
+
+template <typename ConcreteType>
+struct SpeculatableIfAllInputsStaticAndShapeConstantImplTrait
+    : public mlir::OpTrait::TraitBase<
+          ConcreteType,
+          SpeculatableIfAllInputsStaticAndShapeConstantImplTrait> {
+  mlir::Speculation::Speculatability getSpeculatability() {
+    return getShapedSpeculatability(this->getOperation(), 1);
+  }
+};
+
+} // namespace OpTrait
 
 // This interface is implemented by both StableHLO and MHLO dialects
 // and is used as the foundation for sharing verification, type inference and
 // prettyprinting logic between them.
 class HloDialectInterface : public DialectInterface::Base<HloDialectInterface> {
- public:
+public:
   HloDialectInterface(Dialect *dialect) : Base(dialect) {}
 
   // Creates a TokenType type, specific to this dialect.
@@ -265,6 +456,11 @@ class HloDialectInterface : public DialectInterface::Base<HloDialectInterface> {
 // Returns true if the given type has a single bounded dimension.
 bool hasSingleBoundedDimension(Type type);
 
-}  // namespace mlir::hlo
+std::pair<int64_t, int64_t> inferConcatenatedDimAndBound(int64_t leftSize,
+                                                         int64_t rightSize,
+                                                         int64_t leftBound,
+                                                         int64_t rightBound);
 
-#endif  // ZKX_MLIR_HLO_STABLEHLO_DIALECT_BASE_H_
+} // namespace mlir::hlo
+
+#endif // ZKX_MLIR_HLO_STABLEHLO_DIALECT_BASE_H_

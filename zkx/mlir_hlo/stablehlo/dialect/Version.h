@@ -30,7 +30,7 @@ limitations under the License.
 namespace mlir::vhlo {
 
 class Version {
- public:
+public:
   // Convenience method to extract major, minor, patch and create a Version
   // from a StringRef of the form `#.#.#`. Returns failure if invalid string.
   static FailureOr<Version> fromString(llvm::StringRef versionRef);
@@ -54,17 +54,17 @@ class Version {
   // Given that integration into XLA is not immediate, coarse intervals work
   // better than providing a specific date.
   enum class CompatibilityRequirement {
-    NONE = 0,     // No compat requirement, use latest version.
-    WEEK_4 = 1,   // 1 month requirement
-    WEEK_12 = 2,  // 3 month requirement
-    MAX = 3,      // Maximum compat, use minimum supported version
+    NONE = 0,    // No compat requirement, use latest version.
+    WEEK_4 = 1,  // 1 month requirement
+    WEEK_12 = 2, // 3 month requirement
+    MAX = 3,     // Maximum compat, use minimum supported version
   };
 
   // Get a viable target version to use for `serializePortableArtifact` for a
   // given compatibility requirement. See `CompatibilityRequirement` for
   // details.
-  static Version fromCompatibilityRequirement(
-      CompatibilityRequirement requirement);
+  static Version
+  fromCompatibilityRequirement(CompatibilityRequirement requirement);
 
   // Return the MLIR Bytecode Format associated with the version instance.
   // Returns failure if version is not in compatibility window.
@@ -78,14 +78,14 @@ class Version {
   int64_t getMinor() const { return majorMinorPatch[1]; }
   int64_t getPatch() const { return majorMinorPatch[2]; }
 
-  bool operator<(const Version& other) const {
+  bool operator<(const Version &other) const {
     // Uses lexicographical_compare
     return majorMinorPatch < other.majorMinorPatch;
   }
-  bool operator==(const Version& other) const {
+  bool operator==(const Version &other) const {
     return majorMinorPatch == other.majorMinorPatch;
   }
-  bool operator<=(const Version& other) const {
+  bool operator<=(const Version &other) const {
     return majorMinorPatch <= other.majorMinorPatch;
   }
   std::string toString() const {
@@ -94,13 +94,13 @@ class Version {
     return os.str();
   }
 
- private:
+private:
   std::array<int64_t, 3> majorMinorPatch;
 };
 
-mlir::Diagnostic& operator<<(mlir::Diagnostic& diag, const Version& version);
-llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const Version& version);
+mlir::Diagnostic &operator<<(mlir::Diagnostic &diag, const Version &version);
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Version &version);
 
-}  // namespace mlir::vhlo
+} // namespace mlir::vhlo
 
-#endif  // ZKX_MLIR_HLO_STABLEHLO_DIALECT_VERSION_H_
+#endif // ZKX_MLIR_HLO_STABLEHLO_DIALECT_VERSION_H_

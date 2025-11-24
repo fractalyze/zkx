@@ -24,10 +24,10 @@ namespace mlir::mhlo {
 // Type converter to use as part of lowerings from dialects that carry signs
 // in their types to those that are signless.
 class RemoveSignTypeConverter : public TypeConverter {
- public:
+public:
   RemoveSignTypeConverter();
 };
 
-}  // namespace mlir::mhlo
+} // namespace mlir::mhlo
 
-#endif  // ZKX_MLIR_HLO_MHLO_UTILS_TYPE_CONVERSION_H_
+#endif // ZKX_MLIR_HLO_MHLO_UTILS_TYPE_CONVERSION_H_
