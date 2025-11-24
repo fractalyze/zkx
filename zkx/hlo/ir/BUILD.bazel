@@ -65,6 +65,23 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "dynamic_parameter_binding",
+    srcs = ["dynamic_parameter_binding.cc"],
+    hdrs = ["dynamic_parameter_binding.h"],
+    deps = [
+        ":hlo",
+        "//xla/tsl/platform:errors",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo",
     srcs = [
         "dfs_hlo_visitor.cc",
