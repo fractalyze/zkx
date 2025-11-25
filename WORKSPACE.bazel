@@ -15,12 +15,16 @@
 
 workspace(name = "zkx")
 
+load("@zkx//third_party/py/zk_dtypes:workspace.bzl", zk_dtypes = "repo")
+
+zk_dtypes()
+
 # Initialize hermetic Python
-load("//third_party/py:python_init_rules.bzl", "python_init_rules")
+load("@zk_dtypes//third_party/py:python_init_rules.bzl", "python_init_rules")
 
 python_init_rules()
 
-load("//third_party/py:python_init_repositories.bzl", "python_init_repositories")
+load("@zk_dtypes//third_party/py:python_init_repositories.bzl", "python_init_repositories")
 
 python_init_repositories(
     requirements = {
@@ -28,11 +32,11 @@ python_init_repositories(
     },
 )
 
-load("//third_party/py:python_init_toolchains.bzl", "python_init_toolchains")
+load("@zk_dtypes//third_party/py:python_init_toolchains.bzl", "python_init_toolchains")
 
 python_init_toolchains()
 
-load("//third_party/py:python_init_pip.bzl", "python_init_pip")
+load("@zk_dtypes//third_party/py:python_init_pip.bzl", "python_init_pip")
 
 python_init_pip()
 
