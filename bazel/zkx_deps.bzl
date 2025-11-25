@@ -28,6 +28,8 @@ load("@zkx//third_party/nanobind:workspace.bzl", nanobind = "repo")
 load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
 load("@zkx//third_party/robin_map:workspace.bzl", robin_map = "repo")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
+load("@zkx//third_party/version:workspace.bzl", version = "repo")
+load("@zkx//third_party/zkir:workspace.bzl", zkir = "repo")
 
 def zkx_deps():
     """ZKX dependencies."""
@@ -43,6 +45,8 @@ def zkx_deps():
     dlpack()
     robin_map()
     uv()
+    version()
+    zkir()
 
     # Load the raw llvm-project.  llvm does not have build rules set up by default,
     # but provides a script for setting up build rules via overlays.
@@ -145,26 +149,4 @@ def zkx_deps():
         sha256 = "e08cb87f4773da97fa7b5f035de8763abc656d87d5773e62f6da0587d1f0ec20",
         strip_prefix = "pybind11-2.13.6",
         build_file = "@zkx//third_party:pybind11.BUILD",
-    )
-
-    ZKIR_COMMIT = "d0cf5660cf253660e63ec86fa82897b070a43c11"
-    tf_http_archive(
-        name = "zkir",
-        sha256 = "8e53124537ce476b7849c566877ddb5256b94ecebea7bf0691cec4e94df10b00",
-        strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
-        urls = tf_mirror_urls("https://github.com/fractalyze/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
-    )
-    # Uncomment this for development!
-    # native.local_repository(
-    #     name = "zkir",
-    #     path = "../zkir",
-    # )
-
-    VERSION_COMMIT = "022bd9f7851643966bc3ee0bf2c2fe8795d3488f"
-
-    tf_http_archive(
-        name = "version",
-        sha256 = "2e65daa275198d4fa6e2081746a48b70999f5a6c0b533478b5ce77752d5ad54c",
-        strip_prefix = "version-{commit}".format(commit = VERSION_COMMIT),
-        urls = tf_mirror_urls("https://github.com/fractalyze/version/archive/{commit}.tar.gz".format(commit = VERSION_COMMIT)),
     )
