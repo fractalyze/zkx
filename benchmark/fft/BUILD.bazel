@@ -25,6 +25,6 @@ zkx_cc_binary(
         "//zkx/math/field:prime_field_serde",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/strings",
-        "@zk_dtypes_py//zk_dtypes:bn254_fr",
+        "@zk_dtypes//zk_dtypes:bn254_fr",
     ],
 )

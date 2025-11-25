@@ -85,6 +85,6 @@ zkx_cc_binary(
         "//zkx/math/field:prime_field_serde",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
-        "@zk_dtypes_py//zk_dtypes:bn254_fr",
+        "@zk_dtypes//zk_dtypes:bn254_fr",
     ],
 )

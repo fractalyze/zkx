@@ -24,7 +24,7 @@ def repo():
     ZK_DTYPES_COMMIT = "c08382cbbf4b205c106ded81795101fd76b081e9"
     ZK_DTYPES_SHA256 = "a0cb3cdeb7e5ff3bc3dace1bde855e08fc9dc42906805d7e9f5ea265461bd7c7"
     tf_http_archive(
-        name = "zk_dtypes_py",
+        name = "zk_dtypes",
         sha256 = ZK_DTYPES_SHA256,
         strip_prefix = "zk_dtypes-{commit}".format(commit = ZK_DTYPES_COMMIT),
         urls = tf_mirror_urls("https://github.com/fractalyze/zk_dtypes/archive/{commit}/zk_dtypes-{commit}.tar.gz".format(commit = ZK_DTYPES_COMMIT)),
