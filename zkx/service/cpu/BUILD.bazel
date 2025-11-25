@@ -254,13 +254,13 @@ zkx_cc_library(
     hdrs = ["runtime_print.h"],
     deps = [
         "@llvm-project//mlir:mlir_runner_utils",
-        "@zk_dtypes_py//zk_dtypes:babybear",
-        "@zk_dtypes_py//zk_dtypes:bn254_fr",
-        "@zk_dtypes_py//zk_dtypes:bn254_g1",
-        "@zk_dtypes_py//zk_dtypes:bn254_g2",
-        "@zk_dtypes_py//zk_dtypes:goldilocks",
-        "@zk_dtypes_py//zk_dtypes:koalabear",
-        "@zk_dtypes_py//zk_dtypes:mersenne31",
+        "@zk_dtypes//zk_dtypes:babybear",
+        "@zk_dtypes//zk_dtypes:bn254_fr",
+        "@zk_dtypes//zk_dtypes:bn254_g1",
+        "@zk_dtypes//zk_dtypes:bn254_g2",
+        "@zk_dtypes//zk_dtypes:goldilocks",
+        "@zk_dtypes//zk_dtypes:koalabear",
+        "@zk_dtypes//zk_dtypes:mersenne31",
     ],
 )
 

@@ -28,7 +28,7 @@ zkx_cc_library(
         "//zkx/base/json:json_serde",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@zk_dtypes_py//zk_dtypes:extension_field",
+        "@zk_dtypes//zk_dtypes:extension_field",
     ],
 )
 
@@ -43,7 +43,7 @@ zkx_cc_library(
         "//zkx/math/base:big_int_serde",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@zk_dtypes_py//zk_dtypes:prime_field",
+        "@zk_dtypes//zk_dtypes:prime_field",
     ],
 )
 
@@ -60,13 +60,13 @@ zkx_cc_unittest(
         "//xla/tsl/platform:statusor",
         "//zkx/base:auto_reset",
         "//zkx/base/buffer:vector_buffer",
-        "@zk_dtypes_py//zk_dtypes:babybear",
-        "@zk_dtypes_py//zk_dtypes:bn254_fq",
-        "@zk_dtypes_py//zk_dtypes:bn254_fq2",
-        "@zk_dtypes_py//zk_dtypes:bn254_fr",
-        "@zk_dtypes_py//zk_dtypes:goldilocks",
-        "@zk_dtypes_py//zk_dtypes:koalabear",
-        "@zk_dtypes_py//zk_dtypes:mersenne31",
-        "@zk_dtypes_py//zk_dtypes:sw_test_curve_config",
+        "@zk_dtypes//zk_dtypes:babybear",
+        "@zk_dtypes//zk_dtypes:bn254_fq",
+        "@zk_dtypes//zk_dtypes:bn254_fq2",
+        "@zk_dtypes//zk_dtypes:bn254_fr",
+        "@zk_dtypes//zk_dtypes:goldilocks",
+        "@zk_dtypes//zk_dtypes:koalabear",
+        "@zk_dtypes//zk_dtypes:mersenne31",
+        "@zk_dtypes//zk_dtypes:sw_test_curve_config",
     ],
 )
