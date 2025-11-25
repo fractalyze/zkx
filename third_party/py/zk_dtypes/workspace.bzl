@@ -21,8 +21,8 @@ zk_dtypes provides ZK-specific data-types like int4.
 load("//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 
 def repo():
-    ZK_DTYPES_COMMIT = "c08382cbbf4b205c106ded81795101fd76b081e9"
-    ZK_DTYPES_SHA256 = "a0cb3cdeb7e5ff3bc3dace1bde855e08fc9dc42906805d7e9f5ea265461bd7c7"
+    ZK_DTYPES_COMMIT = "66743801229c6d41e2a38a81f65d521c4bb3e4ea"
+    ZK_DTYPES_SHA256 = "e977c7a248ac81020fd327b78f3df6b8bcf930e6a697c48a79232fd43bd5f8ae"
     tf_http_archive(
         name = "zk_dtypes",
         sha256 = ZK_DTYPES_SHA256,
