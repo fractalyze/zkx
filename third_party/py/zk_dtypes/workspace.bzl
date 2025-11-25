@@ -15,7 +15,7 @@
 
 """Provides the repo macro to import zk_dtypes.
 
-zk_dtypes provides ZK-specific data-types like int4.
+zk_dtypes provides ZK-specific data-types like babybear.
 """
 
 load("//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
