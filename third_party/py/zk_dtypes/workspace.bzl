@@ -29,3 +29,8 @@ def repo():
         strip_prefix = "zk_dtypes-{commit}".format(commit = ZK_DTYPES_COMMIT),
         urls = tf_mirror_urls("https://github.com/fractalyze/zk_dtypes/archive/{commit}/zk_dtypes-{commit}.tar.gz".format(commit = ZK_DTYPES_COMMIT)),
     )
+    # Uncomment this for development!
+    # native.local_repository(
+    #     name = "zk_dtypes",
+    #     path = "../zk_dtypes",
+    # )
