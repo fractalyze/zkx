@@ -35,16 +35,10 @@ td_library(
 gentbl_cc_library(
     name = "zkx_dialect_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-dialect-decls"],
-            "zkx_dialect.h.inc",
-        ),
-        (
-            ["-gen-dialect-defs"],
-            "zkx_dialect.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "zkx_dialect.h.inc": ["-gen-dialect-decls"],
+        "zkx_dialect.cc.inc": ["-gen-dialect-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "zkx_dialect.td",
     deps = [":zkx_td_files"],
@@ -53,16 +47,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "zkx_ops_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "zkx_ops.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "zkx_ops.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "zkx_ops.h.inc": ["-gen-op-decls"],
+        "zkx_ops.cc.inc": ["-gen-op-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "zkx_ops.td",
     deps = [":zkx_td_files"],
@@ -71,24 +59,12 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "zkx_attrs_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-enum-decls"],
-            "zkx_enums.h.inc",
-        ),
-        (
-            ["-gen-enum-defs"],
-            "zkx_enums.cc.inc",
-        ),
-        (
-            ["-gen-attrdef-decls"],
-            "zkx_attrs.h.inc",
-        ),
-        (
-            ["-gen-attrdef-defs"],
-            "zkx_attrs.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "zkx_enums.h.inc": ["-gen-enum-decls"],
+        "zkx_enums.cc.inc": ["-gen-enum-defs"],
+        "zkx_attrs.h.inc": ["-gen-attrdef-decls"],
+        "zkx_attrs.cc.inc": ["-gen-attrdef-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "zkx_attrs.td",
     deps = [":zkx_td_files"],

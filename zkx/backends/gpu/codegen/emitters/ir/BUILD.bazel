@@ -35,16 +35,10 @@ td_library(
 gentbl_cc_library(
     name = "zkx_gpu_dialect_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-dialect-decls"],
-            "zkx_gpu_dialect.h.inc",
-        ),
-        (
-            ["-gen-dialect-defs"],
-            "zkx_gpu_dialect.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "zkx_gpu_dialect.h.inc": ["-gen-dialect-decls"],
+        "zkx_gpu_dialect.cc.inc": ["-gen-dialect-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "zkx_gpu_dialect.td",
     deps = [":zkx_gpu_td_files"],
@@ -53,16 +47,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "zkx_gpu_ops_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "zkx_gpu_ops.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "zkx_gpu_ops.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "zkx_gpu_ops.h.inc": ["-gen-op-decls"],
+        "zkx_gpu_ops.cc.inc": ["-gen-op-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "zkx_gpu_ops.td",
     deps = [":zkx_gpu_td_files"],
@@ -71,30 +59,18 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "zkx_gpu_attrs_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-enum-decls"],
-            "zkx_gpu_enums.h.inc",
-        ),
-        (
-            ["-gen-enum-defs"],
-            "zkx_gpu_enums.cc.inc",
-        ),
-        (
-            [
-                "-gen-attrdef-decls",
-                "-attrdefs-dialect=zkx_gpu",
-            ],
-            "zkx_gpu_attrs.h.inc",
-        ),
-        (
-            [
-                "-gen-attrdef-defs",
-                "-attrdefs-dialect=zkx_gpu",
-            ],
-            "zkx_gpu_attrs.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "zkx_gpu_enums.h.inc": ["-gen-enum-decls"],
+        "zkx_gpu_enums.cc.inc": ["-gen-enum-defs"],
+        "zkx_gpu_attrs.h.inc": [
+            "-gen-attrdef-decls",
+            "-attrdefs-dialect=zkx_gpu",
+        ],
+        "zkx_gpu_attrs.cc.inc": [
+            "-gen-attrdef-defs",
+            "-attrdefs-dialect=zkx_gpu",
+        ],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "zkx_gpu_attrs.td",
     deps = [":zkx_gpu_td_files"],
@@ -103,22 +79,16 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "zkx_gpu_types_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            [
-                "-gen-typedef-decls",
-                "-typedefs-dialect=zkx_gpu",
-            ],
-            "zkx_gpu_types.h.inc",
-        ),
-        (
-            [
-                "-gen-typedef-defs",
-                "-typedefs-dialect=zkx_gpu",
-            ],
-            "zkx_gpu_types.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "zkx_gpu_types.h.inc": [
+            "-gen-typedef-decls",
+            "-typedefs-dialect=zkx_gpu",
+        ],
+        "zkx_gpu_types.cc.inc": [
+            "-gen-typedef-defs",
+            "-typedefs-dialect=zkx_gpu",
+        ],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "zkx_gpu_types.td",
     deps = [":zkx_gpu_td_files"],

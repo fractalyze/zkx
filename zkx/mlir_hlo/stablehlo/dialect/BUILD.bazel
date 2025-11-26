@@ -48,16 +48,10 @@ cc_library(
 gentbl_cc_library(
     name = "base_attr_interfaces_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-attr-interface-decls"],
-            "BaseAttrInterfaces.h.inc",
-        ),
-        (
-            ["-gen-attr-interface-defs"],
-            "BaseAttrInterfaces.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "BaseAttrInterfaces.h.inc": ["-gen-attr-interface-decls"],
+        "BaseAttrInterfaces.cpp.inc": ["-gen-attr-interface-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "Base.td",
     deps = [":stablehlo_ops_td_files"],
@@ -76,16 +70,10 @@ td_library(
 gentbl_cc_library(
     name = "stablehlo_attrs_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-attrdef-decls"],
-            "StablehloAttrs.h.inc",
-        ),
-        (
-            ["-gen-attrdef-defs"],
-            "StablehloAttrs.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "StablehloAttrs.h.inc": ["-gen-attrdef-decls"],
+        "StablehloAttrs.cpp.inc": ["-gen-attrdef-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "StablehloOps.td",
     deps = [":stablehlo_ops_td_files"],
@@ -94,16 +82,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "stablehlo_enums_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-enum-decls"],
-            "StablehloEnums.h.inc",
-        ),
-        (
-            ["-gen-enum-defs"],
-            "StablehloEnums.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "StablehloEnums.h.inc": ["-gen-enum-decls"],
+        "StablehloEnums.cpp.inc": ["-gen-enum-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "StablehloOps.td",
     deps = [":stablehlo_ops_td_files"],
@@ -112,16 +94,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "stablehlo_ops_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "StablehloOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "StablehloOps.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "StablehloOps.h.inc": ["-gen-op-decls"],
+        "StablehloOps.cpp.inc": ["-gen-op-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "StablehloOps.td",
     deps = [
@@ -150,22 +126,16 @@ td_library(
 gentbl_cc_library(
     name = "stablehlo_types_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            [
-                "-gen-typedef-decls",
-                "--typedefs-dialect=stablehlo",
-            ],
-            "StablehloTypeDefs.h.inc",
-        ),
-        (
-            [
-                "-gen-typedef-defs",
-                "--typedefs-dialect=stablehlo",
-            ],
-            "StablehloTypeDefs.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "StablehloTypeDefs.h.inc": [
+            "-gen-typedef-decls",
+            "--typedefs-dialect=stablehlo",
+        ],
+        "StablehloTypeDefs.cpp.inc": [
+            "-gen-typedef-defs",
+            "--typedefs-dialect=stablehlo",
+        ],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "StablehloOps.td",
     deps = [":stablehlo_ops_td_files"],
@@ -189,16 +159,10 @@ cc_library(
 gentbl_cc_library(
     name = "vhlo_attr_interfaces_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-attr-interface-decls"],
-            "VhloAttrInterfaces.h.inc",
-        ),
-        (
-            ["-gen-attr-interface-defs"],
-            "VhloAttrInterfaces.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "VhloAttrInterfaces.h.inc": ["-gen-attr-interface-decls"],
+        "VhloAttrInterfaces.cpp.inc": ["-gen-attr-interface-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "VhloEnums.td",
     deps = [":vhlo_ops_td_files"],
@@ -207,16 +171,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "vhlo_attrs_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-attrdef-decls"],
-            "VhloAttrs.h.inc",
-        ),
-        (
-            ["-gen-attrdef-defs"],
-            "VhloAttrs.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "VhloAttrs.h.inc": ["-gen-attrdef-decls"],
+        "VhloAttrs.cpp.inc": ["-gen-attrdef-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "VhloOps.td",
     deps = [":vhlo_ops_td_files"],
@@ -225,16 +183,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "vhlo_enums_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-enum-decls"],
-            "VhloEnums.h.inc",
-        ),
-        (
-            ["-gen-enum-defs"],
-            "VhloEnums.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "VhloEnums.h.inc": ["-gen-enum-decls"],
+        "VhloEnums.cpp.inc": ["-gen-enum-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "VhloEnums.td",
     deps = [":vhlo_ops_td_files"],
@@ -243,16 +195,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "vhlo_op_interfaces_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-op-interface-decls"],
-            "VhloOpInterfaces.h.inc",
-        ),
-        (
-            ["-gen-op-interface-defs"],
-            "VhloOpInterfaces.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "VhloOpInterfaces.h.inc": ["-gen-op-interface-decls"],
+        "VhloOpInterfaces.cpp.inc": ["-gen-op-interface-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "VhloOps.td",
     deps = [":vhlo_ops_td_files"],
@@ -261,16 +207,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "vhlo_ops_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "VhloOps.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "VhloOps.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "VhloOps.h.inc": ["-gen-op-decls"],
+        "VhloOps.cpp.inc": ["-gen-op-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "VhloOps.td",
     deps = [":vhlo_ops_td_files"],
@@ -315,16 +255,10 @@ cc_library(
 gentbl_cc_library(
     name = "vhlo_type_interfaces_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-type-interface-decls"],
-            "VhloTypeInterfaces.h.inc",
-        ),
-        (
-            ["-gen-type-interface-defs"],
-            "VhloTypeInterfaces.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "VhloTypeInterfaces.h.inc": ["-gen-type-interface-decls"],
+        "VhloTypeInterfaces.cpp.inc": ["-gen-type-interface-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "VhloTypes.td",
     deps = [":vhlo_ops_td_files"],
@@ -333,16 +267,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "vhlo_types_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-typedef-decls"],
-            "VhloTypeDefs.h.inc",
-        ),
-        (
-            ["-gen-typedef-defs"],
-            "VhloTypeDefs.cpp.inc",
-        ),
-    ],
+    tbl_outs = {
+        "VhloTypeDefs.h.inc": ["-gen-typedef-decls"],
+        "VhloTypeDefs.cpp.inc": ["-gen-typedef-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "VhloOps.td",
     deps = [":vhlo_ops_td_files"],

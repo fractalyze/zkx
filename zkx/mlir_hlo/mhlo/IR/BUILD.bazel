@@ -33,16 +33,10 @@ td_library(
 gentbl_cc_library(
     name = "hlo_ops_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-op-decls"],
-            "hlo_ops.h.inc",
-        ),
-        (
-            ["-gen-op-defs"],
-            "hlo_ops.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "hlo_ops.h.inc": ["-gen-op-decls"],
+        "hlo_ops.cc.inc": ["-gen-op-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "hlo_ops.td",
     deps = [":hlo_ops_td_files"],
@@ -51,16 +45,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "hlo_ops_attrs_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-attrdef-decls"],
-            "hlo_ops_attrs.h.inc",
-        ),
-        (
-            ["-gen-attrdef-defs"],
-            "hlo_ops_attrs.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "hlo_ops_attrs.h.inc": ["-gen-attrdef-decls"],
+        "hlo_ops_attrs.cc.inc": ["-gen-attrdef-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "hlo_ops.td",
     deps = [":hlo_ops_td_files"],
@@ -69,16 +57,10 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "hlo_ops_enums_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-enum-decls"],
-            "hlo_ops_enums.h.inc",
-        ),
-        (
-            ["-gen-enum-defs"],
-            "hlo_ops_enums.cc.inc",
-        ),
-    ],
+    tbl_outs = {
+        "hlo_ops_enums.h.inc": ["-gen-enum-decls"],
+        "hlo_ops_enums.cc.inc": ["-gen-enum-defs"],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "hlo_ops.td",
     deps = [":hlo_ops_td_files"],
@@ -87,12 +69,7 @@ gentbl_cc_library(
 gentbl_cc_library(
     name = "hlo_ops_pattern_inc_gen",
     strip_include_prefix = ".",
-    tbl_outs = [
-        (
-            ["-gen-rewriters"],
-            "hlo_patterns.cc.inc",
-        ),
-    ],
+    tbl_outs = {"hlo_patterns.cc.inc": ["-gen-rewriters"]},
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "hlo_patterns.td",
     deps = [":hlo_ops_td_files"],
