@@ -112,6 +112,7 @@ cc_library(
     features = ["-use_header_modules"],
     deps = [
         ":nb_numpy",
+        ":safe_static_init",
         "//xla/tsl/platform:statusor",
         "//xla/tsl/python/lib/core:numpy",
         "//zkx:literal",
@@ -124,6 +125,7 @@ cc_library(
         "//zkx/python/pjrt_ifrt:pjrt_dtype",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
