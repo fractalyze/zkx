@@ -79,7 +79,7 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
       MONTABLE_PRIME_FIELD_CASE(BABYBEAR, zk_dtypes::Babybear, PrimeField)
       MONTABLE_PRIME_FIELD_CASE(MERSENNE31, zk_dtypes::Mersenne31, PrimeField)
       MONTABLE_PRIME_FIELD_CASE(GOLDILOCKS, zk_dtypes::Goldilocks, PrimeField)
-      MONTABLE_PRIME_FIELD_CASE(BN254_SCALAR, zk_dtypes::bn254::Fr, PrimeField)
+      MONTABLE_PRIME_FIELD_CASE(BN254_SF, zk_dtypes::bn254::Fr, PrimeField)
 #undef MONTABLE_PRIME_FIELD_CASE
 
 #define MONTABLE_NON_PRIME_FIELD_CASE(enum, cpp_type, type) \
@@ -256,9 +256,9 @@ PrimitiveType GetPrimitiveTypeOfPrimeFieldType(
       GetModulus<zk_dtypes::bn254::Fr>(modulus.getContext());
   if (modulus == bn254_fr_modulus) {
     if (field_type.isMontgomery()) {
-      return PrimitiveType::BN254_SCALAR;
+      return PrimitiveType::BN254_SF;
     } else {
-      return PrimitiveType::BN254_SCALAR_STD;
+      return PrimitiveType::BN254_SF_STD;
     }
   }
   return PrimitiveType::PRIMITIVE_TYPE_INVALID;

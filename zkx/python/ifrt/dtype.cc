@@ -51,8 +51,8 @@ std::optional<int> DType::byte_size() const {
     case kGoldilocks:
     case kGoldilocksStd:
       return 8;
-    case kBn254Scalar:
-    case kBn254ScalarStd:
+    case kBn254Sf:
+    case kBn254SfStd:
       return 32;
     case kBn254G1Affine:
     case kBn254G1AffineStd:
@@ -111,8 +111,8 @@ std::optional<int> DType::bit_size() const {
     case kGoldilocks:
     case kGoldilocksStd:
       return 64;
-    case kBn254Scalar:
-    case kBn254ScalarStd:
+    case kBn254Sf:
+    case kBn254SfStd:
       return 256;
     case kBn254G1Affine:
     case kBn254G1AffineStd:
@@ -181,8 +181,8 @@ absl::StatusOr<DType> DType::FromProto(const DTypeProto& dtype_proto) {
       CASE(MERSENNE31_STD, Mersenne31Std);
       CASE(GOLDILOCKS, Goldilocks);
       CASE(GOLDILOCKS_STD, GoldilocksStd);
-      CASE(BN254_SCALAR, Bn254Scalar);
-      CASE(BN254_SCALAR_STD, Bn254ScalarStd);
+      CASE(BN254_SF, Bn254Sf);
+      CASE(BN254_SF_STD, Bn254SfStd);
       CASE(BN254_G1_AFFINE, Bn254G1Affine);
       CASE(BN254_G1_AFFINE_STD, Bn254G1AffineStd);
       CASE(BN254_G1_JACOBIAN, Bn254G1Jacobian);
@@ -251,8 +251,8 @@ DTypeProto DType::ToProto(SerDesVersion version) const {
       CASE(Mersenne31Std, MERSENNE31_STD);
       CASE(Goldilocks, GOLDILOCKS);
       CASE(GoldilocksStd, GOLDILOCKS_STD);
-      CASE(Bn254Scalar, BN254_SCALAR);
-      CASE(Bn254ScalarStd, BN254_SCALAR_STD);
+      CASE(Bn254Sf, BN254_SF);
+      CASE(Bn254SfStd, BN254_SF_STD);
       CASE(Bn254G1Affine, BN254_G1_AFFINE);
       CASE(Bn254G1AffineStd, BN254_G1_AFFINE_STD);
       CASE(Bn254G1Jacobian, BN254_G1_JACOBIAN);
@@ -326,10 +326,10 @@ std::string DType::DebugString() const {
       return "GOLDILOCKS";
     case kGoldilocksStd:
       return "GOLDILOCKS_STD";
-    case kBn254Scalar:
-      return "BN254_SCALAR";
-    case kBn254ScalarStd:
-      return "BN254_SCALAR_STD";
+    case kBn254Sf:
+      return "BN254_SF";
+    case kBn254SfStd:
+      return "BN254_SF_STD";
     case kBn254G1Affine:
       return "BN254_G1_AFFINE";
     case kBn254G1AffineStd:

@@ -61,8 +61,8 @@ bool CollectiveThunk::IsDataTypeSupportedByCollectiveReduce(
     case MERSENNE31_STD:
     case GOLDILOCKS:
     case GOLDILOCKS_STD:
-    case BN254_SCALAR:
-    case BN254_SCALAR_STD:
+    case BN254_SF:
+    case BN254_SF_STD:
     case BN254_G1_AFFINE:
     case BN254_G1_AFFINE_STD:
     case BN254_G1_JACOBIAN:

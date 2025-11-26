@@ -155,7 +155,7 @@ MONTABLE_CONVERSION(KOALABEAR, zk_dtypes::Koalabear)
 MONTABLE_CONVERSION(BABYBEAR, zk_dtypes::Babybear)
 MONTABLE_CONVERSION(MERSENNE31, zk_dtypes::Mersenne31)
 MONTABLE_CONVERSION(GOLDILOCKS, zk_dtypes::Goldilocks)
-MONTABLE_CONVERSION(BN254_SCALAR, zk_dtypes::bn254::Fr)
+MONTABLE_CONVERSION(BN254_SF, zk_dtypes::bn254::Fr)
 MONTABLE_CONVERSION(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
 MONTABLE_CONVERSION(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
 MONTABLE_CONVERSION(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
@@ -269,7 +269,7 @@ MONTABLE_CONVERSION(KOALABEAR, zk_dtypes::Koalabear);
 MONTABLE_CONVERSION(BABYBEAR, zk_dtypes::Babybear);
 MONTABLE_CONVERSION(MERSENNE31, zk_dtypes::Mersenne31);
 MONTABLE_CONVERSION(GOLDILOCKS, zk_dtypes::Goldilocks);
-MONTABLE_CONVERSION(BN254_SCALAR, zk_dtypes::bn254::Fr);
+MONTABLE_CONVERSION(BN254_SF, zk_dtypes::bn254::Fr);
 MONTABLE_CONVERSION(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint);
 MONTABLE_CONVERSION(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint);
 MONTABLE_CONVERSION(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz);
@@ -314,22 +314,22 @@ constexpr bool Is8BitIntegralType(PrimitiveType type) {
 constexpr bool IsFieldType(PrimitiveType type) {
   return type == KOALABEAR || type == KOALABEAR_STD || type == BABYBEAR ||
          type == BABYBEAR_STD || type == MERSENNE31 || type == MERSENNE31_STD ||
-         type == GOLDILOCKS || type == GOLDILOCKS_STD || type == BN254_SCALAR ||
-         type == BN254_SCALAR_STD;
+         type == GOLDILOCKS || type == GOLDILOCKS_STD || type == BN254_SF ||
+         type == BN254_SF_STD;
 }
 
 constexpr bool IsMontgomeryForm(PrimitiveType type) {
   return type == KOALABEAR || type == BABYBEAR || type == MERSENNE31 ||
-         type == GOLDILOCKS || type == BN254_SCALAR ||
-         type == BN254_G1_AFFINE || type == BN254_G1_JACOBIAN ||
-         type == BN254_G1_XYZZ || type == BN254_G2_AFFINE ||
-         type == BN254_G2_JACOBIAN || type == BN254_G2_XYZZ;
+         type == GOLDILOCKS || type == BN254_SF || type == BN254_G1_AFFINE ||
+         type == BN254_G1_JACOBIAN || type == BN254_G1_XYZZ ||
+         type == BN254_G2_AFFINE || type == BN254_G2_JACOBIAN ||
+         type == BN254_G2_XYZZ;
 }
 
 constexpr bool IsStandardForm(PrimitiveType type) {
   return type == KOALABEAR_STD || type == BABYBEAR_STD ||
          type == MERSENNE31_STD || type == GOLDILOCKS_STD ||
-         type == BN254_SCALAR_STD || type == BN254_G1_AFFINE_STD ||
+         type == BN254_SF_STD || type == BN254_G1_AFFINE_STD ||
          type == BN254_G1_JACOBIAN_STD || type == BN254_G1_XYZZ_STD ||
          type == BN254_G2_AFFINE_STD || type == BN254_G2_JACOBIAN_STD ||
          type == BN254_G2_XYZZ_STD;
@@ -398,7 +398,7 @@ constexpr R FieldTypeSwitch(F&& f, PrimitiveType type) {
       MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
       MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
       MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SCALAR, zk_dtypes::bn254::Fr)
+      MONTABLE_CASE(BN254_SF, zk_dtypes::bn254::Fr)
 #undef MONTABLE_CASE
       default:
         ABSL_UNREACHABLE();
