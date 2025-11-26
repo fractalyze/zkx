@@ -1564,7 +1564,7 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
       MONTABLE_CASE(BABYBEAR, babybears, zk_dtypes::Babybear)
       MONTABLE_CASE(MERSENNE31, mersenne31s, zk_dtypes::Mersenne31)
       MONTABLE_CASE(GOLDILOCKS, goldilockss, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SCALAR, bn254_scalars, zk_dtypes::bn254::Fr)
+      MONTABLE_CASE(BN254_SF, bn254_sfs, zk_dtypes::bn254::Fr)
       MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
                     zk_dtypes::bn254::G1AffinePoint)
       MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,
@@ -1730,7 +1730,7 @@ absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
       MONTABLE_CASE(BABYBEAR, babybears, zk_dtypes::Babybear)
       MONTABLE_CASE(MERSENNE31, mersenne31s, zk_dtypes::Mersenne31)
       MONTABLE_CASE(GOLDILOCKS, goldilockss, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SCALAR, bn254_scalars, zk_dtypes::bn254::Fr)
+      MONTABLE_CASE(BN254_SF, bn254_sfs, zk_dtypes::bn254::Fr)
       MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
                     zk_dtypes::bn254::G1AffinePoint)
       MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,

@@ -65,7 +65,7 @@ DEFINE_PRINT_MEMREF_FUNCTION(Koalabear, zk_dtypes::Koalabear)
 DEFINE_PRINT_MEMREF_FUNCTION(Babybear, zk_dtypes::Babybear)
 DEFINE_PRINT_MEMREF_FUNCTION(Mersenne31, zk_dtypes::Mersenne31)
 DEFINE_PRINT_MEMREF_FUNCTION(Goldilocks, zk_dtypes::Goldilocks)
-DEFINE_PRINT_MEMREF_FUNCTION(Bn254Scalar, zk_dtypes::bn254::Fr)
+DEFINE_PRINT_MEMREF_FUNCTION(Bn254Sf, zk_dtypes::bn254::Fr)
 DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Affine, zk_dtypes::bn254::G1AffinePoint)
 DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Jacobian, zk_dtypes::bn254::G1JacobianPoint)
 DEFINE_PRINT_MEMREF_FUNCTION(Bn254G1Xyzz, zk_dtypes::bn254::G1PointXyzz)
@@ -88,7 +88,7 @@ DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Koalabear, zk_dtypes::Koalabear);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Babybear, zk_dtypes::Babybear);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Mersenne31, zk_dtypes::Mersenne31);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Goldilocks, zk_dtypes::Goldilocks);
-DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254Scalar, zk_dtypes::bn254::Fr);
+DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254Sf, zk_dtypes::bn254::Fr);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G1Affine,
                                      zk_dtypes::bn254::G1AffinePoint);
 DEFINE_PRINT_STRIDED_MEMREF_FUNCTION(1, Bn254G1Jacobian,
