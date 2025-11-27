@@ -48,7 +48,7 @@ cc_library(
         ],
     ),
     deps = [
-        "@local_config_python//:python_headers",
+        "@rules_python//python/cc:current_py_cc_headers",
         "@robin_map",
     ],
 )
