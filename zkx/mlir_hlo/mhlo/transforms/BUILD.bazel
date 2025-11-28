@@ -20,15 +20,12 @@ package(default_visibility = ["//visibility:public"])
 
 gentbl_cc_library(
     name = "passes_inc_gen",
-    tbl_outs = [
-        (
-            [
-                "-gen-pass-decls",
-                "-name=AllMhlo",
-            ],
-            "mhlo_passes.h.inc",
-        ),
-    ],
+    tbl_outs = {
+        "mhlo_passes.h.inc": [
+            "-gen-pass-decls",
+            "-name=AllMhlo",
+        ],
+    },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "mhlo_passes.td",
     deps = ["@llvm-project//mlir:PassBaseTdFiles"],

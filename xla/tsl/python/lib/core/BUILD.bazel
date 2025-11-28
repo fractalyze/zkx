@@ -22,7 +22,7 @@ cc_library(
     srcs = ["numpy.cc"],
     hdrs = ["numpy.h"],
     deps = [
-        "@local_config_python//:python_headers",
+        "@rules_python//python/cc:current_py_cc_headers",
         "@zk_dtypes//third_party/py/numpy:headers",
     ],
 )
