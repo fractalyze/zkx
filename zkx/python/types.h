@@ -89,8 +89,8 @@ struct NumpyScalarTypes {
   nanobind::object np_mersenne31_std;
   nanobind::object np_goldilocks;
   nanobind::object np_goldilocks_std;
-  nanobind::object np_bn254_scalar;
-  nanobind::object np_bn254_scalar_std;
+  nanobind::object np_bn254_sf;
+  nanobind::object np_bn254_sf_std;
   nanobind::object np_bn254_g1_affine;
   nanobind::object np_bn254_g1_affine_std;
   nanobind::object np_bn254_g1_jacobian;

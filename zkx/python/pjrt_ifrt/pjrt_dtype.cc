@@ -50,8 +50,8 @@ absl::StatusOr<PrimitiveType> ToPrimitiveType(DType dtype) {
     CASE(DType::kMersenne31Std, PrimitiveType::MERSENNE31_STD);
     CASE(DType::kGoldilocks, PrimitiveType::GOLDILOCKS);
     CASE(DType::kGoldilocksStd, PrimitiveType::GOLDILOCKS_STD);
-    CASE(DType::kBn254Scalar, PrimitiveType::BN254_SCALAR);
-    CASE(DType::kBn254ScalarStd, PrimitiveType::BN254_SCALAR_STD);
+    CASE(DType::kBn254Sf, PrimitiveType::BN254_SF);
+    CASE(DType::kBn254SfStd, PrimitiveType::BN254_SF_STD);
     CASE(DType::kBn254G1Affine, PrimitiveType::BN254_G1_AFFINE);
     CASE(DType::kBn254G1AffineStd, PrimitiveType::BN254_G1_AFFINE_STD);
     CASE(DType::kBn254G1Jacobian, PrimitiveType::BN254_G1_JACOBIAN);
@@ -100,8 +100,8 @@ absl::StatusOr<DType> ToDType(PrimitiveType primitive_type) {
     case PrimitiveType::MERSENNE31_STD:
     case PrimitiveType::GOLDILOCKS:
     case PrimitiveType::GOLDILOCKS_STD:
-    case PrimitiveType::BN254_SCALAR:
-    case PrimitiveType::BN254_SCALAR_STD:
+    case PrimitiveType::BN254_SF:
+    case PrimitiveType::BN254_SF_STD:
     case PrimitiveType::BN254_G1_AFFINE:
     case PrimitiveType::BN254_G1_AFFINE_STD:
     case PrimitiveType::BN254_G1_JACOBIAN:

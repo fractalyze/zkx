@@ -82,8 +82,8 @@ class DType {
     kGoldilocks = 39,
     kGoldilocksStd = 40,
 
-    kBn254Scalar = 19,
-    kBn254ScalarStd = 20,
+    kBn254Sf = 19,
+    kBn254SfStd = 20,
     kBn254G1Affine = 21,
     kBn254G1AffineStd = 22,
     kBn254G1Jacobian = 23,

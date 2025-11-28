@@ -4081,7 +4081,7 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
             MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
             MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
             MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
-            MONTABLE_CASE(BN254_SCALAR, zk_dtypes::bn254::Fr)
+            MONTABLE_CASE(BN254_SF, zk_dtypes::bn254::Fr)
 #undef MONTABLE_CASE
             default:
               return TokenError(

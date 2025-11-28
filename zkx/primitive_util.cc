@@ -100,9 +100,9 @@ class PrimitiveTypeNameGenerator {
         lowercase_name_[idx] = "goldilocks";
       } else if (t == GOLDILOCKS_STD) {
         lowercase_name_[idx] = "goldilocks_std";
-      } else if (t == BN254_SCALAR) {
+      } else if (t == BN254_SF) {
         lowercase_name_[idx] = "bn254.sf";
-      } else if (t == BN254_SCALAR_STD) {
+      } else if (t == BN254_SF_STD) {
         lowercase_name_[idx] = "bn254.sf_std";
       } else if (t == BN254_G1_AFFINE) {
         lowercase_name_[idx] = "bn254.g1_affine";

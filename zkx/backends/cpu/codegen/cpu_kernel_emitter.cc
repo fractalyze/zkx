@@ -1248,12 +1248,12 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
                                                           instr->fft_length());
       break;
     }
-    case BN254_SCALAR: {
+    case BN254_SF: {
       root = GetRootOfUnityAttr<zk_dtypes::bn254::Fr>(value.getContext(),
                                                       instr->fft_length());
       break;
     }
-    case BN254_SCALAR_STD: {
+    case BN254_SF_STD: {
       root = GetRootOfUnityAttr<zk_dtypes::bn254::FrStd>(value.getContext(),
                                                          instr->fft_length());
       break;
