@@ -159,7 +159,7 @@ zkx_cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
-        "@zk_dtypes_py//zk_dtypes:field",
+        "@zk_dtypes//zk_dtypes:field",
     ],
 )
 

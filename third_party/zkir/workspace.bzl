@@ -13,24 +13,24 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Provides the repo macro to import zk_dtypes.
+"""Provides the repo macro to import zkir.
 
-zk_dtypes provides ZK-specific data-types like babybear.
+zkir provides mlir dialect for ZK(Zero Knowledge).
 """
 
 load("//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 
 def repo():
-    ZK_DTYPES_COMMIT = "66743801229c6d41e2a38a81f65d521c4bb3e4ea"
-    ZK_DTYPES_SHA256 = "e977c7a248ac81020fd327b78f3df6b8bcf930e6a697c48a79232fd43bd5f8ae"
+    ZKIR_COMMIT = "d0cf5660cf253660e63ec86fa82897b070a43c11"
+    ZKIR_SHA256 = "8e53124537ce476b7849c566877ddb5256b94ecebea7bf0691cec4e94df10b00"
     tf_http_archive(
-        name = "zk_dtypes",
-        sha256 = ZK_DTYPES_SHA256,
-        strip_prefix = "zk_dtypes-{commit}".format(commit = ZK_DTYPES_COMMIT),
-        urls = tf_mirror_urls("https://github.com/fractalyze/zk_dtypes/archive/{commit}/zk_dtypes-{commit}.tar.gz".format(commit = ZK_DTYPES_COMMIT)),
+        name = "zkir",
+        sha256 = ZKIR_SHA256,
+        strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
+        urls = tf_mirror_urls("https://github.com/fractalyze/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
     )
     # Uncomment this for development!
     # native.local_repository(
-    #     name = "zk_dtypes",
-    #     path = "../zk_dtypes",
+    #     name = "zkir",
+    #     path = "../zkir",
     # )

@@ -26,9 +26,10 @@ load("@zkx//third_party/implib_so:workspace.bzl", implib_so = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/nanobind:workspace.bzl", nanobind = "repo")
 load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
-load("@zkx//third_party/py/zk_dtypes:workspace.bzl", zk_dtypes = "repo")
 load("@zkx//third_party/robin_map:workspace.bzl", robin_map = "repo")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
+load("@zkx//third_party/version:workspace.bzl", version = "repo")
+load("@zkx//third_party/zkir:workspace.bzl", zkir = "repo")
 
 def zkx_deps():
     """ZKX dependencies."""
@@ -44,7 +45,8 @@ def zkx_deps():
     dlpack()
     robin_map()
     uv()
-    zk_dtypes()
+    version()
+    zkir()
 
     # Load the raw llvm-project.  llvm does not have build rules set up by default,
     # but provides a script for setting up build rules via overlays.
@@ -86,26 +88,41 @@ def zkx_deps():
         name = "com_googlesource_code_re2",
         sha256 = "ef516fb84824a597c4d5d0d6d330daedb18363b5a99eda87d027e6bdd9cba299",
         strip_prefix = "re2-03da4fc0857c285e3a26782f6bc8931c4c950df4",
-        system_build_file = "@zkx//third_party/systemlibs:re2.BUILD",
         urls = tf_mirror_urls("https://github.com/google/re2/archive/03da4fc0857c285e3a26782f6bc8931c4c950df4.tar.gz"),
     )
 
     tf_http_archive(
         name = "com_google_googletest",
-        sha256 = "81964fe578e9bd7c94dfdb09c8e4d6e6759e19967e397dbea48d1c10e45d0df2",
-        strip_prefix = "googletest-release-1.12.1",
-        urls = tf_mirror_urls("https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz"),
+        # Use the commit on 2025/6/09:
+        # https://github.com/google/googletest/commit/28e9d1f26771c6517c3b4be10254887673c94018
+        sha256 = "f253ca1a07262f8efde8328e4b2c68979e40ddfcfc001f70d1d5f612c7de2974",
+        strip_prefix = "googletest-28e9d1f26771c6517c3b4be10254887673c94018",
+        # Patch googletest to:
+        #   - avoid dependencies on @fuchsia_sdk,
+        #   - refer to re2 as @com_googlesource_code_re2,
+        #   - refer to abseil as @com_google_absl.
+        #
+        # To update the patch, run:
+        # $ cd ~
+        # $ mkdir -p github
+        # $ cd github
+        # $ git clone https://github.com/google/googletest.git
+        # $ cd googletest
+        # $ git checkout 28e9d1f26771c6517c3b4be10254887673c94018
+        # ... make local changes to googletest ...
+        # $ git diff > <client-root>/third_party/googletest/googletest.patch
+        #
+        # The patch path is relative to the workspace root.
+        patch_file = ["//third_party/googletest:googletest.patch"],
+        urls = tf_mirror_urls("https://github.com/google/googletest/archive/28e9d1f26771c6517c3b4be10254887673c94018.zip"),
     )
 
     tf_http_archive(
         name = "com_github_grpc_grpc",
-        sha256 = "493d9905aa09124c2f44268b66205dd013f3925a7e82995f36745974e97af609",
-        strip_prefix = "grpc-1.63.0",
-        patch_file = [
-            "@zkx//third_party/grpc:grpc.patch",
-            "@zkx//third_party/grpc:use_public_header.patch",
-        ],
-        urls = tf_mirror_urls("https://github.com/grpc/grpc/archive/v1.63.0.tar.gz"),
+        sha256 = "dd6a2fa311ba8441bbefd2764c55b99136ff10f7ea42954be96006a2723d33fc",
+        strip_prefix = "grpc-1.74.0",
+        patch_file = ["//third_party/grpc:grpc.patch"],
+        urls = tf_mirror_urls("https://github.com/grpc/grpc/archive/refs/tags/v1.74.0.tar.gz"),
     )
 
     # Needed by com_google_protobuf
@@ -124,26 +141,4 @@ def zkx_deps():
         sha256 = "8e00c38829d6785a2dfb951bb87c6974fa07dfe488aa5b25deec4b8bc0f6a3ab",
         strip_prefix = "rapidjson-1.1.0",
         urls = tf_mirror_urls("https://github.com/Tencent/rapidjson/archive/v1.1.0.zip"),
-    )
-
-    ZKIR_COMMIT = "d0cf5660cf253660e63ec86fa82897b070a43c11"
-    tf_http_archive(
-        name = "zkir",
-        sha256 = "8e53124537ce476b7849c566877ddb5256b94ecebea7bf0691cec4e94df10b00",
-        strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
-        urls = tf_mirror_urls("https://github.com/fractalyze/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
-    )
-    # Uncomment this for development!
-    # native.local_repository(
-    #     name = "zkir",
-    #     path = "../zkir",
-    # )
-
-    VERSION_COMMIT = "022bd9f7851643966bc3ee0bf2c2fe8795d3488f"
-
-    tf_http_archive(
-        name = "version",
-        sha256 = "2e65daa275198d4fa6e2081746a48b70999f5a6c0b533478b5ce77752d5ad54c",
-        strip_prefix = "version-{commit}".format(commit = VERSION_COMMIT),
-        urls = tf_mirror_urls("https://github.com/fractalyze/version/archive/{commit}.tar.gz".format(commit = VERSION_COMMIT)),
     )

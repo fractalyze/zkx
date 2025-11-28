@@ -1,4 +1,3 @@
-# Copyright The OpenXLA Authors.
 # Copyright 2025 The ZKX Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,23 +13,19 @@
 # limitations under the License.
 # ==============================================================================
 
-licenses(["restricted"])
+"""Provides the repo macro to import version.
 
-package(default_visibility = ["//visibility:public"])
+version generates c++ header file for the version number.
+"""
 
-alias(
-    name = "numpy",
-    actual = "@pypi_numpy//:pkg",
-)
+load("//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 
-alias(
-    name = "headers",
-    actual = "@pypi_numpy//:numpy_headers",
-)
-
-genrule(
-    name = "dummy",
-    outs = ["tf_numpy_dummy.py"],
-    cmd = "touch $@",
-    visibility = ["//visibility:private"],
-)
+def repo():
+    VERSION_COMMIT = "022bd9f7851643966bc3ee0bf2c2fe8795d3488f"
+    VERSION_SHA256 = "2e65daa275198d4fa6e2081746a48b70999f5a6c0b533478b5ce77752d5ad54c"
+    tf_http_archive(
+        name = "version",
+        sha256 = VERSION_SHA256,
+        strip_prefix = "version-{commit}".format(commit = VERSION_COMMIT),
+        urls = tf_mirror_urls("https://github.com/fractalyze/version/archive/{commit}.tar.gz".format(commit = VERSION_COMMIT)),
+    )
