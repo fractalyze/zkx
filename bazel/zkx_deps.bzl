@@ -25,7 +25,6 @@ load("@zkx//third_party/highwayhash:workspace.bzl", highwayhash = "repo")
 load("@zkx//third_party/implib_so:workspace.bzl", implib_so = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/nanobind:workspace.bzl", nanobind = "repo")
-load("@zkx//third_party/omp:omp_configure.bzl", "omp_configure")
 load("@zkx//third_party/robin_map:workspace.bzl", robin_map = "repo")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 load("@zkx//third_party/version:workspace.bzl", version = "repo")
@@ -33,8 +32,6 @@ load("@zkx//third_party/zkir:workspace.bzl", zkir = "repo")
 
 def zkx_deps():
     """ZKX dependencies."""
-
-    omp_configure(name = "local_config_omp")
 
     eigen3()
     farmhash()
