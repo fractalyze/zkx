@@ -67,6 +67,19 @@ td_library(
     ],
 )
 
+cc_library(
+    name = "register",
+    srcs = ["Register.cpp"],
+    hdrs = ["Register.h"],
+    strip_include_prefix = ".",
+    deps = [
+        ":stablehlo_ops",
+        ":vhlo_ops",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
 gentbl_cc_library(
     name = "stablehlo_attrs_inc_gen",
     strip_include_prefix = ".",
@@ -238,6 +251,38 @@ gentbl_cc_library(
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "VhloOps.td",
     deps = [":vhlo_ops_td_files"],
+)
+
+cc_library(
+    name = "vhlo_ops",
+    srcs = [
+        "VhloBytecode.cpp",
+        "VhloOps.cpp",
+    ],
+    hdrs = [
+        "VhloBytecode.h",
+        "VhloOps.h",
+    ],
+    strip_include_prefix = ".",
+    deps = [
+        ":assembly_format",
+        ":base",
+        ":version",
+        ":vhlo_attr_interfaces_inc_gen",
+        ":vhlo_attrs_inc_gen",
+        ":vhlo_enums_inc_gen",
+        ":vhlo_op_interfaces_inc_gen",
+        ":vhlo_ops_inc_gen",
+        ":vhlo_types",
+        ":vhlo_types_inc_gen",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:BytecodeOpInterface",
+        "@llvm-project//mlir:FunctionInterfaces",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:QuantOps",
+        "@llvm-project//mlir:ShapeDialect",
+        "@llvm-project//mlir:Support",
+    ],
 )
 
 gentbl_cc_library(
