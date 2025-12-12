@@ -339,6 +339,182 @@ void ConvertOp::getCanonicalizationPatterns(RewritePatternSet &results,
 }
 
 //===----------------------------------------------------------------------===//
+// SliceOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult SliceOp::inferReturnTypes(
+    MLIRContext * /*context*/, std::optional<Location> location,
+    ValueRange operands, DictionaryAttr attributes, OpaqueProperties properties,
+    RegionRange regions, SmallVectorImpl<Type> &inferredReturnTypes) {
+  SliceOpAdaptor adaptor(operands, attributes, properties, regions);
+  if (failed(verify1dTensor(location, adaptor.getStartIndices(),
+                            "start_indices")) ||
+      failed(verify1dTensor(location, adaptor.getLimitIndices(),
+                            "limit_indices")) ||
+      failed(verify1dTensor(location, adaptor.getStrides(), "strides")))
+    return failure();
+  return hlo::inferSliceOp(
+      location, adaptor.getOperand().getType(),
+      llvm::to_vector(adaptor.getStartIndices().getValues<int64_t>()),
+      llvm::to_vector(adaptor.getLimitIndices().getValues<int64_t>()),
+      llvm::to_vector(adaptor.getStrides().getValues<int64_t>()),
+      inferredReturnTypes);
+}
+
+namespace {
+
+template <typename I, typename E>
+void sliceElements(I values, ArrayRef<int64_t> sizes, ArrayRef<int64_t> starts,
+                   ArrayRef<int64_t> limits, ArrayRef<int64_t> strides,
+                   llvm::SmallVectorImpl<E> *outValues) {
+  assert(starts.size() == limits.size());
+  assert(starts.size() == strides.size());
+  if (starts.empty())
+    return;
+
+  int64_t start = starts.front();
+  int64_t limit = limits.front();
+  int64_t stride = strides.front();
+  if (starts.size() == 1) {
+    for (int i = start; i < limit; i += stride) {
+      outValues->push_back(*(values + i));
+    }
+    return;
+  }
+
+  for (; start < limit; start += stride) {
+    auto begin = values + start * sizes.front();
+    sliceElements<I, E>(begin, sizes.drop_front(), starts.drop_front(),
+                        limits.drop_front(), strides.drop_front(), outValues);
+  }
+}
+
+template <typename I, typename E>
+Attribute foldSlice(SliceOp *op, I values) {
+  auto start = llvm::to_vector<6>(op->getStartIndices().getValues<int64_t>());
+  auto limit = llvm::to_vector<6>(op->getLimitIndices().getValues<int64_t>());
+  auto stride = llvm::to_vector<6>(op->getStrides().getValues<int64_t>());
+
+  // TODO(b/235903849): This should be op->getType().case<ShapedType>().
+  auto resultType = cast<ShapedType>(op->getOperand().getType());
+  if (!resultType.hasStaticShape())
+    return {};
+
+  ArrayRef<int64_t> shape = resultType.getShape();
+  int64_t count = resultType.getNumElements();
+  if (count == 0) {
+    return DenseElementsAttr::get<E>(
+        cast<ShapedType>(op->getResult().getType()),
+        /*list=*/{});
+  }
+
+  // Compute the striding for each dimension.
+  llvm::SmallVector<int64_t, 6> sizes;
+  sizes.reserve(shape.size());
+  for (auto v : shape) {
+    count = count / v;
+    sizes.push_back(count);
+  }
+
+  // Prevent folding if the result is too large.
+  if (resultType.getNumElements() > kFoldOpEltLimit)
+    return {};
+
+  llvm::SmallVector<E, 6> outValues;
+  outValues.reserve(resultType.getNumElements());
+  sliceElements<I, E>(values, sizes, start, limit, stride, &outValues);
+
+  return DenseElementsAttr::get(cast<ShapedType>(op->getResult().getType()),
+                                outValues);
+}
+
+} // namespace
+
+OpFoldResult SliceOp::fold(FoldAdaptor adaptor) {
+  ArrayRef<Attribute> operands = adaptor.getOperands();
+  // Check if the SliceOp is a NoOp operation.
+  auto operandType = cast<ShapedType>(getOperand().getType());
+  auto resultType = cast<ShapedType>(getResult().getType());
+
+  if (operandType.hasStaticShape() && resultType.hasStaticShape() &&
+      (operandType.getShape() == resultType.getShape())) {
+    return getOperand();
+  }
+
+  if (operands.empty() || !operands.front())
+    return {};
+
+  // Evaluate for statically valued inputs.
+  auto elements = dyn_cast<DenseElementsAttr>(operands.front());
+  if (!elements)
+    return {};
+
+  auto etype = elements.getType().getElementType();
+  if (isa<IntegerType>(etype)) {
+    return foldSlice<DenseElementsAttr::IntElementIterator, APInt>(
+        this, elements.value_begin<APInt>());
+  }
+
+  return {};
+}
+
+//===----------------------------------------------------------------------===//
+// TupleOp
+//===----------------------------------------------------------------------===//
+
+namespace {
+
+// Pattern for unpacking and repacking the same tuple.
+struct UnpackRepackSameTuple : public OpRewritePattern<TupleOp> {
+  using OpRewritePattern<TupleOp>::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(TupleOp op,
+                                PatternRewriter &rewriter) const override {
+    // TODO(chokobole): Uncomment this. Dependency: GetTupleElementOp
+    // if (op.getVal().empty()) return failure();
+
+    // Value firstElement = op.getVal().front();
+    // auto firstElementOp = firstElement.getDefiningOp<GetTupleElementOp>();
+    // if (!firstElementOp || firstElementOp.getIndexAttr().getInt() != 0)
+    //   return failure();
+
+    // Value tuplePredecessor = firstElementOp.getOperand();
+    // if (tuplePredecessor.getType() != op.getType()) return failure();
+
+    // for (const auto& elementAndIdx :
+    //      llvm::enumerate(op.getVal().drop_front(1))) {
+    //   auto elementOp =
+    //   elementAndIdx.value().getDefiningOp<GetTupleElementOp>(); if
+    //   (!elementOp ||
+    //       elementOp.getIndexAttr().getInt() !=
+    //           static_cast<int64_t>(elementAndIdx.index() + 1) ||
+    //       elementOp.getOperand() != tuplePredecessor)
+    //     return failure();
+    // }
+
+    // rewriter.replaceOp(op, tuplePredecessor);
+    // return success();
+    return failure();
+  }
+};
+
+} // namespace
+
+void TupleOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                          MLIRContext *context) {
+  results.add<UnpackRepackSameTuple>(context);
+}
+
+LogicalResult TupleOp::inferReturnTypes(
+    MLIRContext *context, std::optional<Location> location, ValueRange operands,
+    DictionaryAttr attributes, OpaqueProperties properties, RegionRange regions,
+    SmallVectorImpl<Type> &inferredReturnTypes) {
+  TupleOp::Adaptor adaptor(operands, attributes, properties, regions);
+  return hlo::inferTupleOp(context, location, adaptor.getVal(),
+                           inferredReturnTypes);
+}
+
+//===----------------------------------------------------------------------===//
 // UnaryOps
 //===----------------------------------------------------------------------===//
 
@@ -598,182 +774,6 @@ OpFoldResult MulOp::fold(FoldAdaptor adaptor) {
 
 #undef BINARY_FOLDER_INTERNAL
 #undef BINARY_FOLDER
-
-//===----------------------------------------------------------------------===//
-// SliceOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult SliceOp::inferReturnTypes(
-    MLIRContext * /*context*/, std::optional<Location> location,
-    ValueRange operands, DictionaryAttr attributes, OpaqueProperties properties,
-    RegionRange regions, SmallVectorImpl<Type> &inferredReturnTypes) {
-  SliceOpAdaptor adaptor(operands, attributes, properties, regions);
-  if (failed(verify1dTensor(location, adaptor.getStartIndices(),
-                            "start_indices")) ||
-      failed(verify1dTensor(location, adaptor.getLimitIndices(),
-                            "limit_indices")) ||
-      failed(verify1dTensor(location, adaptor.getStrides(), "strides")))
-    return failure();
-  return hlo::inferSliceOp(
-      location, adaptor.getOperand().getType(),
-      llvm::to_vector(adaptor.getStartIndices().getValues<int64_t>()),
-      llvm::to_vector(adaptor.getLimitIndices().getValues<int64_t>()),
-      llvm::to_vector(adaptor.getStrides().getValues<int64_t>()),
-      inferredReturnTypes);
-}
-
-namespace {
-
-template <typename I, typename E>
-void sliceElements(I values, ArrayRef<int64_t> sizes, ArrayRef<int64_t> starts,
-                   ArrayRef<int64_t> limits, ArrayRef<int64_t> strides,
-                   llvm::SmallVectorImpl<E> *outValues) {
-  assert(starts.size() == limits.size());
-  assert(starts.size() == strides.size());
-  if (starts.empty())
-    return;
-
-  int64_t start = starts.front();
-  int64_t limit = limits.front();
-  int64_t stride = strides.front();
-  if (starts.size() == 1) {
-    for (int i = start; i < limit; i += stride) {
-      outValues->push_back(*(values + i));
-    }
-    return;
-  }
-
-  for (; start < limit; start += stride) {
-    auto begin = values + start * sizes.front();
-    sliceElements<I, E>(begin, sizes.drop_front(), starts.drop_front(),
-                        limits.drop_front(), strides.drop_front(), outValues);
-  }
-}
-
-template <typename I, typename E>
-Attribute foldSlice(SliceOp *op, I values) {
-  auto start = llvm::to_vector<6>(op->getStartIndices().getValues<int64_t>());
-  auto limit = llvm::to_vector<6>(op->getLimitIndices().getValues<int64_t>());
-  auto stride = llvm::to_vector<6>(op->getStrides().getValues<int64_t>());
-
-  // TODO(b/235903849): This should be op->getType().case<ShapedType>().
-  auto resultType = cast<ShapedType>(op->getOperand().getType());
-  if (!resultType.hasStaticShape())
-    return {};
-
-  ArrayRef<int64_t> shape = resultType.getShape();
-  int64_t count = resultType.getNumElements();
-  if (count == 0) {
-    return DenseElementsAttr::get<E>(
-        cast<ShapedType>(op->getResult().getType()),
-        /*list=*/{});
-  }
-
-  // Compute the striding for each dimension.
-  llvm::SmallVector<int64_t, 6> sizes;
-  sizes.reserve(shape.size());
-  for (auto v : shape) {
-    count = count / v;
-    sizes.push_back(count);
-  }
-
-  // Prevent folding if the result is too large.
-  if (resultType.getNumElements() > kFoldOpEltLimit)
-    return {};
-
-  llvm::SmallVector<E, 6> outValues;
-  outValues.reserve(resultType.getNumElements());
-  sliceElements<I, E>(values, sizes, start, limit, stride, &outValues);
-
-  return DenseElementsAttr::get(cast<ShapedType>(op->getResult().getType()),
-                                outValues);
-}
-
-} // namespace
-
-OpFoldResult SliceOp::fold(FoldAdaptor adaptor) {
-  ArrayRef<Attribute> operands = adaptor.getOperands();
-  // Check if the SliceOp is a NoOp operation.
-  auto operandType = cast<ShapedType>(getOperand().getType());
-  auto resultType = cast<ShapedType>(getResult().getType());
-
-  if (operandType.hasStaticShape() && resultType.hasStaticShape() &&
-      (operandType.getShape() == resultType.getShape())) {
-    return getOperand();
-  }
-
-  if (operands.empty() || !operands.front())
-    return {};
-
-  // Evaluate for statically valued inputs.
-  auto elements = dyn_cast<DenseElementsAttr>(operands.front());
-  if (!elements)
-    return {};
-
-  auto etype = elements.getType().getElementType();
-  if (isa<IntegerType>(etype)) {
-    return foldSlice<DenseElementsAttr::IntElementIterator, APInt>(
-        this, elements.value_begin<APInt>());
-  }
-
-  return {};
-}
-
-//===----------------------------------------------------------------------===//
-// TupleOp
-//===----------------------------------------------------------------------===//
-
-namespace {
-
-// Pattern for unpacking and repacking the same tuple.
-struct UnpackRepackSameTuple : public OpRewritePattern<TupleOp> {
-  using OpRewritePattern<TupleOp>::OpRewritePattern;
-
-  LogicalResult matchAndRewrite(TupleOp op,
-                                PatternRewriter &rewriter) const override {
-    // TODO(chokobole): Uncomment this. Dependency: GetTupleElementOp
-    // if (op.getVal().empty()) return failure();
-
-    // Value firstElement = op.getVal().front();
-    // auto firstElementOp = firstElement.getDefiningOp<GetTupleElementOp>();
-    // if (!firstElementOp || firstElementOp.getIndexAttr().getInt() != 0)
-    //   return failure();
-
-    // Value tuplePredecessor = firstElementOp.getOperand();
-    // if (tuplePredecessor.getType() != op.getType()) return failure();
-
-    // for (const auto& elementAndIdx :
-    //      llvm::enumerate(op.getVal().drop_front(1))) {
-    //   auto elementOp =
-    //   elementAndIdx.value().getDefiningOp<GetTupleElementOp>(); if
-    //   (!elementOp ||
-    //       elementOp.getIndexAttr().getInt() !=
-    //           static_cast<int64_t>(elementAndIdx.index() + 1) ||
-    //       elementOp.getOperand() != tuplePredecessor)
-    //     return failure();
-    // }
-
-    // rewriter.replaceOp(op, tuplePredecessor);
-    // return success();
-    return failure();
-  }
-};
-
-} // namespace
-
-void TupleOp::getCanonicalizationPatterns(RewritePatternSet &results,
-                                          MLIRContext *context) {
-  results.add<UnpackRepackSameTuple>(context);
-}
-
-LogicalResult TupleOp::inferReturnTypes(
-    MLIRContext *context, std::optional<Location> location, ValueRange operands,
-    DictionaryAttr attributes, OpaqueProperties properties, RegionRange regions,
-    SmallVectorImpl<Type> &inferredReturnTypes) {
-  TupleOp::Adaptor adaptor(operands, attributes, properties, regions);
-  return hlo::inferTupleOp(context, location, adaptor.getVal(),
-                           inferredReturnTypes);
-}
 
 } // namespace mlir::mhlo
 
