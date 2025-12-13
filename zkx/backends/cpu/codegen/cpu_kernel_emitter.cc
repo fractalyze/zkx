@@ -100,15 +100,17 @@ namespace {
 template <typename T>
 absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> GetRootOfUnityAttr(
     mlir::MLIRContext* mlir_context, int64_t fft_length) {
+  using UnderlyingType = typename T::UnderlyingType;
+
   TF_ASSIGN_OR_RETURN(T root_of_unity,
                       zk_dtypes::GetRootOfUnity<T>(fft_length));
   return mlir::zkir::field::RootOfUnityAttr::get(
-      mlir_context, /*root=*/
-      mlir_utils::GetMlirPrimeFieldAttr(mlir_context, root_of_unity,
-                                        /*use_montgomery=*/false),
+      mlir_context,
+      /*type=*/mlir_utils::GetMlirPrimeFieldType<T>(mlir_context),
+      /*root=*/
+      mlir_utils::GetMlirIntegerAttr(mlir_context, root_of_unity.value()),
       /*degree=*/
-      mlir::IntegerAttr::get(mlir::IntegerType::get(mlir_context, 64),
-                             fft_length));
+      mlir_utils::GetMlirIntegerAttr(mlir_context, UnderlyingType(fft_length)));
 }
 
 absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,

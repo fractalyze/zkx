@@ -25,7 +25,6 @@ limitations under the License.
 
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
 #include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
-#include "zkir/Dialect/Field/IR/FieldAttributes.h"
 #include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
@@ -50,110 +49,136 @@ llvm::APInt ConvertUnderlyingValueToAPInt(T value) {
 }
 
 template <typename T>
-mlir::IntegerAttr GetModulus(mlir::MLIRContext* context) {
-  auto type = mlir::IntegerType::get(context, T::kBitWidth);
-  return mlir::IntegerAttr::get(
-      type, ConvertUnderlyingValueToAPInt(T::Config::kModulus));
+mlir::IntegerAttr GetMlirIntegerAttr(mlir::MLIRContext* context,
+                                     const T& value) {
+  if constexpr (std::is_integral_v<T>) {
+    return mlir::IntegerAttr::get(
+        mlir::IntegerType::get(context, sizeof(T) * 8),
+        ConvertUnderlyingValueToAPInt(value));
+  } else {
+    auto type = mlir::IntegerType::get(context, T::kBitWidth);
+    return mlir::IntegerAttr::get(type, ConvertUnderlyingValueToAPInt(value));
+  }
+}
+
+template <size_t N>
+llvm::SmallVector<llvm::APInt> ConvertUnderlyingValueToAPInt(
+    llvm::ArrayRef<zk_dtypes::BigInt<N>> values) {
+  llvm::SmallVector<llvm::APInt> ret;
+  ret.reserve(values.size());
+  for (const auto& value : values) {
+    ret.push_back(ConvertUnderlyingValueToAPInt(value));
+  }
+  return ret;
+}
+
+template <typename T, std::enable_if_t<std::is_integral_v<T>>* = nullptr>
+llvm::SmallVector<llvm::APInt> ConvertUnderlyingValueToAPInt(
+    llvm::ArrayRef<T> values) {
+  llvm::SmallVector<llvm::APInt> ret;
+  ret.reserve(values.size());
+  for (T value : values) {
+    ret.push_back(ConvertUnderlyingValueToAPInt(value));
+  }
+  return ret;
+}
+
+template <typename T>
+mlir::DenseIntElementsAttr GetMlirDenseIntElementsAttr(
+    mlir::MLIRContext* context, llvm::ArrayRef<T> values) {
+  int64_t size = static_cast<int64_t>(values.size());
+  if constexpr (std::is_integral_v<T>) {
+    return mlir::DenseIntElementsAttr::get(
+        mlir::RankedTensorType::get(
+            {size}, mlir::IntegerType::get(context, sizeof(T) * 8)),
+        ConvertUnderlyingValueToAPInt(values));
+  } else {
+    auto type = mlir::IntegerType::get(context, T::kBitWidth);
+    return mlir::DenseIntElementsAttr::get(
+        mlir::RankedTensorType::get({size}, type),
+        ConvertUnderlyingValueToAPInt(values));
+  }
 }
 
 template <typename T>
 mlir::zkir::mod_arith::ModArithType GetMlirModArithType(
     mlir::MLIRContext* context) {
-  return mlir::zkir::mod_arith::ModArithType::get(context,
-                                                  GetModulus<T>(context));
+  return mlir::zkir::mod_arith::ModArithType::get(
+      context, GetMlirIntegerAttr(context, T::Config::kModulus));
 }
 
 template <typename T>
 mlir::zkir::mod_arith::MontgomeryAttr GetMlirMontgomeryAttr(
     mlir::MLIRContext* context) {
-  return mlir::zkir::mod_arith::MontgomeryAttr::get(context,
-                                                    GetModulus<T>(context));
+  return mlir::zkir::mod_arith::MontgomeryAttr::get(
+      context, GetMlirIntegerAttr(context, T::Config::kModulus));
 }
 
-// TODO(chokobole): Remove the `use_montgomery` parameter once
-// `zkir::field::RootOfUnityAttr` can be constructed based on the prime field
-// representation. Currently, the attribute is always created in standard form,
-// regardless of whether the field uses Montgomery form.
 template <typename T>
 mlir::zkir::field::PrimeFieldType GetMlirPrimeFieldType(
-    mlir::MLIRContext* context, bool use_montgomery) {
-  if constexpr (!T::kUseMontgomery) {
-    DCHECK(!use_montgomery);
-  }
-  return mlir::zkir::field::PrimeFieldType::get(context, GetModulus<T>(context),
-                                                use_montgomery);
-}
-
-// TODO(chokobole): Remove `use_montgomery` argument. Refer to the comment
-// above.
-template <typename T>
-mlir::zkir::field::PrimeFieldAttr GetMlirPrimeFieldAttr(
-    mlir::MLIRContext* context, const T& value, bool use_montgomery) {
-  if constexpr (T::kUseMontgomery) {
-    if (use_montgomery) {
-      return mlir::zkir::field::PrimeFieldAttr::get(
-          GetMlirPrimeFieldType<T>(context, true),
-          ConvertUnderlyingValueToAPInt(value.value()));
-    } else {
-      return mlir::zkir::field::PrimeFieldAttr::get(
-          GetMlirPrimeFieldType<T>(context, false),
-          ConvertUnderlyingValueToAPInt(value.MontReduce().value()));
-    }
-  } else {
-    DCHECK(!use_montgomery);
-    return mlir::zkir::field::PrimeFieldAttr::get(
-        GetMlirPrimeFieldType<T>(context, false),
-        ConvertUnderlyingValueToAPInt(value.value()));
-  }
+    mlir::MLIRContext* context) {
+  return mlir::zkir::field::PrimeFieldType::get(
+      context, GetMlirIntegerAttr(context, T::Config::kModulus),
+      T::kUseMontgomery);
 }
 
 template <typename T>
 mlir::zkir::field::QuadraticExtFieldType GetMlirQuadraticExtFieldType(
     mlir::MLIRContext* context) {
   using BaseField = typename T::BaseField;
-  return mlir::zkir::field::QuadraticExtFieldType::get(
-      context, GetMlirPrimeFieldType<BaseField>(context, T::kUseMontgomery),
-      GetMlirPrimeFieldAttr(context, T::Config::kNonResidue,
-                            T::kUseMontgomery));
-}
 
-template <typename T>
-mlir::zkir::field::QuadraticExtFieldAttr GetMlirExtQuadraticExtFieldAttr(
-    mlir::MLIRContext* context, const T& value) {
-  return mlir::zkir::field::QuadraticExtFieldAttr::get(
-      context, GetMlirQuadraticExtFieldType<T>(context),
-      GetMlirPrimeFieldAttr(context, value[0], T::kUseMontgomery),
-      GetMlirPrimeFieldAttr(context, value[1], T::kUseMontgomery));
+  return mlir::zkir::field::QuadraticExtFieldType::get(
+      context, GetMlirPrimeFieldType<BaseField>(context),
+      GetMlirIntegerAttr(context, T::Config::kNonResidue.value()));
 }
 
 template <typename T>
 mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMlirG1ShortWeierstrassAttr(
     mlir::MLIRContext* context) {
-  mlir::zkir::field::PrimeFieldAttr a =
-      GetMlirPrimeFieldAttr(context, T::Curve::Config::kA, T::kUseMontgomery);
-  mlir::zkir::field::PrimeFieldAttr b =
-      GetMlirPrimeFieldAttr(context, T::Curve::Config::kB, T::kUseMontgomery);
-  mlir::zkir::field::PrimeFieldAttr x =
-      GetMlirPrimeFieldAttr(context, T::Curve::Config::kX, T::kUseMontgomery);
-  mlir::zkir::field::PrimeFieldAttr y =
-      GetMlirPrimeFieldAttr(context, T::Curve::Config::kY, T::kUseMontgomery);
-  return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(context, a, b, x,
-                                                               y);
+  using BaseField = typename T::BaseField;
+  using UnderlyingType = typename BaseField::UnderlyingType;
+
+  UnderlyingType a_value = T::Curve::Config::kA.value();
+  UnderlyingType b_value = T::Curve::Config::kB.value();
+  UnderlyingType x_value = T::Curve::Config::kX.value();
+  UnderlyingType y_value = T::Curve::Config::kY.value();
+  mlir::IntegerAttr a = GetMlirIntegerAttr(context, a_value);
+  mlir::IntegerAttr b = GetMlirIntegerAttr(context, b_value);
+  mlir::IntegerAttr x = GetMlirIntegerAttr(context, x_value);
+  mlir::IntegerAttr y = GetMlirIntegerAttr(context, y_value);
+  return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(
+      context, GetMlirPrimeFieldType<BaseField>(context), a, b, x, y);
 }
 
 template <typename T>
 mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMlirG2ShortWeierstrassAttr(
     mlir::MLIRContext* context) {
-  mlir::zkir::field::QuadraticExtFieldAttr a =
-      GetMlirExtQuadraticExtFieldAttr(context, T::Curve::Config::kA);
-  mlir::zkir::field::QuadraticExtFieldAttr b =
-      GetMlirExtQuadraticExtFieldAttr(context, T::Curve::Config::kB);
-  mlir::zkir::field::QuadraticExtFieldAttr x =
-      GetMlirExtQuadraticExtFieldAttr(context, T::Curve::Config::kX);
-  mlir::zkir::field::QuadraticExtFieldAttr y =
-      GetMlirExtQuadraticExtFieldAttr(context, T::Curve::Config::kY);
-  return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(context, a, b, x,
-                                                               y);
+  using BaseField = typename T::BaseField;
+  using BasePrimeField = typename BaseField::Config::BasePrimeField;
+  using UnderlyingType = typename BasePrimeField::UnderlyingType;
+
+  auto to_int_array = [](const std::array<BasePrimeField, 2>& values) {
+    return std::array<UnderlyingType, 2>{values[0].value(), values[1].value()};
+  };
+
+  std::array<UnderlyingType, 2> a_value =
+      to_int_array(T::Curve::Config::kA.values());
+  std::array<UnderlyingType, 2> b_value =
+      to_int_array(T::Curve::Config::kB.values());
+  std::array<UnderlyingType, 2> x_value =
+      to_int_array(T::Curve::Config::kX.values());
+  std::array<UnderlyingType, 2> y_value =
+      to_int_array(T::Curve::Config::kY.values());
+  mlir::DenseIntElementsAttr a = GetMlirDenseIntElementsAttr(
+      context, llvm::ArrayRef<UnderlyingType>(a_value.data(), a_value.size()));
+  mlir::DenseIntElementsAttr b = GetMlirDenseIntElementsAttr(
+      context, llvm::ArrayRef<UnderlyingType>(b_value.data(), b_value.size()));
+  mlir::DenseIntElementsAttr x = GetMlirDenseIntElementsAttr(
+      context, llvm::ArrayRef<UnderlyingType>(x_value.data(), x_value.size()));
+  mlir::DenseIntElementsAttr y = GetMlirDenseIntElementsAttr(
+      context, llvm::ArrayRef<UnderlyingType>(y_value.data(), y_value.size()));
+  return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(
+      context, GetMlirQuadraticExtFieldType<BaseField>(context), a, b, x, y);
 }
 template <typename T>
 mlir::zkir::elliptic_curve::AffineType GetMlirAffinePointType(
@@ -230,16 +255,22 @@ template <typename T>
 mlir::Value CreateMlirPrimeFieldConstant(mlir::ImplicitLocOpBuilder& b,
                                          const T& value) {
   return b.create<mlir::zkir::field::ConstantOp>(
-      GetMlirPrimeFieldType<T>(b.getContext(), T::kUseMontgomery),
+      GetMlirPrimeFieldType<T>(b.getContext()),
       llvm_ir::ConvertBigIntToAPInt(value.value()));
 }
 
 template <typename T>
 mlir::Value CreateMlirQuadraticExtFieldConstant(mlir::ImplicitLocOpBuilder& b,
                                                 const T& value) {
+  using BaseField = typename T::BaseField;
+  using UnderlyingType = typename BaseField::UnderlyingType;
+
+  std::array<UnderlyingType, 2> values{value[0].value(), value[1].value()};
   return b.create<mlir::zkir::field::ConstantOp>(
       GetMlirQuadraticExtFieldType<T>(b.getContext()),
-      GetMlirExtQuadraticExtFieldAttr(b.getContext(), value));
+      GetMlirDenseIntElementsAttr(
+          b.getContext(),
+          llvm::ArrayRef<UnderlyingType>(values.data(), values.size())));
 }
 
 template <typename T>

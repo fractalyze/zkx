@@ -70,11 +70,11 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
       // Tokens do not have a physical representation, but the compiler needs
       // some placeholder type, so use int8_t*.
       return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
-#define MONTABLE_PRIME_FIELD_CASE(enum, cpp_type, type)  \
-  case enum:                                             \
-    return GetMlir##type##Type<cpp_type>(context, true); \
-  case enum##_STD:                                       \
-    return GetMlir##type##Type<cpp_type##Std>(context, false);
+#define MONTABLE_PRIME_FIELD_CASE(enum, cpp_type, type) \
+  case enum:                                            \
+    return GetMlir##type##Type<cpp_type>(context);      \
+  case enum##_STD:                                      \
+    return GetMlir##type##Type<cpp_type##Std>(context);
       MONTABLE_PRIME_FIELD_CASE(KOALABEAR, zk_dtypes::Koalabear, PrimeField)
       MONTABLE_PRIME_FIELD_CASE(BABYBEAR, zk_dtypes::Babybear, PrimeField)
       MONTABLE_PRIME_FIELD_CASE(MERSENNE31, zk_dtypes::Mersenne31, PrimeField)
@@ -252,8 +252,8 @@ namespace {
 PrimitiveType GetPrimitiveTypeOfPrimeFieldType(
     mlir::zkir::field::PrimeFieldType field_type) {
   mlir::IntegerAttr modulus = field_type.getModulus();
-  mlir::IntegerAttr bn254_fr_modulus =
-      GetModulus<zk_dtypes::bn254::Fr>(modulus.getContext());
+  mlir::IntegerAttr bn254_fr_modulus = GetMlirIntegerAttr(
+      modulus.getContext(), zk_dtypes::bn254::Fr::Config::kModulus);
   if (modulus == bn254_fr_modulus) {
     if (field_type.isMontgomery()) {
       return PrimitiveType::BN254_SF;
