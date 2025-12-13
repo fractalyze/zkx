@@ -18,16 +18,16 @@
 zk_dtypes provides ZK-specific data-types like babybear.
 """
 
-load("//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 def repo():
-    ZK_DTYPES_COMMIT = "66743801229c6d41e2a38a81f65d521c4bb3e4ea"
-    ZK_DTYPES_SHA256 = "e977c7a248ac81020fd327b78f3df6b8bcf930e6a697c48a79232fd43bd5f8ae"
-    tf_http_archive(
+    ZK_DTYPES_COMMIT = "2987f09cd46721ba3e2dd5e79d1ced6e1a0a673b"
+    ZK_DTYPES_SHA256 = "b6f3d7071f8cd0a3bcd50427404e5d8a242897b1232b57cbfa8d1427bb2f6b47"
+    http_archive(
         name = "zk_dtypes",
         sha256 = ZK_DTYPES_SHA256,
         strip_prefix = "zk_dtypes-{commit}".format(commit = ZK_DTYPES_COMMIT),
-        urls = tf_mirror_urls("https://github.com/fractalyze/zk_dtypes/archive/{commit}/zk_dtypes-{commit}.tar.gz".format(commit = ZK_DTYPES_COMMIT)),
+        urls = ["https://github.com/fractalyze/zk_dtypes/archive/{commit}/zk_dtypes-{commit}.tar.gz".format(commit = ZK_DTYPES_COMMIT)],
     )
     # Uncomment this for development!
     # native.local_repository(
