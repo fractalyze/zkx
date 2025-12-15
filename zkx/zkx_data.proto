@@ -508,27 +508,27 @@ message LiteralProto {
   repeated int64 sparse_indices = 18;
 
   bytes koalabears = 33;
-  bytes koalabears_std = 34;
+  bytes koalabear_stds = 34;
   bytes babybears = 35;
-  bytes babybears_std = 36;
+  bytes babybear_stds = 36;
   bytes mersenne31s = 37;
-  bytes mersenne31s_std = 38;
+  bytes mersenne31_stds = 38;
   bytes goldilockss = 39;
-  bytes goldilockss_std = 40;
+  bytes goldilocks_stds = 40;
   bytes bn254_sfs = 19;
-  bytes bn254_sfs_std = 20;
+  bytes bn254_sf_stds = 20;
   bytes bn254_g1_affines = 21;
-  bytes bn254_g1_affines_std = 22;
+  bytes bn254_g1_affine_stds = 22;
   bytes bn254_g1_jacobians = 23;
-  bytes bn254_g1_jacobians_std = 24;
+  bytes bn254_g1_jacobian_stds = 24;
   bytes bn254_g1_xyzzs = 25;
-  bytes bn254_g1_xyzzs_std = 26;
+  bytes bn254_g1_xyzz_stds = 26;
   bytes bn254_g2_affines = 27;
-  bytes bn254_g2_affines_std = 28;
+  bytes bn254_g2_affine_stds = 28;
   bytes bn254_g2_jacobians = 29;
-  bytes bn254_g2_jacobians_std = 30;
+  bytes bn254_g2_jacobian_stds = 30;
   bytes bn254_g2_xyzzs = 31;
-  bytes bn254_g2_xyzzs_std = 32;
+  bytes bn254_g2_xyzz_stds = 32;
 }
 
 enum FftType {

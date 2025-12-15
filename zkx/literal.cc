@@ -1551,32 +1551,30 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
       return;
 #define MONTABLE_CASE(enum, member_name, cpp_type)                          \
   case enum:                                                                \
-    *proto->mutable_##member_name() =                                       \
+    *proto->mutable_##member_name##s() =                                    \
         std::string(reinterpret_cast<const char*>(data<cpp_type>().data()), \
                     size_bytes_dense());                                    \
     break;                                                                  \
   case enum##_STD:                                                          \
-    *proto->mutable_##member_name##_std() = std::string(                    \
+    *proto->mutable_##member_name##_std##s() = std::string(                 \
         reinterpret_cast<const char*>(data<cpp_type##Std>().data()),        \
         size_bytes_dense());                                                \
     break;
-      MONTABLE_CASE(KOALABEAR, koalabears, zk_dtypes::Koalabear)
-      MONTABLE_CASE(BABYBEAR, babybears, zk_dtypes::Babybear)
-      MONTABLE_CASE(MERSENNE31, mersenne31s, zk_dtypes::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, goldilockss, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SF, bn254_sfs, zk_dtypes::bn254::Fr)
-      MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
+      MONTABLE_CASE(KOALABEAR, koalabear, zk_dtypes::Koalabear)
+      MONTABLE_CASE(BABYBEAR, babybear, zk_dtypes::Babybear)
+      MONTABLE_CASE(MERSENNE31, mersenne31, zk_dtypes::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, goldilocks, zk_dtypes::Goldilocks)
+      MONTABLE_CASE(BN254_SF, bn254_sf, zk_dtypes::bn254::Fr)
+      MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affine,
                     zk_dtypes::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,
+      MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobian,
                     zk_dtypes::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs,
-                    zk_dtypes::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affines,
+      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzz, zk_dtypes::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affine,
                     zk_dtypes::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobians,
+      MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobian,
                     zk_dtypes::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs,
-                    zk_dtypes::bn254::G2PointXyzz)
+      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzz, zk_dtypes::bn254::G2PointXyzz)
 #undef MONTABLE_CASE
     default:
       // TODO(b/111551621): Support serializing more PrimitiveTypes.
@@ -1715,34 +1713,32 @@ absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
                           ShapeUtil::HumanString(subshape())));
 #define MONTABLE_CASE(enum, member_name, cpp_type)                             \
   case enum: {                                                                 \
-    const std::string& s(proto.member_name());                                 \
+    const std::string& s(proto.member_name##s());                              \
     TF_RET_CHECK(data<cpp_type>().size() * sizeof(cpp_type) == s.size());      \
     memcpy(untyped_data(), s.data(), s.size());                                \
     break;                                                                     \
   }                                                                            \
   case enum##_STD: {                                                           \
-    const std::string& s(proto.member_name##_std());                           \
+    const std::string& s(proto.member_name##_std##s());                        \
     TF_RET_CHECK(data<cpp_type>().size() * sizeof(cpp_type##Std) == s.size()); \
     memcpy(untyped_data(), s.data(), s.size());                                \
     break;                                                                     \
   }
-      MONTABLE_CASE(KOALABEAR, koalabears, zk_dtypes::Koalabear)
-      MONTABLE_CASE(BABYBEAR, babybears, zk_dtypes::Babybear)
-      MONTABLE_CASE(MERSENNE31, mersenne31s, zk_dtypes::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, goldilockss, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SF, bn254_sfs, zk_dtypes::bn254::Fr)
-      MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
+      MONTABLE_CASE(KOALABEAR, koalabear, zk_dtypes::Koalabear)
+      MONTABLE_CASE(BABYBEAR, babybear, zk_dtypes::Babybear)
+      MONTABLE_CASE(MERSENNE31, mersenne31, zk_dtypes::Mersenne31)
+      MONTABLE_CASE(GOLDILOCKS, goldilocks, zk_dtypes::Goldilocks)
+      MONTABLE_CASE(BN254_SF, bn254_sf, zk_dtypes::bn254::Fr)
+      MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affine,
                     zk_dtypes::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,
+      MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobian,
                     zk_dtypes::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs,
-                    zk_dtypes::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affines,
+      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzz, zk_dtypes::bn254::G1PointXyzz)
+      MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affine,
                     zk_dtypes::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobians,
+      MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobian,
                     zk_dtypes::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs,
-                    zk_dtypes::bn254::G2PointXyzz)
+      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzz, zk_dtypes::bn254::G2PointXyzz)
 #undef MONTABLE_CASE
     default:
       return absl::InvalidArgumentError(
