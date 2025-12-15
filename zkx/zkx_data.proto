@@ -51,7 +51,7 @@ enum PrimitiveType {
   // A tuple is a polymorphic sequence; e.g. a shape that holds different
   // sub-shapes. They are used for things like returning multiple values from a
   // computation; e.g. a a bn254 G1 affine point can be represented as
-  // tuple(bn254.sf, bn254.sf) for its (x, y) coordinates.
+  // tuple(bn254_sf, bn254_sf) for its (x, y) coordinates.
   //
   // If a shape proto has the tuple element type, it may not have any entries
   // in the dimensions field.

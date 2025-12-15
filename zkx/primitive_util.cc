@@ -84,51 +84,14 @@ class PrimitiveTypeNameGenerator {
       PrimitiveType t = static_cast<PrimitiveType>(idx + PrimitiveType_MIN);
       if (t == OPAQUE_TYPE) {
         lowercase_name_[idx] = "opaque";
-      } else if (t == KOALABEAR) {
-        lowercase_name_[idx] = "koalabear";
-      } else if (t == KOALABEAR_STD) {
-        lowercase_name_[idx] = "koalabear_std";
-      } else if (t == BABYBEAR) {
-        lowercase_name_[idx] = "babybear";
-      } else if (t == BABYBEAR_STD) {
-        lowercase_name_[idx] = "babybear_std";
-      } else if (t == MERSENNE31) {
-        lowercase_name_[idx] = "mersenne31";
-      } else if (t == MERSENNE31_STD) {
-        lowercase_name_[idx] = "mersenne31_std";
-      } else if (t == GOLDILOCKS) {
-        lowercase_name_[idx] = "goldilocks";
-      } else if (t == GOLDILOCKS_STD) {
-        lowercase_name_[idx] = "goldilocks_std";
-      } else if (t == BN254_SF) {
-        lowercase_name_[idx] = "bn254.sf";
-      } else if (t == BN254_SF_STD) {
-        lowercase_name_[idx] = "bn254.sf_std";
-      } else if (t == BN254_G1_AFFINE) {
-        lowercase_name_[idx] = "bn254.g1_affine";
-      } else if (t == BN254_G1_AFFINE_STD) {
-        lowercase_name_[idx] = "bn254.g1_affine_std";
-      } else if (t == BN254_G1_JACOBIAN) {
-        lowercase_name_[idx] = "bn254.g1_jacobian";
-      } else if (t == BN254_G1_JACOBIAN_STD) {
-        lowercase_name_[idx] = "bn254.g1_jacobian_std";
-      } else if (t == BN254_G1_XYZZ) {
-        lowercase_name_[idx] = "bn254.g1_xyzz";
-      } else if (t == BN254_G1_XYZZ_STD) {
-        lowercase_name_[idx] = "bn254.g1_xyzz_std";
-      } else if (t == BN254_G2_AFFINE) {
-        lowercase_name_[idx] = "bn254.g2_affine";
-      } else if (t == BN254_G2_AFFINE_STD) {
-        lowercase_name_[idx] = "bn254.g2_affine_std";
-      } else if (t == BN254_G2_JACOBIAN) {
-        lowercase_name_[idx] = "bn254.g2_jacobian";
-      } else if (t == BN254_G2_JACOBIAN_STD) {
-        lowercase_name_[idx] = "bn254.g2_jacobian_std";
-      } else if (t == BN254_G2_XYZZ) {
-        lowercase_name_[idx] = "bn254.g2_xyzz";
-      } else if (t == BN254_G2_XYZZ_STD) {
-        lowercase_name_[idx] = "bn254.g2_xyzz_std";
-      } else if (PrimitiveType_IsValid(t)) {
+      }
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, lowercase_name) \
+  else if (t == enum) {                                        \
+    lowercase_name_[idx] = #lowercase_name;                    \
+  }                                                            \
+  ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
+      else if (PrimitiveType_IsValid(t)) {
         lowercase_name_[idx] = absl::AsciiStrToLower(PrimitiveType_Name(t));
       }
     }

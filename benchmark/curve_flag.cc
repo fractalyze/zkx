@@ -32,9 +32,9 @@ void AddCurveFlag(base::FlagParserBase& parser, benchmark::Curve* curve) {
 std::string_view CurveToScalarFieldHloString(Curve curve) {
   switch (curve) {
     case Curve::kBn254G1:
-      return "bn254.sf";
+      return "bn254_sf";
     case Curve::kBn254G2:
-      return "bn254.sf";
+      return "bn254_sf";
   }
   ABSL_UNREACHABLE();
   return "";
@@ -43,9 +43,9 @@ std::string_view CurveToScalarFieldHloString(Curve curve) {
 std::string_view CurveToHloString(Curve curve) {
   switch (curve) {
     case Curve::kBn254G1:
-      return "bn254.g1";
+      return "bn254_g1";
     case Curve::kBn254G2:
-      return "bn254.g2";
+      return "bn254_g2";
   }
   ABSL_UNREACHABLE();
   return "";
