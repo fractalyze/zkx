@@ -33,6 +33,7 @@ limitations under the License.
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
+#include "zk_dtypes/include/all_types.h"
 #include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
 #include "zk_dtypes/include/elliptic_curve/bn/bn254/g1.h"
 #include "zk_dtypes/include/elliptic_curve/bn/bn254/g2.h"
@@ -141,29 +142,13 @@ constexpr PrimitiveType NativeToPrimitiveType<int64_t>() {
   return S64;
 }
 
-#define MONTABLE_CONVERSION(enum, cpp_type)                        \
-  template <>                                                      \
-  constexpr PrimitiveType NativeToPrimitiveType<cpp_type>() {      \
-    return enum;                                                   \
-  }                                                                \
-  template <>                                                      \
-  constexpr PrimitiveType NativeToPrimitiveType<cpp_type##Std>() { \
-    return enum##_STD;                                             \
+#define ZK_DTYPES_CONVERSION(cpp_type, unused, enum, unused2) \
+  template <>                                                 \
+  constexpr PrimitiveType NativeToPrimitiveType<cpp_type>() { \
+    return enum;                                              \
   }
-
-MONTABLE_CONVERSION(KOALABEAR, zk_dtypes::Koalabear)
-MONTABLE_CONVERSION(BABYBEAR, zk_dtypes::Babybear)
-MONTABLE_CONVERSION(MERSENNE31, zk_dtypes::Mersenne31)
-MONTABLE_CONVERSION(GOLDILOCKS, zk_dtypes::Goldilocks)
-MONTABLE_CONVERSION(BN254_SF, zk_dtypes::bn254::Fr)
-MONTABLE_CONVERSION(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
-MONTABLE_CONVERSION(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
-MONTABLE_CONVERSION(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
-MONTABLE_CONVERSION(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
-MONTABLE_CONVERSION(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
-MONTABLE_CONVERSION(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
-
-#undef MONTABLE_CONVERSION
+ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CONVERSION)
+#undef ZK_DTYPES_CONVERSION
 
 // Returns the native type (eg, uint32_t) corresponding to the given template
 // parameter ZKX primitive type (eg, U32).
@@ -255,29 +240,13 @@ struct PrimitiveTypeToNative<TOKEN> {
   using type = void;
 };
 
-#define MONTABLE_CONVERSION(enum_type, cpp_type)  \
-  template <>                                     \
-  struct PrimitiveTypeToNative<enum_type> {       \
-    using type = cpp_type;                        \
-  };                                              \
-  template <>                                     \
-  struct PrimitiveTypeToNative<enum_type##_STD> { \
-    using type = cpp_type##Std;                   \
-  }
-
-MONTABLE_CONVERSION(KOALABEAR, zk_dtypes::Koalabear);
-MONTABLE_CONVERSION(BABYBEAR, zk_dtypes::Babybear);
-MONTABLE_CONVERSION(MERSENNE31, zk_dtypes::Mersenne31);
-MONTABLE_CONVERSION(GOLDILOCKS, zk_dtypes::Goldilocks);
-MONTABLE_CONVERSION(BN254_SF, zk_dtypes::bn254::Fr);
-MONTABLE_CONVERSION(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint);
-MONTABLE_CONVERSION(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint);
-MONTABLE_CONVERSION(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz);
-MONTABLE_CONVERSION(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint);
-MONTABLE_CONVERSION(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint);
-MONTABLE_CONVERSION(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz);
-
-#undef MONTABLE_CONVERSION
+#define ZK_DTYPES_CONVERSION(cpp_type, unused, enum, unused2) \
+  template <>                                                 \
+  struct PrimitiveTypeToNative<enum> {                        \
+    using type = cpp_type;                                    \
+  };
+ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CONVERSION)
+#undef ZK_DTYPES_CONVERSION
 
 template <PrimitiveType kType>
 using NativeTypeOf = typename PrimitiveTypeToNative<kType>::type;
@@ -312,36 +281,46 @@ constexpr bool Is8BitIntegralType(PrimitiveType type) {
 }
 
 constexpr bool IsFieldType(PrimitiveType type) {
-  return type == KOALABEAR || type == KOALABEAR_STD || type == BABYBEAR ||
-         type == BABYBEAR_STD || type == MERSENNE31 || type == MERSENNE31_STD ||
-         type == GOLDILOCKS || type == GOLDILOCKS_STD || type == BN254_SF ||
-         type == BN254_SF_STD;
-}
-
-constexpr bool IsMontgomeryForm(PrimitiveType type) {
-  return type == KOALABEAR || type == BABYBEAR || type == MERSENNE31 ||
-         type == GOLDILOCKS || type == BN254_SF || type == BN254_G1_AFFINE ||
-         type == BN254_G1_JACOBIAN || type == BN254_G1_XYZZ ||
-         type == BN254_G2_AFFINE || type == BN254_G2_JACOBIAN ||
-         type == BN254_G2_XYZZ;
-}
-
-constexpr bool IsStandardForm(PrimitiveType type) {
-  return type == KOALABEAR_STD || type == BABYBEAR_STD ||
-         type == MERSENNE31_STD || type == GOLDILOCKS_STD ||
-         type == BN254_SF_STD || type == BN254_G1_AFFINE_STD ||
-         type == BN254_G1_JACOBIAN_STD || type == BN254_G1_XYZZ_STD ||
-         type == BN254_G2_AFFINE_STD || type == BN254_G2_JACOBIAN_STD ||
-         type == BN254_G2_XYZZ_STD;
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) type == enum ||
+  return ZK_DTYPES_PUBLIC_FIELD_TYPE_LIST(ZK_DTYPES_CASE) false;
+#undef ZK_DTYPES_CASE
 }
 
 constexpr bool IsEcPointType(PrimitiveType type) {
-  return type == BN254_G1_AFFINE || type == BN254_G1_AFFINE_STD ||
-         type == BN254_G1_JACOBIAN || type == BN254_G1_JACOBIAN_STD ||
-         type == BN254_G1_XYZZ || type == BN254_G1_XYZZ_STD ||
-         type == BN254_G2_AFFINE || type == BN254_G2_AFFINE_STD ||
-         type == BN254_G2_JACOBIAN || type == BN254_G2_JACOBIAN_STD ||
-         type == BN254_G2_XYZZ || type == BN254_G2_XYZZ_STD;
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) type == enum ||
+  return ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE) false;
+#undef ZK_DTYPES_CASE
+}
+
+template <typename R, typename F>
+constexpr R PrimitiveTypeSwitch(F&& f, PrimitiveType type);
+
+constexpr bool IsMontgomeryForm(PrimitiveType type) {
+  return PrimitiveTypeSwitch<bool>(
+      [&](auto primitive_type_constant) -> bool {
+        if constexpr (IsFieldType(primitive_type_constant) ||
+                      IsEcPointType(primitive_type_constant)) {
+          using NativeT = NativeTypeOf<primitive_type_constant>;
+          return NativeT::kUseMontgomery;
+        } else {
+          return false;
+        }
+      },
+      type);
+}
+
+constexpr bool IsStandardForm(PrimitiveType type) {
+  return PrimitiveTypeSwitch<bool>(
+      [&](auto primitive_type_constant) -> bool {
+        if constexpr (IsFieldType(primitive_type_constant) ||
+                      IsEcPointType(primitive_type_constant)) {
+          using NativeT = NativeTypeOf<primitive_type_constant>;
+          return !NativeT::kUseMontgomery;
+        } else {
+          return false;
+        }
+      },
+      type);
 }
 
 template <typename R, typename F>
@@ -387,19 +366,11 @@ template <typename R, typename F>
 constexpr R FieldTypeSwitch(F&& f, PrimitiveType type) {
   if (ABSL_PREDICT_TRUE(IsFieldType(type))) {
     switch (type) {
-#define MONTABLE_CASE(enum, cpp_type)                                        \
-  case enum:                                                                 \
-    return std::forward<F>(f)(PrimitiveTypeConstant<PrimitiveType::enum>()); \
-  case enum##_STD:                                                           \
-    return std::forward<F>(f)(                                               \
-        PrimitiveTypeConstant<PrimitiveType::enum##_STD>());
-
-      MONTABLE_CASE(KOALABEAR, zk_dtypes::Koalabear)
-      MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
-      MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SF, zk_dtypes::bn254::Fr)
-#undef MONTABLE_CASE
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) \
+  case enum:                                           \
+    return std::forward<F>(f)(PrimitiveTypeConstant<PrimitiveType::enum>());
+      ZK_DTYPES_PUBLIC_FIELD_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
       default:
         ABSL_UNREACHABLE();
     }
@@ -411,20 +382,11 @@ template <typename R, typename F>
 constexpr R EcPointTypeSwitch(F&& f, PrimitiveType type) {
   if (ABSL_PREDICT_TRUE(IsEcPointType(type))) {
     switch (type) {
-#define MONTABLE_CASE(enum, cpp_type)                                        \
-  case enum:                                                                 \
-    return std::forward<F>(f)(PrimitiveTypeConstant<PrimitiveType::enum>()); \
-  case enum##_STD:                                                           \
-    return std::forward<F>(f)(                                               \
-        PrimitiveTypeConstant<PrimitiveType::enum##_STD>());
-
-      MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
-#undef MONTABLE_CASE
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) \
+  case enum:                                           \
+    return std::forward<F>(f)(PrimitiveTypeConstant<PrimitiveType::enum>());
+      ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
       default:
         ABSL_UNREACHABLE();
     }

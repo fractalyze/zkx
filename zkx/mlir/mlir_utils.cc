@@ -19,13 +19,7 @@ limitations under the License.
 #include "absl/log/log.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
-#include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
-#include "zk_dtypes/include/elliptic_curve/bn/bn254/g1.h"
-#include "zk_dtypes/include/elliptic_curve/bn/bn254/g2.h"
-#include "zk_dtypes/include/field/babybear/babybear.h"
-#include "zk_dtypes/include/field/goldilocks/goldilocks.h"
-#include "zk_dtypes/include/field/koalabear/koalabear.h"
-#include "zk_dtypes/include/field/mersenne31/mersenne31.h"
+#include "zk_dtypes/include/all_types.h"
 
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
 #include "zkir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
@@ -70,36 +64,17 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
       // Tokens do not have a physical representation, but the compiler needs
       // some placeholder type, so use int8_t*.
       return mlir::MemRefType::get({1}, mlir::IntegerType::get(context, 8));
-#define MONTABLE_PRIME_FIELD_CASE(enum, cpp_type, type) \
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2) \
   case enum:                                            \
-    return GetMlir##type##Type<cpp_type>(context);      \
-  case enum##_STD:                                      \
-    return GetMlir##type##Type<cpp_type##Std>(context);
-      MONTABLE_PRIME_FIELD_CASE(KOALABEAR, zk_dtypes::Koalabear, PrimeField)
-      MONTABLE_PRIME_FIELD_CASE(BABYBEAR, zk_dtypes::Babybear, PrimeField)
-      MONTABLE_PRIME_FIELD_CASE(MERSENNE31, zk_dtypes::Mersenne31, PrimeField)
-      MONTABLE_PRIME_FIELD_CASE(GOLDILOCKS, zk_dtypes::Goldilocks, PrimeField)
-      MONTABLE_PRIME_FIELD_CASE(BN254_SF, zk_dtypes::bn254::Fr, PrimeField)
-#undef MONTABLE_PRIME_FIELD_CASE
+    return GetMlirPrimeFieldType<cpp_type>(context);
+      ZK_DTYPES_PUBLIC_PRIME_FIELD_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
 
-#define MONTABLE_NON_PRIME_FIELD_CASE(enum, cpp_type, type) \
-  case enum:                                                \
-    return GetMlir##type##Type<cpp_type>(context);          \
-  case enum##_STD:                                          \
-    return GetMlir##type##Type<cpp_type##Std>(context);
-      MONTABLE_NON_PRIME_FIELD_CASE(
-          BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint, AffinePoint)
-      MONTABLE_NON_PRIME_FIELD_CASE(
-          BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint, JacobianPoint)
-      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G1_XYZZ,
-                                    zk_dtypes::bn254::G1PointXyzz, PointXyzz)
-      MONTABLE_NON_PRIME_FIELD_CASE(
-          BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint, AffinePoint)
-      MONTABLE_NON_PRIME_FIELD_CASE(
-          BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint, JacobianPoint)
-      MONTABLE_NON_PRIME_FIELD_CASE(BN254_G2_XYZZ,
-                                    zk_dtypes::bn254::G2PointXyzz, PointXyzz)
-#undef MONTABLE_NON_PRIME_FIELD_CASE
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2) \
+  case enum:                                            \
+    return GetMlirEcPointType<cpp_type>(context);
+      ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }
@@ -248,105 +223,63 @@ llvm::SmallVector<mlir::Type> ShapeToMlirTypes(const Shape& shape,
 }
 
 namespace {
-
 PrimitiveType GetPrimitiveTypeOfPrimeFieldType(
     mlir::zkir::field::PrimeFieldType field_type) {
-  mlir::IntegerAttr modulus = field_type.getModulus();
-  mlir::IntegerAttr bn254_fr_modulus = GetMlirIntegerAttr(
-      modulus.getContext(), zk_dtypes::bn254::Fr::Config::kModulus);
-  if (modulus == bn254_fr_modulus) {
-    if (field_type.isMontgomery()) {
-      return PrimitiveType::BN254_SF;
-    } else {
-      return PrimitiveType::BN254_SF_STD;
-    }
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)           \
+  {                                                               \
+    mlir::zkir::field::PrimeFieldType this_field_type =           \
+        GetMlirPrimeFieldType<cpp_type>(field_type.getContext()); \
+    if (field_type == this_field_type) {                          \
+      return PrimitiveType::enum;                                 \
+    }                                                             \
   }
+  ZK_DTYPES_PUBLIC_PRIME_FIELD_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
   return PrimitiveType::PRIMITIVE_TYPE_INVALID;
 }
 
 PrimitiveType GetPrimitiveTypeOfAffineType(
     mlir::zkir::elliptic_curve::AffineType affine_type) {
-  mlir::zkir::elliptic_curve::ShortWeierstrassAttr curve =
-      affine_type.getCurve();
-  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g1_curve =
-      GetMlirG1ShortWeierstrassAttr<zk_dtypes::bn254::G1AffinePoint>(
-          affine_type.getContext());
-  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g2_curve =
-      GetMlirG2ShortWeierstrassAttr<zk_dtypes::bn254::G2AffinePoint>(
-          affine_type.getContext());
-  if (curve == bn254_g1_curve) {
-    if (mlir::cast<mlir::zkir::field::PrimeFieldType>(curve.getBaseField())
-            .isMontgomery()) {
-      return PrimitiveType::BN254_G1_AFFINE;
-    } else {
-      return PrimitiveType::BN254_G1_AFFINE_STD;
-    }
-  } else if (curve == bn254_g2_curve) {
-    if (mlir::cast<mlir::zkir::field::QuadraticExtFieldType>(
-            curve.getBaseField())
-            .isMontgomery()) {
-      return PrimitiveType::BN254_G2_AFFINE;
-    } else {
-      return PrimitiveType::BN254_G2_AFFINE_STD;
-    }
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)             \
+  {                                                                 \
+    mlir::zkir::elliptic_curve::AffineType this_affine_type =       \
+        GetMlirAffinePointType<cpp_type>(affine_type.getContext()); \
+    if (affine_type == this_affine_type) {                          \
+      return PrimitiveType::enum;                                   \
+    }                                                               \
   }
+  ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
   return PrimitiveType::PRIMITIVE_TYPE_INVALID;
 }
 
 PrimitiveType GetPrimitiveTypeOfJacobianType(
     mlir::zkir::elliptic_curve::JacobianType jacobian_type) {
-  mlir::zkir::elliptic_curve::ShortWeierstrassAttr curve =
-      jacobian_type.getCurve();
-  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g1_curve =
-      GetMlirG1ShortWeierstrassAttr<zk_dtypes::bn254::G1JacobianPoint>(
-          jacobian_type.getContext());
-  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g2_curve =
-      GetMlirG2ShortWeierstrassAttr<zk_dtypes::bn254::G2JacobianPoint>(
-          jacobian_type.getContext());
-  if (curve == bn254_g1_curve) {
-    if (mlir::cast<mlir::zkir::field::PrimeFieldType>(curve.getBaseField())
-            .isMontgomery()) {
-      return PrimitiveType::BN254_G1_JACOBIAN;
-    } else {
-      return PrimitiveType::BN254_G1_JACOBIAN_STD;
-    }
-  } else if (curve == bn254_g2_curve) {
-    if (mlir::cast<mlir::zkir::field::QuadraticExtFieldType>(
-            curve.getBaseField())
-            .isMontgomery()) {
-      return PrimitiveType::BN254_G2_JACOBIAN;
-    } else {
-      return PrimitiveType::BN254_G2_JACOBIAN_STD;
-    }
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)                 \
+  {                                                                     \
+    mlir::zkir::elliptic_curve::JacobianType this_jacobian_type =       \
+        GetMlirJacobianPointType<cpp_type>(jacobian_type.getContext()); \
+    if (jacobian_type == this_jacobian_type) {                          \
+      return PrimitiveType::enum;                                       \
+    }                                                                   \
   }
+  ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
   return PrimitiveType::PRIMITIVE_TYPE_INVALID;
 }
 
 PrimitiveType GetPrimitiveTypeOfXYZZType(
     mlir::zkir::elliptic_curve::XYZZType xyzz_type) {
-  mlir::zkir::elliptic_curve::ShortWeierstrassAttr curve = xyzz_type.getCurve();
-  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g1_curve =
-      GetMlirG1ShortWeierstrassAttr<zk_dtypes::bn254::G1PointXyzz>(
-          xyzz_type.getContext());
-  mlir::zkir::elliptic_curve::ShortWeierstrassAttr bn254_g2_curve =
-      GetMlirG2ShortWeierstrassAttr<zk_dtypes::bn254::G2PointXyzz>(
-          xyzz_type.getContext());
-  if (curve == bn254_g1_curve) {
-    if (mlir::cast<mlir::zkir::field::PrimeFieldType>(curve.getBaseField())
-            .isMontgomery()) {
-      return PrimitiveType::BN254_G1_XYZZ;
-    } else {
-      return PrimitiveType::BN254_G1_XYZZ_STD;
-    }
-  } else if (curve == bn254_g2_curve) {
-    if (mlir::cast<mlir::zkir::field::QuadraticExtFieldType>(
-            curve.getBaseField())
-            .isMontgomery()) {
-      return PrimitiveType::BN254_G2_XYZZ;
-    } else {
-      return PrimitiveType::BN254_G2_XYZZ_STD;
-    }
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)         \
+  {                                                             \
+    mlir::zkir::elliptic_curve::XYZZType this_xyzz_type =       \
+        GetMlirPointXyzzType<cpp_type>(xyzz_type.getContext()); \
+    if (xyzz_type == this_xyzz_type) {                          \
+      return PrimitiveType::enum;                               \
+    }                                                           \
   }
+  ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
   return PrimitiveType::PRIMITIVE_TYPE_INVALID;
 }
 

@@ -17,6 +17,7 @@ limitations under the License.
 #include "zkx/python/pjrt_ifrt/pjrt_dtype.h"
 
 #include "absl/strings/str_format.h"
+#include "zk_dtypes/include/all_types.h"
 
 namespace zkx::ifrt {
 
@@ -42,28 +43,10 @@ absl::StatusOr<PrimitiveType> ToPrimitiveType(DType dtype) {
     CASE(DType::kU64, PrimitiveType::U64);
     CASE(DType::kToken, PrimitiveType::TOKEN);
     CASE(DType::kOpaque, PrimitiveType::OPAQUE_TYPE);
-    CASE(DType::kKoalabear, PrimitiveType::KOALABEAR);
-    CASE(DType::kKoalabearStd, PrimitiveType::KOALABEAR_STD);
-    CASE(DType::kBabybear, PrimitiveType::BABYBEAR);
-    CASE(DType::kBabybearStd, PrimitiveType::BABYBEAR_STD);
-    CASE(DType::kMersenne31, PrimitiveType::MERSENNE31);
-    CASE(DType::kMersenne31Std, PrimitiveType::MERSENNE31_STD);
-    CASE(DType::kGoldilocks, PrimitiveType::GOLDILOCKS);
-    CASE(DType::kGoldilocksStd, PrimitiveType::GOLDILOCKS_STD);
-    CASE(DType::kBn254Sf, PrimitiveType::BN254_SF);
-    CASE(DType::kBn254SfStd, PrimitiveType::BN254_SF_STD);
-    CASE(DType::kBn254G1Affine, PrimitiveType::BN254_G1_AFFINE);
-    CASE(DType::kBn254G1AffineStd, PrimitiveType::BN254_G1_AFFINE_STD);
-    CASE(DType::kBn254G1Jacobian, PrimitiveType::BN254_G1_JACOBIAN);
-    CASE(DType::kBn254G1JacobianStd, PrimitiveType::BN254_G1_JACOBIAN_STD);
-    CASE(DType::kBn254G1Xyzz, PrimitiveType::BN254_G1_XYZZ);
-    CASE(DType::kBn254G1XyzzStd, PrimitiveType::BN254_G1_XYZZ_STD);
-    CASE(DType::kBn254G2Affine, PrimitiveType::BN254_G2_AFFINE);
-    CASE(DType::kBn254G2AffineStd, PrimitiveType::BN254_G2_AFFINE_STD);
-    CASE(DType::kBn254G2Jacobian, PrimitiveType::BN254_G2_JACOBIAN);
-    CASE(DType::kBn254G2JacobianStd, PrimitiveType::BN254_G2_JACOBIAN_STD);
-    CASE(DType::kBn254G2Xyzz, PrimitiveType::BN254_G2_XYZZ);
-    CASE(DType::kBn254G2XyzzStd, PrimitiveType::BN254_G2_XYZZ_STD);
+#define ZK_DTYPES_CASE(unused, dtype_enum, enum, unused3) \
+  CASE(DType::k##dtype_enum, PrimitiveType::enum);
+    ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
 #undef CASE
     case DType::kString:
       return absl::InvalidArgumentError(
@@ -92,28 +75,9 @@ absl::StatusOr<DType> ToDType(PrimitiveType primitive_type) {
     case PrimitiveType::U64:
     case PrimitiveType::TOKEN:
     case PrimitiveType::OPAQUE_TYPE:
-    case PrimitiveType::KOALABEAR:
-    case PrimitiveType::KOALABEAR_STD:
-    case PrimitiveType::BABYBEAR:
-    case PrimitiveType::BABYBEAR_STD:
-    case PrimitiveType::MERSENNE31:
-    case PrimitiveType::MERSENNE31_STD:
-    case PrimitiveType::GOLDILOCKS:
-    case PrimitiveType::GOLDILOCKS_STD:
-    case PrimitiveType::BN254_SF:
-    case PrimitiveType::BN254_SF_STD:
-    case PrimitiveType::BN254_G1_AFFINE:
-    case PrimitiveType::BN254_G1_AFFINE_STD:
-    case PrimitiveType::BN254_G1_JACOBIAN:
-    case PrimitiveType::BN254_G1_JACOBIAN_STD:
-    case PrimitiveType::BN254_G1_XYZZ:
-    case PrimitiveType::BN254_G1_XYZZ_STD:
-    case PrimitiveType::BN254_G2_AFFINE:
-    case PrimitiveType::BN254_G2_AFFINE_STD:
-    case PrimitiveType::BN254_G2_JACOBIAN:
-    case PrimitiveType::BN254_G2_JACOBIAN_STD:
-    case PrimitiveType::BN254_G2_XYZZ:
-    case PrimitiveType::BN254_G2_XYZZ_STD:
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) case enum:
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
       return DType(static_cast<DType::Kind>(static_cast<int>(primitive_type)));
     default:
       return absl::InvalidArgumentError(absl::StrFormat(

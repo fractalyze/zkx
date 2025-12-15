@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "absl/log/log.h"
 #include "absl/strings/str_join.h"
+#include "zk_dtypes/include/all_types.h"
 
 #include "zkx/backends/cpu/collectives/cpu_clique_key.h"
 #include "zkx/backends/cpu/collectives/cpu_cliques.h"
@@ -53,28 +54,9 @@ bool CollectiveThunk::IsDataTypeSupportedByCollectiveReduce(
     case U32:
     case S64:
     case U64:
-    case KOALABEAR:
-    case KOALABEAR_STD:
-    case BABYBEAR:
-    case BABYBEAR_STD:
-    case MERSENNE31:
-    case MERSENNE31_STD:
-    case GOLDILOCKS:
-    case GOLDILOCKS_STD:
-    case BN254_SF:
-    case BN254_SF_STD:
-    case BN254_G1_AFFINE:
-    case BN254_G1_AFFINE_STD:
-    case BN254_G1_JACOBIAN:
-    case BN254_G1_JACOBIAN_STD:
-    case BN254_G1_XYZZ:
-    case BN254_G1_XYZZ_STD:
-    case BN254_G2_AFFINE:
-    case BN254_G2_AFFINE_STD:
-    case BN254_G2_JACOBIAN:
-    case BN254_G2_JACOBIAN_STD:
-    case BN254_G2_XYZZ:
-    case BN254_G2_XYZZ_STD:
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) case enum:
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
       return true;
     default:
       return false;

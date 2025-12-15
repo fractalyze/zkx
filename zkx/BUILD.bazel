@@ -230,6 +230,7 @@ zkx_cc_library(
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/functional:function_ref",
         "@com_google_absl//absl/log:check",
+        "@zk_dtypes//zk_dtypes:all_types",
     ],
 )
 
@@ -355,14 +356,7 @@ zkx_cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
-        "@zk_dtypes//zk_dtypes:babybear",
-        "@zk_dtypes//zk_dtypes:bn254_fr",
-        "@zk_dtypes//zk_dtypes:bn254_g1",
-        "@zk_dtypes//zk_dtypes:bn254_g2",
-        "@zk_dtypes//zk_dtypes:field",
-        "@zk_dtypes//zk_dtypes:goldilocks",
-        "@zk_dtypes//zk_dtypes:koalabear",
-        "@zk_dtypes//zk_dtypes:mersenne31",
+        "@zk_dtypes//zk_dtypes:all_types",
     ],
 )
 

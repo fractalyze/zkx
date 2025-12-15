@@ -111,6 +111,7 @@ zkx_cc_library(
         "@llvm-project//mlir:TensorInferTypeOpInterfaceImpl",
         "@llvm-project//mlir:TensorToLinalg",
         "@llvm-project//mlir:Transforms",
+        "@zk_dtypes//zk_dtypes:all_types",
         "@zk_dtypes//zk_dtypes:root_of_unity",
         "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField",
         "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",

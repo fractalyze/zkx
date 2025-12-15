@@ -16,13 +16,8 @@ limitations under the License.
 #include "zkx/math/field/prime_field_serde.h"
 
 #include "gtest/gtest.h"
-#include "zk_dtypes/include/elliptic_curve/bn/bn254/fq.h"
-#include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
+#include "zk_dtypes/include/all_types.h"
 #include "zk_dtypes/include/elliptic_curve/short_weierstrass/test/sw_curve_config.h"
-#include "zk_dtypes/include/field/babybear/babybear.h"
-#include "zk_dtypes/include/field/goldilocks/goldilocks.h"
-#include "zk_dtypes/include/field/koalabear/koalabear.h"
-#include "zk_dtypes/include/field/mersenne31/mersenne31.h"
 
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
@@ -36,23 +31,11 @@ template <typename T>
 class PrimeFieldTypedTest : public testing::Test {};
 
 using PrimeFieldTypes = testing::Types<
-    // clang-format off
-    // 8-bit prime fields
-    zk_dtypes::test::Fr,
-    zk_dtypes::test::FrStd,
-    // 32-bit prime fields
-    zk_dtypes::Babybear,
-    zk_dtypes::BabybearStd,
-    zk_dtypes::Koalabear,
-    zk_dtypes::Mersenne31,
-    // 64-bit prime fields
-    zk_dtypes::Goldilocks,
-    // 256-bit prime fields
-    zk_dtypes::bn254::Fq,
-    zk_dtypes::bn254::FqStd,
-    zk_dtypes::bn254::Fr
-    // clang-format on
-    >;
+#define PRIME_FIELD_TYPE(ActualType, ...) ActualType,
+    ZK_DTYPES_ALL_PRIME_FIELD_TYPE_LIST(PRIME_FIELD_TYPE)
+#undef PRIME_FIELD_TYPE
+        zk_dtypes::test::Fr,
+    zk_dtypes::test::FrStd>;
 TYPED_TEST_SUITE(PrimeFieldTypedTest, PrimeFieldTypes);
 
 TYPED_TEST(PrimeFieldTypedTest, Serde) {
