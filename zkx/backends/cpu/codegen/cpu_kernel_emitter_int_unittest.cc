@@ -247,6 +247,11 @@ TYPED_TEST(IntTest, Reduce) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, ReshapeScalar) {
+  this->SetUpReshapeScalar();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Reshape) {
   this->SetUpReshape();
   this->RunAndVerify();
