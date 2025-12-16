@@ -1054,7 +1054,6 @@ class MutableBorrowingLiteral : public MutableLiteralBase {
   MutableBorrowingLiteral& operator=(const MutableBorrowingLiteral& literal);
 
   // Implicit conversion constructors.
-  // NOLINTNEXTLINE(google-explicit-constructor)
   MutableBorrowingLiteral(MutableLiteralBase* literal);
   MutableBorrowingLiteral(MutableBorrowingLiteral literal,
                           const ShapeIndex& view_root);
@@ -1090,7 +1089,6 @@ class LiteralSlice : public LiteralBase {
   LiteralSlice() : LiteralBase() {}
 
   // Implicit conversion constructors.
-  // NOLINTNEXTLINE(google-explicit-constructor)
   LiteralSlice(const LiteralBase& literal)
       : root_piece_(&literal.root_piece()) {}
   LiteralSlice(const LiteralBase& literal, const ShapeIndex& view_root)

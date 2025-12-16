@@ -4677,7 +4677,7 @@ bool HloParserImpl::ParseAttributeHelper(
     return Error(loc, absl::StrFormat("error parsing attribute %s", name));
   }
   return true;
-}
+}  // NOLINT(readability/fn_size)
 
 bool HloParserImpl::CopyAttributeToProtoMessage(
     absl::flat_hash_set<std::string> non_proto_attrs,

@@ -156,7 +156,7 @@ Shape TypeToShape(mlir::Type type) {
     //                    t.getEncoding())) {
     //   bounds = llvm::to_vector<4>(extn.getBounds());
     // }
-    else {
+    else {  // NOLINT(readability/braces)
       bounds.assign(rank, ShapedType::kDynamic);
     }
 

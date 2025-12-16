@@ -86,12 +86,12 @@ class PrimitiveTypeNameGenerator {
         lowercase_name_[idx] = "opaque";
       }
 #define ZK_DTYPES_CASE(cpp_type, unused, enum, lowercase_name) \
-  else if (t == enum) {                                        \
+  else if (t == enum) { /* NOLINT(readability/braces) */       \
     lowercase_name_[idx] = #lowercase_name;                    \
   }                                                            \
   ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
 #undef ZK_DTYPES_CASE
-      else if (PrimitiveType_IsValid(t)) {
+      else if (PrimitiveType_IsValid(t)) {  // NOLINT(readability/braces)
         lowercase_name_[idx] = absl::AsciiStrToLower(PrimitiveType_Name(t));
       }
     }

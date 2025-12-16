@@ -20,7 +20,7 @@ limitations under the License.
 
 #include <map>
 #include <string>
-#include <thread>
+#include <thread>  // NOLINT(build/c++11)
 #include <utility>
 
 #ifdef __FreeBSD__

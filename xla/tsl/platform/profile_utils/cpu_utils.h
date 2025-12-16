@@ -18,7 +18,7 @@ limitations under the License.
 #ifndef XLA_TSL_PLATFORM_PROFILE_UTILS_CPU_UTILS_H_
 #define XLA_TSL_PLATFORM_PROFILE_UTILS_CPU_UTILS_H_
 
-#include <chrono>
+#include <chrono>  // NOLINT(build/c++11)
 #include <memory>
 
 #include "xla/tsl/platform/profile_utils/i_cpu_utils_helper.h"

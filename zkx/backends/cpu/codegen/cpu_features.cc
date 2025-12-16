@@ -84,7 +84,6 @@ std::optional<CPUFeature> CpuFeatureFromString(std::string_view cpu_feature) {
 // We deliberately opt-out of the cognitive complexity check because a giant
 // switch statement is the most readable way to express the logic.
 //
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 bool ShouldEnableCpuFeature(std::string_view feature, CPUFeature max_feature) {
   // x86 CPUs have backward compatibility so newer CPUs have all features of
   // older CPUs. We go through switch cases from oldest features to newest.

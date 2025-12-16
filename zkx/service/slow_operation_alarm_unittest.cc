@@ -16,7 +16,7 @@ limitations under the License.
 
 #include "zkx/service/slow_operation_alarm.h"
 
-#include <thread>
+#include <thread>  // NOLINT(build/c++11)
 
 #include "absl/log/check.h"
 #include "absl/synchronization/notification.h"

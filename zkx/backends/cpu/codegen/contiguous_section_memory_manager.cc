@@ -18,7 +18,7 @@ limitations under the License.
 
 #include <stddef.h>
 
-#include <system_error>
+#include <system_error>  // NOLINT(build/c++11)
 
 #include "absl/log/check.h"
 #include "absl/log/log.h"

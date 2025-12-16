@@ -17,7 +17,7 @@ limitations under the License.
 #include "zkx/hlo/ir/backend_config.h"
 
 #include <memory>
-#include <thread>
+#include <thread>  // NOLINT(build/c++11)
 #include <utility>
 #include <vector>
 

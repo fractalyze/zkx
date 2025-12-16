@@ -18,7 +18,7 @@ limitations under the License.
 
 #include <fstream>
 #include <limits>
-#include <mutex>
+#include <mutex>  // NOLINT(build/c++11)
 
 #if defined(_WIN32)
 #include <windows.h>
