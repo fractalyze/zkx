@@ -249,44 +249,6 @@ inline Value mapMhloOpToStdScalarOp<mhlo::MulOp>(
   return nullptr;
 }
 
-template <typename U, typename S>
-inline Value makeSafeIntDiv(ImplicitLocOpBuilder &lb, Type originalType,
-                            Value lhs, Value rhs, Value returnedOnZero,
-                            Value returnedOnSignedOverflow) {
-  Type type = lhs.getType();
-  auto elementType = cast<IntegerType>(getElementTypeOrSelf(type));
-  Value zero = lb.create<arith::ConstantOp>(lb.getZeroAttr(type));
-  auto makeConstant = [&](const APInt &i) {
-    return getConstantOrSplat(&lb, lb.getLoc(), type,
-                              lb.getIntegerAttr(elementType, i));
-  };
-  Value one = makeConstant(APInt(elementType.getWidth(), 1));
-  Value rhsIsZero =
-      lb.create<arith::CmpIOp>(arith::CmpIPredicate::eq, rhs, zero);
-
-  // For unsigned just set the divisor to 1 when it would be 0.
-  if (originalType.isUnsignedInteger()) {
-    Value safeRhs = lb.create<arith::SelectOp>(rhsIsZero, one, rhs);
-    Value safeDiv = lb.create<U>(lhs, safeRhs);
-    return lb.create<arith::SelectOp>(rhsIsZero, returnedOnZero, safeDiv);
-  }
-
-  // For signed also check for INT_MIN / -1.
-  Value smin = makeConstant(APInt::getSignedMinValue(elementType.getWidth()));
-  Value lhsIsSmin =
-      lb.create<arith::CmpIOp>(arith::CmpIPredicate::eq, lhs, smin);
-  Value minusOne = makeConstant(APInt::getAllOnes(elementType.getWidth()));
-  Value rhsIsMinusOne =
-      lb.create<arith::CmpIOp>(arith::CmpIPredicate::eq, rhs, minusOne);
-  Value hasIntMinOverflow = lb.create<arith::AndIOp>(lhsIsSmin, rhsIsMinusOne);
-  Value rhsIsUnsafe = lb.create<arith::OrIOp>(rhsIsZero, hasIntMinOverflow);
-  Value safeRhs = lb.create<arith::SelectOp>(rhsIsUnsafe, one, rhs);
-  Value safeDiv = lb.create<S>(lhs, safeRhs);
-  Value safeSmin = lb.create<arith::SelectOp>(
-      hasIntMinOverflow, returnedOnSignedOverflow, safeDiv);
-  return lb.create<arith::SelectOp>(rhsIsZero, returnedOnZero, safeSmin);
-}
-
 template <>
 inline Value mapMhloOpToStdScalarOp<mhlo::DivOp>(
     Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
@@ -295,26 +257,11 @@ inline Value mapMhloOpToStdScalarOp<mhlo::DivOp>(
   Type type = adaptor.getLhs().getType();
   Type elementType = getElementTypeOrSelf(type);
   if (IsAnyIntegerType{}(elementType)) {
-    // Integer division overflow behavior:
-    //
-    // X / 0 == -1
-    // INT_SMIN /s -1 = INT_SMIN
-    ImplicitLocOpBuilder lb(loc, *b);
-
-    auto integerElementType = cast<IntegerType>(elementType);
-    auto makeConstant = [&](const APInt &i) {
-      return getConstantOrSplat(&lb, lb.getLoc(), type,
-                                lb.getIntegerAttr(integerElementType, i));
-    };
-    Value minusOne =
-        makeConstant(APInt::getAllOnes(integerElementType.getWidth()));
-    Value smin =
-        makeConstant(APInt::getSignedMinValue(integerElementType.getWidth()));
+    mlir::ImplicitLocOpBuilder lb(loc, *b);
     Type originalType = getElementTypeOrSelf(argTypes.front());
-    return makeSafeIntDiv<arith::DivUIOp, arith::DivSIOp>(
-        lb, originalType, adaptor.getLhs(), adaptor.getRhs(),
-        /*returnedOnZero=*/minusOne,
-        /*returnedOnSignedOverflow=*/smin);
+    bool isSigned = !originalType.isUnsignedInteger();
+    return zkx::mlir_utils::DivideInteger(lb, adaptor.getLhs(),
+                                          adaptor.getRhs(), isSigned);
   } else if (IsFieldType{}(elementType)) {
     auto inv = b->create<zkir::field::InverseOp>(loc, adaptor.getRhs());
     return b->create<zkir::field::MulOp>(loc, adaptor.getLhs(), inv);
