@@ -36,6 +36,9 @@ limitations under the License.
 
 namespace zkx::mlir_utils {
 
+mlir::Value GetConstantOrSplat(mlir::ImplicitLocOpBuilder& b, mlir::Type t,
+                               mlir::Attribute v);
+
 void PopulateTypeConverterWithZkir(mlir::LLVMTypeConverter& converter);
 
 template <size_t N>

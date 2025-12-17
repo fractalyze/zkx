@@ -18,6 +18,7 @@ limitations under the License.
 #include "absl/base/optimization.h"
 #include "absl/log/log.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "zk_dtypes/include/elliptic_curve/bn/bn254/fr.h"
 #include "zk_dtypes/include/elliptic_curve/bn/bn254/g1.h"
@@ -33,6 +34,14 @@ limitations under the License.
 #include "zkx/primitive_util.h"
 
 namespace zkx::mlir_utils {
+
+mlir::Value GetConstantOrSplat(mlir::ImplicitLocOpBuilder& b, mlir::Type t,
+                               mlir::Attribute v) {
+  if (auto shaped_type = mlir::dyn_cast<mlir::ShapedType>(t)) {
+    v = mlir::SplatElementsAttr::get(shaped_type, v);
+  }
+  return b.create<mlir::arith::ConstantOp>(t, mlir::cast<mlir::TypedAttr>(v));
+}
 
 void PopulateTypeConverterWithZkir(mlir::LLVMTypeConverter& converter) {
   mlir::zkir::field::populateExtFieldToLLVMTypeConversion(converter);

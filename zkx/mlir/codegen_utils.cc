@@ -19,18 +19,13 @@ limitations under the License.
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/TypeUtilities.h"
 
+#include "zkx/mlir/mlir_utils.h"
+
 namespace zkx::mlir_utils {
 
 using namespace mlir;
 
 namespace {
-
-Value GetConstantOrSplat(ImplicitLocOpBuilder& b, Type t, Attribute v) {
-  if (VectorType vecType = dyn_cast<VectorType>(t)) {
-    v = SplatElementsAttr::get(vecType, v);
-  }
-  return b.create<arith::ConstantOp>(t, cast<TypedAttr>(v));
-}
 
 template <typename U, typename S>
 Value DivideOrRemainderIntegerHelper(ImplicitLocOpBuilder& b, Value lhs,
@@ -41,7 +36,8 @@ Value DivideOrRemainderIntegerHelper(ImplicitLocOpBuilder& b, Value lhs,
   auto element_type = cast<IntegerType>(getElementTypeOrSelf(type));
   Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
   auto make_constant = [&](const APInt& i) {
-    return GetConstantOrSplat(b, type, b.getIntegerAttr(element_type, i));
+    return mlir_utils::GetConstantOrSplat(b, type,
+                                          b.getIntegerAttr(element_type, i));
   };
   Value one = make_constant(APInt(element_type.getWidth(), 1));
   Value rhs_is_zero =
@@ -79,8 +75,8 @@ Value SelectShiftedOrSaturated(ImplicitLocOpBuilder& b, Value rhs,
   Type etype =
       isa<ShapedType>(type) ? cast<ShapedType>(type).getElementType() : type;
   auto bit_width_int = cast<IntegerType>(etype).getWidth();
-  Value bit_width =
-      GetConstantOrSplat(b, type, b.getIntegerAttr(etype, bit_width_int));
+  Value bit_width = mlir_utils::GetConstantOrSplat(
+      b, type, b.getIntegerAttr(etype, bit_width_int));
   Value cmp =
       b.create<arith::CmpIOp>(arith::CmpIPredicate::ugt, bit_width, rhs);
   return b.create<arith::SelectOp>(cmp, shifted, saturated);
@@ -126,8 +122,8 @@ Value DivideInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
   Type elementType = getElementTypeOrSelf(type);
   auto integer_element_type = cast<IntegerType>(elementType);
   auto make_constant = [&](const APInt& i) {
-    return GetConstantOrSplat(b, type,
-                              b.getIntegerAttr(integer_element_type, i));
+    return mlir_utils::GetConstantOrSplat(
+        b, type, b.getIntegerAttr(integer_element_type, i));
   };
   Value minus_one =
       make_constant(APInt::getAllOnes(integer_element_type.getWidth()));
@@ -253,8 +249,8 @@ Value ShiftRightArithmeticInteger(ImplicitLocOpBuilder& b, Value lhs,
   auto bit_width_int = cast<IntegerType>(etype).getWidth();
 
   // "Saturate" if the shift is greater than the bitwidth of the type
-  Value max_shift =
-      GetConstantOrSplat(b, type, b.getIntegerAttr(etype, bit_width_int - 1));
+  Value max_shift = mlir_utils::GetConstantOrSplat(
+      b, type, b.getIntegerAttr(etype, bit_width_int - 1));
   Value saturated_shifted = b.create<arith::ShRSIOp>(lhs, max_shift);
   Value shifted = b.create<arith::ShRSIOp>(lhs, rhs);
   return SelectShiftedOrSaturated(b, rhs, shifted, saturated_shifted, type);
