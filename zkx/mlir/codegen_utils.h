@@ -55,6 +55,11 @@ mlir::Value ConvertField(mlir::ImplicitLocOpBuilder& b,
                          mlir::ValueRange args,
                          mlir::ArrayRef<mlir::NamedAttribute> attributes = {});
 
+mlir::Value ConvertEcPoint(
+    mlir::ImplicitLocOpBuilder& b, mlir::ArrayRef<mlir::Type> result_types,
+    mlir::Type source_type, mlir::Type target_type, mlir::ValueRange args,
+    mlir::ArrayRef<mlir::NamedAttribute> attributes = {});
+
 }  // namespace zkx::mlir_utils
 
 #endif  // ZKX_MLIR_CODEGEN_UTILS_H_

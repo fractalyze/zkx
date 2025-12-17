@@ -191,33 +191,6 @@ inline Value getConstantOrSplat(OpBuilder *b, Location loc, Type t,
   return b->create<arith::ConstantOp>(loc, t, cast<TypedAttr>(v));
 }
 
-inline Value makeEcPointConvert(Location loc, ArrayRef<Type> resultTypes,
-                                Type sourceType, Type targetType,
-                                ValueRange args,
-                                ArrayRef<NamedAttribute> attributes,
-                                OpBuilder *b) {
-  if (isa<zkir::elliptic_curve::AffineType>(sourceType)) {
-    if (isa<zkir::elliptic_curve::JacobianType>(targetType) ||
-        isa<zkir::elliptic_curve::XYZZType>(targetType)) {
-      return b->create<zkir::elliptic_curve::ConvertPointTypeOp>(
-          loc, resultTypes, args, attributes);
-    }
-  } else if (isa<zkir::elliptic_curve::JacobianType>(sourceType)) {
-    if (isa<zkir::elliptic_curve::AffineType>(targetType) ||
-        isa<zkir::elliptic_curve::XYZZType>(targetType)) {
-      return b->create<zkir::elliptic_curve::ConvertPointTypeOp>(
-          loc, resultTypes, args, attributes);
-    }
-  } else if (isa<zkir::elliptic_curve::XYZZType>(sourceType)) {
-    if (isa<zkir::elliptic_curve::AffineType>(targetType) ||
-        isa<zkir::elliptic_curve::JacobianType>(targetType)) {
-      return b->create<zkir::elliptic_curve::ConvertPointTypeOp>(
-          loc, resultTypes, args, attributes);
-    }
-  }
-  return args[0];
-}
-
 inline Value mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
                                        ArrayRef<Type> resultTypes,
                                        ArrayRef<Type> argTypes, ValueRange args,
@@ -243,8 +216,8 @@ inline Value mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
   } else if (isa<zkir::elliptic_curve::AffineType>(sourceType) ||
              isa<zkir::elliptic_curve::JacobianType>(sourceType) ||
              isa<zkir::elliptic_curve::XYZZType>(sourceType)) {
-    return makeEcPointConvert(loc, resultTypes, sourceType, targetType, args,
-                              attributes, b);
+    return zkx::mlir_utils::ConvertEcPoint(lb, resultTypes, sourceType,
+                                           targetType, args, attributes);
   }
   return nullptr;
 }

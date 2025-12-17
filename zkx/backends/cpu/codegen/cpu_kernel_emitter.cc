@@ -933,14 +933,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   switch (instr->opcode()) {
     case HloOpcode::kConvert: {
-      const PrimitiveType from = instr->operand(0)->shape().element_type();
-      const PrimitiveType to = instr->shape().element_type();
-      if (from == to) {
-        return value;
-      }
-      return b.create<mlir::zkir::elliptic_curve::ConvertPointTypeOp>(
-          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
-          value);
+      mlir::Type ret_type =
+          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      return mlir_utils::ConvertEcPoint(b, {ret_type}, value.getType(),
+                                        ret_type, {value});
     }
     case HloOpcode::kNegate:
       return b.create<mlir::zkir::elliptic_curve::NegateOp>(value);
