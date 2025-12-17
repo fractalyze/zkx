@@ -45,9 +45,9 @@ Value DivideOrRemainderIntegerHelper(ImplicitLocOpBuilder& b, Value lhs,
 
   // For unsigned just set the divisor to 1 when it would be 0.
   if (!is_signed) {
-    Value safeRhs = b.create<arith::SelectOp>(rhs_is_zero, one, rhs);
-    Value safeDiv = b.create<U>(lhs, safeRhs);
-    return b.create<arith::SelectOp>(rhs_is_zero, returned_on_zero, safeDiv);
+    Value safe_rhs = b.create<arith::SelectOp>(rhs_is_zero, one, rhs);
+    Value safe_div = b.create<U>(lhs, safe_rhs);
+    return b.create<arith::SelectOp>(rhs_is_zero, returned_on_zero, safe_div);
   }
 
   // For signed also check for INT_SMIN / -1.
@@ -119,8 +119,8 @@ Value DivideInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
   // X / 0 == -1
   // INT_SMIN /s -1 = INT_SMIN
   Type type = lhs.getType();
-  Type elementType = getElementTypeOrSelf(type);
-  auto integer_element_type = cast<IntegerType>(elementType);
+  Type element_type = getElementTypeOrSelf(type);
+  auto integer_element_type = cast<IntegerType>(element_type);
   auto make_constant = [&](const APInt& i) {
     return mlir_utils::GetConstantOrSplat(
         b, type, b.getIntegerAttr(integer_element_type, i));
