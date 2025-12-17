@@ -183,7 +183,6 @@ TEST_F(PtrVecTest, Assign) {
         Fill(b, y);
         PtrVec<int*> a = std::move(b);
         ASSERT_EQ(Pointees(a), y);
-        // NOLINTNEXTLINE(bugprone-use-after-move)
         ASSERT_EQ(Pointees(b), std::vector<int>{});
       }
 
@@ -206,7 +205,6 @@ TEST_F(PtrVecTest, Assign) {
         Fill(b, y);
         a = std::move(b);
         ASSERT_EQ(Pointees(a), y);
-        // NOLINTNEXTLINE(bugprone-use-after-move)
         ASSERT_EQ(Pointees(b), std::vector<int>{});
       }
     }

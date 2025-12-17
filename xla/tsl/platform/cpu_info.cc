@@ -61,7 +61,7 @@ limitations under the License.
 #include <sched.h>
 #elif (defined(__APPLE__) && defined(__MACH__)) || defined(__FreeBSD__) || \
     defined(__HAIKU__)
-#include <thread>
+#include <thread>  // NOLINT(build/c++11)
 #else
 #include <stdio.h>
 #endif

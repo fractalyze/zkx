@@ -873,7 +873,7 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
                 "reused in further compilations; not yet cached kernels are "
                 "compiled as usual and get appended to the cache file whenever "
                 "possible."));
-}
+}  // NOLINT(readability/fn_size)
 
 // Allocates flag_values and flag_objects; this function must not be called more
 // than once - its call done via call_once.

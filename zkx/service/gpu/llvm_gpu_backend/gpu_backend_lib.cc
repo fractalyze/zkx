@@ -16,7 +16,7 @@ limitations under the License.
 
 #include "zkx/service/gpu/llvm_gpu_backend/gpu_backend_lib.h"
 
-#include <system_error>
+#include <system_error>  // NOLINT(build/c++11)
 #include <utility>
 
 #include "absl/log/log.h"

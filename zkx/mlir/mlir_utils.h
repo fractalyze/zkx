@@ -219,6 +219,17 @@ mlir::zkir::elliptic_curve::XYZZType GetMlirPointXyzzType(
   }
 }
 
+template <typename T>
+mlir::Type GetMlirEcPointType(mlir::MLIRContext* context) {
+  if constexpr (zk_dtypes::IsAffinePoint<T>) {
+    return GetMlirAffinePointType<T>(context);
+  } else if constexpr (zk_dtypes::IsJacobianPoint<T>) {
+    return GetMlirJacobianPointType<T>(context);
+  } else {
+    return GetMlirPointXyzzType<T>(context);
+  }
+}
+
 // Converts a ZKX primitive type to the corresponding MLIR type.
 //
 // - Signed/unsigned ZKX primitive types → signless MLIR types

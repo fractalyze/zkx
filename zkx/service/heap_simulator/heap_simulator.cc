@@ -1049,10 +1049,9 @@ GlobalDecreasingSizeBestFitHeap<BufferType>::BufferInterval::ToString() const {
 }
 
 template <typename BufferType>
-const  // NOLINT(readability-const-return-type)
-    typename GlobalDecreasingSizeBestFitHeap<BufferType>::SlicedBufferInterval
-    GlobalDecreasingSizeBestFitHeap<BufferType>::SlicedBufferInterval::
-        CreateConstInterval(const BufferInterval& full_buffer_interval) {
+const typename GlobalDecreasingSizeBestFitHeap<BufferType>::SlicedBufferInterval
+GlobalDecreasingSizeBestFitHeap<BufferType>::SlicedBufferInterval::
+    CreateConstInterval(const BufferInterval& full_buffer_interval) {
   return SlicedBufferInterval(full_buffer_interval);
 }
 

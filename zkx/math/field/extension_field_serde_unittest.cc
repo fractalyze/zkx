@@ -16,7 +16,8 @@ limitations under the License.
 #include "zkx/math/field/extension_field_serde.h"
 
 #include "gtest/gtest.h"
-#include "zk_dtypes/include/elliptic_curve/bn/bn254/fq2.h"
+#include "zk_dtypes/include/all_types.h"
+#include "zk_dtypes/include/elliptic_curve/short_weierstrass/test/sw_curve_config.h"
 
 #include "xla/tsl/platform/status.h"
 #include "xla/tsl/platform/statusor.h"
@@ -28,7 +29,12 @@ namespace {
 template <typename T>
 class ExtensionFieldTypedTest : public testing::Test {};
 
-using ExtensionFieldTypes = testing::Types<zk_dtypes::bn254::Fq2>;
+using ExtensionFieldTypes = testing::Types<
+#define EXTENSION_FIELD_TYPE(ActualType, ...) ActualType,
+    ZK_DTYPES_ALL_EXT_FIELD_TYPE_LIST(EXTENSION_FIELD_TYPE)
+#undef EXTENSION_FIELD_TYPE
+        zk_dtypes::test::Fq2,
+    zk_dtypes::test::Fq2Std>;
 TYPED_TEST_SUITE(ExtensionFieldTypedTest, ExtensionFieldTypes);
 
 TYPED_TEST(ExtensionFieldTypedTest, Serde) {

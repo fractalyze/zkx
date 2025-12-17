@@ -133,5 +133,6 @@ cc_library(
         "@com_google_absl//absl/types:span",
         "@nanobind",
         "@rules_python//python/cc:current_py_cc_headers",
+        "@zk_dtypes//zk_dtypes:all_types",
     ],
 )

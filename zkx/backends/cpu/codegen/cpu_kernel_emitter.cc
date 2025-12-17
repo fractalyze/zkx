@@ -64,6 +64,8 @@ limitations under the License.
 #include "mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h"
 #endif
 
+#include "zk_dtypes/include/all_types.h"
+
 #include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
@@ -116,18 +118,11 @@ absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> GetRootOfUnityAttr(
 absl::StatusOr<mlir::Value> CreateZeroPoint(EmitterLocOpBuilder& b,
                                             const Shape& shape) {
   switch (shape.element_type()) {
-#define MONTABLE_CASE(enum, cpp_type)                                  \
-  case enum:                                                           \
-    return mlir_utils::CreateMlirEcPointConstant(b, cpp_type::Zero()); \
-  case enum##_STD:                                                     \
-    return mlir_utils::CreateMlirEcPointConstant(b, cpp_type##Std::Zero());
-    MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
-    MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
-    MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
-    MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
-    MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
-    MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
-#undef MONTABLE_CASE
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2) \
+  case enum:                                            \
+    return mlir_utils::CreateMlirEcPointConstant(b, cpp_type::Zero());
+    ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     default:
       return absl::InvalidArgumentError(absl::StrFormat(
           "Invalid primitive type: %s",
@@ -1220,46 +1215,13 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> root;
   mlir::zkir::field::RootOfUnityAttr root_attr;
   switch (operand_type) {
-    case KOALABEAR: {
-      root = GetRootOfUnityAttr<zk_dtypes::Koalabear>(value.getContext(),
-                                                      instr->fft_length());
-      break;
-    }
-    case KOALABEAR_STD: {
-      root = GetRootOfUnityAttr<zk_dtypes::KoalabearStd>(value.getContext(),
-                                                         instr->fft_length());
-      break;
-    }
-    case BABYBEAR: {
-      root = GetRootOfUnityAttr<zk_dtypes::Babybear>(value.getContext(),
-                                                     instr->fft_length());
-      break;
-    }
-    case BABYBEAR_STD: {
-      root = GetRootOfUnityAttr<zk_dtypes::BabybearStd>(value.getContext(),
-                                                        instr->fft_length());
-      break;
-    }
-    case GOLDILOCKS: {
-      root = GetRootOfUnityAttr<zk_dtypes::Goldilocks>(value.getContext(),
-                                                       instr->fft_length());
-      break;
-    }
-    case GOLDILOCKS_STD: {
-      root = GetRootOfUnityAttr<zk_dtypes::GoldilocksStd>(value.getContext(),
-                                                          instr->fft_length());
-      break;
-    }
-    case BN254_SF: {
-      root = GetRootOfUnityAttr<zk_dtypes::bn254::Fr>(value.getContext(),
-                                                      instr->fft_length());
-      break;
-    }
-    case BN254_SF_STD: {
-      root = GetRootOfUnityAttr<zk_dtypes::bn254::FrStd>(value.getContext(),
-                                                         instr->fft_length());
-      break;
-    }
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)                        \
+  case enum:                                                                   \
+    root =                                                                     \
+        GetRootOfUnityAttr<cpp_type>(value.getContext(), instr->fft_length()); \
+    break;
+    ZK_DTYPES_PUBLIC_PRIME_FIELD_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     default:
       return absl::InvalidArgumentError(absl::StrFormat(
           "Invalid primitive type: %s",
@@ -1890,11 +1852,11 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       pass_flag_.enable_elliptic_curve_to_field = true;
       pass_flag_.enable_elliptic_curve_to_llvm = true;
       switch (element_type) {
-        case BN254_G2_AFFINE:
-        case BN254_G2_JACOBIAN:
-        case BN254_G2_XYZZ:
-          pass_flag_.enable_ext_field_to_llvm = true;
-          break;
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) case enum:
+        ZK_DTYPES_PUBLIC_R2_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
+        pass_flag_.enable_ext_field_to_llvm = true;
+        break;
         default:
           break;
       }

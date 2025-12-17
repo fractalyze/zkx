@@ -19,6 +19,7 @@ limitations under the License.
 #include <string.h>
 
 #include "absl/debugging/leak_check.h"
+#include "zk_dtypes/include/all_types.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/mem.h"
@@ -819,13 +820,14 @@ bool LiteralBase::Piece::EqualElements(const LiteralBase::Piece& other) const {
       return true;
     }
     if (primitive_util::IsEcPointType(subshape().element_type()) &&
-        subshape().element_type() != BN254_G1_AFFINE &&
-        subshape().element_type() != BN254_G1_AFFINE_STD &&
-        subshape().element_type() != BN254_G2_AFFINE &&
-        subshape().element_type() != BN254_G2_AFFINE_STD) {
-      // NOTE(chokobole): Non-affine elliptic-curve points must not be compared
-      // byte-wise. Use the native type’s equality instead to avoid false
-      // mismatches.
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) \
+  subshape().element_type() != enum&&
+        ZK_DTYPES_PUBLIC_AFFINE_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
+            true) {
+      // NOTE(chokobole): Non-affine elliptic-curve points must not be
+      // compared byte-wise. Use the native type’s equality instead to avoid
+      // false mismatches.
       std::vector<int64_t> multi_index;
       return primitive_util::EcPointTypeSwitch<bool>(
           [&](auto primitive_type_constant) -> bool {
@@ -1549,35 +1551,14 @@ void LiteralBase::Piece::WriteToProto(LiteralProto* proto) const {
     case TOKEN:
       // Nothing to do but assign the shape which is done above.
       return;
-#define MONTABLE_CASE(enum, member_name, cpp_type)                          \
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, member_name)                 \
   case enum:                                                                \
-    *proto->mutable_##member_name() =                                       \
+    *proto->mutable_##member_name##s() =                                    \
         std::string(reinterpret_cast<const char*>(data<cpp_type>().data()), \
                     size_bytes_dense());                                    \
-    break;                                                                  \
-  case enum##_STD:                                                          \
-    *proto->mutable_##member_name##_std() = std::string(                    \
-        reinterpret_cast<const char*>(data<cpp_type##Std>().data()),        \
-        size_bytes_dense());                                                \
     break;
-      MONTABLE_CASE(KOALABEAR, koalabears, zk_dtypes::Koalabear)
-      MONTABLE_CASE(BABYBEAR, babybears, zk_dtypes::Babybear)
-      MONTABLE_CASE(MERSENNE31, mersenne31s, zk_dtypes::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, goldilockss, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SF, bn254_sfs, zk_dtypes::bn254::Fr)
-      MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
-                    zk_dtypes::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,
-                    zk_dtypes::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs,
-                    zk_dtypes::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affines,
-                    zk_dtypes::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobians,
-                    zk_dtypes::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs,
-                    zk_dtypes::bn254::G2PointXyzz)
-#undef MONTABLE_CASE
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     default:
       // TODO(b/111551621): Support serializing more PrimitiveTypes.
       LOG(FATAL) << "Unhandled primitive type "
@@ -1713,37 +1694,15 @@ absl::Status LiteralBase::Piece::CopyFromProto(const LiteralProto& proto) {
       return absl::InvalidArgumentError(
           absl::StrFormat("Should not be called on tuple shapes: %s",
                           ShapeUtil::HumanString(subshape())));
-#define MONTABLE_CASE(enum, member_name, cpp_type)                             \
-  case enum: {                                                                 \
-    const std::string& s(proto.member_name());                                 \
-    TF_RET_CHECK(data<cpp_type>().size() * sizeof(cpp_type) == s.size());      \
-    memcpy(untyped_data(), s.data(), s.size());                                \
-    break;                                                                     \
-  }                                                                            \
-  case enum##_STD: {                                                           \
-    const std::string& s(proto.member_name##_std());                           \
-    TF_RET_CHECK(data<cpp_type>().size() * sizeof(cpp_type##Std) == s.size()); \
-    memcpy(untyped_data(), s.data(), s.size());                                \
-    break;                                                                     \
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, member_name)               \
+  case enum: {                                                            \
+    const std::string& s(proto.member_name##s());                         \
+    TF_RET_CHECK(data<cpp_type>().size() * sizeof(cpp_type) == s.size()); \
+    memcpy(untyped_data(), s.data(), s.size());                           \
+    break;                                                                \
   }
-      MONTABLE_CASE(KOALABEAR, koalabears, zk_dtypes::Koalabear)
-      MONTABLE_CASE(BABYBEAR, babybears, zk_dtypes::Babybear)
-      MONTABLE_CASE(MERSENNE31, mersenne31s, zk_dtypes::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, goldilockss, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SF, bn254_sfs, zk_dtypes::bn254::Fr)
-      MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affines,
-                    zk_dtypes::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobians,
-                    zk_dtypes::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzzs,
-                    zk_dtypes::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affines,
-                    zk_dtypes::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobians,
-                    zk_dtypes::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzzs,
-                    zk_dtypes::bn254::G2PointXyzz)
-#undef MONTABLE_CASE
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     default:
       return absl::InvalidArgumentError(
           absl::StrFormat("Is called on unsupported shape: %s",

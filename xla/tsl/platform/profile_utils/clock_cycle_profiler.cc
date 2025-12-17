@@ -16,7 +16,7 @@ limitations under the License.
 
 #include "xla/tsl/platform/profile_utils/clock_cycle_profiler.h"
 
-#include <chrono>
+#include <chrono>  // NOLINT(build/c++11)
 
 namespace tsl {
 

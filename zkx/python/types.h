@@ -29,6 +29,7 @@ limitations under the License.
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "nanobind/nanobind.h"
+#include "zk_dtypes/include/all_types.h"
 
 #include "zkx/layout.h"
 #include "zkx/literal.h"
@@ -81,28 +82,10 @@ struct NumpyScalarTypes {
   nanobind::object np_uint64;
   nanobind::object np_longlong;
   nanobind::object np_intc;
-  nanobind::object np_koalabear;
-  nanobind::object np_koalabear_std;
-  nanobind::object np_babybear;
-  nanobind::object np_babybear_std;
-  nanobind::object np_mersenne31;
-  nanobind::object np_mersenne31_std;
-  nanobind::object np_goldilocks;
-  nanobind::object np_goldilocks_std;
-  nanobind::object np_bn254_sf;
-  nanobind::object np_bn254_sf_std;
-  nanobind::object np_bn254_g1_affine;
-  nanobind::object np_bn254_g1_affine_std;
-  nanobind::object np_bn254_g1_jacobian;
-  nanobind::object np_bn254_g1_jacobian_std;
-  nanobind::object np_bn254_g1_xyzz;
-  nanobind::object np_bn254_g1_xyzz_std;
-  nanobind::object np_bn254_g2_affine;
-  nanobind::object np_bn254_g2_affine_std;
-  nanobind::object np_bn254_g2_jacobian;
-  nanobind::object np_bn254_g2_jacobian_std;
-  nanobind::object np_bn254_g2_xyzz;
-  nanobind::object np_bn254_g2_xyzz_std;
+#define ZK_DTYPES_MEMBER(unused, unused2, unused3, name) \
+  nanobind::object np_##name;
+  ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_MEMBER)
+#undef ZK_DTYPES_MEMBER
 };
 const NumpyScalarTypes& GetNumpyScalarTypes();
 

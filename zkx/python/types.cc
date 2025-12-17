@@ -43,28 +43,9 @@ namespace nb = nanobind;
 namespace {
 
 struct CustomDtypes {
-  nb_dtype koalabear;
-  nb_dtype koalabear_std;
-  nb_dtype babybear;
-  nb_dtype babybear_std;
-  nb_dtype mersenne31;
-  nb_dtype mersenne31_std;
-  nb_dtype goldilocks;
-  nb_dtype goldilocks_std;
-  nb_dtype bn254_sf;
-  nb_dtype bn254_sf_std;
-  nb_dtype bn254_g1_affine;
-  nb_dtype bn254_g1_affine_std;
-  nb_dtype bn254_g1_jacobian;
-  nb_dtype bn254_g1_jacobian_std;
-  nb_dtype bn254_g1_xyzz;
-  nb_dtype bn254_g1_xyzz_std;
-  nb_dtype bn254_g2_affine;
-  nb_dtype bn254_g2_affine_std;
-  nb_dtype bn254_g2_jacobian;
-  nb_dtype bn254_g2_jacobian_std;
-  nb_dtype bn254_g2_xyzz;
-  nb_dtype bn254_g2_xyzz_std;
+#define ZK_DTYPES_MEMBER(unused, unused2, unused3, name) nb_dtype name;
+  ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_MEMBER)
+#undef ZK_DTYPES_MEMBER
 
   nb_dtype int2;
   nb_dtype int4;
@@ -76,21 +57,10 @@ const CustomDtypes& GetCustomDtypes() {
   static const CustomDtypes& custom_dtypes = *[]() {
     nb::module_ zk_dtypes = nb::module_::import_("zk_dtypes");
     auto* dtypes = absl::IgnoreLeak(new CustomDtypes);
-#define ADD_MONTABLE_TYPE(name)                              \
-  dtypes->name = nb_dtype::from_args(zk_dtypes.attr(#name)); \
-  dtypes->name##_std = nb_dtype::from_args(zk_dtypes.attr(#name "_std"))
-    ADD_MONTABLE_TYPE(koalabear);
-    ADD_MONTABLE_TYPE(babybear);
-    ADD_MONTABLE_TYPE(mersenne31);
-    ADD_MONTABLE_TYPE(goldilocks);
-    ADD_MONTABLE_TYPE(bn254_sf);
-    ADD_MONTABLE_TYPE(bn254_g1_affine);
-    ADD_MONTABLE_TYPE(bn254_g1_jacobian);
-    ADD_MONTABLE_TYPE(bn254_g1_xyzz);
-    ADD_MONTABLE_TYPE(bn254_g2_affine);
-    ADD_MONTABLE_TYPE(bn254_g2_jacobian);
-    ADD_MONTABLE_TYPE(bn254_g2_xyzz);
-#undef ADD_MONTABLE_TYPE
+#define ADD_ZK_DTYPES_TYPE(unused, unused2, unused3, name) \
+  dtypes->name = nb_dtype::from_args(zk_dtypes.attr(#name));
+    ZK_DTYPES_PUBLIC_TYPE_LIST(ADD_ZK_DTYPES_TYPE)
+#undef ADD_ZK_DTYPES_TYPE
     dtypes->int2 = nb_dtype::from_args(zk_dtypes.attr("int2"));
     dtypes->uint2 = nb_dtype::from_args(zk_dtypes.attr("uint2"));
     dtypes->int4 = nb_dtype::from_args(zk_dtypes.attr("int4"));
@@ -138,21 +108,10 @@ absl::StatusOr<PrimitiveType> DtypeToPrimitiveType(const nb_dtype& np_type) {
     const CustomDtypes& custom_dtypes = GetCustomDtypes();
     auto map = std::make_unique<
         absl::flat_hash_map<nb_dtype, PrimitiveType, DtypeHash, DtypeEq>>();
-#define ADD_MONTABLE_TYPE(enum, member_name)     \
-  map->emplace(custom_dtypes.member_name, enum); \
-  map->emplace(custom_dtypes.member_name##_std, enum##_STD)
-    ADD_MONTABLE_TYPE(KOALABEAR, koalabear);
-    ADD_MONTABLE_TYPE(BABYBEAR, babybear);
-    ADD_MONTABLE_TYPE(MERSENNE31, mersenne31);
-    ADD_MONTABLE_TYPE(GOLDILOCKS, goldilocks);
-    ADD_MONTABLE_TYPE(BN254_SF, bn254_sf);
-    ADD_MONTABLE_TYPE(BN254_G1_AFFINE, bn254_g1_affine);
-    ADD_MONTABLE_TYPE(BN254_G1_JACOBIAN, bn254_g1_jacobian);
-    ADD_MONTABLE_TYPE(BN254_G1_XYZZ, bn254_g1_xyzz);
-    ADD_MONTABLE_TYPE(BN254_G2_AFFINE, bn254_g2_affine);
-    ADD_MONTABLE_TYPE(BN254_G2_JACOBIAN, bn254_g2_jacobian);
-    ADD_MONTABLE_TYPE(BN254_G2_XYZZ, bn254_g2_xyzz);
-#undef ADD_MONTABLE_TYPE
+#define ADD_ZK_DTYPES_TYPE(unused, unused2, enum, member_name) \
+  map->emplace(custom_dtypes.member_name, enum);
+    ZK_DTYPES_PUBLIC_TYPE_LIST(ADD_ZK_DTYPES_TYPE)
+#undef ADD_ZK_DTYPES_TYPE
     map->emplace(custom_dtypes.int2, S2);
     map->emplace(custom_dtypes.int4, S4);
     map->emplace(custom_dtypes.uint2, U2);
@@ -203,23 +162,11 @@ absl::StatusOr<nb_dtype> PrimitiveTypeToNbDtype(PrimitiveType type) {
       return to_nb_dtype(NPY_UINT32);
     case U64:
       return to_nb_dtype(NPY_UINT64);
-#define MONTABLE_CASE(enum, member_name) \
-  case enum:                             \
-    return custom_dtypes.member_name;    \
-  case enum##_STD:                       \
-    return custom_dtypes.member_name##_std
-      MONTABLE_CASE(KOALABEAR, koalabear);
-      MONTABLE_CASE(BABYBEAR, babybear);
-      MONTABLE_CASE(MERSENNE31, mersenne31);
-      MONTABLE_CASE(GOLDILOCKS, goldilocks);
-      MONTABLE_CASE(BN254_SF, bn254_sf);
-      MONTABLE_CASE(BN254_G1_AFFINE, bn254_g1_affine);
-      MONTABLE_CASE(BN254_G1_JACOBIAN, bn254_g1_jacobian);
-      MONTABLE_CASE(BN254_G1_XYZZ, bn254_g1_xyzz);
-      MONTABLE_CASE(BN254_G2_AFFINE, bn254_g2_affine);
-      MONTABLE_CASE(BN254_G2_JACOBIAN, bn254_g2_jacobian);
-      MONTABLE_CASE(BN254_G2_XYZZ, bn254_g2_xyzz);
-#undef MONTABLE_CASE
+#define ZK_DTYPES_CASE(unused, unused2, enum, member_name) \
+  case enum:                                               \
+    return custom_dtypes.member_name;
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     default:
       break;
   }
@@ -260,23 +207,11 @@ absl::StatusOr<nb_dtype> IfrtDtypeToNbDtype(ifrt::DType dtype) {
       return to_nb_dtype(NPY_UINT32);
     case ifrt::DType::kU64:
       return to_nb_dtype(NPY_UINT64);
-#define MONTABLE_CASE(enum, member_name) \
-  case ifrt::DType::k##enum:             \
-    return custom_dtypes.member_name;    \
-  case ifrt::DType::k##enum##Std:        \
-    return custom_dtypes.member_name##_std;
-      MONTABLE_CASE(Koalabear, koalabear);
-      MONTABLE_CASE(Babybear, babybear);
-      MONTABLE_CASE(Mersenne31, mersenne31);
-      MONTABLE_CASE(Goldilocks, goldilocks);
-      MONTABLE_CASE(Bn254Sf, bn254_sf);
-      MONTABLE_CASE(Bn254G1Affine, bn254_g1_affine);
-      MONTABLE_CASE(Bn254G1Jacobian, bn254_g1_jacobian);
-      MONTABLE_CASE(Bn254G1Xyzz, bn254_g1_xyzz);
-      MONTABLE_CASE(Bn254G2Affine, bn254_g2_affine);
-      MONTABLE_CASE(Bn254G2Jacobian, bn254_g2_jacobian);
-      MONTABLE_CASE(Bn254G2Xyzz, bn254_g2_xyzz);
-#undef MONTABLE_CASE
+#define ZK_DTYPES_CASE(unused, dtype_enum, unused2, member_name) \
+  case ifrt::DType::k##dtype_enum:                               \
+    return custom_dtypes.member_name;
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     case ifrt::DType::kString:
       // PEP 3118 code for "pointer to Python Object". We use Python objects
       // instead of 'U' (Unicode string) or 'V' (raw data) because the latter
@@ -328,21 +263,10 @@ const NumpyScalarTypes& GetNumpyScalarTypes() {
     dtypes->np_uint64 = nb::object(numpy.attr("uint64"));
     dtypes->np_longlong = nb::object(numpy.attr("longlong"));
     dtypes->np_intc = nb::object(numpy.attr("intc"));
-#define ADD_MONTABLE_TYPE(name)                          \
-  dtypes->np_##name = nb::object(zk_dtypes.attr(#name)); \
-  dtypes->np_##name##_std = nb::object(zk_dtypes.attr(#name "_std"))
-    ADD_MONTABLE_TYPE(koalabear);
-    ADD_MONTABLE_TYPE(babybear);
-    ADD_MONTABLE_TYPE(mersenne31);
-    ADD_MONTABLE_TYPE(goldilocks);
-    ADD_MONTABLE_TYPE(bn254_sf);
-    ADD_MONTABLE_TYPE(bn254_g1_affine);
-    ADD_MONTABLE_TYPE(bn254_g1_jacobian);
-    ADD_MONTABLE_TYPE(bn254_g1_xyzz);
-    ADD_MONTABLE_TYPE(bn254_g2_affine);
-    ADD_MONTABLE_TYPE(bn254_g2_jacobian);
-    ADD_MONTABLE_TYPE(bn254_g2_xyzz);
-#undef ADD_MONTABLE_TYPE
+#define ADD_ZK_DTYPES_TYPE(unused, unused2, unused3, name) \
+  dtypes->np_##name = nb::object(zk_dtypes.attr(#name));
+    ZK_DTYPES_PUBLIC_TYPE_LIST(ADD_ZK_DTYPES_TYPE)
+#undef ADD_ZK_DTYPES_TYPE
     return dtypes;
   }();
   return *singleton;

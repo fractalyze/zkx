@@ -242,6 +242,7 @@ cc_library(
         ":serdes_version",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@zk_dtypes//zk_dtypes:all_types",
     ],
 )
 

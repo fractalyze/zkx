@@ -17,6 +17,7 @@ limitations under the License.
 #include "zkx/python/ifrt/dtype.h"
 
 #include "absl/strings/str_cat.h"
+#include "zk_dtypes/include/all_types.h"
 
 namespace zkx::ifrt {
 
@@ -170,32 +171,11 @@ absl::StatusOr<DType> DType::FromProto(const DTypeProto& dtype_proto) {
       CASE(U64);
 #undef CASE
 
-#define CASE(X, Y)           \
-  case DTypeProto::KIND_##X: \
-    return DType(DType::Kind::k##Y);
-      CASE(KOALABEAR, Koalabear);
-      CASE(KOALABEAR_STD, KoalabearStd);
-      CASE(BABYBEAR, Babybear);
-      CASE(BABYBEAR_STD, BabybearStd);
-      CASE(MERSENNE31, Mersenne31);
-      CASE(MERSENNE31_STD, Mersenne31Std);
-      CASE(GOLDILOCKS, Goldilocks);
-      CASE(GOLDILOCKS_STD, GoldilocksStd);
-      CASE(BN254_SF, Bn254Sf);
-      CASE(BN254_SF_STD, Bn254SfStd);
-      CASE(BN254_G1_AFFINE, Bn254G1Affine);
-      CASE(BN254_G1_AFFINE_STD, Bn254G1AffineStd);
-      CASE(BN254_G1_JACOBIAN, Bn254G1Jacobian);
-      CASE(BN254_G1_JACOBIAN_STD, Bn254G1JacobianStd);
-      CASE(BN254_G1_XYZZ, Bn254G1Xyzz);
-      CASE(BN254_G1_XYZZ_STD, Bn254G1XyzzStd);
-      CASE(BN254_G2_AFFINE, Bn254G2Affine);
-      CASE(BN254_G2_AFFINE_STD, Bn254G2AffineStd);
-      CASE(BN254_G2_JACOBIAN, Bn254G2Jacobian);
-      CASE(BN254_G2_JACOBIAN_STD, Bn254G2JacobianStd);
-      CASE(BN254_G2_XYZZ, Bn254G2Xyzz);
-      CASE(BN254_G2_XYZZ_STD, Bn254G2XyzzStd);
-#undef CASE
+#define ZK_DTYPES_CASE(unused, dtype_enum, enum, unused2) \
+  case DTypeProto::KIND_##enum:                           \
+    return DType(DType::Kind::k##dtype_enum);
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     case DTypeProto::KIND_STRING:
       return DType(DType::Kind::kString);
     default:
@@ -239,33 +219,12 @@ DTypeProto DType::ToProto(SerDesVersion version) const {
       CASE(U64);
 #undef CASE
 
-#define CASE(X, Y)                              \
-  case DType::Kind::k##X:                       \
-    dtype_proto.set_kind(DTypeProto::KIND_##Y); \
+#define ZK_DTYPES_CASE(unused, dtype_enum, enum, unused2) \
+  case DType::Kind::k##dtype_enum:                        \
+    dtype_proto.set_kind(DTypeProto::KIND_##enum);        \
     break;
-      CASE(Koalabear, KOALABEAR);
-      CASE(KoalabearStd, KOALABEAR_STD);
-      CASE(Babybear, BABYBEAR);
-      CASE(BabybearStd, BABYBEAR_STD);
-      CASE(Mersenne31, MERSENNE31);
-      CASE(Mersenne31Std, MERSENNE31_STD);
-      CASE(Goldilocks, GOLDILOCKS);
-      CASE(GoldilocksStd, GOLDILOCKS_STD);
-      CASE(Bn254Sf, BN254_SF);
-      CASE(Bn254SfStd, BN254_SF_STD);
-      CASE(Bn254G1Affine, BN254_G1_AFFINE);
-      CASE(Bn254G1AffineStd, BN254_G1_AFFINE_STD);
-      CASE(Bn254G1Jacobian, BN254_G1_JACOBIAN);
-      CASE(Bn254G1JacobianStd, BN254_G1_JACOBIAN_STD);
-      CASE(Bn254G1Xyzz, BN254_G1_XYZZ);
-      CASE(Bn254G1XyzzStd, BN254_G1_XYZZ_STD);
-      CASE(Bn254G2Affine, BN254_G2_AFFINE);
-      CASE(Bn254G2AffineStd, BN254_G2_AFFINE_STD);
-      CASE(Bn254G2Jacobian, BN254_G2_JACOBIAN);
-      CASE(Bn254G2JacobianStd, BN254_G2_JACOBIAN_STD);
-      CASE(Bn254G2Xyzz, BN254_G2_XYZZ);
-      CASE(Bn254G2XyzzStd, BN254_G2_XYZZ_STD);
-#undef CASE
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     case DType::Kind::kString:
       dtype_proto.set_kind(DTypeProto::KIND_STRING);
       break;
@@ -310,50 +269,11 @@ std::string DType::DebugString() const {
       return "TOKEN";
     case kOpaque:
       return "OPAQUE";
-    case kKoalabear:
-      return "KOALABEAR";
-    case kKoalabearStd:
-      return "KOALABEAR_STD";
-    case kBabybear:
-      return "BABYBEAR";
-    case kBabybearStd:
-      return "BABYBEAR_STD";
-    case kMersenne31:
-      return "MERSENNE31";
-    case kMersenne31Std:
-      return "MERSENNE31_STD";
-    case kGoldilocks:
-      return "GOLDILOCKS";
-    case kGoldilocksStd:
-      return "GOLDILOCKS_STD";
-    case kBn254Sf:
-      return "BN254_SF";
-    case kBn254SfStd:
-      return "BN254_SF_STD";
-    case kBn254G1Affine:
-      return "BN254_G1_AFFINE";
-    case kBn254G1AffineStd:
-      return "BN254_G1_AFFINE_STD";
-    case kBn254G1Jacobian:
-      return "BN254_G1_JACOBIAN";
-    case kBn254G1JacobianStd:
-      return "BN254_G1_JACOBIAN_STD";
-    case kBn254G1Xyzz:
-      return "BN254_G1_XYZZ";
-    case kBn254G1XyzzStd:
-      return "BN254_G1_XYZZ_STD";
-    case kBn254G2Affine:
-      return "BN254_G2_AFFINE";
-    case kBn254G2AffineStd:
-      return "BN254_G2_AFFINE_STD";
-    case kBn254G2Jacobian:
-      return "BN254_G2_JACOBIAN";
-    case kBn254G2JacobianStd:
-      return "BN254_G2_JACOBIAN_STD";
-    case kBn254G2Xyzz:
-      return "BN254_G2_XYZZ";
-    case kBn254G2XyzzStd:
-      return "BN254_G2_XYZZ_STD";
+#define ZK_DTYPES_CASE(unused, dtype_enum, enum, unused2) \
+  case k##dtype_enum:                                     \
+    return #enum;
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     case kString:
       return "STRING";
     default:

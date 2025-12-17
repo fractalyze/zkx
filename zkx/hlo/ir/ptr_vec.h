@@ -76,7 +76,6 @@ class PtrVec {
   void erase(const_iterator iter);
 
   // For compatibility with existing code, allow conversion to vector.
-  // NOLINTNEXTLINE(google-explicit-constructor)
   operator std::vector<T>() const;
 
  private:

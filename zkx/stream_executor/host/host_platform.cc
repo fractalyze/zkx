@@ -16,7 +16,7 @@ limitations under the License.
 
 #include "zkx/stream_executor/host/host_platform.h"
 
-#include <thread>
+#include <thread>  // NOLINT(build/c++11)
 #include <utility>
 
 #include "absl/log/check.h"

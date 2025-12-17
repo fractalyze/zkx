@@ -29,6 +29,7 @@ limitations under the License.
 #include "gloo/reduce_scatter.h"
 #include "gloo/transport/unbound_buffer.h"
 #include "gloo/types.h"
+#include "zk_dtypes/include/all_types.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
@@ -64,33 +65,32 @@ void EcPointSum(T* a, const T* b, size_t n) {
   EcPointSum<T>(a, a, b, n);
 }
 
-#define ADD_EC_REDUCTION_FUNCTION(Type)                                 \
+#define ADD_EC_REDUCTION_FUNCTION(cpp_type, ...)                        \
   template <>                                                           \
-  class ReductionFunction<Type> {                                       \
+  class ReductionFunction<cpp_type> {                                   \
    public:                                                              \
-    using Function = void(Type*, const Type*, size_t n);                \
+    using Function = void(cpp_type*, const cpp_type*, size_t n);        \
                                                                         \
-    static const ReductionFunction<Type>* sum;                          \
+    static const ReductionFunction<cpp_type>* sum;                      \
                                                                         \
     ReductionFunction(ReductionType type, Function* fn)                 \
         : type_(type), fn_(fn) {}                                       \
                                                                         \
     ReductionType type() const { return type_; }                        \
                                                                         \
-    void call(Type* x, const Type* y, size_t n) const { fn_(x, y, n); } \
+    void call(cpp_type* x, const cpp_type* y, size_t n) const {         \
+      fn_(x, y, n);                                                     \
+    }                                                                   \
                                                                         \
    protected:                                                           \
     ReductionType type_;                                                \
     Function* fn_;                                                      \
   };                                                                    \
                                                                         \
-  const ReductionFunction<Type>* ReductionFunction<Type>::sum =         \
-      new ReductionFunction<Type>(SUM, &EcPointSum<Type>)
+  const ReductionFunction<cpp_type>* ReductionFunction<cpp_type>::sum = \
+      new ReductionFunction<cpp_type>(SUM, &EcPointSum<cpp_type>);
 
-ADD_EC_REDUCTION_FUNCTION(zk_dtypes::bn254::G1AffinePoint);
-ADD_EC_REDUCTION_FUNCTION(zk_dtypes::bn254::G1AffinePointStd);
-ADD_EC_REDUCTION_FUNCTION(zk_dtypes::bn254::G2AffinePoint);
-ADD_EC_REDUCTION_FUNCTION(zk_dtypes::bn254::G2AffinePointStd);
+ZK_DTYPES_ALL_AFFINE_POINT_TYPE_LIST(ADD_EC_REDUCTION_FUNCTION)
 
 #undef ADD_EC_REDUCTION_FUNCTION
 
@@ -241,27 +241,13 @@ absl::Status GlooCommunicator::AllReduce(se::DeviceMemoryBase send_buffer,
       TF_RETURN_IF_ERROR(SetAllReduceOptions<uint64_t>(
           reduction_kind, send_buffer, recv_buffer, count, options));
       break;
-#define MONTABLE_CASE(enum, cpp_type)                               \
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)             \
   case enum:                                                        \
     TF_RETURN_IF_ERROR(SetAllReduceOptions<cpp_type>(               \
         reduction_kind, send_buffer, recv_buffer, count, options)); \
-    break;                                                          \
-  case enum##_STD:                                                  \
-    TF_RETURN_IF_ERROR(SetAllReduceOptions<cpp_type##Std>(          \
-        reduction_kind, send_buffer, recv_buffer, count, options)); \
     break;
-      MONTABLE_CASE(KOALABEAR, zk_dtypes::Koalabear)
-      MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
-      MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SF, zk_dtypes::bn254::Fr)
-      MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
-#undef MONTABLE_CASE
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     default:
       return absl::InvalidArgumentError("Unknown datatype in allreduce");
   }
@@ -451,27 +437,13 @@ absl::Status GlooCommunicator::ReduceScatter(se::DeviceMemoryBase send_buffer,
       TF_RETURN_IF_ERROR(ReduceScatterHelper<uint64_t>(context_, reduction_kind,
                                                        temp.get(), count));
       break;
-#define MONTABLE_CASE(enum, cpp_type)                                          \
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)                        \
   case enum:                                                                   \
     TF_RETURN_IF_ERROR(ReduceScatterHelper<cpp_type>(context_, reduction_kind, \
                                                      temp.get(), count));      \
-    break;                                                                     \
-  case enum##_STD:                                                             \
-    TF_RETURN_IF_ERROR(ReduceScatterHelper<cpp_type##Std>(                     \
-        context_, reduction_kind, temp.get(), count));                         \
     break;
-      MONTABLE_CASE(KOALABEAR, zk_dtypes::Koalabear)
-      MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
-      MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
-      MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
-      MONTABLE_CASE(BN254_SF, zk_dtypes::bn254::Fr)
-      MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint)
-      MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint)
-      MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz)
-      MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint)
-      MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint)
-      MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz)
-#undef MONTABLE_CASE
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     default:
       return absl::InvalidArgumentError("Unknown datatype in reduce-scatter");
   }

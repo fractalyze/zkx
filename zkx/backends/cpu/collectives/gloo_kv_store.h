@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef ZKX_BACKENDS_CPU_COLLECTIVES_GLOO_KV_STORE_H_
 #define ZKX_BACKENDS_CPU_COLLECTIVES_GLOO_KV_STORE_H_
 
-#include <chrono>
+#include <chrono>  // NOLINT(build/c++11)
 #include <memory>
 #include <string>
 #include <utility>

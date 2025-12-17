@@ -28,6 +28,7 @@ limitations under the License.
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "google/protobuf/message.h"
+#include "zk_dtypes/include/all_types.h"
 #include "zk_dtypes/include/field/prime_field.h"
 #include "zk_dtypes/include/geometry/point_declarations.h"
 
@@ -714,6 +715,30 @@ class HloParserImpl : public HloParser {
     }
     *result = T(x, y, zz, zzz);
     return true;
+  }
+  template <typename T>
+  bool ParseEcPoint(PrimitiveType type, T* result) {
+    using BaseField = typename T::BaseField;
+    if constexpr (zk_dtypes::IsAffinePoint<T>) {
+      if constexpr (BaseField::ExtensionDegree() == 1) {
+        return ParseG1Affine(type, result);
+      } else {
+        return ParseG2Affine(type, result);
+      }
+    } else if constexpr (zk_dtypes::IsJacobianPoint<T>) {
+      if constexpr (BaseField::ExtensionDegree() == 1) {
+        return ParseG1Jacobian(type, result);
+      } else {
+        return ParseG2Jacobian(type, result);
+      }
+    } else if constexpr (zk_dtypes::IsPointXyzz<T>) {
+      if constexpr (BaseField::ExtensionDegree() == 1) {
+        return ParseG1Xyzz(type, result);
+      } else {
+        return ParseG2Xyzz(type, result);
+      }
+    }
+    return false;
   }
   template <typename T>
   bool ParseExtensionField(PrimitiveType type, T* result) {
@@ -3974,20 +3999,10 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
         if (primitive_util::IsEcPointType(shape.element_type())) {
           LocTy loc = lexer_.GetLoc();
           switch (shape.element_type()) {
-#define MONTABLE_CASE(enum, cpp_type, kind)                        \
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)            \
   case enum: {                                                     \
     cpp_type value;                                                \
-    if (!Parse##kind(shape.element_type(), &value)) {              \
-      return false;                                                \
-    }                                                              \
-    if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
-      return false;                                                \
-    }                                                              \
-    break;                                                         \
-  }                                                                \
-  case enum##_STD: {                                               \
-    cpp_type##Std value;                                           \
-    if (!Parse##kind(shape.element_type(), &value)) {              \
+    if (!ParseEcPoint(shape.element_type(), &value)) {             \
       return false;                                                \
     }                                                              \
     if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
@@ -3995,18 +4010,8 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
     }                                                              \
     break;                                                         \
   }
-
-            MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::G1AffinePoint,
-                          G1Affine)
-            MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::G1JacobianPoint,
-                          G1Jacobian)
-            MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::G1PointXyzz, G1Xyzz)
-            MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::G2AffinePoint,
-                          G2Affine)
-            MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::G2JacobianPoint,
-                          G2Jacobian)
-            MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::G2PointXyzz, G2Xyzz)
-#undef MONTABLE_CASE
+            ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
             default:
               return TokenError(
                   absl::StrCat("unsupported ec point type ",
@@ -4055,7 +4060,7 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
         if (primitive_util::IsFieldType(shape.element_type())) {
           LocTy loc = lexer_.GetLoc();
           switch (shape.element_type()) {
-#define MONTABLE_CASE(enum, cpp_type)                              \
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)            \
   case enum: {                                                     \
     cpp_type value;                                                \
     if (!ParsePrimeField(shape.element_type(), &value)) {          \
@@ -4065,24 +4070,9 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
       return false;                                                \
     }                                                              \
     break;                                                         \
-  }                                                                \
-  case enum##_STD: {                                               \
-    cpp_type##Std value;                                           \
-    if (!ParsePrimeField(shape.element_type(), &value)) {          \
-      return false;                                                \
-    }                                                              \
-    if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
-      return false;                                                \
-    }                                                              \
-    break;                                                         \
   }
-
-            MONTABLE_CASE(KOALABEAR, zk_dtypes::Koalabear)
-            MONTABLE_CASE(BABYBEAR, zk_dtypes::Babybear)
-            MONTABLE_CASE(MERSENNE31, zk_dtypes::Mersenne31)
-            MONTABLE_CASE(GOLDILOCKS, zk_dtypes::Goldilocks)
-            MONTABLE_CASE(BN254_SF, zk_dtypes::bn254::Fr)
-#undef MONTABLE_CASE
+            ZK_DTYPES_PUBLIC_PRIME_FIELD_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
             default:
               return TokenError(
                   absl::StrCat("unsupported prime field type ",
@@ -4092,9 +4082,9 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
         } else if (primitive_util::IsEcPointType(shape.element_type())) {
           LocTy loc = lexer_.GetLoc();
           switch (shape.element_type()) {
-#define MONTABLE_CASE(enum, scalar_cpp_type, cpp_type)             \
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)            \
   case enum: {                                                     \
-    scalar_cpp_type scalar;                                        \
+    typename cpp_type::ScalarField scalar;                         \
     if (!ParsePrimeField(shape.element_type(), &scalar)) {         \
       return false;                                                \
     }                                                              \
@@ -4103,32 +4093,9 @@ bool HloParserImpl::ParseDenseLiteral(Literal* literal, const Shape& shape) {
       return false;                                                \
     }                                                              \
     break;                                                         \
-  }                                                                \
-  case enum##_STD: {                                               \
-    scalar_cpp_type##Std scalar;                                   \
-    if (!ParsePrimeField(shape.element_type(), &scalar)) {         \
-      return false;                                                \
-    }                                                              \
-    cpp_type##Std value(scalar);                                   \
-    if (!SetValueInLiteral(loc, value, linear_index++, literal)) { \
-      return false;                                                \
-    }                                                              \
-    break;                                                         \
   }
-
-            MONTABLE_CASE(BN254_G1_AFFINE, zk_dtypes::bn254::Fr,
-                          zk_dtypes::bn254::G1AffinePoint)
-            MONTABLE_CASE(BN254_G1_JACOBIAN, zk_dtypes::bn254::Fr,
-                          zk_dtypes::bn254::G1JacobianPoint)
-            MONTABLE_CASE(BN254_G1_XYZZ, zk_dtypes::bn254::Fr,
-                          zk_dtypes::bn254::G1PointXyzz)
-            MONTABLE_CASE(BN254_G2_AFFINE, zk_dtypes::bn254::Fr,
-                          zk_dtypes::bn254::G2AffinePoint)
-            MONTABLE_CASE(BN254_G2_JACOBIAN, zk_dtypes::bn254::Fr,
-                          zk_dtypes::bn254::G2JacobianPoint)
-            MONTABLE_CASE(BN254_G2_XYZZ, zk_dtypes::bn254::Fr,
-                          zk_dtypes::bn254::G2PointXyzz)
-#undef MONTABLE_CASE
+            ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
             default:
               return TokenError(
                   absl::StrCat("unsupported ec point type ",
@@ -4710,7 +4677,7 @@ bool HloParserImpl::ParseAttributeHelper(
     return Error(loc, absl::StrFormat("error parsing attribute %s", name));
   }
   return true;
-}
+}  // NOLINT(readability/fn_size)
 
 bool HloParserImpl::CopyAttributeToProtoMessage(
     absl::flat_hash_set<std::string> non_proto_attrs,

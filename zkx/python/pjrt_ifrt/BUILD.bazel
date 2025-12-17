@@ -93,6 +93,7 @@ cc_library(
         "//zkx/python/ifrt:dtype",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings:str_format",
+        "@zk_dtypes//zk_dtypes:all_types",
     ],
 )
 
