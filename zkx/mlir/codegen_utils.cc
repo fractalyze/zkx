@@ -95,8 +95,8 @@ Value ConvertInteger(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
     return b.create<arith::CmpIOp>(arith::CmpIPredicate::ne, args.front(),
                                    zero);
   }
-  auto src = cast<IntegerType>(source_type);
-  auto res = cast<IntegerType>(target_type);
+  auto src = cast<IntegerType>(getElementTypeOrSelf(source_type));
+  auto res = cast<IntegerType>(getElementTypeOrSelf(target_type));
   if (src.getWidth() > res.getWidth()) {
     return b.create<arith::TruncIOp>(result_types, args, attributes);
   }
@@ -221,11 +221,15 @@ Value RemainderInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs,
 
 Value SignInteger(ImplicitLocOpBuilder& b, Value value) {
   // sign(x) = x == 0 ? 0 : ((x >>s (width - 1)) | 1)
-  IntegerType integer_type = cast<IntegerType>(value.getType());
-  Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(integer_type));
-  Value bit_width_minus_one = b.create<arith::ConstantOp>(
+  IntegerType integer_type =
+      cast<IntegerType>(getElementTypeOrSelf(value.getType()));
+  Value zero = mlir_utils::GetConstantOrSplat(b, value.getType(),
+                                              b.getZeroAttr(integer_type));
+  Value bit_width_minus_one = mlir_utils::GetConstantOrSplat(
+      b, value.getType(),
       b.getIntegerAttr(integer_type, integer_type.getWidth() - 1));
-  Value one = b.create<arith::ConstantOp>(b.getOneAttr(integer_type));
+  Value one = mlir_utils::GetConstantOrSplat(b, value.getType(),
+                                             b.getOneAttr(integer_type));
   Value cmp = b.create<arith::CmpIOp>(arith::CmpIPredicate::eq, value, zero);
   Value shr = b.create<arith::ShRSIOp>(value, bit_width_minus_one);
   Value or_op = b.create<arith::OrIOp>(shr, one);

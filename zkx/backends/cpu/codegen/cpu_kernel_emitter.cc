@@ -655,34 +655,33 @@ CpuKernelEmitter::EmitOperands(EmitterLocOpBuilder& b,
         return absl::UnimplementedError(absl::StrFormat(
             "Unhandled sparse array layout: %s", operand->ToString()));
       }
-    } else if (ShapeUtil::IsScalar(shape)) {
-      auto load =
-          b.create<mlir::memref::LoadOp>(entry_block->getArgument(i), {});
-      if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
-        auto bit_width = primitive_util::BitWidth(shape.element_type());
-        if (bit_width == 2 || bit_width == 4) {
-          auto shr = b.create<mlir::arith::ShRUIOp>(
-              load, b.create<mlir::arith::ConstantOp>(
-                        b.getIntegerAttr(b.getI8Type(), 8 - bit_width)));
-          values[operand] = b.create<mlir::arith::TruncIOp>(
-              mlir_utils::PrimitiveTypeToMlirType(shape.element_type(),
-                                                  b.getContext()),
-              shr);
-        } else {
-          return absl::InternalError(absl::StrFormat(
-              "Unhandled sub byte non pred type: %s", operand->ToString()));
-        }
-      } else {
-        values[operand] = load;
-      }
     } else {
-      pass_flag_.enable_one_shot_bufferize = true;
-
       if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
-        return absl::UnimplementedError(absl::StrFormat(
-            "tensor input with sub byte non pred type is not supported: %s",
-            operand->ToString()));
+        auto load =
+            b.create<mlir::memref::LoadOp>(entry_block->getArgument(i), {});
+        if (ShapeUtil::IsScalar(shape)) {
+          auto bit_width = primitive_util::BitWidth(shape.element_type());
+          if (bit_width == 2 || bit_width == 4) {
+            auto shr = b.create<mlir::arith::ShRUIOp>(
+                load, b.create<mlir::arith::ConstantOp>(
+                          b.getIntegerAttr(b.getI8Type(), 8 - bit_width)));
+            values[operand] = b.create<mlir::arith::TruncIOp>(
+                mlir_utils::PrimitiveTypeToMlirType(shape.element_type(),
+                                                    b.getContext()),
+                shr);
+            continue;
+          } else {
+            return absl::InternalError(absl::StrFormat(
+                "Unhandled sub byte non pred type: %s", operand->ToString()));
+          }
+        } else {
+          return absl::UnimplementedError(absl::StrFormat(
+              "tensor input with sub byte non pred type is not supported: %s",
+              operand->ToString()));
+        }
       }
+
+      pass_flag_.enable_one_shot_bufferize = true;
 
       values[operand] = b.create<mlir::bufferization::ToTensorOp>(
           mlir_utils::ShapeToMlirTensorType(shape, mlir_context_),
@@ -703,32 +702,29 @@ absl::Status CpuKernelEmitter::EmitEpilog(EmitterLocOpBuilder& b,
   if (LayoutUtil::IsSparseArray(shape)) {
     return absl::UnimplementedError(absl::StrFormat(
         "Unhandled sparse array layout: %s", instr_->ToString()));
-  } else if (ShapeUtil::IsScalar(shape)) {
-    ret_value = b.create<mlir::memref::AllocOp>(ret_type);
-    if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
+  }
+
+  if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
+    if (ShapeUtil::IsScalar(shape)) {
       auto bit_width = primitive_util::BitWidth(shape.element_type());
       if (bit_width == 2 || bit_width == 4) {
         auto ext = b.create<mlir::arith::ExtUIOp>(b.getI8Type(), result);
         auto shl = b.create<mlir::arith::ShLIOp>(
             ext, b.create<mlir::arith::ConstantOp>(
                      b.getIntegerAttr(b.getI8Type(), 8 - bit_width)));
+        ret_value = b.create<mlir::memref::AllocOp>(ret_type);
         b.create<mlir::memref::StoreOp>(shl, ret_value, {});
       } else {
         return absl::InternalError(absl::StrFormat(
             "Unhandled sub byte non pred type: %s", instr_->ToString()));
       }
     } else {
-      b.create<mlir::memref::StoreOp>(result, ret_value, {});
-    }
-  } else {
-    pass_flag_.enable_one_shot_bufferize = true;
-
-    if (primitive_util::IsSubByteNonPredType(shape.element_type())) {
       return absl::UnimplementedError(absl::StrFormat(
           "tensor output with sub byte non pred type is not supported: %s",
           instr_->ToString()));
     }
-
+  } else {
+    pass_flag_.enable_one_shot_bufferize = true;
     ret_value = b.create<mlir::bufferization::ToBufferOp>(ret_type, result);
   }
 
@@ -884,38 +880,30 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
     case HloOpcode::kAbs:
       return b.create<mlir::math::AbsIOp>(value);
     case HloOpcode::kBitcastConvert: {
-      mlir::Type ret_type;
-      if (ShapeUtil::IsScalar(instr->shape())) {
-        ret_type = mlir_utils::PrimitiveTypeToMlirType(
-            instr->shape().element_type(), b.getContext());
-      } else {
-        ret_type =
-            mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
-      }
+      mlir::Type ret_type =
+          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
       return b.create<mlir::arith::BitcastOp>(ret_type, value);
     }
     case HloOpcode::kClz:
       return b.create<mlir::math::CountLeadingZerosOp>(value);
     case HloOpcode::kConvert: {
-      mlir::Type ret_type;
-      if (ShapeUtil::IsScalar(instr->shape())) {
-        ret_type = mlir_utils::PrimitiveTypeToMlirType(
-            instr->shape().element_type(), b.getContext());
-      } else {
-        ret_type =
-            mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
-      }
+      mlir::Type ret_type =
+          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
       return mlir_utils::ConvertInteger(b, {ret_type}, value.getType(),
                                         ret_type, {value}, is_signed);
     }
     case HloOpcode::kNegate:
       return b.create<mlir::arith::SubIOp>(
-          b.create<mlir::arith::ConstantOp>(b.getZeroAttr(value.getType())),
+          mlir_utils::GetConstantOrSplat(
+              b, value.getType(),
+              b.getZeroAttr(getElementTypeOrSelf(value.getType()))),
           value);
     case HloOpcode::kNot:
       return b.create<mlir::arith::XOrIOp>(
-          value, b.create<mlir::arith::ConstantOp>(
-                     b.getIntegerAttr(value.getType(), -1)));
+          value,
+          mlir_utils::GetConstantOrSplat(
+              b, value.getType(),
+              b.getIntegerAttr(getElementTypeOrSelf(value.getType()), -1)));
     case HloOpcode::kPopulationCount:
       return b.create<mlir::math::CtPopOp>(value);
     case HloOpcode::kSign:
@@ -968,7 +956,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointUnaryOp(
         return value;
       }
       return b.create<mlir::zkir::elliptic_curve::ConvertPointTypeOp>(
-          mlir_utils::PrimitiveTypeToMlirType(to, b.getContext()), value);
+          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+          value);
     }
     case HloOpcode::kNegate:
       return b.create<mlir::zkir::elliptic_curve::NegateOp>(value);
@@ -1020,8 +1009,24 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
       return b.create<mlir::arith::MulIOp>(lhs_value, rhs_value);
     case HloOpcode::kOr:
       return b.create<mlir::arith::OrIOp>(lhs_value, rhs_value);
-    case HloOpcode::kPower:
-      return mlir_utils::PowerInteger(b, lhs_value, rhs_value, is_signed);
+    case HloOpcode::kPower: {
+      pass_flag_.enable_linalg_to_parallel_loops = true;
+
+      auto output = b.create<mlir::tensor::EmptyOp>(
+          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+          mlir::ValueRange{});
+      return b
+          .create<mlir::linalg::MapOp>(
+              mlir::ValueRange{lhs_value, rhs_value}, output,
+              [is_signed](mlir::OpBuilder& nested_b, mlir::Location loc,
+                          mlir::ValueRange loop_vars) {
+                mlir::ImplicitLocOpBuilder b(loc, nested_b);
+                mlir::Value elementwise_result = mlir_utils::PowerInteger(
+                    b, loop_vars[0], loop_vars[1], is_signed);
+                b.create<mlir::linalg::YieldOp>(elementwise_result);
+              })
+          ->getResult(0);
+    }
     case HloOpcode::kRemainder:
       return mlir_utils::RemainderInteger(b, lhs_value, rhs_value, is_signed);
     case HloOpcode::kShiftLeft:
@@ -1084,13 +1089,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
   const Shape& shape = instr->shape();
-  mlir::Type ret_type;
-  if (ShapeUtil::IsScalar(shape)) {
-    ret_type = mlir_utils::PrimitiveTypeToMlirType(shape.element_type(),
-                                                   b.getContext());
-  } else {
-    ret_type = mlir_utils::ShapeToMlirTensorType(shape, b.getContext());
-  }
+  mlir::Type ret_type =
+      mlir_utils::ShapeToMlirTensorType(shape, b.getContext());
 
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
@@ -1394,7 +1394,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
           b.create<mlir::scf::YieldOp>(mlir::ValueRange{sum});
         });
 
-    return final_result.getResult(0);
+    return b.create<mlir::tensor::FromElementsOp>(
+        mlir_utils::ShapeToMlirTensorType(shape, b.getContext()),
+        mlir::ValueRange{final_result.getResult(0)});
   } else {
     return absl::InvalidArgumentError("bases is not a tensor");
   }
@@ -1403,23 +1405,6 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBroadcastOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input,
     absl::Span<const int64_t> source_dimensions) {
-  if (ShapeUtil::IsScalar(instr->operand(0)->shape())) {
-    const HloInstruction* input_instr = instr->operand(0);
-    if (ShapeUtil::IsScalar(input_instr->shape())) {
-      mlir::memref::LoadOp load =
-          mlir::dyn_cast<mlir::memref::LoadOp>(input.getDefiningOp());
-      if (!load) {
-        return absl::InternalError("input is not a memref");
-      }
-      input = b.create<mlir::bufferization::ToTensorOp>(
-          mlir_utils::ShapeToMlirTensorType(input_instr->shape(),
-                                            b.getContext()),
-          load.getMemref(),
-          /*restrict=*/true,
-          /*writable=*/false);
-    }
-  }
-
   pass_flag_.enable_linalg_to_parallel_loops = true;
 
   int64_t rank = instr->shape().rank();
@@ -1591,8 +1576,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicSliceOp(
   llvm::SmallVector<int64_t> static_offsets;
   llvm::SmallVector<int64_t> static_strides;
   for (size_t i = 0; i < instr->shape().rank(); ++i) {
+    auto start_index = b.create<mlir::tensor::ExtractOp>(start_indices[i], {});
     offsets.push_back(
-        b.create<mlir::arith::IndexCastOp>(b.getIndexType(), start_indices[i]));
+        b.create<mlir::arith::IndexCastOp>(b.getIndexType(), start_index));
     static_offsets.push_back(mlir::ShapedType::kDynamic);
     static_strides.push_back(1);
   }
@@ -1616,8 +1602,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicUpdateSliceOp(
   llvm::SmallVector<int64_t> static_sizes;
   llvm::SmallVector<int64_t> static_strides;
   for (size_t i = 0; i < instr->shape().rank(); ++i) {
+    auto start_index = b.create<mlir::tensor::ExtractOp>(start_indices[i], {});
     offsets.push_back(
-        b.create<mlir::arith::IndexCastOp>(b.getIndexType(), start_indices[i]));
+        b.create<mlir::arith::IndexCastOp>(b.getIndexType(), start_index));
     sizes.push_back(b.create<mlir::tensor::DimOp>(update, i));
     static_offsets.push_back(mlir::ShapedType::kDynamic);
     static_sizes.push_back(mlir::ShapedType::kDynamic);
@@ -1734,24 +1721,17 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPadOp(
         b.getIndexAttr(dimension.edge_padding_high()));
   }
 
+  mlir::Value padding_value_scalar =
+      b.create<mlir::tensor::ExtractOp>(padding_value, {});
   return b.create<mlir::tensor::PadOp>(
       mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()), input,
-      lower_edge_padding_low, lower_edge_padding_high, padding_value);
+      lower_edge_padding_low, lower_edge_padding_high, padding_value_scalar);
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReduceOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
-    mlir::ValueRange inputs, mlir::ValueRange inits_in) {
+    mlir::ValueRange inputs, mlir::ValueRange inits) {
   pass_flag_.enable_linalg_to_parallel_loops = true;
-
-  llvm::SmallVector<mlir::Value> inits = {inits_in.begin(), inits_in.end()};
-  if (ShapeUtil::IsScalar(instr->shape())) {
-    for (size_t i = 0; i < inits.size(); ++i) {
-      inits[i] = b.create<mlir::tensor::FromElementsOp>(
-          mlir::RankedTensorType::get({}, inits[i].getType()),
-          mlir::ValueRange{inits[i]});
-    }
-  }
 
   HloComputation* to_apply = instr->to_apply();
   auto reduce = b.create<mlir::linalg::ReduceOp>(
@@ -1771,14 +1751,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReduceOp(
             mlir::ValueRange{values[to_apply->root_instruction()]});
       });
 
-  if (ShapeUtil::IsScalar(instr->shape())) {
-    return b
-        .create<mlir::tensor::ExtractOp>(reduce.getResult(0),
-                                         mlir::ValueRange{})
-        .getResult();
-  } else {
-    return reduce.getResult(0);
-  }
+  return reduce.getResult(0);
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
