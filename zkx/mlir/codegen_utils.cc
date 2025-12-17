@@ -20,6 +20,7 @@ limitations under the License.
 #include "mlir/IR/TypeUtilities.h"
 
 #include "zkx/mlir/mlir_utils.h"
+#include "zkir/Dialect/Field/IR/FieldOps.h"
 
 namespace zkx::mlir_utils {
 
@@ -267,6 +268,24 @@ Value ShiftRightLogicalInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs) {
   Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
   Value shifted = b.create<arith::ShRUIOp>(lhs, rhs);
   return SelectShiftedOrSaturated(b, rhs, shifted, zero, type);
+}
+
+Value ConvertField(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
+                   Type source_type, Type target_type, ValueRange args,
+                   ArrayRef<NamedAttribute> attributes) {
+  if (zkir::field::isMontgomery(source_type)) {
+    if (zkir::field::isMontgomery(target_type)) {
+      return args[0];
+    } else {
+      return b.create<zkir::field::FromMontOp>(result_types, args, attributes);
+    }
+  } else {
+    if (zkir::field::isMontgomery(target_type)) {
+      return b.create<zkir::field::ToMontOp>(result_types, args, attributes);
+    } else {
+      return args[0];
+    }
+  }
 }
 
 }  // namespace zkx::mlir_utils

@@ -191,27 +191,6 @@ inline Value getConstantOrSplat(OpBuilder *b, Location loc, Type t,
   return b->create<arith::ConstantOp>(loc, t, cast<TypedAttr>(v));
 }
 
-inline Value makeFieldConvert(Location loc, ArrayRef<Type> resultTypes,
-                              Type sourceType, Type targetType, ValueRange args,
-                              ArrayRef<NamedAttribute> attributes,
-                              OpBuilder *b) {
-  if (zkir::field::isMontgomery(sourceType)) {
-    if (zkir::field::isMontgomery(targetType)) {
-      return args[0];
-    } else {
-      return b->create<zkir::field::FromMontOp>(loc, resultTypes, args,
-                                                attributes);
-    }
-  } else {
-    if (zkir::field::isMontgomery(targetType)) {
-      return b->create<zkir::field::ToMontOp>(loc, resultTypes, args,
-                                              attributes);
-    } else {
-      return args[0];
-    }
-  }
-}
-
 inline Value makeEcPointConvert(Location loc, ArrayRef<Type> resultTypes,
                                 Type sourceType, Type targetType,
                                 ValueRange args,
@@ -252,15 +231,15 @@ inline Value mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
   Type sourceType = getElementTypeOrSelf(argTypes.front());
   Type targetType = getElementTypeOrSelf(targetTypes.front());
 
+  mlir::ImplicitLocOpBuilder lb(loc, *b);
   if (isa<IntegerType>(sourceType) && isa<IntegerType>(targetType)) {
-    mlir::ImplicitLocOpBuilder lb(loc, *b);
     return zkx::mlir_utils::ConvertInteger(
         lb, resultTypes, sourceType, targetType, args,
         IsSignedIntegerType{}(sourceType), attributes);
   } else if (isa<zkir::field::PrimeFieldType>(sourceType) ||
              isa<zkir::field::QuadraticExtFieldType>(sourceType)) {
-    return makeFieldConvert(loc, resultTypes, sourceType, targetType, args,
-                            attributes, b);
+    return zkx::mlir_utils::ConvertField(lb, resultTypes, sourceType,
+                                         targetType, args, attributes);
   } else if (isa<zkir::elliptic_curve::AffineType>(sourceType) ||
              isa<zkir::elliptic_curve::JacobianType>(sourceType) ||
              isa<zkir::elliptic_curve::XYZZType>(sourceType)) {

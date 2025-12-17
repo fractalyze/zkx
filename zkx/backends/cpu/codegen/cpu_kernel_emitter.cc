@@ -913,22 +913,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   switch (instr->opcode()) {
     case HloOpcode::kConvert: {
-      PrimitiveType from = instr->operand(0)->shape().element_type();
-      PrimitiveType to = instr->shape().element_type();
-      if (primitive_util::IsMontgomeryForm(from) &&
-          primitive_util::IsMontgomeryForm(to)) {
-        return value;
-      } else if (primitive_util::IsMontgomeryForm(from) &&
-                 !primitive_util::IsMontgomeryForm(to)) {
-        return b.create<mlir::zkir::field::FromMontOp>(
-            mlir::zkir::field::getStandardFormType(value.getType()), value);
-      } else if (!primitive_util::IsMontgomeryForm(from) &&
-                 primitive_util::IsMontgomeryForm(to)) {
-        return b.create<mlir::zkir::field::ToMontOp>(
-            mlir::zkir::field::getMontgomeryFormType(value.getType()), value);
-      } else {
-        return value;
-      }
+      mlir::Type ret_type =
+          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      return mlir_utils::ConvertField(b, {ret_type}, value.getType(), ret_type,
+                                      {value});
     }
     case HloOpcode::kInverse:
       return b.create<mlir::zkir::field::InverseOp>(value);
