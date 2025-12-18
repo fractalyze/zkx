@@ -26,8 +26,18 @@ using FieldTypes = testing::Types<
     >;
 TYPED_TEST_SUITE(FieldScalarUnaryTest, FieldTypes);
 
-TYPED_TEST(FieldScalarUnaryTest, Convert) {
-  this->SetUpConvert();
+TYPED_TEST(FieldScalarUnaryTest, ConvertFromInt) {
+  this->SetUpConvertFromInt();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(FieldScalarUnaryTest, ConvertFromIntToStd) {
+  this->SetUpConvertFromIntToStd();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(FieldScalarUnaryTest, ConvertToStd) {
+  this->SetUpConvertToStd();
   this->RunAndVerify();
 }
 

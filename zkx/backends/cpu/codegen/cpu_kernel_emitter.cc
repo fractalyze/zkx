@@ -952,6 +952,20 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitUnaryOp(
   Shape shape = instr->operand(0)->shape();
   PrimitiveType operand_type = shape.element_type();
   if (ShapeUtil::ElementIsIntegral(shape)) {
+    if (instr->opcode() == HloOpcode::kConvert) {
+      Shape output_shape = instr->shape();
+      if (ShapeUtil::ElementIsIntegral(output_shape)) {
+        return EmitIntegerUnaryOp(
+            instr, b, value,
+            primitive_util::IsSignedIntegralType(operand_type));
+      } else if (ShapeUtil::ElementIsField(output_shape)) {
+        return EmitFieldUnaryOp(instr, b, value);
+      } else {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Unsupported output type for integer convert operation: %s",
+            output_shape.ToString()));
+      }
+    }
     return EmitIntegerUnaryOp(
         instr, b, value, primitive_util::IsSignedIntegralType(operand_type));
   } else if (ShapeUtil::ElementIsField(shape)) {
