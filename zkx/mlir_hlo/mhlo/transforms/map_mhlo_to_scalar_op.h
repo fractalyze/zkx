@@ -191,54 +191,6 @@ inline Value getConstantOrSplat(OpBuilder *b, Location loc, Type t,
   return b->create<arith::ConstantOp>(loc, t, cast<TypedAttr>(v));
 }
 
-inline Value makeFieldConvert(Location loc, ArrayRef<Type> resultTypes,
-                              Type sourceType, Type targetType, ValueRange args,
-                              ArrayRef<NamedAttribute> attributes,
-                              OpBuilder *b) {
-  if (zkir::field::isMontgomery(sourceType)) {
-    if (zkir::field::isMontgomery(targetType)) {
-      return args[0];
-    } else {
-      return b->create<zkir::field::FromMontOp>(loc, resultTypes, args,
-                                                attributes);
-    }
-  } else {
-    if (zkir::field::isMontgomery(targetType)) {
-      return b->create<zkir::field::ToMontOp>(loc, resultTypes, args,
-                                              attributes);
-    } else {
-      return args[0];
-    }
-  }
-}
-
-inline Value makeEcPointConvert(Location loc, ArrayRef<Type> resultTypes,
-                                Type sourceType, Type targetType,
-                                ValueRange args,
-                                ArrayRef<NamedAttribute> attributes,
-                                OpBuilder *b) {
-  if (isa<zkir::elliptic_curve::AffineType>(sourceType)) {
-    if (isa<zkir::elliptic_curve::JacobianType>(targetType) ||
-        isa<zkir::elliptic_curve::XYZZType>(targetType)) {
-      return b->create<zkir::elliptic_curve::ConvertPointTypeOp>(
-          loc, resultTypes, args, attributes);
-    }
-  } else if (isa<zkir::elliptic_curve::JacobianType>(sourceType)) {
-    if (isa<zkir::elliptic_curve::AffineType>(targetType) ||
-        isa<zkir::elliptic_curve::XYZZType>(targetType)) {
-      return b->create<zkir::elliptic_curve::ConvertPointTypeOp>(
-          loc, resultTypes, args, attributes);
-    }
-  } else if (isa<zkir::elliptic_curve::XYZZType>(sourceType)) {
-    if (isa<zkir::elliptic_curve::AffineType>(targetType) ||
-        isa<zkir::elliptic_curve::JacobianType>(targetType)) {
-      return b->create<zkir::elliptic_curve::ConvertPointTypeOp>(
-          loc, resultTypes, args, attributes);
-    }
-  }
-  return args[0];
-}
-
 inline Value mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
                                        ArrayRef<Type> resultTypes,
                                        ArrayRef<Type> argTypes, ValueRange args,
@@ -252,20 +204,20 @@ inline Value mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
   Type sourceType = getElementTypeOrSelf(argTypes.front());
   Type targetType = getElementTypeOrSelf(targetTypes.front());
 
+  mlir::ImplicitLocOpBuilder lb(loc, *b);
   if (isa<IntegerType>(sourceType) && isa<IntegerType>(targetType)) {
-    mlir::ImplicitLocOpBuilder lb(loc, *b);
     return zkx::mlir_utils::ConvertInteger(
         lb, resultTypes, sourceType, targetType, args,
         IsSignedIntegerType{}(sourceType), attributes);
   } else if (isa<zkir::field::PrimeFieldType>(sourceType) ||
              isa<zkir::field::QuadraticExtFieldType>(sourceType)) {
-    return makeFieldConvert(loc, resultTypes, sourceType, targetType, args,
-                            attributes, b);
+    return zkx::mlir_utils::ConvertField(lb, resultTypes, sourceType,
+                                         targetType, args, attributes);
   } else if (isa<zkir::elliptic_curve::AffineType>(sourceType) ||
              isa<zkir::elliptic_curve::JacobianType>(sourceType) ||
              isa<zkir::elliptic_curve::XYZZType>(sourceType)) {
-    return makeEcPointConvert(loc, resultTypes, sourceType, targetType, args,
-                              attributes, b);
+    return zkx::mlir_utils::ConvertEcPoint(lb, resultTypes, sourceType,
+                                           targetType, args, attributes);
   }
   return nullptr;
 }
@@ -297,44 +249,6 @@ inline Value mapMhloOpToStdScalarOp<mhlo::MulOp>(
   return nullptr;
 }
 
-template <typename U, typename S>
-inline Value makeSafeIntDiv(ImplicitLocOpBuilder &lb, Type originalType,
-                            Value lhs, Value rhs, Value returnedOnZero,
-                            Value returnedOnSignedOverflow) {
-  Type type = lhs.getType();
-  auto elementType = cast<IntegerType>(getElementTypeOrSelf(type));
-  Value zero = lb.create<arith::ConstantOp>(lb.getZeroAttr(type));
-  auto makeConstant = [&](const APInt &i) {
-    return getConstantOrSplat(&lb, lb.getLoc(), type,
-                              lb.getIntegerAttr(elementType, i));
-  };
-  Value one = makeConstant(APInt(elementType.getWidth(), 1));
-  Value rhsIsZero =
-      lb.create<arith::CmpIOp>(arith::CmpIPredicate::eq, rhs, zero);
-
-  // For unsigned just set the divisor to 1 when it would be 0.
-  if (originalType.isUnsignedInteger()) {
-    Value safeRhs = lb.create<arith::SelectOp>(rhsIsZero, one, rhs);
-    Value safeDiv = lb.create<U>(lhs, safeRhs);
-    return lb.create<arith::SelectOp>(rhsIsZero, returnedOnZero, safeDiv);
-  }
-
-  // For signed also check for INT_MIN / -1.
-  Value smin = makeConstant(APInt::getSignedMinValue(elementType.getWidth()));
-  Value lhsIsSmin =
-      lb.create<arith::CmpIOp>(arith::CmpIPredicate::eq, lhs, smin);
-  Value minusOne = makeConstant(APInt::getAllOnes(elementType.getWidth()));
-  Value rhsIsMinusOne =
-      lb.create<arith::CmpIOp>(arith::CmpIPredicate::eq, rhs, minusOne);
-  Value hasIntMinOverflow = lb.create<arith::AndIOp>(lhsIsSmin, rhsIsMinusOne);
-  Value rhsIsUnsafe = lb.create<arith::OrIOp>(rhsIsZero, hasIntMinOverflow);
-  Value safeRhs = lb.create<arith::SelectOp>(rhsIsUnsafe, one, rhs);
-  Value safeDiv = lb.create<S>(lhs, safeRhs);
-  Value safeSmin = lb.create<arith::SelectOp>(
-      hasIntMinOverflow, returnedOnSignedOverflow, safeDiv);
-  return lb.create<arith::SelectOp>(rhsIsZero, returnedOnZero, safeSmin);
-}
-
 template <>
 inline Value mapMhloOpToStdScalarOp<mhlo::DivOp>(
     Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
@@ -343,26 +257,11 @@ inline Value mapMhloOpToStdScalarOp<mhlo::DivOp>(
   Type type = adaptor.getLhs().getType();
   Type elementType = getElementTypeOrSelf(type);
   if (IsAnyIntegerType{}(elementType)) {
-    // Integer division overflow behavior:
-    //
-    // X / 0 == -1
-    // INT_SMIN /s -1 = INT_SMIN
-    ImplicitLocOpBuilder lb(loc, *b);
-
-    auto integerElementType = cast<IntegerType>(elementType);
-    auto makeConstant = [&](const APInt &i) {
-      return getConstantOrSplat(&lb, lb.getLoc(), type,
-                                lb.getIntegerAttr(integerElementType, i));
-    };
-    Value minusOne =
-        makeConstant(APInt::getAllOnes(integerElementType.getWidth()));
-    Value smin =
-        makeConstant(APInt::getSignedMinValue(integerElementType.getWidth()));
+    mlir::ImplicitLocOpBuilder lb(loc, *b);
     Type originalType = getElementTypeOrSelf(argTypes.front());
-    return makeSafeIntDiv<arith::DivUIOp, arith::DivSIOp>(
-        lb, originalType, adaptor.getLhs(), adaptor.getRhs(),
-        /*returnedOnZero=*/minusOne,
-        /*returnedOnSignedOverflow=*/smin);
+    bool isSigned = !originalType.isUnsignedInteger();
+    return zkx::mlir_utils::DivideInteger(lb, adaptor.getLhs(),
+                                          adaptor.getRhs(), isSigned);
   } else if (IsFieldType{}(elementType)) {
     auto inv = b->create<zkir::field::InverseOp>(loc, adaptor.getRhs());
     return b->create<zkir::field::MulOp>(loc, adaptor.getLhs(), inv);

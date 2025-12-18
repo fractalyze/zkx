@@ -19,6 +19,9 @@ limitations under the License.
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/TypeUtilities.h"
 
+#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
+#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
+#include "zkir/Dialect/Field/IR/FieldOps.h"
 #include "zkx/mlir/mlir_utils.h"
 
 namespace zkx::mlir_utils {
@@ -267,6 +270,50 @@ Value ShiftRightLogicalInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs) {
   Value zero = b.create<arith::ConstantOp>(b.getZeroAttr(type));
   Value shifted = b.create<arith::ShRUIOp>(lhs, rhs);
   return SelectShiftedOrSaturated(b, rhs, shifted, zero, type);
+}
+
+Value ConvertField(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
+                   Type source_type, Type target_type, ValueRange args,
+                   ArrayRef<NamedAttribute> attributes) {
+  if (zkir::field::isMontgomery(source_type)) {
+    if (zkir::field::isMontgomery(target_type)) {
+      return args[0];
+    } else {
+      return b.create<zkir::field::FromMontOp>(result_types, args, attributes);
+    }
+  } else {
+    if (zkir::field::isMontgomery(target_type)) {
+      return b.create<zkir::field::ToMontOp>(result_types, args, attributes);
+    } else {
+      return args[0];
+    }
+  }
+}
+
+mlir::Value ConvertEcPoint(mlir::ImplicitLocOpBuilder& b,
+                           mlir::ArrayRef<mlir::Type> result_types,
+                           mlir::Type source_type, mlir::Type target_type,
+                           mlir::ValueRange args,
+                           mlir::ArrayRef<mlir::NamedAttribute> attributes) {
+  auto source_element_type = getElementTypeOrSelf(source_type);
+  auto target_element_type = getElementTypeOrSelf(target_type);
+  if (source_element_type == target_element_type) {
+    return args[0];
+  }
+
+  auto is_ec_point_type = [](mlir::Type t) {
+    return isa<zkir::elliptic_curve::AffineType>(t) ||
+           isa<zkir::elliptic_curve::JacobianType>(t) ||
+           isa<zkir::elliptic_curve::XYZZType>(t);
+  };
+
+  if (is_ec_point_type(source_element_type) &&
+      is_ec_point_type(target_element_type)) {
+    return b.create<zkir::elliptic_curve::ConvertPointTypeOp>(result_types,
+                                                              args, attributes);
+  }
+
+  return args[0];
 }
 
 }  // namespace zkx::mlir_utils

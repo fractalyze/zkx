@@ -913,22 +913,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   switch (instr->opcode()) {
     case HloOpcode::kConvert: {
-      PrimitiveType from = instr->operand(0)->shape().element_type();
-      PrimitiveType to = instr->shape().element_type();
-      if (primitive_util::IsMontgomeryForm(from) &&
-          primitive_util::IsMontgomeryForm(to)) {
-        return value;
-      } else if (primitive_util::IsMontgomeryForm(from) &&
-                 !primitive_util::IsMontgomeryForm(to)) {
-        return b.create<mlir::zkir::field::FromMontOp>(
-            mlir::zkir::field::getStandardFormType(value.getType()), value);
-      } else if (!primitive_util::IsMontgomeryForm(from) &&
-                 primitive_util::IsMontgomeryForm(to)) {
-        return b.create<mlir::zkir::field::ToMontOp>(
-            mlir::zkir::field::getMontgomeryFormType(value.getType()), value);
-      } else {
-        return value;
-      }
+      mlir::Type ret_type =
+          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      return mlir_utils::ConvertField(b, {ret_type}, value.getType(), ret_type,
+                                      {value});
     }
     case HloOpcode::kInverse:
       return b.create<mlir::zkir::field::InverseOp>(value);
@@ -945,14 +933,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   switch (instr->opcode()) {
     case HloOpcode::kConvert: {
-      const PrimitiveType from = instr->operand(0)->shape().element_type();
-      const PrimitiveType to = instr->shape().element_type();
-      if (from == to) {
-        return value;
-      }
-      return b.create<mlir::zkir::elliptic_curve::ConvertPointTypeOp>(
-          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
-          value);
+      mlir::Type ret_type =
+          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      return mlir_utils::ConvertEcPoint(b, {ret_type}, value.getType(),
+                                        ret_type, {value});
     }
     case HloOpcode::kNegate:
       return b.create<mlir::zkir::elliptic_curve::NegateOp>(value);
