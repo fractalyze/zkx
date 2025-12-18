@@ -1049,6 +1049,22 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(result);
   }
 
+  void SetUpReshapeScalar() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[1, 1, 1] parameter(0)
+
+        ROOT %ret = $0[] reshape(%x)
+    }
+    )",
+                                 x_typename_);
+
+    Array3D<T> x_array(1, 1, 1);
+    x_array({0, 0, 0}) = BaseIntTest<T>::GetRandomValue();
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    expected_literal_ = LiteralUtil::CreateR0<T>(x_array({0, 0, 0}));
+  }
+
   void SetUpReshape() {
     constexpr static int64_t D0 = 2;
     constexpr static int64_t D1 = 3;

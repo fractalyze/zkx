@@ -22,6 +22,7 @@ zkx_cc_library(
     srcs = ["codegen_utils.cc"],
     hdrs = ["codegen_utils.h"],
     deps = [
+        ":mlir_utils",
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:SCFDialect",
@@ -44,6 +45,7 @@ zkx_cc_library(
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LLVMCommonConversion",
         "@llvm-project//mlir:SparseTensorDialect",
