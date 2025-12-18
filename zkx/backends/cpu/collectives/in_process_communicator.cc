@@ -29,6 +29,7 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
+#include "zkx/base/types/always_false.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/service/rendezvous.h"
@@ -78,13 +79,6 @@ T GetInitialValue(ReductionKind reduction_kind) {
   }
 }
 
-// We cannot use static_assert(false), because the C++ standard (prior to
-// CWG2518) does not allow the statement discarded by a constexpr if to
-// be ill-formed for every possible specialization.
-// See https://en.cppreference.com/w/cpp/language/if#Constexpr_if
-template <ReductionKind>
-constexpr bool always_false_v = false;
-
 template <ReductionKind kReductionKind, typename T>
 void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
   // TODO(penporn): make sure this gets vectorized.
@@ -125,7 +119,7 @@ void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
       }
     }
   } else {
-    static_assert(always_false_v<kReductionKind>, "Unsupported reduction kind");
+    static_assert(base::AlwaysFalse<T>, "Unsupported reduction kind");
   }
 }
 

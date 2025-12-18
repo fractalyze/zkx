@@ -12,6 +12,8 @@ ZK hardware for greater performance and portability.
 ## Prerequisite
 
 1. Follow the [bazel installation guide](https://bazel.build/install).
+1. (macOS) Apple Clang 17 or higher is recommended. Check your version with
+   `clang --version`.
 
 ## Build instructions
 
