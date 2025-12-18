@@ -154,6 +154,7 @@ cc_library(
         ":attribute_map_cc_proto",
         ":serdes_default_version_accessor",
         ":serdes_version",
+        "//zkx/base/types:always_false",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",

@@ -30,6 +30,7 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 
+#include "zkx/base/types/always_false.h"
 #include "zkx/python/ifrt/attribute_map.pb.h"
 #include "zkx/python/ifrt/serdes_default_version_accessor.h"
 #include "zkx/python/ifrt/serdes_version.h"
@@ -106,7 +107,8 @@ class AttributeMap {
     } else if constexpr (std::is_same_v<T, float>) {
       return Get<T, FloatValue>(key);
     } else {
-      static_assert(false, "Unsupported type for AttributeMap::Get");
+      static_assert(base::AlwaysFalse<T>,
+                    "Unsupported type for AttributeMap::Get");
     }
   }
 
