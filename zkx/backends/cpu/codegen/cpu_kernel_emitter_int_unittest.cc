@@ -277,6 +277,11 @@ TYPED_TEST(IntTest, Transpose) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, TransposeWithLayout) {
+  this->SetUpTransposeWithLayout();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, While) {
   this->SetUpWhile();
   this->RunAndVerify();
