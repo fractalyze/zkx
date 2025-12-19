@@ -17,7 +17,6 @@ limitations under the License.
 #include "zkx/python/ifrt/dtype.h"
 
 #include "absl/strings/str_cat.h"
-#include "zk_dtypes/include/all_types.h"
 
 namespace zkx::ifrt {
 
@@ -42,37 +41,11 @@ std::optional<int> DType::byte_size() const {
     case kS64:
     case kU64:
       return 8;
-    case kKoalabear:
-    case kKoalabearStd:
-    case kBabybear:
-    case kBabybearStd:
-    case kMersenne31:
-    case kMersenne31Std:
-      return 4;
-    case kGoldilocks:
-    case kGoldilocksStd:
-      return 8;
-    case kBn254Sf:
-    case kBn254SfStd:
-      return 32;
-    case kBn254G1Affine:
-    case kBn254G1AffineStd:
-      return 64;
-    case kBn254G1Jacobian:
-    case kBn254G1JacobianStd:
-      return 128;
-    case kBn254G1Xyzz:
-    case kBn254G1XyzzStd:
-      return 256;
-    case kBn254G2Affine:
-    case kBn254G2AffineStd:
-      return 128;
-    case kBn254G2Jacobian:
-    case kBn254G2JacobianStd:
-      return 192;
-    case kBn254G2Xyzz:
-    case kBn254G2XyzzStd:
-      return 256;
+#define ZK_DTYPES_CASE(unused, dtype_enum, enum, unused2) \
+  case k##dtype_enum:                                     \
+    return primitive_util::ByteWidth(static_cast<PrimitiveType>(enum));
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     case kToken:
     case kOpaque:
     case kInvalid:
@@ -102,37 +75,11 @@ std::optional<int> DType::bit_size() const {
     case kS64:
     case kU64:
       return 64;
-    case kKoalabear:
-    case kKoalabearStd:
-    case kBabybear:
-    case kBabybearStd:
-    case kMersenne31:
-    case kMersenne31Std:
-      return 32;
-    case kGoldilocks:
-    case kGoldilocksStd:
-      return 64;
-    case kBn254Sf:
-    case kBn254SfStd:
-      return 256;
-    case kBn254G1Affine:
-    case kBn254G1AffineStd:
-      return 512;
-    case kBn254G1Jacobian:
-    case kBn254G1JacobianStd:
-      return 768;
-    case kBn254G1Xyzz:
-    case kBn254G1XyzzStd:
-      return 1024;
-    case kBn254G2Affine:
-    case kBn254G2AffineStd:
-      return 1024;
-    case kBn254G2Jacobian:
-    case kBn254G2JacobianStd:
-      return 1536;
-    case kBn254G2Xyzz:
-    case kBn254G2XyzzStd:
-      return 2048;
+#define ZK_DTYPES_CASE(unused, dtype_enum, enum, unused2) \
+  case k##dtype_enum:                                     \
+    return primitive_util::BitWidth(static_cast<PrimitiveType>(enum));
+      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     case kToken:
     case kOpaque:
     case kInvalid:
