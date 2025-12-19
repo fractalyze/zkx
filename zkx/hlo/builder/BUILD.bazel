@@ -13,9 +13,47 @@
 # limitations under the License.
 # ==============================================================================
 
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "zkx_builder",
+    srcs = ["zkx_builder.cc"],
+    hdrs = ["zkx_builder.h"],
+    deps = [
+        ":zkx_computation",
+        "//xla/tsl/lib/core:bitmap",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:array",
+        "//zkx:array2d",
+        "//zkx:array3d",
+        "//zkx:comparison_util",
+        "//zkx:literal",
+        "//zkx:literal_util",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_opcode",
+        "//zkx/hlo/ir:hlo_sharding",
+        "//zkx/service:hlo_cc_proto",
+        "//zkx/service:shape_inference",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/log:vlog_is_on",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
 
 zkx_cc_library(
     name = "zkx_computation",
@@ -26,5 +64,22 @@ zkx_cc_library(
         "//zkx:status_macros",
         "//zkx/service:hlo_cc_proto",
         "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "builder_unittests",
+    srcs = ["zkx_builder_unittest.cc"],
+    deps = [
+        ":zkx_builder",
+        ":zkx_computation",
+        "//xla/tsl/platform:statusor",
+        "//zkx:debug_options_flags",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/parser:hlo_parser",
+        "//zkx/hlo/testlib:pattern_matcher_gmock",
+        "//zkx/service:pattern_matcher",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status:status_matchers",
     ],
 )
