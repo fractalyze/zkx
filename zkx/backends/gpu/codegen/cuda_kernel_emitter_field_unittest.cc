@@ -26,8 +26,20 @@ using FieldTypes = testing::Types<
     >;
 TYPED_TEST_SUITE(FieldScalarUnaryTest, FieldTypes);
 
-TYPED_TEST(FieldScalarUnaryTest, Convert) {
-  this->SetUpConvert();
+// TODO(chokobole): Enable this test.
+TYPED_TEST(FieldScalarUnaryTest, DISABLED_ConvertFromInt) {
+  this->SetUpConvertFromInt();
+  this->RunAndVerify();
+}
+
+// TODO(chokobole): Enable this test.
+TYPED_TEST(FieldScalarUnaryTest, DISABLED_ConvertFromIntToStd) {
+  this->SetUpConvertFromIntToStd();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(FieldScalarUnaryTest, ConvertToStd) {
+  this->SetUpConvertToStd();
   this->RunAndVerify();
 }
 

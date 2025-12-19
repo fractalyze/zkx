@@ -275,6 +275,42 @@ Value ShiftRightLogicalInteger(ImplicitLocOpBuilder& b, Value lhs, Value rhs) {
 Value ConvertField(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
                    Type source_type, Type target_type, ValueRange args,
                    ArrayRef<NamedAttribute> attributes) {
+  auto source_element_type = getElementTypeOrSelf(source_type);
+  auto target_element_type = getElementTypeOrSelf(target_type);
+
+  if (auto integer_type = dyn_cast<IntegerType>(source_element_type)) {
+    if (auto pf_element_type =
+            dyn_cast<zkir::field::PrimeFieldType>(target_element_type)) {
+      unsigned src_width = integer_type.getWidth();
+      unsigned dst_width = pf_element_type.getStorageType().getWidth();
+      Value current_val = args[0];
+
+      if (dst_width < src_width) {
+        b.emitError("Cannot convert integer to prime field with smaller width");
+        return nullptr;
+      }
+
+      if (dst_width > src_width) {
+        Type target_storage_type = pf_element_type.getStorageType();
+
+        if (auto shaped_type = dyn_cast<ShapedType>(source_type)) {
+          target_storage_type = shaped_type.clone(target_storage_type);
+        }
+        current_val =
+            b.create<arith::ExtUIOp>(target_storage_type, current_val);
+      }
+
+      if (pf_element_type.isMontgomery()) {
+        Type std_source_type = zkir::field::getStandardFormType(target_type);
+        auto bitcast =
+            b.create<zkir::field::BitcastOp>(std_source_type, current_val);
+        return b.create<zkir::field::ToMontOp>(target_type, bitcast);
+      }
+
+      return b.create<zkir::field::BitcastOp>(target_type, current_val);
+    }
+  }
+
   if (zkir::field::isMontgomery(source_type)) {
     if (zkir::field::isMontgomery(target_type)) {
       return args[0];

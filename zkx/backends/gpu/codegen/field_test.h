@@ -39,7 +39,61 @@ class FieldScalarUnaryTest : public CudaKernelEmitterTest {
   }
 
  protected:
-  void SetUpConvert() {
+  void SetUpConvertFromInt() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = u32[] parameter(0)
+
+        ROOT %ret = $0[] convert(%x)
+      }
+
+      ENTRY %main {
+        %x = u32[] parameter(0)
+
+        ROOT %ret = $0[] fusion(%x), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    uint32_t x;
+    if (F::Config::kModulus < std::numeric_limits<uint32_t>::max()) {
+      x = base::Uniform<uint32_t>(
+          0, static_cast<uint32_t>(static_cast<uint64_t>(F::Config::kModulus)));
+    } else {
+      x = base::Uniform<uint32_t>();
+    }
+    literals_[0] = LiteralUtil::CreateR0<uint32_t>(x);
+    expected_literal_ = LiteralUtil::CreateR0<F>(F(x));
+  }
+
+  void SetUpConvertFromIntToStd() {
+    using FStd = typename F::StdType;
+
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = u32[] parameter(0)
+
+        ROOT %ret = $0_std[] convert(%x)
+      }
+
+      ENTRY %main {
+        %x = u32[] parameter(0)
+
+        ROOT %ret = $0_std[] fusion(%x), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    uint32_t x;
+    if (F::Config::kModulus < std::numeric_limits<uint32_t>::max()) {
+      x = base::Uniform<uint32_t>(
+          0, static_cast<uint32_t>(static_cast<uint64_t>(F::Config::kModulus)));
+    } else {
+      x = base::Uniform<uint32_t>();
+    }
+    literals_[0] = LiteralUtil::CreateR0<uint32_t>(x);
+    expected_literal_ = LiteralUtil::CreateR0<FStd>(FStd(x));
+  }
+
+  void SetUpConvertToStd() {
     using FStd = typename F::StdType;
 
     hlo_text_ = absl::Substitute(R"(
