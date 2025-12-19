@@ -151,6 +151,7 @@ zkx_cc_library(
         "//xla/tsl/platform:statusor",
         "//zkx:primitive_util",
         "//zkx:zkx_data_cc_proto",
+        "//zkx/base/types:always_false",
         "//zkx/core/collectives:communicator",
         "//zkx/service:collective_ops_utils",
         "//zkx/service:rendezvous",
