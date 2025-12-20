@@ -72,15 +72,21 @@ class DType {
 
     kKoalabear = 33,
     kKoalabearStd = 34,
+    kKoalabear4 = 43,
+    kKoalabear4Std = 44,
 
     kBabybear = 35,
     kBabybearStd = 36,
+    kBabybear4 = 41,
+    kBabybear4Std = 42,
 
     kMersenne31 = 37,
     kMersenne31Std = 38,
 
     kGoldilocks = 39,
     kGoldilocksStd = 40,
+    kGoldilocks3 = 45,
+    kGoldilocks3Std = 46,
 
     kBn254Sf = 19,
     kBn254SfStd = 20,

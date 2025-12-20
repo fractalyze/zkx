@@ -44,14 +44,25 @@ std::optional<int> DType::byte_size() const {
       return 8;
     case kKoalabear:
     case kKoalabearStd:
+      return 4;
+    case kKoalabear4:
+    case kKoalabear4Std:
+      return 16;
     case kBabybear:
     case kBabybearStd:
+      return 4;
+    case kBabybear4:
+    case kBabybear4Std:
+      return 16;
     case kMersenne31:
     case kMersenne31Std:
       return 4;
     case kGoldilocks:
     case kGoldilocksStd:
       return 8;
+    case kGoldilocks3:
+    case kGoldilocks3Std:
+      return 24;
     case kBn254Sf:
     case kBn254SfStd:
       return 32;
@@ -104,14 +115,25 @@ std::optional<int> DType::bit_size() const {
       return 64;
     case kKoalabear:
     case kKoalabearStd:
+      return 32;
+    case kKoalabear4:
+    case kKoalabear4Std:
+      return 128;
     case kBabybear:
     case kBabybearStd:
+      return 32;
+    case kBabybear4:
+    case kBabybear4Std:
+      return 128;
     case kMersenne31:
     case kMersenne31Std:
       return 32;
     case kGoldilocks:
     case kGoldilocksStd:
       return 64;
+    case kGoldilocks3:
+    case kGoldilocks3Std:
+      return 192;
     case kBn254Sf:
     case kBn254SfStd:
       return 256;

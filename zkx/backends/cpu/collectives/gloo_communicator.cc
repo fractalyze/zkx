@@ -246,7 +246,7 @@ absl::Status GlooCommunicator::AllReduce(se::DeviceMemoryBase send_buffer,
     TF_RETURN_IF_ERROR(SetAllReduceOptions<cpp_type>(               \
         reduction_kind, send_buffer, recv_buffer, count, options)); \
     break;
-      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+      ZK_DTYPES_PUBLIC_PRIME_FIELD_TYPE_LIST(ZK_DTYPES_CASE)
 #undef ZK_DTYPES_CASE
     default:
       return absl::InvalidArgumentError("Unknown datatype in allreduce");
@@ -442,7 +442,7 @@ absl::Status GlooCommunicator::ReduceScatter(se::DeviceMemoryBase send_buffer,
     TF_RETURN_IF_ERROR(ReduceScatterHelper<cpp_type>(context_, reduction_kind, \
                                                      temp.get(), count));      \
     break;
-      ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE)
+      ZK_DTYPES_PUBLIC_PRIME_FIELD_TYPE_LIST(ZK_DTYPES_CASE)
 #undef ZK_DTYPES_CASE
     default:
       return absl::InvalidArgumentError("Unknown datatype in reduce-scatter");
