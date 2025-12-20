@@ -34,6 +34,7 @@ zkx_cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:SparseTensorDialect",
+        "@zk_dtypes//zk_dtypes:all_types",
     ],
 )
 
