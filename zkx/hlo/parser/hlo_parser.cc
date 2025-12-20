@@ -3665,6 +3665,10 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
         }
       }
     }
+  } else if constexpr (zk_dtypes::IsExtensionField<LiteralNativeT>) {
+    // Extension fields: check range using base prime field's modulus.
+    using BasePrimeField = typename LiteralNativeT::BasePrimeField;
+    return CheckParsedValueIsInRange<BasePrimeField>(loc, value);
   } else if constexpr (zk_dtypes::IsEcPoint<LiteralNativeT>) {
     if constexpr (zk_dtypes::IsEcPoint<ParsedElemT>) {
       return true;
@@ -3673,17 +3677,7 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
                     "Unimplemented checking for ParsedElemT");
 
       using ScalarField = typename LiteralNativeT::ScalarField;
-      if constexpr (ScalarField::Config::kModulusBits > 64) {
-        return true;
-      } else {
-        if (value >= 0) {
-          return static_cast<uint64_t>(value) <
-                 uint64_t{ScalarField::Config::kModulus};
-        } else {
-          return static_cast<uint64_t>(-value) <
-                 uint64_t{ScalarField::Config::kModulus};
-        }
-      }
+      return CheckParsedValueIsInRange<ScalarField>(loc, value);
     }
   } else {
     if constexpr (std::is_floating_point_v<ParsedElemT>) {
