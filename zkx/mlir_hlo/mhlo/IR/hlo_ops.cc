@@ -236,7 +236,21 @@ bool ConstantOp::isCompatibleReturnTypes(TypeRange l, TypeRange r) {
     return false;
   auto lhsTy = cast<ShapedType>(l.front());
   auto rhsTy = cast<ShapedType>(r.front());
-  return lhsTy == rhsTy;
+  if (!lhsTy || !rhsTy)
+    return false;
+
+  if (lhsTy == rhsTy)
+    return true;
+
+  Type lhsElementType = getElementTypeOrSelf(lhsTy);
+  Type rhsElementType = getElementTypeOrSelf(rhsTy);
+  // NOTE(chokobole): This allows us to create constants of prime field from
+  // integer constants.
+  if (isa<IntegerType>(lhsElementType) &&
+      isa<zkir::field::PrimeFieldType>(rhsElementType)) {
+    return lhsTy.clone(rhsElementType) == rhsTy;
+  }
+  return false;
 }
 
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
