@@ -89,7 +89,7 @@ def StableHLO_ConstantOp : StableHLO_Op<"constant",
   );
 
   let builders = [
-    OpBuilder<(ins "Attribute":$value)>];
+    OpBuilder<(ins "Type":$type, "Attribute":$value)>];
 
   let hasCustomAssemblyFormat = 1;
   let hasFolder = 1;

@@ -26,6 +26,8 @@ limitations under the License.
 #include "llvm/Support/raw_ostream.h"
 #include "mlir/IR/Builders.h"
 
+#include "zkir/Dialect/Field/IR/FieldOps.h"
+
 #define DEBUG_TYPE "hlo-assembly"
 
 namespace mlir::hlo {
@@ -167,14 +169,34 @@ ParseResult parseConstantOp(OpAsmParser &parser, OperationState &result) {
     return success();
   }
 
-  ElementsAttr valueAttr;
-  if (failed(parser.parseOptionalAttrDict(result.attributes)))
-    return failure();
-  if (failed(parser.parseCustomAttributeWithFallback(valueAttr, Type{}, "value",
-                                                     result.attributes)))
-    return failure();
-  result.addTypes(valueAttr.getType());
-  return success();
+  llvm::SMLoc startLoc = parser.getCurrentLocation();
+  const char *startPtr = startLoc.getPointer();
+
+  auto parseStandardAttribute = [&]() -> ParseResult {
+    if (failed(parser.parseOptionalAttrDict(result.attributes)))
+      return failure();
+
+    ElementsAttr valueAttr;
+    if (failed(parser.parseCustomAttributeWithFallback(
+            valueAttr, Type{}, "value", result.attributes)))
+      return failure();
+
+    result.addTypes(valueAttr.getType());
+    return success();
+  };
+
+  if (succeeded(parseStandardAttribute())) {
+    return success();
+  }
+
+  // TODO(chokobole): `parser.parseCustomAttributeWithFallback()` may fail and
+  // leave an confusing error state ("expected string token, got 0").
+  // To provide a cleaner user experience, we clear the partially matched
+  // attributes, suppress the fallback error, and redirect to our custom
+  // constant parsing logic.
+  result.attributes.clear();
+  parser.resetToken(startPtr);
+  return zkir::field::parseFieldConstant(parser, result);
 }
 
 void printTupleOpType(OpAsmPrinter &p, Operation *, TypeRange operands,
