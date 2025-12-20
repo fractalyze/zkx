@@ -357,6 +357,7 @@ zkx_cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@zk_dtypes//zk_dtypes:all_types",
+        "@zk_dtypes//zk_dtypes:extension_field",
     ],
 )
 

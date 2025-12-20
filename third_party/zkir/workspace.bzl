@@ -21,8 +21,8 @@ zkir provides mlir dialect for ZK(Zero Knowledge).
 load("//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
 
 def repo():
-    ZKIR_COMMIT = "775c57412295e73ef1652d36a39058b7cec2e853"
-    ZKIR_SHA256 = "6b4b288a80c6b0d6d319f9573375cea6d2f58c8e467267f6b0e46b1734cb146a"
+    ZKIR_COMMIT = "e48fb953e7ae6dd44293567826e99b057147b7be"
+    ZKIR_SHA256 = "8a01f95d3d4db77ca18218bbf71c31c26a55d1b55f94aef0183dda99ecf0800d"
     tf_http_archive(
         name = "zkir",
         sha256 = ZKIR_SHA256,

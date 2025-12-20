@@ -269,7 +269,7 @@ PrimeField GenerateRandomPrimeFieldValue(Generator& generator,
                                          std::minstd_rand0* engine) {
   using UnderlyingType = typename PrimeField::UnderlyingType;
   UnderlyingType v;
-  if constexpr (PrimeField::kModulusBits > 64) {
+  if constexpr (PrimeField::Config::kModulusBits > 64) {
     UnderlyingType max_value = PrimeField::Config::kModulus;
     do {
       for (size_t i = 0; i < UnderlyingType::kLimbNums; ++i) {
