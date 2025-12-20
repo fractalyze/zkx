@@ -646,6 +646,16 @@ void ConvertBetweenNativeTypes(absl::Span<const NativeSrcT> src_data,
   }
 }
 
+template <typename NativeSrcT, typename NativeDestT>
+void CreateFromInteger(absl::Span<const NativeSrcT> src_data, void* dst_base) {
+  static_assert(!std::is_same_v<NativeSrcT, NativeDestT>);
+
+  NativeDestT* dest_data = static_cast<NativeDestT*>(dst_base);
+  for (const NativeSrcT& src : src_data) {
+    *(dest_data++) = NativeDestT(src);
+  }
+}
+
 template <PrimitiveType kSrcType>
 absl::Status ConvertIfDestTypeMatches(const LiteralBase& src_literal,
                                       MutableLiteralBase& dst_literal) {
@@ -664,8 +674,41 @@ absl::Status ConvertIfDestTypeMatches(const LiteralBase& src_literal,
                       primitive_util::IsFieldType(kSrcType) ||
                       primitive_util::IsEcPointType(primitive_type_constant) ||
                       primitive_util::IsEcPointType(kSrcType)) {
-          // TODO(chokobole): Implement this. Field -> Non-Field, Non-Field ->
-          // Field, EcPoint -> Non-EcPoint and Non-EcPoint -> EcPoint
+          if constexpr (primitive_util::IsUnsignedIntegralType(kSrcType) &&
+                        primitive_util::IsFieldType(primitive_type_constant)) {
+            // NOTE(chokobole): This conversion is technically "unsafe" as it
+            // may result in precision loss. For example, converting a u32 to
+            // the BabyBear field is allowed here even though BabyBear's modulus
+            // is only 31 bits.
+            //
+            // We permit this risk to improve usability on the Zorch side; since
+            // 32-bit integers are the default integral type, disallowing this
+            // would create significant friction for the user.
+            if (primitive_util::ByteWidth(kSrcType) <=
+                primitive_util::ByteWidth(primitive_type_constant)) {
+              CreateFromInteger<NativeSrcT, NativeDestT>(src_data, dst_base);
+              return absl::OkStatus();
+            } else {
+              return absl::InvalidArgumentError(
+                  "prime field conversion from a wider integer type is not "
+                  "supported");
+            }
+            // NOLINTNEXTLINE(readability/braces)
+          } else if constexpr (primitive_util::IsUnsignedIntegralType(
+                                   kSrcType) &&
+                               primitive_util::IsEcPointType(
+                                   primitive_type_constant)) {
+            using ScalarField = typename NativeDestT::ScalarField;
+            if (primitive_util::ByteWidth(kSrcType) <=
+                ScalarField::kByteWidth) {
+              CreateFromInteger<NativeSrcT, NativeDestT>(src_data, dst_base);
+              return absl::OkStatus();
+            } else {
+              return absl::InvalidArgumentError(
+                  "ec point conversion from a wider integer type is not "
+                  "supported");
+            }
+          }
           return absl::UnimplementedError("Undefined conversion");
         } else if constexpr (kSrcType != primitive_type_constant) {
           ConvertBetweenNativeTypes<NativeSrcT, NativeDestT>(src_data,
