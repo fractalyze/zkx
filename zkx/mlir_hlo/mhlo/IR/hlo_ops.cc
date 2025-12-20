@@ -265,6 +265,7 @@ void ConstantOp::print(OpAsmPrinter &p) {
 // ConvertOp
 //===----------------------------------------------------------------------===//
 
+// static
 void ConvertOp::build(OpBuilder &builder, OperationState &result, Value operand,
                       Type resultElementTy) {
   auto rankedTy = cast<RankedTensorType>(operand.getType());

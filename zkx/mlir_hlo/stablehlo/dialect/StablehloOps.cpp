@@ -180,6 +180,7 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
   return getValue();
 }
 
+// static
 // Builds a constant op with the specified attribute `value`.
 void ConstantOp::build(OpBuilder & /*builder*/, OperationState &result,
                        Type type, Attribute value) {
@@ -354,6 +355,7 @@ AbsOp::inferReturnTypes(MLIRContext *, std::optional<Location> location,
 // ConvertOp
 //===----------------------------------------------------------------------===//
 
+// static
 void ConvertOp::build(OpBuilder &builder, OperationState &result, Value operand,
                       Type resultElementTy) {
   auto rankedTy = cast<RankedTensorType>(operand.getType());
@@ -822,6 +824,7 @@ LogicalResult ReduceOp::inferReturnTypeComponents(
                             inferredReturnShapes);
 }
 
+// static
 void ReduceOp::build(OpBuilder &, OperationState &odsState, ValueRange inputs,
                      ValueRange initValues, DenseI64ArrayAttr dimensions,
                      TypeRange elementTypes) {
@@ -1152,6 +1155,7 @@ LogicalResult SliceOp::inferReturnTypes(
 // SortOp
 //===----------------------------------------------------------------------===//
 
+// static
 void SortOp::build(OpBuilder &builder, OperationState &state,
                    ValueRange operands, int64_t dimension, bool isStable) {
   state.addOperands(operands);
