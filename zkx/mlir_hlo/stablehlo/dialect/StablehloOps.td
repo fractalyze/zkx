@@ -567,7 +567,7 @@ def StableHLO_ShiftRightLogicalOp : StableHLO_BinaryElementwiseOp<"shift_right_l
 }
 
 def StableHLO_SubtractOp : StableHLO_BinaryElementwiseOp<"subtract",
-      [HLO_CompatibleOperandsAndResultType], HLO_IntTensor> {
+      [HLO_CompatibleOperandsAndResultType], HLO_IntOrFieldTensor> {
   let summary = "Subtract operation";
   let description = [{
     Performs element-wise subtraction of two tensors `lhs` and `rhs` and

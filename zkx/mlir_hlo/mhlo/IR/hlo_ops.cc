@@ -41,6 +41,7 @@ limitations under the License.
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Transforms/InliningUtils.h"
 
+#include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h.inc"
 #include "zkx/mlir_hlo/stablehlo/dialect/AssemblyFormat.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/TypeInference.h"

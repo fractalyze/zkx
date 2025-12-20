@@ -269,7 +269,7 @@ def MHLO_PowOp : MHLO_BinaryElementwiseOp<"power",
 }
 
 def MHLO_SubtractOp : MHLO_BinaryElementwiseOp<"subtract",
-      [Pure, HLO_CompatibleOperandsAndResultType], MHLO_IntTensor> {
+      [Pure, HLO_CompatibleOperandsAndResultType], MHLO_IntOrFieldTensor> {
   let summary = "Subtract operation";
   let description = [{
     Performs element-wise subtraction of two tensors `lhs` and `rhs` and
