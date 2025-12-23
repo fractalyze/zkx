@@ -51,6 +51,15 @@ def zkx_deps():
 
     cuda_json_init_repository()
 
+    # `apple_support` is needed to build on recent macOS versions (e.g., Tahoe 26.2)
+    # to fix "missing LC_UUID load command" errors.
+    # See https://github.com/tensorflow/tensorflow/pull/104948
+    tf_http_archive(
+        name = "build_bazel_apple_support",
+        sha256 = "1ae6fcf983cff3edab717636f91ad0efff2e5ba75607fdddddfd6ad0dbdfaf10",
+        urls = tf_mirror_urls("https://github.com/bazelbuild/apple_support/releases/download/1.24.5/apple_support.1.24.5.tar.gz"),
+    )
+
     # TODO(chokobole): Delete after removing `build --noenable_bzlmod` from .bazelrc
     tf_http_archive(
         name = "bazel_skylib",
