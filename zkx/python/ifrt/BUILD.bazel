@@ -241,6 +241,7 @@ cc_library(
         ":dtype_cc_proto",
         ":serdes_default_version_accessor",
         ":serdes_version",
+        "//zkx:primitive_util",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@zk_dtypes//zk_dtypes:all_types",

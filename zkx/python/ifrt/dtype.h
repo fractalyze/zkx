@@ -22,7 +22,9 @@ limitations under the License.
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "zk_dtypes/include/all_types.h"
 
+#include "zkx/primitive_util.h"
 #include "zkx/python/ifrt/dtype.pb.h"
 #include "zkx/python/ifrt/serdes_default_version_accessor.h"
 #include "zkx/python/ifrt/serdes_version.h"
@@ -70,32 +72,10 @@ class DType {
     // dtype will have empty dimensions.
     kToken = 18,
 
-    kKoalabear = 33,
-    kKoalabearStd = 34,
-
-    kBabybear = 35,
-    kBabybearStd = 36,
-
-    kMersenne31 = 37,
-    kMersenne31Std = 38,
-
-    kGoldilocks = 39,
-    kGoldilocksStd = 40,
-
-    kBn254Sf = 19,
-    kBn254SfStd = 20,
-    kBn254G1Affine = 21,
-    kBn254G1AffineStd = 22,
-    kBn254G1Jacobian = 23,
-    kBn254G1JacobianStd = 24,
-    kBn254G1Xyzz = 25,
-    kBn254G1XyzzStd = 26,
-    kBn254G2Affine = 27,
-    kBn254G2AffineStd = 28,
-    kBn254G2Jacobian = 29,
-    kBn254G2JacobianStd = 30,
-    kBn254G2Xyzz = 31,
-    kBn254G2XyzzStd = 32,
+#define ADD_ENUM(unused, dtype_enum, enum, unused2) \
+  k##dtype_enum = static_cast<PrimitiveType>(enum),
+    ZK_DTYPES_PUBLIC_TYPE_LIST(ADD_ENUM)
+#undef ADD_ENUM
 
     // Variable-length string represented as raw bytes, as in `bytes` in Python,
     // i.e., no encoding enforcement. String is not support in ZKX. DType.Kind

@@ -117,37 +117,6 @@ extern const char* const kReplicaIdSymbolName = "__zkx_cpu_runtime_ReplicaId";
 extern const char* const kHandleFfiCallSymbolName =
     "__zkx_cpu_runtime_HandleFfiCall";
 
-#define DEFINE_MLIR_C_INTERFACE_FUNCTION(name)                               \
-  extern const char* const k##name##SymbolName = "__zkx_cpu_runtime_" #name; \
-  extern const char* const kMlirCiface##name##SymbolName =                   \
-      "_mlir_ciface___zkx_cpu_runtime_" #name
-
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefKoalabear);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBabybear);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefMersenne31);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefGoldilocks);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254Sf);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G1Affine);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G1Jacobian);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G1Xyzz);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G2Affine);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G2Jacobian);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemrefBn254G2Xyz);
-
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DKoalabear);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBabybear);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DMersenne31);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DGoldilocks);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254Sf);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G1Affine);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G1Jacobian);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G1Xyzz);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G2Affine);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G2Jacobian);
-DEFINE_MLIR_C_INTERFACE_FUNCTION(PrintMemref1DBn254G2Xyz);
-
-#undef DEFINE_MLIR_C_INTERFACE_FUNCTION
-
 namespace {
 
 // Inverses the encoding of a Shape protobuf into an LLVM global variable.
