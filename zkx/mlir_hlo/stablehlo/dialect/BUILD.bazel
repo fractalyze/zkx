@@ -28,6 +28,7 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
+        "@zkir//zkir/Dialect/Field/IR:Field",
     ],
 )
 
@@ -64,6 +65,7 @@ td_library(
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
+        "@zkir//zkir/Dialect/Field/IR:td_files",
     ],
 )
 
@@ -84,8 +86,14 @@ gentbl_cc_library(
     name = "stablehlo_attrs_inc_gen",
     strip_include_prefix = ".",
     tbl_outs = {
-        "StablehloAttrs.h.inc": ["-gen-attrdef-decls"],
-        "StablehloAttrs.cpp.inc": ["-gen-attrdef-defs"],
+        "StablehloAttrs.h.inc": [
+            "-gen-attrdef-decls",
+            "--attrdefs-dialect=stablehlo",
+        ],
+        "StablehloAttrs.cpp.inc": [
+            "-gen-attrdef-defs",
+            "--attrdefs-dialect=stablehlo",
+        ],
     },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "StablehloOps.td",
@@ -137,6 +145,7 @@ cc_library(
         "@llvm-project//mlir:SparseTensorDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
+        "@zkir//zkir/Dialect/Field/IR:Field",
     ],
 )
 
@@ -202,6 +211,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
+        "@zkir//zkir/Dialect/Field/IR:Field",
     ],
 )
 

@@ -41,6 +41,7 @@ limitations under the License.
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Transforms/InliningUtils.h"
 
+#include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h.inc"
 #include "zkx/mlir_hlo/stablehlo/dialect/AssemblyFormat.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/TypeInference.h"
@@ -235,7 +236,21 @@ bool ConstantOp::isCompatibleReturnTypes(TypeRange l, TypeRange r) {
     return false;
   auto lhsTy = cast<ShapedType>(l.front());
   auto rhsTy = cast<ShapedType>(r.front());
-  return lhsTy == rhsTy;
+  if (!lhsTy || !rhsTy)
+    return false;
+
+  if (lhsTy == rhsTy)
+    return true;
+
+  Type lhsElementType = getElementTypeOrSelf(lhsTy);
+  Type rhsElementType = getElementTypeOrSelf(rhsTy);
+  // NOTE(chokobole): This allows us to create constants of prime field from
+  // integer constants.
+  if (isa<IntegerType>(lhsElementType) &&
+      isa<zkir::field::PrimeFieldType>(rhsElementType)) {
+    return lhsTy.clone(rhsElementType) == rhsTy;
+  }
+  return false;
 }
 
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
@@ -250,6 +265,7 @@ void ConstantOp::print(OpAsmPrinter &p) {
 // ConvertOp
 //===----------------------------------------------------------------------===//
 
+// static
 void ConvertOp::build(OpBuilder &builder, OperationState &result, Value operand,
                       Type resultElementTy) {
   auto rankedTy = cast<RankedTensorType>(operand.getType());

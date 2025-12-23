@@ -31,6 +31,7 @@ limitations under the License.
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/ValueRange.h"
 
+#include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/Base.h"
 
 namespace mlir::hlo {
@@ -849,7 +850,13 @@ bool isUnique(ArrayRef<int64_t> nums) {
   return true;
 }
 
-unsigned getBitWidth(Type type) { return type.getIntOrFloatBitWidth(); }
+unsigned getBitWidth(Type type) {
+  // TODO(chokobole): Handle extension field case.
+  if (auto pfType = dyn_cast<zkir::field::PrimeFieldType>(type)) {
+    return pfType.getStorageBitWidth();
+  }
+  return type.getIntOrFloatBitWidth();
+}
 
 template <typename T>
 bool matchesType(Type a, Type b) {
@@ -869,7 +876,10 @@ bool isPromotableElementType(Type type1, Type type2) {
   Type tensorEl1 = tensorTy1.getElementType();
   Type tensorEl2 = tensorTy2.getElementType();
 
-  bool isSameType = matchesType<IntegerType>(tensorEl1, tensorEl2);
+  // TODO(chokobole): Handle extension field case.
+  bool isSameType =
+      matchesType<IntegerType>(tensorEl1, tensorEl2) ||
+      matchesType<zkir::field::PrimeFieldType>(tensorEl1, tensorEl2);
 
   if (!isSameType)
     return false;

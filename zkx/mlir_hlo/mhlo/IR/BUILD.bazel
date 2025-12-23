@@ -46,8 +46,14 @@ gentbl_cc_library(
     name = "hlo_ops_attrs_inc_gen",
     strip_include_prefix = ".",
     tbl_outs = {
-        "hlo_ops_attrs.h.inc": ["-gen-attrdef-decls"],
-        "hlo_ops_attrs.cc.inc": ["-gen-attrdef-defs"],
+        "hlo_ops_attrs.h.inc": [
+            "-gen-attrdef-decls",
+            "--attrdefs-dialect=mhlo",
+        ],
+        "hlo_ops_attrs.cc.inc": [
+            "-gen-attrdef-defs",
+            "--attrdefs-dialect=mhlo",
+        ],
     },
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "hlo_ops.td",
@@ -106,5 +112,6 @@ zkx_cc_library(
         "@llvm-project//mlir:InliningUtils",
         "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
+        "@zkir//zkir/Dialect/Field/IR:Field",
     ],
 )

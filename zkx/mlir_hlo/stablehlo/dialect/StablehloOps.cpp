@@ -51,6 +51,7 @@ limitations under the License.
 #include "mlir/Support/TypeID.h"
 #include "mlir/Transforms/InliningUtils.h"
 
+#include "zkir/Dialect/Field/IR/FieldTypes.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/AssemblyFormat.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/StablehloBytecode.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/TypeInference.h"
@@ -179,23 +180,19 @@ OpFoldResult ConstantOp::fold(FoldAdaptor adaptor) {
   return getValue();
 }
 
+// static
 // Builds a constant op with the specified attribute `value`.
 void ConstantOp::build(OpBuilder & /*builder*/, OperationState &result,
-                       Attribute value) {
-  ShapedType type;
-  if (auto elemAttr = dyn_cast<ElementsAttr>(value)) {
-    type = cast<ShapedType>(elemAttr.getType());
-  } else if (isa<BoolAttr, IntegerAttr>(value)) {
+                       Type type, Attribute value) {
+  if (isa<BoolAttr, IntegerAttr>(value)) {
     // All ZKX types must be tensor types. In the build() method, we want to
     // provide more flexibility by allowing attributes of scalar types. But we
     // need to wrap it up with ElementsAttr to construct valid ZKX constants.
-    type =
+    auto type =
         RankedTensorType::get(/*shape=*/{}, cast<TypedAttr>(value).getType());
     value = DenseElementsAttr::get(type, value);
   }
 
-  // TODO: support other ZKX specific types.
-  assert(type && "unsupported attribute type for building constant");
   result.types.push_back(type);
   result.addAttribute("value", value);
 }
@@ -217,7 +214,19 @@ bool ConstantOp::isCompatibleReturnTypes(TypeRange l, TypeRange r) {
   auto rhsTy = dyn_cast<ShapedType>(r.front());
   if (!lhsTy || !rhsTy)
     return false;
-  return lhsTy == rhsTy;
+
+  if (lhsTy == rhsTy)
+    return true;
+
+  Type lhsElementType = getElementTypeOrSelf(lhsTy);
+  Type rhsElementType = getElementTypeOrSelf(rhsTy);
+  // NOTE(chokobole): This allows us to create constants of prime field from
+  // integer constants.
+  if (isa<IntegerType>(lhsElementType) &&
+      isa<zkir::field::PrimeFieldType>(rhsElementType)) {
+    return lhsTy.clone(rhsElementType) == rhsTy;
+  }
+  return false;
 }
 
 ParseResult ConstantOp::parse(OpAsmParser &parser, OperationState &result) {
@@ -346,6 +355,7 @@ AbsOp::inferReturnTypes(MLIRContext *, std::optional<Location> location,
 // ConvertOp
 //===----------------------------------------------------------------------===//
 
+// static
 void ConvertOp::build(OpBuilder &builder, OperationState &result, Value operand,
                       Type resultElementTy) {
   auto rankedTy = cast<RankedTensorType>(operand.getType());
@@ -814,6 +824,7 @@ LogicalResult ReduceOp::inferReturnTypeComponents(
                             inferredReturnShapes);
 }
 
+// static
 void ReduceOp::build(OpBuilder &, OperationState &odsState, ValueRange inputs,
                      ValueRange initValues, DenseI64ArrayAttr dimensions,
                      TypeRange elementTypes) {
@@ -1144,6 +1155,7 @@ LogicalResult SliceOp::inferReturnTypes(
 // SortOp
 //===----------------------------------------------------------------------===//
 
+// static
 void SortOp::build(OpBuilder &builder, OperationState &state,
                    ValueRange operands, int64_t dimension, bool isStable) {
   state.addOperands(operands);
