@@ -275,7 +275,7 @@ void PopulateWithRandomFieldTypeData(Literal* literal,
   for (T& value : literal->data<T>()) {
     using UnderlyingType = typename T::UnderlyingType;
     UnderlyingType v;
-    if constexpr (T::kModulusBits > 64) {
+    if constexpr (T::kStorageBits > 64) {
       UnderlyingType max_value = T::Config::kModulus;
       do {
         for (size_t i = 0; i < UnderlyingType::kLimbNums; ++i) {
@@ -303,7 +303,7 @@ void PopulateWithRandomEcPointData(Literal* literal, std::minstd_rand0* engine,
   scalars.reserve(literal->data<T>().size());
   for (size_t i = 0; i < literal->data<T>().size(); ++i) {
     UnderlyingType v;
-    if constexpr (ScalarField::kModulusBits > 64) {
+    if constexpr (ScalarField::kStorageBits > 64) {
       UnderlyingType max_value = ScalarField::Config::kModulus;
       do {
         for (size_t j = 0; j < UnderlyingType::kLimbNums; ++j) {
