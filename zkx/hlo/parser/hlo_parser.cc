@@ -770,7 +770,7 @@ class HloParserImpl : public HloParser {
           return Error(loc, absl::StrCat("expects integer for primitive type: ",
                                          PrimitiveType_Name(type)));
         }
-        if constexpr (T::Config::kModulusBits > 64) {
+        if constexpr (T::kStorageBits > 64) {
           *result = T(value64);
         } else {
           if (value64 < 0 || value64 > T::Config::kModulus) {
@@ -784,7 +784,7 @@ class HloParserImpl : public HloParser {
       }
       case TokKind::kString: {
         UnderlyingType value;
-        if constexpr (T::Config::kModulusBits > 64) {
+        if constexpr (T::kStorageBits > 64) {
           if (!ParseBigInt(&value)) {
             return Error(loc,
                          absl::StrCat("expects string for primitive type: ",
@@ -3653,7 +3653,7 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
       static_assert(std::is_same_v<ParsedElemT, int64_t>,
                     "Unimplemented checking for ParsedElemT");
 
-      if constexpr (LiteralNativeT::Config::kModulusBits > 64) {
+      if constexpr (LiteralNativeT::Config::kStorageBits > 64) {
         return true;
       } else {
         if (value >= 0) {
