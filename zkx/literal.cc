@@ -674,7 +674,7 @@ absl::Status ConvertIfDestTypeMatches(const LiteralBase& src_literal,
                       primitive_util::IsFieldType(kSrcType) ||
                       primitive_util::IsEcPointType(primitive_type_constant) ||
                       primitive_util::IsEcPointType(kSrcType)) {
-          if constexpr (primitive_util::IsUnsignedIntegralType(kSrcType) &&
+          if constexpr (primitive_util::IsIntegralType(kSrcType) &&
                         primitive_util::IsFieldType(primitive_type_constant)) {
             // NOTE(chokobole): This conversion is technically "unsafe" as it
             // may result in precision loss. For example, converting a u32 to
@@ -694,8 +694,7 @@ absl::Status ConvertIfDestTypeMatches(const LiteralBase& src_literal,
                   "supported");
             }
             // NOLINTNEXTLINE(readability/braces)
-          } else if constexpr (primitive_util::IsUnsignedIntegralType(
-                                   kSrcType) &&
+          } else if constexpr (primitive_util::IsIntegralType(kSrcType) &&
                                primitive_util::IsEcPointType(
                                    primitive_type_constant)) {
             using ScalarField = typename NativeDestT::ScalarField;
