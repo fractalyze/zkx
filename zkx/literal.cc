@@ -652,7 +652,29 @@ void CreateFromInteger(absl::Span<const NativeSrcT> src_data, void* dst_base) {
 
   NativeDestT* dest_data = static_cast<NativeDestT*>(dst_base);
   for (const NativeSrcT& src : src_data) {
-    *(dest_data++) = NativeDestT(src);
+    if constexpr (zk_dtypes::IsPrimeField<NativeDestT>) {
+      if constexpr (std::is_integral_v<NativeSrcT>) {
+        // NOTE(chokobole): This assumes that if the target Prime Field uses
+        // Montgomery form, the source integer has already been transformed
+        // accordingly.
+        //
+        // In Zorch, for instance, a raw integer (e.g., '1') is typically
+        // promoted to a field type (like babybear) that is already in
+        // Montgomery form before reaching this conversion logic:
+        //
+        // ```python
+        // def add(a):
+        //     return a + 1  # '1' is promoted to babybear(1) in Montgomery form
+        //
+        // jax.jit(add)(babybear(1))
+        // ```
+        *(dest_data++) = NativeDestT::FromUnchecked(src);
+      } else {
+        *(dest_data++) = NativeDestT::FromUnchecked(static_cast<int8_t>(src));
+      }
+    } else {
+      *(dest_data++) = NativeDestT(src);
+    }
   }
 }
 
