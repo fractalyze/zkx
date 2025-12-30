@@ -652,7 +652,29 @@ void CreateFromInteger(absl::Span<const NativeSrcT> src_data, void* dst_base) {
 
   NativeDestT* dest_data = static_cast<NativeDestT*>(dst_base);
   for (const NativeSrcT& src : src_data) {
-    *(dest_data++) = NativeDestT(src);
+    if constexpr (zk_dtypes::IsPrimeField<NativeDestT>) {
+      if constexpr (std::is_integral_v<NativeSrcT>) {
+        // NOTE(chokobole): This assumes that if the target Prime Field uses
+        // Montgomery form, the source integer has already been transformed
+        // accordingly.
+        //
+        // In Zorch, for instance, a raw integer (e.g., '1') is typically
+        // promoted to a field type (like babybear) that is already in
+        // Montgomery form before reaching this conversion logic:
+        //
+        // ```python
+        // def add(a):
+        //     return a + 1  # '1' is promoted to babybear(1) in Montgomery form
+        //
+        // jax.jit(add)(babybear(1))
+        // ```
+        *(dest_data++) = NativeDestT::FromUnchecked(src);
+      } else {
+        *(dest_data++) = NativeDestT::FromUnchecked(static_cast<int8_t>(src));
+      }
+    } else {
+      *(dest_data++) = NativeDestT(src);
+    }
   }
 }
 
@@ -674,7 +696,7 @@ absl::Status ConvertIfDestTypeMatches(const LiteralBase& src_literal,
                       primitive_util::IsFieldType(kSrcType) ||
                       primitive_util::IsEcPointType(primitive_type_constant) ||
                       primitive_util::IsEcPointType(kSrcType)) {
-          if constexpr (primitive_util::IsUnsignedIntegralType(kSrcType) &&
+          if constexpr (primitive_util::IsIntegralType(kSrcType) &&
                         primitive_util::IsFieldType(primitive_type_constant)) {
             // NOTE(chokobole): This conversion is technically "unsafe" as it
             // may result in precision loss. For example, converting a u32 to
@@ -694,8 +716,7 @@ absl::Status ConvertIfDestTypeMatches(const LiteralBase& src_literal,
                   "supported");
             }
             // NOLINTNEXTLINE(readability/braces)
-          } else if constexpr (primitive_util::IsUnsignedIntegralType(
-                                   kSrcType) &&
+          } else if constexpr (primitive_util::IsIntegralType(kSrcType) &&
                                primitive_util::IsEcPointType(
                                    primitive_type_constant)) {
             using ScalarField = typename NativeDestT::ScalarField;
