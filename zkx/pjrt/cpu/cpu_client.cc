@@ -31,9 +31,9 @@ limitations under the License.
 #include "zkx/backends/cpu/runtime/thunk.h"
 #include "zkx/backends/cpu/runtime/thunk_executor.h"
 #include "zkx/debug_options_flags.h"
-#include "zkx/literal_util.h"
 #include "zkx/pjrt/host_callback.h"
 #include "zkx/pjrt/host_memory_spaces.h"
+#include "zkx/pjrt/mlir_to_hlo.h"
 #include "zkx/pjrt/utils.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/cpu/cpu_compiler.h"
@@ -607,8 +607,50 @@ static absl::StatusOr<std::unique_ptr<Executable>> JitCompile(
 
 absl::StatusOr<std::unique_ptr<PjRtLoadedExecutable>> TfrtCpuClient::Compile(
     mlir::ModuleOp module, CompileOptions options) {
-  // TODO(chokobole): Implement this. Dependency: MlirToZkxComputation
-  return absl::UnimplementedError("...");
+  ZkxComputation zkx_computation;
+  const ExecutableBuildOptions& exec_build_options =
+      options.executable_build_options;
+  TF_RETURN_IF_ERROR(MlirToZkxComputation(
+      module, zkx_computation,
+      /*use_tuple_args=*/options.parameter_is_tupled_arguments,
+      /*return_tuple=*/false, exec_build_options.use_shardy_partitioner()));
+
+  if (options.argument_layouts) {
+    return Compile(zkx_computation, options);
+  }
+
+  TF_ASSIGN_OR_RETURN(std::vector<LayoutMode> arg_layout_modes,
+                      GetArgLayoutModes(module));
+  TF_ASSIGN_OR_RETURN(std::vector<LayoutMode> out_layout_modes,
+                      GetOutputLayoutModes(module));
+  TF_ASSIGN_OR_RETURN(std::vector<MemorySpaceColor> arg_memory_spaces,
+                      GetArgMemoryKinds(module));
+  TF_ASSIGN_OR_RETURN(std::vector<MemorySpaceColor> out_memory_spaces,
+                      GetOutputMemoryKinds(module));
+
+  // If auto-sharding modifies shapes of arguments and/or result,
+  // we get a callback to restore the layouts. Let us restore the layouts
+  // according to the attributes we parsed from MLIR.
+  auto layout_callback = [&arg_layout_modes, &out_layout_modes,
+                          &arg_memory_spaces,
+                          &out_memory_spaces](const HloModule& module)
+      -> absl::StatusOr<std::pair<std::vector<Shape>, Shape>> {
+    ZkxComputation zkx_computation(ZkxComputation(module.ToProto()));
+    return LayoutModesToZkxShapes(
+        zkx_computation, arg_layout_modes, out_layout_modes, arg_memory_spaces,
+        out_memory_spaces, &LayoutUtil::GetWithDefaultLayout);
+  };
+
+  // This call will update result_layout in options.executable_build_options.
+  TF_ASSIGN_OR_RETURN(
+      auto arg_layouts_and_pointers,
+      LayoutModesToZkx(zkx_computation, arg_layout_modes, out_layout_modes,
+                       arg_memory_spaces, out_memory_spaces,
+                       &LayoutUtil::GetWithDefaultLayout,
+                       options.executable_build_options));
+
+  return CompileInternal(zkx_computation, arg_layouts_and_pointers.second,
+                         layout_callback, options);
 }
 
 absl::StatusOr<std::unique_ptr<PjRtLoadedExecutable>> TfrtCpuClient::Compile(

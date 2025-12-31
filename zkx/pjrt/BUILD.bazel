@@ -115,6 +115,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "mlir_to_hlo",
+    srcs = ["mlir_to_hlo.cc"],
+    hdrs = ["mlir_to_hlo.h"],
+    deps = [
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/builder:zkx_computation",
+        "//zkx/hlo/translate/mhlo_to_hlo:mlir_hlo_to_hlo",
+        "//zkx/mlir/utils:error_util",
+        "//zkx/mlir_hlo/mhlo/transforms:passes",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:vlog_is_on",
+        "@com_google_absl//absl/status",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:Transforms",
+    ],
+)
+
+zkx_cc_library(
     name = "pjrt_client",
     srcs = ["pjrt_client.cc"],
     hdrs = ["pjrt_client.h"],
@@ -351,6 +371,8 @@ zkx_cc_unittest(
         "pjrt_executable_unittest.cc",
         "pjrt_future_unittest.cc",
         "semaphore_unittest.cc",
+        # TODO(chokobole): Uncomment this. Dependency: createStablehloDeserializePipeline
+        # "mlir_to_hlo_unittest.cc",
     ],
     deps = [
         ":host_callback",

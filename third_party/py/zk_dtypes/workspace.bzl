@@ -18,19 +18,17 @@
 zk_dtypes provides ZK-specific data-types like babybear.
 """
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
 def repo():
-    ZK_DTYPES_COMMIT = "0da33b2845ad87e2086372b9ac0f46c60e2dd03d"
-    ZK_DTYPES_SHA256 = "d643d7846a79d0a00d52074bee8e5ee2b37a69a872c7856873df0754aeeda2d1"
-    http_archive(
-        name = "zk_dtypes",
-        sha256 = ZK_DTYPES_SHA256,
-        strip_prefix = "zk_dtypes-{commit}".format(commit = ZK_DTYPES_COMMIT),
-        urls = ["https://github.com/fractalyze/zk_dtypes/archive/{commit}/zk_dtypes-{commit}.tar.gz".format(commit = ZK_DTYPES_COMMIT)],
-    )
-    # Uncomment this for development!
-    # native.local_repository(
+    # ZK_DTYPES_COMMIT = "0da33b2845ad87e2086372b9ac0f46c60e2dd03d"
+    # ZK_DTYPES_SHA256 = "d643d7846a79d0a00d52074bee8e5ee2b37a69a872c7856873df0754aeeda2d1"
+    # http_archive(
     #     name = "zk_dtypes",
-    #     path = "../zk_dtypes",
+    #     sha256 = ZK_DTYPES_SHA256,
+    #     strip_prefix = "zk_dtypes-{commit}".format(commit = ZK_DTYPES_COMMIT),
+    #     urls = ["https://github.com/fractalyze/zk_dtypes/archive/{commit}/zk_dtypes-{commit}.tar.gz".format(commit = ZK_DTYPES_COMMIT)],
     # )
+    # Uncomment this for development!
+    native.local_repository(
+        name = "zk_dtypes",
+        path = "../zk_dtypes",
+    )
