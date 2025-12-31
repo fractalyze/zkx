@@ -88,10 +88,11 @@ class Serde<zk_dtypes::AffinePoint<
           return absl::InvalidArgumentError(
               "Invalid format: Input must be in non-Montgomery form");
         }
-        if (BasePrimeField::kBitWidth - BasePrimeField::kModulusBits < 2) {
+        if (BasePrimeField::kBitWidth - BasePrimeField::Config::kModulusBits <
+            2) {
           return absl::InvalidArgumentError(
               "Invalid format: BasePrimeField::kBitWidth - "
-              "BasePrimeField::kModulusBits must be at least 2");
+              "BasePrimeField::Config::kModulusBits must be at least 2");
         }
 
         // See
@@ -165,10 +166,11 @@ class Serde<zk_dtypes::AffinePoint<
           return absl::InvalidArgumentError(
               "Invalid format: Input must be in non-Montgomery form");
         }
-        if (BasePrimeField::kBitWidth - BasePrimeField::kModulusBits < 2) {
+        if (BasePrimeField::kBitWidth - BasePrimeField::Config::kModulusBits <
+            2) {
           return absl::InvalidArgumentError(
               "Invalid format: BasePrimeField::kBitWidth - "
-              "BasePrimeField::kModulusBits must be at least 2");
+              "BasePrimeField::Config::kModulusBits must be at least 2");
         }
         // See
         // https://github.com/Consensys/gnark-crypto/blob/43897fd/ecc/bn254/marshal.go#L790-L822.

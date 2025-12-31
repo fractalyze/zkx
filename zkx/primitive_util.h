@@ -38,6 +38,7 @@ limitations under the License.
 #include "zk_dtypes/include/elliptic_curve/bn/bn254/g1.h"
 #include "zk_dtypes/include/elliptic_curve/bn/bn254/g2.h"
 #include "zk_dtypes/include/field/babybear/babybear.h"
+#include "zk_dtypes/include/field/extension_field.h"
 #include "zk_dtypes/include/field/field.h"
 #include "zk_dtypes/include/field/goldilocks/goldilocks.h"
 #include "zk_dtypes/include/field/koalabear/koalabear.h"
@@ -280,16 +281,32 @@ constexpr bool Is8BitIntegralType(PrimitiveType type) {
   return type == S8 || type == U8;
 }
 
-constexpr bool IsFieldType(PrimitiveType type) {
+constexpr bool IsPrimeFieldType(PrimitiveType type) {
 #define ZK_DTYPES_CASE(unused, unused2, enum, unused3) type == enum ||
-  return ZK_DTYPES_PUBLIC_FIELD_TYPE_LIST(ZK_DTYPES_CASE) false;
+  return ZK_DTYPES_PUBLIC_PRIME_FIELD_TYPE_LIST(ZK_DTYPES_CASE) false;
 #undef ZK_DTYPES_CASE
+}
+
+constexpr bool IsExtensionFieldType(PrimitiveType type) {
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) type == enum ||
+  return ZK_DTYPES_PUBLIC_EXT_FIELD_TYPE_LIST(ZK_DTYPES_CASE) false;
+#undef ZK_DTYPES_CASE
+}
+
+constexpr bool IsFieldType(PrimitiveType type) {
+  return IsPrimeFieldType(type) || IsExtensionFieldType(type);
 }
 
 constexpr bool IsEcPointType(PrimitiveType type) {
 #define ZK_DTYPES_CASE(unused, unused2, enum, unused3) type == enum ||
   return ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE) false;
 #undef ZK_DTYPES_CASE
+}
+
+// Returns true if the type supports comparison operators (<, >, <=, >=).
+// Extension fields and EC points don't have natural ordering.
+constexpr bool IsComparableType(PrimitiveType type) {
+  return !IsExtensionFieldType(type) && !IsEcPointType(type);
 }
 
 template <typename R, typename F>

@@ -760,12 +760,14 @@ absl::Status SortInplace(absl::Span<se::DeviceMemoryBase> data,
                    num_inputs);
     };
 
-    // Sorts array using builtin comparator functor
+    // Sorts array using builtin comparator functor.
+    // Note: Extension fields don't support comparison operators, so they
+    // fall through to the generic sort path.
     auto builtin_sort = [&](PrimitiveType type,
                             SortThunk::SortDirection direction) {
       primitive_util::ArrayTypeSwitch<void>(
           [&](auto cst_type) {
-            if constexpr ((primitive_util::IsFieldType(cst_type) ||
+            if constexpr ((primitive_util::IsComparableType(cst_type) ||
                            primitive_util::IsIntegralType(cst_type)) &&
                           primitive_util::BitWidth(cst_type) >= 8) {
               Sort1DArrInplace<cst_type>(sort_dims, offset, data, is_stable,

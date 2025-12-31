@@ -264,28 +264,52 @@ auto GetUniformDistribution() {
   }
 }
 
+template <typename PrimeField, typename Generator>
+PrimeField GenerateRandomPrimeFieldValue(Generator& generator,
+                                         std::minstd_rand0* engine) {
+  using UnderlyingType = typename PrimeField::UnderlyingType;
+  UnderlyingType v;
+  if constexpr (PrimeField::Config::kModulusBits > 64) {
+    UnderlyingType max_value = PrimeField::Config::kModulus;
+    do {
+      for (size_t i = 0; i < UnderlyingType::kLimbNums; ++i) {
+        v[i] = generator(*engine);
+      }
+    } while (v >= max_value);
+  } else {
+    v = generator(*engine);
+  }
+  return PrimeField::FromUnchecked(v);
+}
+
 template <typename T>
-void PopulateWithRandomFieldTypeData(Literal* literal,
-                                     std::minstd_rand0* engine) {
+void PopulateWithRandomPrimeFieldData(Literal* literal,
+                                      std::minstd_rand0* engine) {
   CHECK(engine != nullptr);
   CHECK_EQ(literal->shape().element_type(),
            primitive_util::NativeToPrimitiveType<T>());
   auto generator = GetUniformDistribution<T>();
 
   for (T& value : literal->data<T>()) {
-    using UnderlyingType = typename T::UnderlyingType;
-    UnderlyingType v;
-    if constexpr (T::kModulusBits > 64) {
-      UnderlyingType max_value = T::Config::kModulus;
-      do {
-        for (size_t i = 0; i < UnderlyingType::kLimbNums; ++i) {
-          v[i] = generator(*engine);
-        }
-      } while (v >= max_value);
-    } else {
-      v = generator(*engine);
+    value = GenerateRandomPrimeFieldValue<T>(generator, engine);
+  }
+}
+
+template <typename T>
+void PopulateWithRandomExtensionFieldData(Literal* literal,
+                                          std::minstd_rand0* engine) {
+  CHECK(engine != nullptr);
+  CHECK_EQ(literal->shape().element_type(),
+           primitive_util::NativeToPrimitiveType<T>());
+
+  using BasePrimeField = typename T::BasePrimeField;
+  auto generator = GetUniformDistribution<BasePrimeField>();
+
+  for (T& value : literal->data<T>()) {
+    for (BasePrimeField& base_value : value.AsBasePrimeFields()) {
+      base_value =
+          GenerateRandomPrimeFieldValue<BasePrimeField>(generator, engine);
     }
-    value = T::FromUnchecked(v);
   }
 }
 
@@ -293,7 +317,6 @@ template <typename T>
 void PopulateWithRandomEcPointData(Literal* literal, std::minstd_rand0* engine,
                                    bool is_sorted) {
   using ScalarField = typename T::ScalarField;
-  using UnderlyingType = typename ScalarField::UnderlyingType;
   CHECK(engine != nullptr);
   CHECK_EQ(literal->shape().element_type(),
            primitive_util::NativeToPrimitiveType<T>());
@@ -302,18 +325,8 @@ void PopulateWithRandomEcPointData(Literal* literal, std::minstd_rand0* engine,
   std::vector<ScalarField> scalars;
   scalars.reserve(literal->data<T>().size());
   for (size_t i = 0; i < literal->data<T>().size(); ++i) {
-    UnderlyingType v;
-    if constexpr (ScalarField::kModulusBits > 64) {
-      UnderlyingType max_value = ScalarField::Config::kModulus;
-      do {
-        for (size_t j = 0; j < UnderlyingType::kLimbNums; ++j) {
-          v[j] = generator(*engine);
-        }
-      } while (v >= max_value);
-    } else {
-      v = generator(*engine);
-    }
-    scalars.push_back(ScalarField::FromUnchecked(v));
+    scalars.push_back(
+        GenerateRandomPrimeFieldValue<ScalarField>(generator, engine));
   }
   if (is_sorted) {
     std::sort(scalars.begin(), scalars.end());
@@ -415,12 +428,19 @@ absl::StatusOr<Literal> MakeFakeLiteral(
             }
             return absl::OkStatus();
           }
-          if constexpr (primitive_util::IsFieldType(primitive_type_constant)) {
-            PopulateWithRandomFieldTypeData<NativeT>(&literal, engine);
+          if constexpr (primitive_util::IsPrimeFieldType(
+                            primitive_type_constant)) {
+            PopulateWithRandomPrimeFieldData<NativeT>(&literal, engine);
             if (is_sorted) {
               std::sort(literal.data<NativeT>().begin(),
                         literal.data<NativeT>().end());
             }
+            return absl::OkStatus();
+          }
+          if constexpr (primitive_util::IsExtensionFieldType(
+                            primitive_type_constant)) {
+            PopulateWithRandomExtensionFieldData<NativeT>(&literal, engine);
+            // Extension fields don't support operator<, so sorting is skipped.
             return absl::OkStatus();
           }
           if constexpr (primitive_util::IsEcPointType(

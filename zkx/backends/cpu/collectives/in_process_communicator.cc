@@ -128,6 +128,16 @@ absl::Status ReduceScatter(ReductionKind reduction_kind,
                            absl::Span<const void* const> inputs, void* output,
                            size_t num_elems) {
   using T = primitive_util::NativeTypeOf<PT>;
+
+  // Types without natural ordering don't support min/max operations.
+  if constexpr (!primitive_util::IsComparableType(PT)) {
+    if (reduction_kind == ReductionKind::kMin ||
+        reduction_kind == ReductionKind::kMax) {
+      return absl::InvalidArgumentError(
+          "Min/Max reduction is not supported for non-comparable types");
+    }
+  }
+
   T initial_value = GetInitialValue<T>(reduction_kind);
 
   absl::Span<T> out_chunk =
@@ -146,10 +156,14 @@ absl::Status ReduceScatter(ReductionKind reduction_kind,
       ReduceHelper<ReductionKind::kProduct, T>(out_chunk, input_chunks);
       break;
     case ReductionKind::kMin:
-      ReduceHelper<ReductionKind::kMin, T>(out_chunk, input_chunks);
+      if constexpr (primitive_util::IsComparableType(PT)) {
+        ReduceHelper<ReductionKind::kMin, T>(out_chunk, input_chunks);
+      }
       break;
     case ReductionKind::kMax:
-      ReduceHelper<ReductionKind::kMax, T>(out_chunk, input_chunks);
+      if constexpr (primitive_util::IsComparableType(PT)) {
+        ReduceHelper<ReductionKind::kMax, T>(out_chunk, input_chunks);
+      }
       break;
   }
 

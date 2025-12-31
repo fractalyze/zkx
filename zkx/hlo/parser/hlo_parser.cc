@@ -770,7 +770,7 @@ class HloParserImpl : public HloParser {
           return Error(loc, absl::StrCat("expects integer for primitive type: ",
                                          PrimitiveType_Name(type)));
         }
-        if constexpr (T::kModulusBits > 64) {
+        if constexpr (T::Config::kModulusBits > 64) {
           *result = T(value64);
         } else {
           if (value64 < 0 || value64 > T::Config::kModulus) {
@@ -784,7 +784,7 @@ class HloParserImpl : public HloParser {
       }
       case TokKind::kString: {
         UnderlyingType value;
-        if constexpr (T::kModulusBits > 64) {
+        if constexpr (T::Config::kModulusBits > 64) {
           if (!ParseBigInt(&value)) {
             return Error(loc,
                          absl::StrCat("expects string for primitive type: ",
@@ -3665,6 +3665,25 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
         }
       }
     }
+  } else if constexpr (zk_dtypes::IsExtensionField<LiteralNativeT>) {
+    using BasePrimeField = typename LiteralNativeT::BasePrimeField;
+    using BaseField = typename LiteralNativeT::BaseField;
+
+    if constexpr (std::is_same_v<ParsedElemT, BasePrimeField>) {
+      // BasePrimeField: check range recursively
+      return CheckParsedValueIsInRange<BasePrimeField>(loc, value);
+    } else if constexpr (std::is_same_v<ParsedElemT, BaseField>) {
+      // BaseField: check range recursively
+      return CheckParsedValueIsInRange<BaseField>(loc, value);
+    } else if constexpr (std::is_same_v<ParsedElemT, LiteralNativeT>) {
+      // ExtensionField itself
+      return true;
+    } else {
+      static_assert(std::is_same_v<ParsedElemT, int64_t>,
+                    "Unimplemented checking for ParsedElemT");
+      // int64_t: check against BasePrimeField's modulus
+      return CheckParsedValueIsInRange<BasePrimeField>(loc, value);
+    }
   } else if constexpr (zk_dtypes::IsEcPoint<LiteralNativeT>) {
     if constexpr (zk_dtypes::IsEcPoint<ParsedElemT>) {
       return true;
@@ -3673,17 +3692,7 @@ bool HloParserImpl::CheckParsedValueIsInRange(LocTy loc, ParsedElemT value) {
                     "Unimplemented checking for ParsedElemT");
 
       using ScalarField = typename LiteralNativeT::ScalarField;
-      if constexpr (ScalarField::Config::kModulusBits > 64) {
-        return true;
-      } else {
-        if (value >= 0) {
-          return static_cast<uint64_t>(value) <
-                 uint64_t{ScalarField::Config::kModulus};
-        } else {
-          return static_cast<uint64_t>(-value) <
-                 uint64_t{ScalarField::Config::kModulus};
-        }
-      }
+      return CheckParsedValueIsInRange<ScalarField>(loc, value);
     }
   } else {
     if constexpr (std::is_floating_point_v<ParsedElemT>) {
