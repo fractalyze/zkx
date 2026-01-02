@@ -27,6 +27,20 @@ def StableHLO_Dims : ArrayRefParameter<"int64_t", "Dimension"> {
   let printer = "printDimSizes($_printer, $_self)";
 }
 
+def StableHLO_ScatterDimensionNumbers : AttrDef<StableHLO_Dialect, "ScatterDimensionNumbers"> {
+  let mnemonic = "scatter";
+  let summary = "Attribute that models the dimension information for scatter";
+  let parameters = (ins
+      StableHLO_Dims:$updateWindowDims,
+      StableHLO_Dims:$insertedWindowDims,
+      StableHLO_Dims:$inputBatchingDims,
+      StableHLO_Dims:$scatterIndicesBatchingDims,
+      StableHLO_Dims:$scatterDimsToOperandDims,
+      "int64_t":$indexVectorDim
+  );
+  let hasCustomAssemblyFormat = 1;
+}
+
 def StableHLO_TypeExtensions : AttrDef<StableHLO_Dialect, "TypeExtensions", [
     DeclareAttrInterfaceMethods<VerifiableTensorEncoding>,
     DeclareAttrInterfaceMethods<HLO_BoundedAttrInterface>]> {
