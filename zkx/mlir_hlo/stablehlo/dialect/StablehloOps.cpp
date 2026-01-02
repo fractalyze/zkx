@@ -1453,6 +1453,63 @@ void StablehloDialect::printAttribute(Attribute attr,
 
 namespace {
 
+ParseResult parseDims(AsmParser &parser, SmallVector<int64_t> &dimSizes) {
+  dimSizes.clear();
+  auto failOrDims = parseDimSizes(parser);
+  if (failed(failOrDims))
+    return failure();
+  dimSizes = std::move(*failOrDims);
+  return success();
+}
+
+// Parse a custom attribute that resembles a struct of the form
+// <
+//   foo = something_parsed_by_custom_parser,
+//   bar = something_parsed_by_different_custom_parser,
+//   baz something_parsed_by_another_custom_parser
+// >
+// The optional argument `parse_equal` array can be used to denote if
+// '=' follows the keyword (see baz in the example above) for a field. If
+// not provided, all fields must be followed by a '='.
+ParseResult parseStruct(AsmParser &parser, ArrayRef<StringRef> keywords,
+                        ArrayRef<llvm::function_ref<ParseResult()>> parseFuncs,
+                        ArrayRef<bool> parseEqual = {}) {
+  assert(keywords.size() == parseFuncs.size());
+  assert(parseEqual.empty() || parseEqual.size() == keywords.size());
+  SmallVector<bool> seen(keywords.size(), false);
+  while (failed(parser.parseOptionalGreater())) {
+    bool foundOne = false;
+    for (const auto &it : llvm::enumerate(keywords)) {
+      size_t index = it.index();
+      StringRef keyword = it.value();
+      if (failed(parser.parseOptionalKeyword(keyword)))
+        continue;
+      if (seen[index])
+        return parser.emitError(parser.getCurrentLocation())
+               << "duplicated `" << keyword << "` entry";
+      if (parseEqual.empty() || parseEqual[index]) {
+        if (failed(parser.parseEqual()))
+          return failure();
+      }
+      if (failed(parseFuncs[index]()))
+        return failure();
+      if (failed(parser.parseOptionalComma()))
+        return parser.parseGreater();
+      seen[index] = true;
+      foundOne = true;
+    }
+    if (!foundOne) {
+      auto parseError = parser.emitError(parser.getCurrentLocation())
+                        << "expected one of: ";
+      llvm::interleaveComma(keywords, parseError, [&](StringRef kw) {
+        parseError << '`' << kw << '`';
+      });
+      return parseError;
+    }
+  }
+  return success();
+}
+
 // Helpers to print an optional array or integer field, to simplify writing
 // attribute printers.
 template <typename T>
@@ -1489,6 +1546,51 @@ void printStruct(AsmPrinter &printer, StringRef name, Ts... printFields) {
 }
 
 } // namespace
+
+// Custom printer and parser for ScatterDimensionNumbersAttr.
+void ScatterDimensionNumbersAttr::print(AsmPrinter &printer) const {
+  printStruct(printer, "scatter",
+              std::make_pair("update_window_dims", getUpdateWindowDims()),
+              std::make_pair("inserted_window_dims", getInsertedWindowDims()),
+              std::make_pair("input_batching_dims", getInputBatchingDims()),
+              std::make_pair("scatter_indices_batching_dims",
+                             getScatterIndicesBatchingDims()),
+              std::make_pair("scatter_dims_to_operand_dims",
+                             getScatterDimsToOperandDims()),
+              std::make_pair("index_vector_dim", getIndexVectorDim()));
+}
+
+Attribute ScatterDimensionNumbersAttr::parse(AsmParser &parser, Type type) {
+  if (failed(parser.parseLess()))
+    return {};
+  SmallVector<int64_t> updateWindowDims;
+  SmallVector<int64_t> insertedWindowDims;
+  SmallVector<int64_t> inputBatchingDims;
+  SmallVector<int64_t> scatterIndicesBatchingDims;
+  SmallVector<int64_t> scatterDimsToOperandDims;
+  int64_t indexVectorDim = 0;
+
+  if (failed(parseStruct(
+          parser,
+          {"update_window_dims", "inserted_window_dims", "input_batching_dims",
+           "scatter_indices_batching_dims", "scatter_dims_to_operand_dims",
+           "index_vector_dim"},
+          {[&]() { return parseDims(parser, updateWindowDims); },
+           [&]() { return parseDims(parser, insertedWindowDims); },
+           [&]() { return parseDims(parser, inputBatchingDims); },
+           [&]() { return parseDims(parser, scatterIndicesBatchingDims); },
+           [&]() { return parseDims(parser, scatterDimsToOperandDims); },
+           [&]() { return parser.parseInteger(indexVectorDim); }}))) {
+    parser.emitError(parser.getCurrentLocation())
+        << "failed parsing scatter dimension numbers attribute";
+    return {};
+  }
+
+  return ScatterDimensionNumbersAttr::get(
+      parser.getContext(), updateWindowDims, insertedWindowDims,
+      inputBatchingDims, scatterIndicesBatchingDims, scatterDimsToOperandDims,
+      indexVectorDim);
+}
 
 //===----------------------------------------------------------------------===//
 // Builder utilities

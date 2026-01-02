@@ -88,6 +88,14 @@ enum AttributeCode {
   //     bounds : svarint[]
   //   }
   kTypeExtensionsAttr = 1,
+
+  //   ScatterDimensionNumbersAttr {
+  //     updateWindowDims: svarint[]
+  //     insertedWindowDims: svarint[]
+  //     scatterDimsToOperandDims: svarint[]
+  //     indexVectorDim: svarint
+  //   }
+  kScatterDimensionNumbersAttr = 2,
 };
 
 // This enum contains marker codes used to indicate which type is
@@ -137,11 +145,15 @@ public:
   readComparisonDirectionAttr(DialectBytecodeReader &reader) const;
   TypeExtensionsAttr
   readTypeExtensionsAttr(DialectBytecodeReader &reader) const;
+  ScatterDimensionNumbersAttr
+  readScatterDimensionNumbersAttr(DialectBytecodeReader &reader) const;
 
   // TO ADD ATTRIBUTE: Include a write method for each attribute in StableHLO
   // Ex: void write(SomeAttr attr, DialectBytecodeWriter &writer) const;
   void write(ComparisonDirectionAttr attr, DialectBytecodeWriter &writer) const;
   void write(TypeExtensionsAttr attr, DialectBytecodeWriter &writer) const;
+  void write(ScatterDimensionNumbersAttr attr,
+             DialectBytecodeWriter &writer) const;
 
   //===--------------------------------------------------------------------===//
   // Types
@@ -186,6 +198,8 @@ StablehloBytecodeInterface::readAttribute(DialectBytecodeReader &reader) const {
     return readComparisonDirectionAttr(reader);
   case stablehlo_encoding::kTypeExtensionsAttr:
     return readTypeExtensionsAttr(reader);
+  case stablehlo_encoding::kScatterDimensionNumbersAttr:
+    return readScatterDimensionNumbersAttr(reader);
   default:
     reader.emitError() << "unknown stablehlo attribute code: " << code;
     return Attribute();
@@ -198,7 +212,8 @@ StablehloBytecodeInterface::readAttribute(DialectBytecodeReader &reader) const {
 LogicalResult StablehloBytecodeInterface::writeAttribute(
     Attribute attr, DialectBytecodeWriter &writer) const {
   return TypeSwitch<Attribute, LogicalResult>(attr)
-      .Case<ComparisonDirectionAttr, TypeExtensionsAttr>([&](auto attr) {
+      .Case<ComparisonDirectionAttr, TypeExtensionsAttr,
+            ScatterDimensionNumbersAttr>([&](auto attr) {
         LOG_WRITE_CALL;
         write(attr, writer);
         return success();
@@ -244,6 +259,42 @@ void StablehloBytecodeInterface::write(TypeExtensionsAttr attr,
                                        DialectBytecodeWriter &writer) const {
   writer.writeVarInt(stablehlo_encoding::kTypeExtensionsAttr);
   writer.writeSignedVarInts(attr.getBounds());
+}
+
+//===----------------------------------------------------------------------===//
+// ScatterDimensionNumbersAttr
+//===----------------------------------------------------------------------===//
+
+ScatterDimensionNumbersAttr
+StablehloBytecodeInterface::readScatterDimensionNumbersAttr(
+    DialectBytecodeReader &reader) const {
+  LOG_READ_CALL;
+  llvm::SmallVector<int64_t> updateWindowDims, insertedWindowDims,
+      inputBatchingDims, scatterIndicesBatchingDims, scatterDimsToOperandDims;
+  int64_t indexVectorDim;
+
+  if (failed(reader.readSignedVarInts(updateWindowDims)) ||
+      failed(reader.readSignedVarInts(insertedWindowDims)) ||
+      failed(reader.readSignedVarInts(inputBatchingDims)) ||
+      failed(reader.readSignedVarInts(scatterIndicesBatchingDims)) ||
+      failed(reader.readSignedVarInts(scatterDimsToOperandDims)) ||
+      failed(reader.readSignedVarInt(indexVectorDim)))
+    return ScatterDimensionNumbersAttr();
+
+  return ScatterDimensionNumbersAttr::get(
+      getContext(), updateWindowDims, insertedWindowDims, inputBatchingDims,
+      scatterIndicesBatchingDims, scatterDimsToOperandDims, indexVectorDim);
+}
+
+void StablehloBytecodeInterface::write(ScatterDimensionNumbersAttr attr,
+                                       DialectBytecodeWriter &writer) const {
+  writer.writeVarInt(stablehlo_encoding::kScatterDimensionNumbersAttr);
+  writer.writeSignedVarInts(attr.getUpdateWindowDims());
+  writer.writeSignedVarInts(attr.getInsertedWindowDims());
+  writer.writeSignedVarInts(attr.getInputBatchingDims());
+  writer.writeSignedVarInts(attr.getScatterIndicesBatchingDims());
+  writer.writeSignedVarInts(attr.getScatterDimsToOperandDims());
+  writer.writeSignedVarInt(attr.getIndexVectorDim());
 }
 
 //===----------------------------------------------------------------------===//
