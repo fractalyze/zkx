@@ -34,6 +34,25 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "ext_field_test",
+    testonly = True,
+    hdrs = ["ext_field_test.h"],
+    tags = [
+        "cuda_only",
+        "gpu",
+    ],
+    deps = [
+        ":cuda_kernel_emitter_test",
+        "//zkx:array2d",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base:random",
+        "//zkx/base/containers:container_util",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "field_test",
     testonly = True,
     hdrs = ["field_test.h"],
@@ -127,6 +146,19 @@ zkx_cc_library(
         "//zkx/base/containers:container_util",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "cuda_kernel_emitter_ext_field_unittest",
+    srcs = ["cuda_kernel_emitter_ext_field_unittest.cc"],
+    tags = [
+        "cuda_only",
+        "gpu",
+    ],
+    deps = [
+        ":ext_field_test",
+        ":field_test",
     ],
 )
 

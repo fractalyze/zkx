@@ -76,6 +76,10 @@ CUDA_REDIST_JSON_DICT = {
         "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.8.0.json",
         "daa0d766b36feaa933592162c27be5fb63b68fc547ca6886c160a35d96ee8891",
     ],
+    "12.9.1": [
+        "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_12.9.1.json",
+        "8335301010b0023ee1ff61eb11e2600ca62002d76780de4089011ad77e0c7630",
+    ],
 }
 
 CUDNN_REDIST_JSON_DICT = {
@@ -178,6 +182,7 @@ CUDA_NCCL_WHEELS = {
     "12.6.2": CUDA_12_NCCL_WHEEL_DICT,
     "12.6.3": CUDA_12_NCCL_WHEEL_DICT,
     "12.8.0": CUDA_12_NCCL_WHEEL_DICT,
+    "12.9.1": CUDA_12_NCCL_WHEEL_DICT,
 }
 
 REDIST_VERSIONS_TO_BUILD_TEMPLATES = {
