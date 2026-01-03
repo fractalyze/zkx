@@ -84,6 +84,12 @@ mlir::Type PrimitiveTypeToMlirType(PrimitiveType element_type,
     return GetMlirEcPointType<cpp_type>(context);
       ZK_DTYPES_PUBLIC_EC_POINT_TYPE_LIST(ZK_DTYPES_CASE)
 #undef ZK_DTYPES_CASE
+
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2) \
+  case enum:                                            \
+    return GetMlirExtFieldType<cpp_type>(context);
+      ZK_DTYPES_PUBLIC_EXT_FIELD_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
     default:
       LOG(FATAL) << "unsupported type " << element_type;
   }
