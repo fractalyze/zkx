@@ -1622,6 +1622,35 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateTuple(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateScatter(
+    const Shape& shape, HloInstruction* operand,
+    HloInstruction* scatter_indices, HloInstruction* updates,
+    HloComputation* update_computation,
+    const ScatterDimensionNumbers& scatter_dim_numbers, bool indices_are_sorted,
+    bool unique_indices) {
+  return absl::WrapUnique(new HloScatterInstruction(
+      shape, {operand, scatter_indices, updates}, update_computation,
+      scatter_dim_numbers, indices_are_sorted, unique_indices));
+}
+
+// static
+std::unique_ptr<HloInstruction> HloInstruction::CreateScatter(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloInstruction* scatter_indices, absl::Span<HloInstruction* const> updates,
+    HloComputation* update_computation,
+    const ScatterDimensionNumbers& scatter_dim_numbers, bool indices_are_sorted,
+    bool unique_indices) {
+  absl::InlinedVector<HloInstruction*, 3> args;
+  args.reserve(operands.size() + updates.size() + 1);
+  absl::c_copy(operands, std::back_inserter(args));
+  args.push_back(scatter_indices);
+  absl::c_copy(updates, std::back_inserter(args));
+  return std::make_unique<HloScatterInstruction>(
+      shape, args, update_computation, scatter_dim_numbers, indices_are_sorted,
+      unique_indices);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateAfterAll(
     absl::Span<HloInstruction* const> operands) {
   CHECK(!operands.empty());
@@ -4475,6 +4504,11 @@ int64_t HloInstruction::slice_sizes(int64_t dimension) const {
 
 const std::vector<int64_t>& HloInstruction::dynamic_slice_sizes() const {
   return Cast<HloDynamicSliceInstruction>(this)->dynamic_slice_sizes();
+}
+
+const ScatterDimensionNumbers& HloInstruction::scatter_dimension_numbers()
+    const {
+  return Cast<HloScatterInstruction>(this)->scatter_dimension_numbers();
 }
 
 const DotDimensionNumbers& HloInstruction::dot_dimension_numbers() const {
