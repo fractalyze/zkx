@@ -1,4 +1,4 @@
-# ZKX Style Guide
+****# ZKX Style Guide
 
 ## Introduction
 
@@ -341,6 +341,13 @@ ______________________________________________________________________
 
 Every file (that could be exceptional case, such as empty BUILD.bazel) should
 have license notice in the top.
+
+### Date of Creation
+
+- **New Files**: For any new files created from now on, the copyright year
+  should be set to 2026.
+- **Refactored Files**: If a file is moved or renamed as part of a refactoring
+  process, you may retain the original creation year from the source file.
 
 [.clang-format]: /.clang-format
 [angular commit convention]: https://github.com/angular/angular/blob/main/contributing-docs/commit-message-guidelines.md
