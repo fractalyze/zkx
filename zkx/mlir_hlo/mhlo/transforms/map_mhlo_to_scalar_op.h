@@ -321,6 +321,27 @@ struct IsExtFieldType {
   }
 };
 
+// Converts mhlo::ComparisonDirection to arith::CmpIPredicate.
+// Field types always use unsigned predicates since elements are in [0, p).
+inline arith::CmpIPredicate
+MhloComparisonDirectionToPredicate(mhlo::ComparisonDirection direction,
+                                   bool isSigned) {
+  switch (direction) {
+  case mhlo::ComparisonDirection::EQ:
+    return arith::CmpIPredicate::eq;
+  case mhlo::ComparisonDirection::NE:
+    return arith::CmpIPredicate::ne;
+  case mhlo::ComparisonDirection::LT:
+    return isSigned ? arith::CmpIPredicate::slt : arith::CmpIPredicate::ult;
+  case mhlo::ComparisonDirection::LE:
+    return isSigned ? arith::CmpIPredicate::sle : arith::CmpIPredicate::ule;
+  case mhlo::ComparisonDirection::GT:
+    return isSigned ? arith::CmpIPredicate::sgt : arith::CmpIPredicate::ugt;
+  case mhlo::ComparisonDirection::GE:
+    return isSigned ? arith::CmpIPredicate::sge : arith::CmpIPredicate::uge;
+  }
+}
+
 template <>
 inline Value mapMhloOpToStdScalarOp<mhlo::CompareOp>(
     Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
@@ -331,72 +352,21 @@ inline Value mapMhloOpToStdScalarOp<mhlo::CompareOp>(
   mhlo::ComparisonDirection direction = adaptor.getComparisonDirection();
 
   if (IsAnyIntegerType{}(elementType)) {
-    arith::CmpIPredicate predicate;
     bool isSigned = !elementType.isUnsignedInteger();
-    switch (direction) {
-    case mhlo::ComparisonDirection::EQ:
-      predicate = arith::CmpIPredicate::eq;
-      break;
-    case mhlo::ComparisonDirection::NE:
-      predicate = arith::CmpIPredicate::ne;
-      break;
-    case mhlo::ComparisonDirection::LT:
-      predicate =
-          isSigned ? arith::CmpIPredicate::slt : arith::CmpIPredicate::ult;
-      break;
-    case mhlo::ComparisonDirection::LE:
-      predicate =
-          isSigned ? arith::CmpIPredicate::sle : arith::CmpIPredicate::ule;
-      break;
-    case mhlo::ComparisonDirection::GT:
-      predicate =
-          isSigned ? arith::CmpIPredicate::sgt : arith::CmpIPredicate::ugt;
-      break;
-    case mhlo::ComparisonDirection::GE:
-      predicate =
-          isSigned ? arith::CmpIPredicate::sge : arith::CmpIPredicate::uge;
-      break;
-    }
+    auto predicate = MhloComparisonDirectionToPredicate(direction, isSigned);
     return b->create<arith::CmpIOp>(loc, predicate, adaptor.getLhs(),
                                     adaptor.getRhs());
   } else if (IsPrimeFieldType{}(elementType)) {
-    // Prime fields support all comparison directions.
-    arith::CmpIPredicate predicate;
-    switch (direction) {
-    case mhlo::ComparisonDirection::EQ:
-      predicate = arith::CmpIPredicate::eq;
-      break;
-    case mhlo::ComparisonDirection::NE:
-      predicate = arith::CmpIPredicate::ne;
-      break;
-    case mhlo::ComparisonDirection::LT:
-      predicate = arith::CmpIPredicate::slt;
-      break;
-    case mhlo::ComparisonDirection::LE:
-      predicate = arith::CmpIPredicate::sle;
-      break;
-    case mhlo::ComparisonDirection::GT:
-      predicate = arith::CmpIPredicate::sgt;
-      break;
-    case mhlo::ComparisonDirection::GE:
-      predicate = arith::CmpIPredicate::sge;
-      break;
-    }
+    auto predicate = MhloComparisonDirectionToPredicate(direction, false);
     return b->create<zkir::field::CmpOp>(loc, predicate, adaptor.getLhs(),
                                          adaptor.getRhs());
   } else if (IsExtFieldType{}(elementType)) {
-    // Extension fields only support EQ/NE comparisons (no ordering).
-    arith::CmpIPredicate predicate;
-    switch (direction) {
-    case mhlo::ComparisonDirection::EQ:
-      predicate = arith::CmpIPredicate::eq;
-      break;
-    case mhlo::ComparisonDirection::NE:
-      predicate = arith::CmpIPredicate::ne;
-      break;
-    default:
+    // Extension fields only support EQ/NE comparisons.
+    if (direction != mhlo::ComparisonDirection::EQ &&
+        direction != mhlo::ComparisonDirection::NE) {
       return nullptr;
     }
+    auto predicate = MhloComparisonDirectionToPredicate(direction, false);
     return b->create<zkir::field::CmpOp>(loc, predicate, adaptor.getLhs(),
                                          adaptor.getRhs());
   }
