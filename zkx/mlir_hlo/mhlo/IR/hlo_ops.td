@@ -287,6 +287,94 @@ def MHLO_SubtractOp : MHLO_BinaryElementwiseOp<"subtract",
   let hasCustomHLOConverter = 1;
 }
 
+def MHLO_CompareOp: MHLO_Op<"compare",
+    [Pure, Elementwise, HLO_CompatibleOperandsElementType,
+    SameOperandsAndResultShape, InferShapedTypeOpInterface]> {
+  let summary = "Compare operation";
+  let description = [{
+    Performs element-wise comparison of `lhs` and `rhs` tensors according to
+    `comparison_direction`, and produces a `result` tensor.
+
+    See:
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#compare
+
+    Example:
+    ```mlir
+    %result = mhlo.compare LT, %lhs, %rhs : (tensor<2xi32>, tensor<2xi32>) -> tensor<2xi1>
+    ```
+  }];
+  let arguments = (ins
+    MHLO_Tensor:$lhs,
+    MHLO_Tensor:$rhs,
+    MHLO_ComparisonDirectionAttr:$comparison_direction
+  );
+  let results = (outs MHLO_PredTensor);
+
+  let extraClassDeclaration = [{
+    LogicalResult reifyReturnTypeShapes(
+        OpBuilder& builder, ValueRange operands,
+        SmallVectorImpl<Value>& reifiedReturnShapes) {
+      return ::mlir::hlo::deriveShapeFromOperand(&builder, getOperation(),
+                                                 operands.front(),
+                                                 &reifiedReturnShapes);
+    }
+    static bool isCompatibleReturnTypes(TypeRange l, TypeRange r) {
+      return mlir::hlo::isCompatibleForHloTypeInference(l, r);
+    }
+  }];
+
+  let assemblyFormat = [{
+    $comparison_direction `,` $lhs `,` $rhs
+      attr-dict `:` functional-type(operands, results)
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// MHLO ternary elementwise op definitions.
+//===----------------------------------------------------------------------===//
+
+def MHLO_SelectOp: MHLO_Op<"select",
+    [Pure, Elementwise, SameOperandsAndResultShape, InferShapedTypeOpInterface]> {
+  let summary = "Select operation";
+  let description = [{
+    Produces a `result` tensor where each element is selected from `on_true` or
+    `on_false` tensor based on the value of the corresponding element of `pred`.
+
+    See:
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#select
+
+    Example:
+    ```mlir
+    %result = mhlo.select %pred, %on_true, %on_false : tensor<2x2xi1>, tensor<2x2xi32>
+    ```
+  }];
+  let arguments = (ins
+    MHLO_PredTensor:$pred,
+    MHLO_Tensor:$on_true,
+    MHLO_Tensor:$on_false
+  );
+
+  let results = (outs MHLO_Tensor:$result);
+
+  let extraClassDeclaration = [{
+    LogicalResult reifyReturnTypeShapes(
+        OpBuilder& builder, ValueRange operands,
+        SmallVectorImpl<Value>& reifiedReturnShapes) {
+      return ::mlir::hlo::deriveShapeFromOperand(&builder, getOperation(),
+                                                 operands[1],
+                                                 &reifiedReturnShapes);
+    }
+    static bool isCompatibleReturnTypes(TypeRange l, TypeRange r) {
+      return mlir::hlo::isCompatibleForHloTypeInference(l, r);
+    }
+  }];
+
+  let assemblyFormat = [{
+    operands attr-dict `:`
+      custom<SelectOpType>(type($pred), type($on_true), type($on_false), type($result))
+  }];
+}
+
 //===----------------------------------------------------------------------===//
 // MHLO tuple op definitions.
 //===----------------------------------------------------------------------===//

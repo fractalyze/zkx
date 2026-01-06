@@ -778,8 +778,10 @@ LogicalResult TupleOp::inferReturnTypes(
 } // namespace mlir::mhlo
 
 using mlir::hlo::parseSameOperandsAndResultType;
+using mlir::hlo::parseSelectOpType;
 using mlir::hlo::parseTupleOpType;
 using mlir::hlo::printSameOperandsAndResultType;
+using mlir::hlo::printSelectOpType;
 using mlir::hlo::printTupleOpType;
 
 #define GET_OP_CLASSES

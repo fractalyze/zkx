@@ -141,7 +141,9 @@ struct IsUnsignedIntegerType {
 struct IsFieldType {
   bool operator()(Type t) {
     return isa<zkir::field::PrimeFieldType>(t) ||
-           isa<zkir::field::QuadraticExtFieldType>(t);
+           isa<zkir::field::QuadraticExtFieldType>(t) ||
+           isa<zkir::field::CubicExtFieldType>(t) ||
+           isa<zkir::field::QuarticExtFieldType>(t);
   }
 };
 
@@ -305,6 +307,109 @@ inline Value mapMhloOpToStdScalarOp<mhlo::PowOp>(
                                            adaptor.getRhs());
   }
   return nullptr;
+}
+
+struct IsPrimeFieldType {
+  bool operator()(Type t) { return isa<zkir::field::PrimeFieldType>(t); }
+};
+
+struct IsExtFieldType {
+  bool operator()(Type t) {
+    return isa<zkir::field::QuadraticExtFieldType>(t) ||
+           isa<zkir::field::CubicExtFieldType>(t) ||
+           isa<zkir::field::QuarticExtFieldType>(t);
+  }
+};
+
+template <>
+inline Value mapMhloOpToStdScalarOp<mhlo::CompareOp>(
+    Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
+    mhlo::CompareOp::Adaptor adaptor, ArrayRef<NamedAttribute> attributes,
+    OpBuilder *b) {
+  Type type = adaptor.getLhs().getType();
+  Type elementType = getElementTypeOrSelf(type);
+  mhlo::ComparisonDirection direction = adaptor.getComparisonDirection();
+
+  if (IsAnyIntegerType{}(elementType)) {
+    arith::CmpIPredicate predicate;
+    bool isSigned = !elementType.isUnsignedInteger();
+    switch (direction) {
+    case mhlo::ComparisonDirection::EQ:
+      predicate = arith::CmpIPredicate::eq;
+      break;
+    case mhlo::ComparisonDirection::NE:
+      predicate = arith::CmpIPredicate::ne;
+      break;
+    case mhlo::ComparisonDirection::LT:
+      predicate =
+          isSigned ? arith::CmpIPredicate::slt : arith::CmpIPredicate::ult;
+      break;
+    case mhlo::ComparisonDirection::LE:
+      predicate =
+          isSigned ? arith::CmpIPredicate::sle : arith::CmpIPredicate::ule;
+      break;
+    case mhlo::ComparisonDirection::GT:
+      predicate =
+          isSigned ? arith::CmpIPredicate::sgt : arith::CmpIPredicate::ugt;
+      break;
+    case mhlo::ComparisonDirection::GE:
+      predicate =
+          isSigned ? arith::CmpIPredicate::sge : arith::CmpIPredicate::uge;
+      break;
+    }
+    return b->create<arith::CmpIOp>(loc, predicate, adaptor.getLhs(),
+                                    adaptor.getRhs());
+  } else if (IsPrimeFieldType{}(elementType)) {
+    // Prime fields support all comparison directions.
+    arith::CmpIPredicate predicate;
+    switch (direction) {
+    case mhlo::ComparisonDirection::EQ:
+      predicate = arith::CmpIPredicate::eq;
+      break;
+    case mhlo::ComparisonDirection::NE:
+      predicate = arith::CmpIPredicate::ne;
+      break;
+    case mhlo::ComparisonDirection::LT:
+      predicate = arith::CmpIPredicate::slt;
+      break;
+    case mhlo::ComparisonDirection::LE:
+      predicate = arith::CmpIPredicate::sle;
+      break;
+    case mhlo::ComparisonDirection::GT:
+      predicate = arith::CmpIPredicate::sgt;
+      break;
+    case mhlo::ComparisonDirection::GE:
+      predicate = arith::CmpIPredicate::sge;
+      break;
+    }
+    return b->create<zkir::field::CmpOp>(loc, predicate, adaptor.getLhs(),
+                                         adaptor.getRhs());
+  } else if (IsExtFieldType{}(elementType)) {
+    // Extension fields only support EQ/NE comparisons (no ordering).
+    arith::CmpIPredicate predicate;
+    switch (direction) {
+    case mhlo::ComparisonDirection::EQ:
+      predicate = arith::CmpIPredicate::eq;
+      break;
+    case mhlo::ComparisonDirection::NE:
+      predicate = arith::CmpIPredicate::ne;
+      break;
+    default:
+      return nullptr;
+    }
+    return b->create<zkir::field::CmpOp>(loc, predicate, adaptor.getLhs(),
+                                         adaptor.getRhs());
+  }
+  return nullptr;
+}
+
+template <>
+inline Value mapMhloOpToStdScalarOp<mhlo::SelectOp>(
+    Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
+    mhlo::SelectOp::Adaptor adaptor, ArrayRef<NamedAttribute> attributes,
+    OpBuilder *b) {
+  return b->create<arith::SelectOp>(loc, adaptor.getPred(), adaptor.getOnTrue(),
+                                    adaptor.getOnFalse());
 }
 
 } // namespace impl
