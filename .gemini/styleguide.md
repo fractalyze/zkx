@@ -1,4 +1,4 @@
-****# ZKX Style Guide
+# ZKX Style Guide
 
 ## Introduction
 

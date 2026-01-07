@@ -211,7 +211,8 @@ absl::StatusOr<SmallVector<Value, 1>> EmitCompare(
   props.comparison_direction = mhlo::ComparisonDirectionAttr::get(
       builder.getContext(),
       ToMhloComparisonDirection(instr->comparison_direction()));
-  return MapHloOp<mhlo::CompareOp>(builder.getI1Type(), arg_types, operands,
+  SmallVector<Value> args(operands.begin(), operands.end());
+  return MapHloOp<mhlo::CompareOp>(builder.getI1Type(), arg_types, args,
                                    /*attributes=*/{}, builder,
                                    /*dict_attr=*/nullptr, props);
 }
