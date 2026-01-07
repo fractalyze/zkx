@@ -855,26 +855,22 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
       break;
     }
     case HloOpcode::kScatter: {
-      // TODO(chokobole): Uncomment this. Dependency: CreateScatter
-      // TF_RET_CHECK(proto.has_scatter_dimension_numbers())
-      //     << "Scatter instruction should have ScatterDimensionNumbers set.";
-      // TF_RET_CHECK(proto.called_computation_ids_size() == 1)
-      //     << "Scatter instruction should have 1 called computation but sees "
-      //     << proto.called_computation_ids_size();
-      // auto scatter_dimension_numbers =
-      //     std::make_unique<ScatterDimensionNumbers>(
-      //         proto.scatter_dimension_numbers());
-      // auto operands = all_operands();
-      // auto operand_span = absl::MakeConstSpan(operands);
-      // auto input_count = operands.size() / 2;
-      // instruction =
-      //     CreateScatter(shape, operand_span.first(input_count),
-      //                   operands[input_count],
-      //                   operand_span.last(input_count), computations(0),
-      //                   *scatter_dimension_numbers,
-      //                   proto.indices_are_sorted(), proto.unique_indices());
-      return absl::UnimplementedError(
-          "HloInstruction::CreateFromProto: Scatter not implemented");
+      TF_RET_CHECK(proto.has_scatter_dimension_numbers())
+          << "Scatter instruction should have ScatterDimensionNumbers set.";
+      TF_RET_CHECK(proto.called_computation_ids_size() == 1)
+          << "Scatter instruction should have 1 called computation but sees "
+          << proto.called_computation_ids_size();
+      auto scatter_dimension_numbers =
+          std::make_unique<ScatterDimensionNumbers>(
+              proto.scatter_dimension_numbers());
+      auto operands = all_operands();
+      auto operand_span = absl::MakeConstSpan(operands);
+      auto input_count = operands.size() / 2;
+      instruction =
+          CreateScatter(shape, operand_span.first(input_count),
+                        operands[input_count], operand_span.last(input_count),
+                        computations(0), *scatter_dimension_numbers,
+                        proto.indices_are_sorted(), proto.unique_indices());
       break;
     }
     case HloOpcode::kIota:

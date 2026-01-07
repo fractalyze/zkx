@@ -219,9 +219,8 @@ absl::StatusOr<Literal> CreateLiteralForConstrainedUses(
         //                          1);
         // }
         if (use->opcode() == HloOpcode::kScatter) {
-          // TODO(chokobole): Uncomment this. HloScatterInstruction
-          // needs_sorted_indices |=
-          //     Cast<const HloScatterInstruction>(use)->indices_are_sorted();
+          needs_sorted_indices |=
+              Cast<const HloScatterInstruction>(use)->indices_are_sorted();
         } else {
           // TODO(chokobole): Uncomment this. HloGatherInstruction
           // needs_sorted_indices |=
