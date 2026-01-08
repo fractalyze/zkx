@@ -55,15 +55,15 @@ T GetInitialValue(ReductionKind reduction_kind) {
       case ReductionKind::kMax:
         return T::Zero();
     }
-  } else if constexpr (zk_dtypes::IsEcPoint<T>) {
+  } else if constexpr (zk_dtypes::IsAdditiveGroup<T>) {
     switch (reduction_kind) {
       case ReductionKind::kSum:
         return T::Zero();
       case ReductionKind::kProduct:
-        return T::One();
       case ReductionKind::kMin:
       case ReductionKind::kMax:
-        LOG(FATAL) << "Min/Max reduction is not supported for EcPoint types.";
+        LOG(FATAL) << "Product/Min/Max reduction is not supported for "
+                      "AdditiveGroup types.";
     }
   } else {
     switch (reduction_kind) {
