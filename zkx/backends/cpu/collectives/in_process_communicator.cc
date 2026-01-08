@@ -83,9 +83,13 @@ template <ReductionKind kReductionKind, typename T>
 void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
   // TODO(penporn): make sure this gets vectorized.
   if constexpr (kReductionKind == ReductionKind::kSum) {
-    for (size_t j = 0; j < inputs.size(); ++j) {
-      for (size_t i = 0; i < acc.size(); ++i) {
-        acc[i] += inputs[j][i];
+    if constexpr (zk_dtypes::IsAffinePoint<T>) {
+      LOG(FATAL) << "Sum reduction is not supported for AffinePoint types.";
+    } else {
+      for (size_t j = 0; j < inputs.size(); ++j) {
+        for (size_t i = 0; i < acc.size(); ++i) {
+          acc[i] += inputs[j][i];
+        }
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kProduct) {
