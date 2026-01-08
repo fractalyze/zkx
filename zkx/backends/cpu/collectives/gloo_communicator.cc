@@ -34,6 +34,7 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
+#include "zkx/core/collectives/reduction_util.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/status_macros.h"
@@ -116,47 +117,27 @@ absl::Status SetAllReduceOptions(ReductionKind reduction_kind,
 
   using ReductionFn = void (*)(void*, const void*, const void*, size_t);
 
-  if constexpr (zk_dtypes::IsEcPoint<T>) {
-    switch (reduction_kind) {
-      case ReductionKind::kSum:
-        options.setReduceFunction(
-            static_cast<ReductionFn>(&gloo::EcPointSum<T>));
-        break;
-      default:
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
+  struct Selector {
+    static auto sum() {
+      if constexpr (zk_dtypes::IsEcPoint<T>)
+        return static_cast<ReductionFn>(&gloo::EcPointSum<T>);
+      else
+        return static_cast<ReductionFn>(&gloo::sum<T>);
     }
-  } else if constexpr (zk_dtypes::IsExtensionField<T>) {
-    switch (reduction_kind) {
-      case ReductionKind::kSum:
-        options.setReduceFunction(static_cast<ReductionFn>(&gloo::sum<T>));
-        break;
-      case ReductionKind::kProduct:
-        options.setReduceFunction(static_cast<ReductionFn>(&gloo::product<T>));
-        break;
-      default:
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
+
+    static auto product() {
+      return static_cast<ReductionFn>(&gloo::product<T>);
     }
-  } else {
-    switch (reduction_kind) {
-      case ReductionKind::kSum:
-        options.setReduceFunction(static_cast<ReductionFn>(&gloo::sum<T>));
-        break;
-      case ReductionKind::kProduct:
-        options.setReduceFunction(static_cast<ReductionFn>(&gloo::product<T>));
-        break;
-      case ReductionKind::kMin:
-        options.setReduceFunction(static_cast<ReductionFn>(&gloo::min<T>));
-        break;
-      case ReductionKind::kMax:
-        options.setReduceFunction(static_cast<ReductionFn>(&gloo::max<T>));
-        break;
-      default:
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
-    }
-  }
+
+    static auto min() { return static_cast<ReductionFn>(&gloo::min<T>); }
+
+    static auto max() { return static_cast<ReductionFn>(&gloo::max<T>); }
+  };
+
+  absl::StatusOr<ReductionFn> fn_or =
+      SelectReduction<T, ReductionFn>(reduction_kind, Selector{});
+  if (!fn_or.ok()) return fn_or.status();
+  options.setReduceFunction(fn_or.value());
   return absl::OkStatus();
 }
 
@@ -166,46 +147,22 @@ absl::Status ReduceScatterHelper(std::shared_ptr<gloo::Context> context,
                                  size_t chunk_elems) {
   const gloo::ReductionFunction<T>* reduction_function = nullptr;
 
-  if constexpr (zk_dtypes::IsEcPoint<T>) {
-    switch (reduction_kind) {
-      case ReductionKind::kSum:
-        reduction_function = gloo::ReductionFunction<T>::sum;
-        break;
-      default:
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
-    }
-  } else if constexpr (zk_dtypes::IsExtensionField<T>) {
-    switch (reduction_kind) {
-      case ReductionKind::kSum:
-        reduction_function = gloo::ReductionFunction<T>::sum;
-        break;
-      case ReductionKind::kProduct:
-        reduction_function = gloo::ReductionFunction<T>::product;
-        break;
-      default:
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
-    }
-  } else {
-    switch (reduction_kind) {
-      case ReductionKind::kSum:
-        reduction_function = gloo::ReductionFunction<T>::sum;
-        break;
-      case ReductionKind::kProduct:
-        reduction_function = gloo::ReductionFunction<T>::product;
-        break;
-      case ReductionKind::kMax:
-        reduction_function = gloo::ReductionFunction<T>::max;
-        break;
-      case ReductionKind::kMin:
-        reduction_function = gloo::ReductionFunction<T>::min;
-        break;
-      default:
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Unsupported reduction kind: ", static_cast<int>(reduction_kind)));
-    }
-  }
+  struct Selector {
+    static auto sum() { return gloo::ReductionFunction<T>::sum; }
+
+    static auto product() { return gloo::ReductionFunction<T>::product; }
+
+    static auto min() { return gloo::ReductionFunction<T>::min; }
+
+    static auto max() { return gloo::ReductionFunction<T>::max; }
+  };
+
+  absl::StatusOr<const gloo::ReductionFunction<T>*> fn_or =
+      SelectReduction<T, const gloo::ReductionFunction<T>*>(reduction_kind,
+                                                            Selector{});
+  if (!fn_or.ok()) return fn_or.status();
+  reduction_function = fn_or.value();
+
   try {
     std::vector<int> recv_elems(context->size, chunk_elems);
     gloo::ReduceScatterHalvingDoubling<T> algorithm(
