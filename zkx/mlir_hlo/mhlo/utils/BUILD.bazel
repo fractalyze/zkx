@@ -22,6 +22,10 @@ zkx_cc_library(
     srcs = ["type_conversion.cc"],
     hdrs = ["type_conversion.h"],
     deps = [
+        "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
+        "//zkx/mlir_hlo/stablehlo/dialect:stablehlo_ops",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:FuncTransforms",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TransformUtils",

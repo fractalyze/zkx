@@ -18,6 +18,7 @@ limitations under the License.
 
 #include <string.h>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/debugging/leak_check.h"
 #include "zk_dtypes/include/all_types.h"
 
@@ -338,6 +339,61 @@ Literal LiteralBase::Transpose(absl::Span<const int64_t> permutation) const {
             ShapeUtil::ByteSizeOf(shape()));
   std::memcpy(new_literal.untyped_data(), untyped_data(), size_bytes());
   return new_literal;
+}
+
+namespace {
+
+template <typename NativeT>
+void SliceInternal(const LiteralBase& src_literal,
+                   absl::Span<const int64_t> start_indices,
+                   Literal& result_literal) {
+  const Shape& result_shape = result_literal.shape();
+  DimensionVector new_indices(result_shape.rank());
+  CHECK_OK(
+      result_literal.Populate<NativeT>([&](absl::Span<const int64_t> indices) {
+        for (int64_t i = 0; i < result_shape.rank(); ++i) {
+          new_indices[i] = indices[i] + start_indices[i];
+        }
+        return src_literal.Get<NativeT>(new_indices);
+      }));
+  for (int64_t dnum = 0; dnum < src_literal.shape().rank(); ++dnum) {
+    if (src_literal.shape().is_dynamic_dimension(dnum)) {
+      int64_t dynamic_size =
+          src_literal.GetDynamicSize(dnum) - start_indices[dnum];
+      CHECK_GE(dynamic_size, 0) << src_literal.GetDynamicSize(dnum);
+      dynamic_size = std::min(dynamic_size, result_shape.dimensions(dnum));
+      result_literal.SetDynamicSize(dnum, dynamic_size);
+    }
+  }
+}
+
+}  // namespace
+
+Literal LiteralBase::Slice(absl::Span<const int64_t> start_indices,
+                           absl::Span<const int64_t> limit_indices) const {
+  CHECK(shape().IsArray()) << "tuple is not supported for slice";
+
+  DimensionVector result_dimensions;
+  for (int64_t dnum = 0; dnum < shape().rank(); ++dnum) {
+    CHECK_GE(start_indices[dnum], 0);
+    CHECK_LE(limit_indices[dnum], shape().dimensions(dnum))
+        << "dnum = " << dnum;
+    int64_t dimension = limit_indices[dnum] - start_indices[dnum];
+    CHECK_GE(dimension, 0) << "dnum = " << dnum;
+    result_dimensions.push_back(dimension);
+  }
+  auto result_shape = ShapeUtil::MakeShapeWithDenseLayout(
+      shape().element_type(), result_dimensions,
+      LayoutUtil::MinorToMajor(shape()));
+  ShapeUtil::CopyDynamicDimensions(&result_shape, shape());
+  Literal result_literal(result_shape);
+  primitive_util::ArrayTypeSwitch<void>(
+      [&](auto primitive_type_constant) -> void {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        return SliceInternal<NativeT>(*this, start_indices, result_literal);
+      },
+      result_shape.element_type());
+  return result_literal;
 }
 
 Literal LiteralBase::Clone() const {
@@ -1010,6 +1066,22 @@ bool LiteralBase::IsAll(int8_t value) const {
         }
       },
       ty);
+}
+
+bool LiteralBase::IsAllFirst() const {
+  if (!shape().IsArray()) {
+    return false;
+  }
+
+  // Empty shapes are not all the first element since there is no first element.
+  if (ShapeUtil::IsZeroElementArray(shape())) {
+    return false;
+  }
+
+  absl::InlinedVector<int64_t, 4> start_indices(/*n=*/shape().rank(), 0);
+  absl::InlinedVector<int64_t, 4> end_indices(/*n=*/shape().rank(), 1);
+  Literal first = Slice(start_indices, end_indices);
+  return IsAll(first.Reshape({}).value());
 }
 
 const Shape& LiteralBase::shape() const { return root_piece().subshape(); }

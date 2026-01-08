@@ -22,6 +22,7 @@ limitations under the License.
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/hlo/parser/hlo_parser.h"
 
 namespace zkx {
@@ -1567,9 +1568,722 @@ TEST_F(ShapeInferenceTest, SortManyValues) {
 // TODO(chokobole): Add tests. Dependency: ShapeInference::InferGatherShape
 // clang-format on
 
-// clang-format off
-// TODO(chokobole): Add tests. Dependency: ShapeInference::InferScatterShape
-// clang-format on
+class ScatterShapeInferenceTest
+    : public ShapeInferenceTest,
+      public ::testing::WithParamInterface<std::vector<PrimitiveType>> {
+ protected:
+  struct ScatterShapes {
+    void Add(Shape shape) {
+      shapes.push_back(std::move(shape));
+      ptrs.push_back(&shapes.back());
+    }
+    std::vector<Shape> shapes;
+    std::vector<const Shape*> ptrs;
+  };
+  static ScatterShapes CreateShapes(absl::Span<const int64_t> operand_dims,
+                                    const Shape& scatter_indices_shape,
+                                    absl::Span<const int64_t> update_dims,
+                                    absl::Span<const PrimitiveType> types) {
+    CHECK(!types.empty());
+    size_t size = types.size() * 2 + 1;
+    ScatterShapes shapes;
+    shapes.shapes.reserve(size);
+    shapes.ptrs.reserve(size);
+    for (PrimitiveType type : types) {
+      shapes.Add(ShapeUtil::MakeShape(type, operand_dims));
+    }
+    shapes.Add(scatter_indices_shape);
+    for (PrimitiveType type : types) {
+      shapes.Add(ShapeUtil::MakeShape(type, update_dims));
+    }
+    return shapes;
+  }
+  static Shape Collate(absl::Span<const int64_t> dims,
+                       absl::Span<const PrimitiveType> types) {
+    CHECK(!types.empty());
+    if (types.size() == 1) {
+      return ShapeUtil::MakeShape(types[0], dims);
+    }
+    std::vector<Shape> shapes;
+    for (PrimitiveType type : types) {
+      shapes.push_back(ShapeUtil::MakeShape(type, dims));
+    }
+    return ShapeUtil::MakeTupleShape(shapes);
+  }
+  static Shape scalar(PrimitiveType type) {
+    return ShapeUtil::MakeShape(type, {});
+  }
+  static Shape s64_vector(int dim) { return ShapeUtil::MakeShape(S64, {dim}); }
+  static Shape s64_tensor(absl::Span<const int64_t> dims) {
+    return ShapeUtil::MakeShape(S64, dims);
+  }
+  static ProgramShape to_apply(absl::Span<const PrimitiveType> types) {
+    CHECK(!types.empty());
+    ProgramShape program_shape;
+    Shape& result = *program_shape.mutable_result();
+    result = ShapeUtil::MakeNil();
+    result.mutable_tuple_shapes()->reserve(types.size());
+    program_shape.mutable_parameters()->reserve(types.size() * 2);
+    for (PrimitiveType type : types) {
+      *program_shape.add_parameters() = scalar(type);
+      *result.add_tuple_shapes() = scalar(type);
+    }
+    for (PrimitiveType type : types) {
+      *program_shape.add_parameters() = scalar(type);
+    }
+    return program_shape;
+  }
+  std::vector<PrimitiveType> types() const { return GetParam(); }
+};
+
+TEST_P(ScatterShapeInferenceTest, TfScatterWithFullUpdates) {
+  const auto shapes = CreateShapes({64, 48}, s64_vector(32), {64, 32}, types());
+  TF_ASSERT_OK_AND_ASSIGN(const Shape scatter_shape,
+                          ShapeInference::InferScatterShape(
+                              shapes.ptrs, to_apply(types()),
+                              HloScatterInstruction::MakeScatterDimNumbers(
+                                  /*update_window_dims=*/{0},
+                                  /*inserted_window_dims=*/{1},
+                                  /*scatter_dims_to_operand_dims=*/{1},
+                                  /*index_vector_dim=*/1)));
+  EXPECT_TRUE(ShapeUtil::Equal(scatter_shape, Collate({64, 48}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterWithFullUpdatesV2) {
+  const auto shapes = CreateShapes({64, 48}, s64_vector(32), {32, 48}, types());
+  TF_ASSERT_OK_AND_ASSIGN(const Shape scatter_shape,
+                          ShapeInference::InferScatterShape(
+                              shapes.ptrs, to_apply(types()),
+                              HloScatterInstruction::MakeScatterDimNumbers(
+                                  /*update_window_dims=*/{1},
+                                  /*inserted_window_dims=*/{0},
+                                  /*scatter_dims_to_operand_dims=*/{0},
+                                  /*index_vector_dim=*/1)));
+  EXPECT_TRUE(ShapeUtil::Equal(scatter_shape, Collate({64, 48}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterWithPartialUpdates) {
+  const auto shapes = CreateShapes({64, 48}, s64_vector(32), {10, 32}, types());
+  TF_ASSERT_OK_AND_ASSIGN(const Shape scatter_shape,
+                          ShapeInference::InferScatterShape(
+                              shapes.ptrs, to_apply(types()),
+                              HloScatterInstruction::MakeScatterDimNumbers(
+                                  /*update_window_dims=*/{0},
+                                  /*inserted_window_dims=*/{1},
+                                  /*scatter_dims_to_operand_dims=*/{1},
+                                  /*index_vector_dim=*/1)));
+  EXPECT_TRUE(ShapeUtil::Equal(scatter_shape, Collate({64, 48}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterWithPartialUpdatesV2) {
+  const auto shapes = CreateShapes({64, 48}, s64_vector(32), {32, 8}, types());
+  TF_ASSERT_OK_AND_ASSIGN(const Shape scatter_shape,
+                          ShapeInference::InferScatterShape(
+                              shapes.ptrs, to_apply(types()),
+                              HloScatterInstruction::MakeScatterDimNumbers(
+                                  /*update_window_dims=*/{1},
+                                  /*inserted_window_dims=*/{0},
+                                  /*scatter_dims_to_operand_dims=*/{0},
+                                  /*index_vector_dim=*/1)));
+  EXPECT_TRUE(ShapeUtil::Equal(scatter_shape, Collate({64, 48}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterWithUpdatesBiggerThanInput) {
+  const auto shapes = CreateShapes({64, 48}, s64_vector(32), {65, 32}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{0},
+          /*inserted_window_dims=*/{1},
+          /*scatter_dims_to_operand_dims=*/{1},
+          /*index_vector_dim=*/1));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr("Bounds of the window dimensions of updates must not exceed "
+                "the bounds of the corresponding dimensions of operand."))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterWithUpdatesBiggerThanInputV2) {
+  const auto shapes = CreateShapes({64, 48}, s64_vector(32), {32, 49}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{1},
+          /*inserted_window_dims=*/{0},
+          /*scatter_dims_to_operand_dims=*/{1},
+          /*index_vector_dim=*/1));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr("Bounds of the window dimensions of updates must not exceed "
+                "the bounds of the corresponding dimensions of operand."))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       TfScatterBatchingDimsWithUpdatesBiggerThanInput) {
+  const auto shapes = CreateShapes({100, 64, 48}, s64_tensor({100, 32}),
+                                   {100, 65, 32}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{1},
+          /*inserted_window_dims=*/{2},
+          /*scatter_dims_to_operand_dims=*/{1},
+          /*index_vector_dim=*/2,
+          /*input_batching_dims=*/{0},
+          /*scatter_indices_batching_dims=*/{0}));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr("Bounds of the window dimensions of updates must not exceed "
+                "the bounds of the corresponding dimensions of operand."))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterWithUpdatesNotMatchingIndices) {
+  const auto shapes = CreateShapes({64, 48}, s64_vector(32), {64, 31}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{0},
+          /*inserted_window_dims=*/{1},
+          /*scatter_dims_to_operand_dims=*/{1},
+          /*index_vector_dim=*/1));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr(
+          "Bounds of the scatter dimensions of updates must be same as the "
+          "bounds of the corresponding dimensions of scatter indices."))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterWithUpdatesNotMatchingIndicesV2) {
+  const auto shapes = CreateShapes({64, 48}, s64_vector(32), {31, 48}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{1},
+          /*inserted_window_dims=*/{0},
+          /*scatter_dims_to_operand_dims=*/{1},
+          /*index_vector_dim=*/1));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr(
+          "Bounds of the scatter dimensions of updates must be same as the "
+          "bounds of the corresponding dimensions of scatter indices."))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterNdWithFullUpdates) {
+  const auto shapes = CreateShapes({64, 48}, s64_tensor({10, 9, 8, 7, 1}),
+                                   {10, 9, 8, 7, 48}, types());
+  TF_ASSERT_OK_AND_ASSIGN(const Shape scatter_shape,
+                          ShapeInference::InferScatterShape(
+                              shapes.ptrs, to_apply(types()),
+                              HloScatterInstruction::MakeScatterDimNumbers(
+                                  /*update_window_dims=*/{4},
+                                  /*inserted_window_dims=*/{0},
+                                  /*scatter_dims_to_operand_dims=*/{0},
+                                  /*index_vector_dim=*/4)));
+  EXPECT_TRUE(ShapeUtil::Equal(scatter_shape, Collate({64, 48}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterNdWithFullUpdatesV2) {
+  const auto shapes = CreateShapes({64, 48}, s64_tensor({10, 9, 8, 7, 1}),
+                                   {10, 9, 8, 7, 64}, types());
+  TF_ASSERT_OK_AND_ASSIGN(const Shape scatter_shape,
+                          ShapeInference::InferScatterShape(
+                              shapes.ptrs, to_apply(types()),
+                              HloScatterInstruction::MakeScatterDimNumbers(
+                                  /*update_window_dims=*/{4},
+                                  /*inserted_window_dims=*/{1},
+                                  /*scatter_dims_to_operand_dims=*/{0},
+                                  /*index_vector_dim=*/4)));
+  EXPECT_TRUE(ShapeUtil::Equal(scatter_shape, Collate({64, 48}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterNdWithPartialUpdates) {
+  const auto shapes = CreateShapes({64, 48}, s64_tensor({10, 9, 8, 7, 1}),
+                                   {10, 9, 8, 7, 10}, types());
+  TF_ASSERT_OK_AND_ASSIGN(const Shape scatter_shape,
+                          ShapeInference::InferScatterShape(
+                              shapes.ptrs, to_apply(types()),
+                              HloScatterInstruction::MakeScatterDimNumbers(
+                                  /*update_window_dims=*/{4},
+                                  /*inserted_window_dims=*/{0},
+                                  /*scatter_dims_to_operand_dims=*/{0},
+                                  /*index_vector_dim=*/4)));
+  EXPECT_TRUE(ShapeUtil::Equal(scatter_shape, Collate({64, 48}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterNdWithPartialUpdatesV2) {
+  const auto shapes = CreateShapes({64, 48}, s64_tensor({10, 9, 8, 7, 1}),
+                                   {10, 9, 8, 7, 12}, types());
+  TF_ASSERT_OK_AND_ASSIGN(const Shape scatter_shape,
+                          ShapeInference::InferScatterShape(
+                              shapes.ptrs, to_apply(types()),
+                              HloScatterInstruction::MakeScatterDimNumbers(
+                                  /*update_window_dims=*/{4},
+                                  /*inserted_window_dims=*/{1},
+                                  /*scatter_dims_to_operand_dims=*/{0},
+                                  /*index_vector_dim=*/4)));
+  EXPECT_TRUE(ShapeUtil::Equal(scatter_shape, Collate({64, 48}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterNdWithUpdatesBiggerThanInput) {
+  const auto shapes = CreateShapes({64, 48}, s64_tensor({10, 9, 8, 7, 1}),
+                                   {10, 9, 8, 7, 65}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4},
+          /*inserted_window_dims=*/{1},
+          /*scatter_dims_to_operand_dims=*/{0},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr("Bounds of the window dimensions of updates must not exceed "
+                "the bounds of the corresponding dimensions of operand."))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, TfScatterNdWithUpdatesNotMatchingIndices) {
+  const auto shapes = CreateShapes({64, 48}, s64_tensor({10, 9, 8, 7, 1}),
+                                   {9, 9, 8, 7, 64}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4},
+          /*inserted_window_dims=*/{1},
+          /*scatter_dims_to_operand_dims=*/{0},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr(
+          "Bounds of the scatter dimensions of updates must be same as the "
+          "bounds of the corresponding dimensions of scatter indices."))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, TfBatchDynamicUpdateSlice) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28, 27, 26}, types());
+  TF_ASSERT_OK_AND_ASSIGN(
+      const Shape scatter_shape,
+      ShapeInference::InferScatterShape(
+          shapes.ptrs, to_apply(types()),
+          HloScatterInstruction::MakeScatterDimNumbers(
+              /*update_window_dims=*/{4, 5, 6, 7, 8},
+              /*inserted_window_dims=*/{},
+              /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+              /*index_vector_dim=*/4)));
+  EXPECT_TRUE(
+      ShapeUtil::Equal(scatter_shape, Collate({50, 49, 48, 47, 46}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, NonDefaultScatterIndicesLeafDim) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 5, 7, 6}),
+                   {10, 9, 7, 6, 30, 29, 28, 27, 26}, types());
+  TF_ASSERT_OK_AND_ASSIGN(
+      const Shape scatter_shape,
+      ShapeInference::InferScatterShape(
+          shapes.ptrs, to_apply(types()),
+          HloScatterInstruction::MakeScatterDimNumbers(
+              /*update_window_dims=*/{4, 5, 6, 7, 8},
+              /*inserted_window_dims=*/{},
+              /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+              /*index_vector_dim=*/2)));
+
+  EXPECT_TRUE(
+      ShapeUtil::Equal(scatter_shape, Collate({50, 49, 48, 47, 46}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, NonDefaultScatterIndicesLeafDimV2) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({5, 10, 9, 7, 6}),
+                   {10, 9, 7, 6, 30, 29, 28, 27, 26}, types());
+  TF_ASSERT_OK_AND_ASSIGN(
+      const Shape scatter_shape,
+      ShapeInference::InferScatterShape(
+          shapes.ptrs, to_apply(types()),
+          HloScatterInstruction::MakeScatterDimNumbers(
+              /*update_window_dims=*/{4, 5, 6, 7, 8},
+              /*inserted_window_dims=*/{},
+              /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+              /*index_vector_dim=*/0)));
+
+  EXPECT_TRUE(
+      ShapeUtil::Equal(scatter_shape, Collate({50, 49, 48, 47, 46}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, NoUpdateScatterDims) {
+  const auto shapes = CreateShapes({50, 49, 48, 47, 46}, s64_vector(5),
+                                   {30, 29, 28, 27, 26}, types());
+  // This is equivalent to a dynamic update slice.
+  TF_ASSERT_OK_AND_ASSIGN(
+      const Shape scatter_shape,
+      ShapeInference::InferScatterShape(
+          shapes.ptrs, to_apply(types()),
+          HloScatterInstruction::MakeScatterDimNumbers(
+              /*update_window_dims=*/{0, 1, 2, 3, 4},
+              /*inserted_window_dims=*/{},
+              /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+              /*index_vector_dim=*/0)));
+
+  EXPECT_TRUE(
+      ShapeUtil::Equal(scatter_shape, Collate({50, 49, 48, 47, 46}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, ScalarScatterIndices) {
+  const auto shapes = CreateShapes({50, 49, 48, 47, 46}, scalar(S64),
+                                   {30, 29, 28, 27}, types());
+  // The scalar indices "tensor" is a scalar S here that's used to update a
+  // [30,29,28,27] shaped tensor within the operand at position S.
+  TF_ASSERT_OK_AND_ASSIGN(const Shape scatter_shape,
+                          ShapeInference::InferScatterShape(
+                              shapes.ptrs, to_apply(types()),
+                              HloScatterInstruction::MakeScatterDimNumbers(
+                                  /*update_window_dims=*/{0, 1, 2, 3},
+                                  /*inserted_window_dims=*/{0},
+                                  /*scatter_dims_to_operand_dims=*/{0},
+                                  /*index_vector_dim=*/0)));
+
+  EXPECT_TRUE(
+      ShapeUtil::Equal(scatter_shape, Collate({50, 49, 48, 47, 46}, types())))
+      << ShapeUtil::HumanString(scatter_shape);
+}
+
+TEST_P(ScatterShapeInferenceTest, ScatterWithTupleShapedTensorInput) {
+  const Shape tuple_shape =
+      ShapeUtil::MakeTupleShape({ShapeUtil::MakeShape(S64, {10, 9, 8, 7, 1}),
+                                 ShapeUtil::MakeShape(S64, {10, 9, 8, 7, 1})});
+  const Shape s64_vector_32 = s64_vector(32);
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      {&tuple_shape, &s64_vector_32, &s64_vector_32}, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{0},
+          /*inserted_window_dims=*/{1},
+          /*scatter_dims_to_operand_dims=*/{1},
+          /*index_vector_dim=*/1));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("Expected array argument for operand"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, ScatterWithTupleShapedScatterIndicesInput) {
+  const Shape tuple_shape =
+      ShapeUtil::MakeTupleShape({ShapeUtil::MakeShape(S64, {10, 9, 8, 7, 1}),
+                                 ShapeUtil::MakeShape(S64, {10, 9, 8, 7, 1})});
+  const Shape s64_vector_32 = s64_vector(32);
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      {&s64_vector_32, &tuple_shape, &s64_vector_32}, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{0},
+          /*inserted_window_dims=*/{1},
+          /*scatter_dims_to_operand_dims=*/{1},
+          /*index_vector_dim=*/0));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("Expected array argument for scatter indices"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, ScatterWithTupleShapedUpdatesInput) {
+  const Shape tuple_shape =
+      ShapeUtil::MakeTupleShape({ShapeUtil::MakeShape(S64, {10, 9, 8, 7, 1}),
+                                 ShapeUtil::MakeShape(S64, {10, 9, 8, 7, 1})});
+  const Shape s64_vector_32 = s64_vector(32);
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      {&s64_vector_32, &s64_vector_32, &tuple_shape}, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{0},
+          /*inserted_window_dims=*/{1},
+          /*scatter_dims_to_operand_dims=*/{1},
+          /*index_vector_dim=*/0));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("Expected array argument for updates"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, OutOfBoundsScatterIndicesLeafDim) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6},
+          /*inserted_window_dims=*/{1, 2},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+          /*index_vector_dim=*/10));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("Scatter index leaf dimension must be within [0, "
+                        "rank(scatter_indices) + 1)"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, InvalidUpdates) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28, 50}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6},
+          /*inserted_window_dims=*/{1, 2},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("Updates tensor must be of rank 7; got 8."))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest, InvalidUpdateComputation) {
+  const ProgramShape invalid_update_computation =
+      ShapeUtil::MakeProgramShape({u32_}, u32_);
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, invalid_update_computation,
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6},
+          /*inserted_window_dims=*/{1, 2},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr(absl::Substitute(
+                  "Reduction function must take $0 parameters, but takes 1",
+                  2 * types().size())))
+      << statusor.status();
+}
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_NonAscendingUpdateWindowDims) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28, 27, 26}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6, 8, 7},
+          /*inserted_window_dims=*/{},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("update_window_dims in scatter op must be sorted"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_RepeatedUpdateWindowDims) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28, 27, 26}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6, 7, 7},
+          /*inserted_window_dims=*/{},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("update_window_dims in scatter op must not repeat"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_OutOfBoundsUpdateWindowDims) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28, 27, 26}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6, 7, 9},
+          /*inserted_window_dims=*/{},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("Invalid update_window_dims set in scatter op; valid "
+                        "range is [0, 9)"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_NonAscendingInsertedWindowDims) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6},
+          /*inserted_window_dims=*/{2, 1},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("inserted_window_dims in scatter op must be sorted"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_RepeatedInsertedWindowDims) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6},
+          /*inserted_window_dims=*/{1, 1},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("inserted_window_dims in scatter op must not repeat"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_OutOfBoundsInsertedWindowDims) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6},
+          /*inserted_window_dims=*/{1, 5},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 4},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("Invalid inserted_window_dims set in scatter op; valid "
+                        "range is [0, 5)"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_MismatchingScatterDimsToOperandDims) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6},
+          /*inserted_window_dims=*/{1, 2},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr("Scatter op has 4 elements in scatter_dims_to_operand_dims and "
+                "the bound of dimension index_vector_dim=4 of scatter_indices "
+                "is 5. These two numbers must be equal"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_OutOfBoundsScatterDimsToOperandDims) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6},
+          /*inserted_window_dims=*/{1, 2},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 3, 10},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(statusor.status().message(),
+              HasSubstr("Invalid scatter_dims_to_operand_dims mapping; domain "
+                        "is [0, 5), got: 4->10"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_RepeatedValuesInScatterDimsToOperandDims) {
+  const auto shapes =
+      CreateShapes({50, 49, 48, 47, 46}, s64_tensor({10, 9, 8, 7, 5}),
+                   {10, 9, 8, 7, 30, 29, 28}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{4, 5, 6},
+          /*inserted_window_dims=*/{1, 2},
+          /*scatter_dims_to_operand_dims=*/{0, 1, 2, 2, 3},
+          /*index_vector_dim=*/4));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr(
+          "Repeated dimensions not allowed in scatter_dims_to_operand_dims"))
+      << statusor.status();
+}
+
+TEST_P(ScatterShapeInferenceTest,
+       InvalidScatterDimNumbers_InsufficientWindowDims) {
+  const auto shapes = CreateShapes({50, 49, 48, 47, 46}, scalar(S64),
+                                   {30, 29, 28, 27}, types());
+  const absl::StatusOr<Shape> statusor = ShapeInference::InferScatterShape(
+      shapes.ptrs, to_apply(types()),
+      HloScatterInstruction::MakeScatterDimNumbers(
+          /*update_window_dims=*/{0, 1, 2, 3},
+          /*inserted_window_dims=*/{},
+          /*scatter_dims_to_operand_dims=*/{0},
+          /*index_vector_dim=*/0));
+  ASSERT_FALSE(statusor.ok());
+  EXPECT_THAT(
+      statusor.status().message(),
+      HasSubstr(
+          "Scatter op has window of size 4; doesn't match operand of rank 5."))
+      << statusor.status();
+}
+
+struct ScatterTestName {
+  std::string operator()(
+      const ::testing::TestParamInfo<std::vector<PrimitiveType>>& info) const {
+    return absl::StrJoin(info.param, "_", absl::StreamFormatter());
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(All, ScatterShapeInferenceTest,
+                         ::testing::Values(std::vector<PrimitiveType>{U32},
+                                           std::vector<PrimitiveType>{U32,
+                                                                      U16}),
+                         ScatterTestName());
 
 TEST_P(UnboundedUnaryOpShapeInferenceTest, UnboundedUnaryOps) {
   TF_ASSERT_OK_AND_ASSIGN(const Shape operand, ParseShape(GetParam().operand));
@@ -2293,10 +3007,30 @@ TEST_F(ShapeInferenceTest, UnboundedReverse) {
       << " expected: " << ShapeUtil::HumanString(expected);
 }
 
-// clang-format off
-// TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferScatterShape
-// clang-format on
-// TEST_F(ShapeInferenceTest, UnboundedScatter) {
+TEST_F(ShapeInferenceTest, UnboundedScatter) {
+  TF_ASSERT_OK_AND_ASSIGN(Shape input, ParseShape("u32[?, ?, ?]"));
+  TF_ASSERT_OK_AND_ASSIGN(Shape scatter_indices, ParseShape("s32[?, ?, ?]"));
+  TF_ASSERT_OK_AND_ASSIGN(Shape updates, ParseShape("u32[?, ?, ?, ?]"));
+  TF_ASSERT_OK_AND_ASSIGN(Shape expected, ParseShape("u32[?, ?, ?]"));
+
+  const ProgramShape to_apply = ShapeUtil::MakeProgramShape({u32_, u32_}, u32_);
+
+  ScatterDimensionNumbers dimension_numbers;
+  dimension_numbers.add_update_window_dims(2);
+  dimension_numbers.add_update_window_dims(3);
+  dimension_numbers.add_inserted_window_dims(0);
+  dimension_numbers.add_scatter_dims_to_operand_dims(1);
+  dimension_numbers.add_scatter_dims_to_operand_dims(0);
+  dimension_numbers.set_index_vector_dim(2);
+
+  TF_ASSERT_OK_AND_ASSIGN(
+      Shape result,
+      ShapeInference::InferScatterShape({&input, &scatter_indices, &updates},
+                                        to_apply, dimension_numbers));
+  EXPECT_TRUE(ShapeUtil::Equal(result, expected))
+      << "inferred: " << ShapeUtil::HumanString(result)
+      << " expected: " << ShapeUtil::HumanString(expected);
+}
 
 TEST_P(UnboundedSelectOpShapeInferenceTest, UnboundedSelect) {
   TF_ASSERT_OK_AND_ASSIGN(const Shape lhs, ParseShape(GetParam()[0]));

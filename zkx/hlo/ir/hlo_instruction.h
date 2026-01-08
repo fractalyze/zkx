@@ -481,7 +481,7 @@ class HloInstruction {
   // operands must be equal to the size of one replica group.  Each replica must
   // appear in exactly one group.
   //
-  // Note that in addition to supporting this instruction, XlaBuilder also
+  // Note that in addition to supporting this instruction, ZkxBuilder also
   // supports a higher-level instruction which takes one input and slices it,
   // performs AllToAll and then concatenates the results into a single array.
   static std::unique_ptr<HloInstruction> CreateAllToAll(
@@ -831,6 +831,21 @@ class HloInstruction {
       const Shape& shape, HloInstruction* branch_index,
       absl::Span<HloComputation* const> branch_computations,
       absl::Span<HloInstruction* const> branch_computation_args);
+
+  static std::unique_ptr<HloInstruction> CreateScatter(
+      const Shape& shape, absl::Span<HloInstruction* const> operands,
+      HloInstruction* scatter_indices,
+      absl::Span<HloInstruction* const> updates,
+      HloComputation* update_computation,
+      const ScatterDimensionNumbers& scatter_dim_numbers,
+      bool indices_are_sorted, bool unique_indices);
+
+  static std::unique_ptr<HloInstruction> CreateScatter(
+      const Shape& shape, HloInstruction* operand,
+      HloInstruction* scatter_indices, HloInstruction* updates,
+      HloComputation* update_computation,
+      const ScatterDimensionNumbers& scatter_dim_numbers,
+      bool indices_are_sorted, bool unique_indices);
 
   // Creates a fusion instruction. A fusion instruction contains one or more
   // fused instructions forming an expression with a single root
@@ -1807,6 +1822,9 @@ class HloInstruction {
   // Delegates to HloCollectivePermuteInstruction::source_target_pairs.
   const std::vector<std::pair<int64_t, int64_t>>& source_target_pairs() const;
 
+  // Returns the unique_indices field.
+  virtual bool unique_indices() const { LOG(FATAL) << "Unimplemented method."; }
+
   // Delegates to HloCallableInstruction::output_to_operand_aliasing().
   const std::vector<std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>>&
   output_operand_aliasing() const;
@@ -1845,6 +1863,9 @@ class HloInstruction {
 
   // Delegates to HloDynamicSliceInstruction::dynamic_slice_sizes.
   const std::vector<int64_t>& dynamic_slice_sizes() const;
+
+  // Delegates to HloScatterInstruction::scatter_dimension_numbers().
+  const ScatterDimensionNumbers& scatter_dimension_numbers() const;
 
   // Delegates to HloDotInstruction::dot_dimension_numbers().
   const DotDimensionNumbers& dot_dimension_numbers() const;

@@ -18,19 +18,17 @@
 zkir provides mlir dialect for ZK(Zero Knowledge).
 """
 
-load("//third_party:repo.bzl", "tf_http_archive", "tf_mirror_urls")
-
 def repo():
-    ZKIR_COMMIT = "e48fb953e7ae6dd44293567826e99b057147b7be"
-    ZKIR_SHA256 = "8a01f95d3d4db77ca18218bbf71c31c26a55d1b55f94aef0183dda99ecf0800d"
-    tf_http_archive(
-        name = "zkir",
-        sha256 = ZKIR_SHA256,
-        strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
-        urls = tf_mirror_urls("https://github.com/fractalyze/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
-    )
-    # Uncomment this for development!
-    # native.local_repository(
+    # ZKIR_COMMIT = "e48fb953e7ae6dd44293567826e99b057147b7be"
+    # ZKIR_SHA256 = "8a01f95d3d4db77ca18218bbf71c31c26a55d1b55f94aef0183dda99ecf0800d"
+    # tf_http_archive(
     #     name = "zkir",
-    #     path = "../zkir",
+    #     sha256 = ZKIR_SHA256,
+    #     strip_prefix = "zkir-{commit}".format(commit = ZKIR_COMMIT),
+    #     urls = tf_mirror_urls("https://github.com/fractalyze/zkir/archive/{commit}.tar.gz".format(commit = ZKIR_COMMIT)),
     # )
+    # Uncomment this for development!
+    native.local_repository(
+        name = "zkir",
+        path = "../zkir",
+    )
