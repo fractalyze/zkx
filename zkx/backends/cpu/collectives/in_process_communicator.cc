@@ -93,8 +93,9 @@ void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kProduct) {
-    if constexpr (zk_dtypes::IsEcPoint<T>) {
-      LOG(FATAL) << "Product reduction is not supported for EcPoint types.";
+    if constexpr (zk_dtypes::IsAdditiveGroup<T>) {
+      LOG(FATAL)
+          << "Product reduction is not supported for AdditiveGroup types.";
     } else {
       for (size_t j = 0; j < inputs.size(); ++j) {
         for (size_t i = 0; i < acc.size(); ++i) {

@@ -116,7 +116,7 @@ absl::Status SetAllReduceOptions(ReductionKind reduction_kind,
 
   using ReductionFn = void (*)(void*, const void*, const void*, size_t);
 
-  if constexpr (zk_dtypes::IsEcPoint<T>) {
+  if constexpr (zk_dtypes::IsAdditiveGroup<T>) {
     switch (reduction_kind) {
       case ReductionKind::kSum:
         options.setReduceFunction(
@@ -166,7 +166,7 @@ absl::Status ReduceScatterHelper(std::shared_ptr<gloo::Context> context,
                                  size_t chunk_elems) {
   const gloo::ReductionFunction<T>* reduction_function = nullptr;
 
-  if constexpr (zk_dtypes::IsEcPoint<T>) {
+  if constexpr (zk_dtypes::IsAdditiveGroup<T>) {
     switch (reduction_kind) {
       case ReductionKind::kSum:
         reduction_function = gloo::ReductionFunction<T>::sum;
