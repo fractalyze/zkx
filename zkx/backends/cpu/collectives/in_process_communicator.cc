@@ -118,8 +118,9 @@ void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
                     "MultiplicativeGroup types or integral types.";
     }
   } else if constexpr (kReductionKind == ReductionKind::kMin) {
-    if constexpr (zk_dtypes::IsEcPoint<T>) {
-      LOG(FATAL) << "Min reduction is not supported for EcPoint types.";
+    constexpr PrimitiveType PT = primitive_util::NativeToPrimitiveType<T>();
+    if constexpr (!primitive_util::IsComparableType(PT)) {
+      LOG(FATAL) << "Min reduction is not supported for non-comparable types.";
     } else {
       for (size_t j = 0; j < inputs.size(); ++j) {
         for (size_t i = 0; i < acc.size(); ++i) {
@@ -128,8 +129,9 @@ void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kMax) {
-    if constexpr (zk_dtypes::IsEcPoint<T>) {
-      LOG(FATAL) << "Max reduction is not supported for EcPoint types.";
+    constexpr PrimitiveType PT = primitive_util::NativeToPrimitiveType<T>();
+    if constexpr (!primitive_util::IsComparableType(PT)) {
+      LOG(FATAL) << "Max reduction is not supported for non-comparable types.";
     } else {
       for (size_t j = 0; j < inputs.size(); ++j) {
         for (size_t i = 0; i < acc.size(); ++i) {
