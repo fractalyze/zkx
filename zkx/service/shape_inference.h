@@ -292,6 +292,14 @@ class ShapeInference {
       std::optional<PrimitiveType> preferred_element_type,
       absl::Span<const SparsityDescriptor> sparsity = {});
 
+  // Helper that validates the given input shape, scatter indices shape, updates
+  // shape, and scatter dimension numbers that constitute a scatter operation,
+  // and returns the result shape of the scatter operation.
+  static absl::StatusOr<Shape> InferScatterShape(
+      absl::Span<const Shape* const> arg_shapes,
+      const ProgramShape& to_apply_shape,
+      const ScatterDimensionNumbers& scatter_dim_numbers);
+
   // Helper that validates the given input shape to GetDimensionSize.
   static absl::StatusOr<Shape> InferGetDimensionSizeShape(const Shape& shape,
                                                           int64_t dimension);
