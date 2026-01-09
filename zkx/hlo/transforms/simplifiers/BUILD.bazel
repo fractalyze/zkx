@@ -18,6 +18,23 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "hlo_dce",
+    srcs = ["hlo_dce.cc"],
+    hdrs = ["hlo_dce.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_memory_scheduler",
     srcs = ["hlo_memory_scheduler.cc"],
     hdrs = ["hlo_memory_scheduler.h"],
@@ -39,8 +56,12 @@ zkx_cc_library(
 
 zkx_cc_unittest(
     name = "simplifiers_unittests",
-    srcs = ["hlo_memory_scheduler_unittest.cc"],
+    srcs = [
+        "hlo_dce_unittest.cc",
+        "hlo_memory_scheduler_unittest.cc",
+    ],
     deps = [
+        ":hlo_dce",
         ":hlo_memory_scheduler",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
@@ -51,10 +72,13 @@ zkx_cc_unittest(
         "//zkx/hlo/analysis:hlo_ordering",
         "//zkx/hlo/ir:hlo",
         "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/hlo/testlib:pattern_matcher_gmock",
         "//zkx/service:buffer_value",
         "//zkx/service:hlo_value",
         "//zkx/service:logical_buffer",
+        "//zkx/service:pattern_matcher",
         "//zkx/service/heap_simulator",
+        "//zkx/tests:literal_test_util",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/types:span",
