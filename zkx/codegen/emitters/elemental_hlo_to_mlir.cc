@@ -79,6 +79,24 @@ namespace func = ::mlir::func;
 namespace mhlo = ::mlir::mhlo;
 namespace tensor = ::mlir::tensor;
 
+mhlo::ComparisonDirection ToMhloComparisonDirection(
+    ComparisonDirection direction) {
+  switch (direction) {
+    case ComparisonDirection::kEq:
+      return mhlo::ComparisonDirection::EQ;
+    case ComparisonDirection::kNe:
+      return mhlo::ComparisonDirection::NE;
+    case ComparisonDirection::kLt:
+      return mhlo::ComparisonDirection::LT;
+    case ComparisonDirection::kLe:
+      return mhlo::ComparisonDirection::LE;
+    case ComparisonDirection::kGt:
+      return mhlo::ComparisonDirection::GT;
+    case ComparisonDirection::kGe:
+      return mhlo::ComparisonDirection::GE;
+  }
+}
+
 // HLO opcodes that we never support.
 auto& kUnsupportedOps = *absl::IgnoreLeak(new llvm::DenseSet<HloOpcode>{
     HloOpcode::kAddDependency, HloOpcode::kAfterAll, HloOpcode::kAllGather,
@@ -177,6 +195,26 @@ SmallVector<Value, 1> MapElementwiseOp(
   // We use the last argument's type because of select.
   return MapHloOp<MhloOp>(args.back().getType(), arg_types, args, attributes,
                           b);
+}
+
+absl::StatusOr<SmallVector<Value, 1>> EmitCompare(
+    const HloInstruction* instr, llvm::ArrayRef<mlir::Type> arg_types,
+    ValueRange operands, ImplicitLocOpBuilder& builder) {
+  PrimitiveType operand_type = instr->operand(0)->shape().element_type();
+  if (primitive_util::IsExtensionFieldType(operand_type) &&
+      instr->comparison_direction() != ComparisonDirection::kEq &&
+      instr->comparison_direction() != ComparisonDirection::kNe) {
+    return absl::InvalidArgumentError(
+        "Extension fields only support EQ and NE comparisons");
+  }
+  mhlo::CompareOp::Properties props;
+  props.comparison_direction = mhlo::ComparisonDirectionAttr::get(
+      builder.getContext(),
+      ToMhloComparisonDirection(instr->comparison_direction()));
+  SmallVector<Value> args(operands.begin(), operands.end());
+  return MapHloOp<mhlo::CompareOp>(builder.getI1Type(), arg_types, args,
+                                   /*attributes=*/{}, builder,
+                                   /*dict_attr=*/nullptr, props);
 }
 
 }  // namespace
@@ -489,10 +527,7 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
       return absl::UnimplementedError(
           "HloToMlir not implemented for HloOpcode::kClz");
     case HloOpcode::kCompare:
-      // TODO(chokobole): Implement this. Dependency: EmitCompare
-      // return EmitCompare(instr, arg_types, operands, builder);
-      return absl::UnimplementedError(
-          "HloToMlir not implemented for HloOpcode::kCompare");
+      return EmitCompare(instr, arg_types, operands, builder);
     case HloOpcode::kDivide:
       return MapElementwiseOp<mhlo::DivOp>(arg_types, operands, builder);
     case HloOpcode::kMap: {
@@ -571,13 +606,9 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
       return absl::UnimplementedError(
           "HloToMlir not implemented for HloOpcode::kRemainder");
     case HloOpcode::kSelect: {
-      // TODO(chokobole): Uncomment this. Dependency: mhlo::SelectOp
-      // operands[0] =
-      // builder.createOrFold<arith::TruncIOp>(builder.getI1Type(),
-      //                                                     operands[0]);
-      // return MapElementwiseOp<mhlo::SelectOp>(arg_types, operands, builder);
-      return absl::UnimplementedError(
-          "HloToMlir not implemented for HloOpcode::kSelect");
+      operands[0] = builder.createOrFold<arith::TruncIOp>(builder.getI1Type(),
+                                                          operands[0]);
+      return MapElementwiseOp<mhlo::SelectOp>(arg_types, operands, builder);
     }
     case HloOpcode::kShiftLeft:
       // TODO(chokobole): Uncomment this. Dependency: mhlo::ShiftLeftOp
@@ -921,9 +952,10 @@ absl::Status SubgraphToMlirFunction(
                      parameters, indices, builder));
   CHECK_EQ(results.size(), func.getResultTypes().size());
 
-  for (auto& result : results) {
-    if (result.getType().isInteger(1)) {
-      result = builder.create<arith::ExtUIOp>(builder.getI8Type(), result);
+  for (auto [i, result] : llvm::enumerate(results)) {
+    mlir::Type expected_type = func.getResultTypes()[i];
+    if (result.getType().isInteger(1) && expected_type.isInteger(8)) {
+      results[i] = builder.create<arith::ExtUIOp>(builder.getI8Type(), result);
     }
   }
 

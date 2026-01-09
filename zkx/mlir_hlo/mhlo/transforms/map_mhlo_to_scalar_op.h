@@ -141,7 +141,9 @@ struct IsUnsignedIntegerType {
 struct IsFieldType {
   bool operator()(Type t) {
     return isa<zkir::field::PrimeFieldType>(t) ||
-           isa<zkir::field::QuadraticExtFieldType>(t);
+           isa<zkir::field::QuadraticExtFieldType>(t) ||
+           isa<zkir::field::CubicExtFieldType>(t) ||
+           isa<zkir::field::QuarticExtFieldType>(t);
   }
 };
 
@@ -305,6 +307,79 @@ inline Value mapMhloOpToStdScalarOp<mhlo::PowOp>(
                                            adaptor.getRhs());
   }
   return nullptr;
+}
+
+struct IsPrimeFieldType {
+  bool operator()(Type t) { return isa<zkir::field::PrimeFieldType>(t); }
+};
+
+struct IsExtFieldType {
+  bool operator()(Type t) {
+    return isa<zkir::field::QuadraticExtFieldType>(t) ||
+           isa<zkir::field::CubicExtFieldType>(t) ||
+           isa<zkir::field::QuarticExtFieldType>(t);
+  }
+};
+
+// Converts mhlo::ComparisonDirection to arith::CmpIPredicate.
+// Field types always use unsigned predicates since elements are in [0, p).
+inline arith::CmpIPredicate
+MhloComparisonDirectionToPredicate(mhlo::ComparisonDirection direction,
+                                   bool isSigned) {
+  switch (direction) {
+  case mhlo::ComparisonDirection::EQ:
+    return arith::CmpIPredicate::eq;
+  case mhlo::ComparisonDirection::NE:
+    return arith::CmpIPredicate::ne;
+  case mhlo::ComparisonDirection::LT:
+    return isSigned ? arith::CmpIPredicate::slt : arith::CmpIPredicate::ult;
+  case mhlo::ComparisonDirection::LE:
+    return isSigned ? arith::CmpIPredicate::sle : arith::CmpIPredicate::ule;
+  case mhlo::ComparisonDirection::GT:
+    return isSigned ? arith::CmpIPredicate::sgt : arith::CmpIPredicate::ugt;
+  case mhlo::ComparisonDirection::GE:
+    return isSigned ? arith::CmpIPredicate::sge : arith::CmpIPredicate::uge;
+  }
+}
+
+template <>
+inline Value mapMhloOpToStdScalarOp<mhlo::CompareOp>(
+    Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
+    mhlo::CompareOp::Adaptor adaptor, ArrayRef<NamedAttribute> attributes,
+    OpBuilder *b) {
+  Type type = adaptor.getLhs().getType();
+  Type elementType = getElementTypeOrSelf(type);
+  mhlo::ComparisonDirection direction = adaptor.getComparisonDirection();
+
+  if (IsAnyIntegerType{}(elementType)) {
+    bool isSigned = !elementType.isUnsignedInteger();
+    auto predicate = MhloComparisonDirectionToPredicate(direction, isSigned);
+    return b->create<arith::CmpIOp>(loc, predicate, adaptor.getLhs(),
+                                    adaptor.getRhs());
+  } else if (IsPrimeFieldType{}(elementType)) {
+    auto predicate = MhloComparisonDirectionToPredicate(direction, false);
+    return b->create<zkir::field::CmpOp>(loc, predicate, adaptor.getLhs(),
+                                         adaptor.getRhs());
+  } else if (IsExtFieldType{}(elementType)) {
+    // Extension fields only support EQ/NE comparisons.
+    if (direction != mhlo::ComparisonDirection::EQ &&
+        direction != mhlo::ComparisonDirection::NE) {
+      return nullptr;
+    }
+    auto predicate = MhloComparisonDirectionToPredicate(direction, false);
+    return b->create<zkir::field::CmpOp>(loc, predicate, adaptor.getLhs(),
+                                         adaptor.getRhs());
+  }
+  return nullptr;
+}
+
+template <>
+inline Value mapMhloOpToStdScalarOp<mhlo::SelectOp>(
+    Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
+    mhlo::SelectOp::Adaptor adaptor, ArrayRef<NamedAttribute> attributes,
+    OpBuilder *b) {
+  return b->create<arith::SelectOp>(loc, adaptor.getPred(), adaptor.getOnTrue(),
+                                    adaptor.getOnFalse());
 }
 
 } // namespace impl
