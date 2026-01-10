@@ -129,7 +129,7 @@ class FieldScalarUnaryTest : public CpuKernelEmitterTest {
     if (x_.IsZero()) {
       expected_literal_ = LiteralUtil::CreateR0<F>(0);
     } else {
-      expected_literal_ = LiteralUtil::CreateR0<F>(*x_.Inverse());
+      expected_literal_ = LiteralUtil::CreateR0<F>(x_.Inverse());
     }
   }
 
@@ -213,7 +213,7 @@ class FieldScalarBinaryTest : public CpuKernelEmitterTest {
     if (y_.IsZero()) {
       expected_literal_ = LiteralUtil::CreateR0<F>(0);
     } else {
-      expected_literal_ = LiteralUtil::CreateR0<F>(*(x_ / y_));
+      expected_literal_ = LiteralUtil::CreateR0<F>(x_ / y_);
     }
   }
 
@@ -522,7 +522,7 @@ class FieldR1TensorUnaryTest : public CpuKernelEmitterTest {
 
   std::vector<F> ComputeInverseFFT(const std::vector<F>& x,
                                    const std::vector<F>& twiddles) {
-    F n_inv = *F(x.size()).Inverse();
+    F n_inv = F(x.size()).Inverse();
     std::vector<F> ret(x.size());
     for (int64_t i = 0; i < x.size(); ++i) {
       F v = 0;

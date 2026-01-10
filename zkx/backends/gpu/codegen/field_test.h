@@ -189,7 +189,7 @@ class FieldScalarBinaryTest : public CudaKernelEmitterTest {
     if (y_.IsZero()) {
       expected_literal_ = LiteralUtil::CreateR0<F>(0);
     } else {
-      expected_literal_ = LiteralUtil::CreateR0<F>(*(x_ / y_));
+      expected_literal_ = LiteralUtil::CreateR0<F>(x_ / y_);
     }
   }
 
