@@ -539,7 +539,7 @@ class FieldR1TensorUnaryTest : public CpuKernelEmitterTest {
   }
 
   std::vector<F> x_;
-  // TODO(chokobole): ZKIR BatchInverse returns garbage value when the input
+  // TODO(chokobole): PrimeIR BatchInverse returns garbage value when the input
   // value is zero, which behaves differently from single inverse. If the
   // batch inverse also returns zero output, we should compare the result with
   // Literal.

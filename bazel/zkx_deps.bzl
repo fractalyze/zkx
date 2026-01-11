@@ -25,10 +25,10 @@ load("@zkx//third_party/highwayhash:workspace.bzl", highwayhash = "repo")
 load("@zkx//third_party/implib_so:workspace.bzl", implib_so = "repo")
 load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/nanobind:workspace.bzl", nanobind = "repo")
+load("@zkx//third_party/prime_ir:workspace.bzl", prime_ir = "repo")
 load("@zkx//third_party/robin_map:workspace.bzl", robin_map = "repo")
 load("@zkx//third_party/uv:workspace.bzl", uv = "repo")
 load("@zkx//third_party/version:workspace.bzl", version = "repo")
-load("@zkx//third_party/zkir:workspace.bzl", zkir = "repo")
 
 def zkx_deps():
     """ZKX dependencies."""
@@ -43,7 +43,7 @@ def zkx_deps():
     robin_map()
     uv()
     version()
-    zkir()
+    prime_ir()
 
     # Load the raw llvm-project.  llvm does not have build rules set up by default,
     # but provides a script for setting up build rules via overlays.

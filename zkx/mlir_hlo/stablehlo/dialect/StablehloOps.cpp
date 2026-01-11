@@ -51,7 +51,7 @@ limitations under the License.
 #include "mlir/Support/TypeID.h"
 #include "mlir/Transforms/InliningUtils.h"
 
-#include "zkir/Dialect/Field/IR/FieldTypes.h"
+#include "prime_ir/Dialect/Field/IR/FieldTypes.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/AssemblyFormat.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/StablehloBytecode.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/TypeInference.h"
@@ -223,7 +223,7 @@ bool ConstantOp::isCompatibleReturnTypes(TypeRange l, TypeRange r) {
   // NOTE(chokobole): This allows us to create constants of prime field from
   // integer constants.
   if (isa<IntegerType>(lhsElementType) &&
-      isa<zkir::field::PrimeFieldType>(rhsElementType)) {
+      isa<prime_ir::field::PrimeFieldType>(rhsElementType)) {
     return lhsTy.clone(rhsElementType) == rhsTy;
   }
   return false;

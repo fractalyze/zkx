@@ -22,8 +22,8 @@ limitations under the License.
 #include "mlir/Dialect/SparseTensor/IR/SparseTensor.h"
 #include "zk_dtypes/include/all_types.h"
 
-#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
-#include "zkir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
+#include "prime_ir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
+#include "prime_ir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
 #include "zkx/layout_util.h"
 #include "zkx/primitive_util.h"
 
@@ -37,9 +37,9 @@ mlir::Value GetConstantOrSplat(mlir::ImplicitLocOpBuilder& b, mlir::Type t,
   return b.create<mlir::arith::ConstantOp>(t, mlir::cast<mlir::TypedAttr>(v));
 }
 
-void PopulateTypeConverterWithZkir(mlir::LLVMTypeConverter& converter) {
-  mlir::zkir::field::populateExtFieldToLLVMTypeConversion(converter);
-  mlir::zkir::elliptic_curve::populateEllipticCurveToLLVMTypeConversion(
+void PopulateTypeConverterWithPrimeIR(mlir::LLVMTypeConverter& converter) {
+  mlir::prime_ir::field::populateExtFieldToLLVMTypeConversion(converter);
+  mlir::prime_ir::elliptic_curve::populateEllipticCurveToLLVMTypeConversion(
       converter);
 }
 
@@ -233,10 +233,10 @@ llvm::SmallVector<mlir::Type> ShapeToMlirTypes(const Shape& shape,
 
 namespace {
 PrimitiveType GetPrimitiveTypeOfPrimeFieldType(
-    mlir::zkir::field::PrimeFieldType field_type) {
+    mlir::prime_ir::field::PrimeFieldType field_type) {
 #define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)           \
   {                                                               \
-    mlir::zkir::field::PrimeFieldType this_field_type =           \
+    mlir::prime_ir::field::PrimeFieldType this_field_type =       \
         GetMlirPrimeFieldType<cpp_type>(field_type.getContext()); \
     if (field_type == this_field_type) {                          \
       return PrimitiveType::enum;                                 \
@@ -248,10 +248,10 @@ PrimitiveType GetPrimitiveTypeOfPrimeFieldType(
 }
 
 PrimitiveType GetPrimitiveTypeOfAffineType(
-    mlir::zkir::elliptic_curve::AffineType affine_type) {
+    mlir::prime_ir::elliptic_curve::AffineType affine_type) {
 #define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)             \
   {                                                                 \
-    mlir::zkir::elliptic_curve::AffineType this_affine_type =       \
+    mlir::prime_ir::elliptic_curve::AffineType this_affine_type =   \
         GetMlirAffinePointType<cpp_type>(affine_type.getContext()); \
     if (affine_type == this_affine_type) {                          \
       return PrimitiveType::enum;                                   \
@@ -263,10 +263,10 @@ PrimitiveType GetPrimitiveTypeOfAffineType(
 }
 
 PrimitiveType GetPrimitiveTypeOfJacobianType(
-    mlir::zkir::elliptic_curve::JacobianType jacobian_type) {
+    mlir::prime_ir::elliptic_curve::JacobianType jacobian_type) {
 #define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)                 \
   {                                                                     \
-    mlir::zkir::elliptic_curve::JacobianType this_jacobian_type =       \
+    mlir::prime_ir::elliptic_curve::JacobianType this_jacobian_type =   \
         GetMlirJacobianPointType<cpp_type>(jacobian_type.getContext()); \
     if (jacobian_type == this_jacobian_type) {                          \
       return PrimitiveType::enum;                                       \
@@ -278,10 +278,10 @@ PrimitiveType GetPrimitiveTypeOfJacobianType(
 }
 
 PrimitiveType GetPrimitiveTypeOfXYZZType(
-    mlir::zkir::elliptic_curve::XYZZType xyzz_type) {
+    mlir::prime_ir::elliptic_curve::XYZZType xyzz_type) {
 #define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)         \
   {                                                             \
-    mlir::zkir::elliptic_curve::XYZZType this_xyzz_type =       \
+    mlir::prime_ir::elliptic_curve::XYZZType this_xyzz_type =   \
         GetMlirPointXyzzType<cpp_type>(xyzz_type.getContext()); \
     if (xyzz_type == this_xyzz_type) {                          \
       return PrimitiveType::enum;                               \
@@ -305,17 +305,19 @@ PrimitiveType MlirTypeToPrimitiveTypeWithSign(mlir::Type type) {
                        : primitive_util::SignedIntegralTypeForBitWidth(
                              integer_type.getWidth());
   } else if (auto field_type =
-                 mlir::dyn_cast<mlir::zkir::field::PrimeFieldType>(type)) {
+                 mlir::dyn_cast<mlir::prime_ir::field::PrimeFieldType>(type)) {
     return GetPrimitiveTypeOfPrimeFieldType(field_type);
   } else if (auto affine_type =
-                 mlir::dyn_cast<mlir::zkir::elliptic_curve::AffineType>(type)) {
+                 mlir::dyn_cast<mlir::prime_ir::elliptic_curve::AffineType>(
+                     type)) {
     return GetPrimitiveTypeOfAffineType(affine_type);
   } else if (auto jacobian_type =
-                 mlir::dyn_cast<mlir::zkir::elliptic_curve::JacobianType>(
+                 mlir::dyn_cast<mlir::prime_ir::elliptic_curve::JacobianType>(
                      type)) {
     return GetPrimitiveTypeOfJacobianType(jacobian_type);
   } else if (auto xyzz_type =
-                 mlir::dyn_cast<mlir::zkir::elliptic_curve::XYZZType>(type)) {
+                 mlir::dyn_cast<mlir::prime_ir::elliptic_curve::XYZZType>(
+                     type)) {
     return GetPrimitiveTypeOfXYZZType(xyzz_type);
   }
   return PrimitiveType::PRIMITIVE_TYPE_INVALID;

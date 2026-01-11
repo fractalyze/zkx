@@ -44,8 +44,8 @@ limitations under the License.
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Types.h"
 
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
 #include "xla/tsl/platform/statusor.h"
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
 #include "zkx/codegen/emitters/ir/zkx_ops.h"
 #include "zkx/hlo/analysis/indexing_analysis.h"
 #include "zkx/hlo/translate/hlo_to_mhlo/hlo_utils.h"
@@ -153,9 +153,9 @@ SmallVector<Value, 1> MapHloOp(mlir::Type result_type,
     // Affine - Affine -> Jacobian
     // Affine * ScalarField -> Jacobian
     if (auto affine_type =
-            mlir::dyn_cast<mlir::zkir::elliptic_curve::AffineType>(
+            mlir::dyn_cast<mlir::prime_ir::elliptic_curve::AffineType>(
                 result_type)) {
-      result_type = mlir::zkir::elliptic_curve::JacobianType::get(
+      result_type = mlir::prime_ir::elliptic_curve::JacobianType::get(
           b.getContext(), affine_type.getCurve());
     }
   }

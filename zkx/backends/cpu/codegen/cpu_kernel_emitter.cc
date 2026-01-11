@@ -66,22 +66,22 @@ limitations under the License.
 
 #include "zk_dtypes/include/all_types.h"
 
+#include "prime_ir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
+#include "prime_ir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
+#include "prime_ir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
+#include "prime_ir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
+#include "prime_ir/Dialect/Field/IR/FieldDialect.h"
+#include "prime_ir/Dialect/Field/IR/FieldOps.h"
+#include "prime_ir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
+#include "prime_ir/Dialect/ModArith/IR/ModArithDialect.h"
+#include "prime_ir/Dialect/Poly/Conversions/PolyToField/PolyToField.h"
+#include "prime_ir/Dialect/Poly/IR/PolyDialect.h"
+#include "prime_ir/Dialect/Poly/IR/PolyOps.h"
+#include "prime_ir/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/statusor.h"
-#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
-#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
-#include "zkir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
-#include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
-#include "zkir/Dialect/Field/IR/FieldDialect.h"
-#include "zkir/Dialect/Field/IR/FieldOps.h"
-#include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
-#include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
-#include "zkir/Dialect/Poly/Conversions/PolyToField/PolyToField.h"
-#include "zkir/Dialect/Poly/IR/PolyDialect.h"
-#include "zkir/Dialect/Poly/IR/PolyOps.h"
-#include "zkir/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
 #include "zkx/backends/cpu/codegen/kernel_api_ir_builder.h"
 #include "zkx/base/bits.h"
 #include "zkx/base/logging.h"
@@ -100,13 +100,13 @@ namespace zkx::cpu {
 namespace {
 
 template <typename T>
-absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> GetRootOfUnityAttr(
+absl::StatusOr<mlir::prime_ir::field::RootOfUnityAttr> GetRootOfUnityAttr(
     mlir::MLIRContext* mlir_context, int64_t fft_length) {
   using UnderlyingType = typename T::UnderlyingType;
 
   TF_ASSIGN_OR_RETURN(T root_of_unity,
                       zk_dtypes::GetRootOfUnity<T>(fft_length));
-  return mlir::zkir::field::RootOfUnityAttr::get(
+  return mlir::prime_ir::field::RootOfUnityAttr::get(
       mlir_context,
       /*type=*/mlir_utils::GetMlirPrimeFieldType<T>(mlir_context),
       /*root=*/
@@ -151,7 +151,7 @@ mlir::Value CreateIntegerMinimum(EmitterLocOpBuilder& b, mlir::Value lhs,
 mlir::Value CreateFieldCompare(EmitterLocOpBuilder& b,
                                ComparisonDirection direction, mlir::Value lhs,
                                mlir::Value rhs) {
-  return b.create<mlir::zkir::field::CmpOp>(
+  return b.create<mlir::prime_ir::field::CmpOp>(
       mlir_utils::CreateMlirArithCmpIPredicate(direction, false), lhs, rhs);
 }
 
@@ -180,10 +180,10 @@ void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
       mlir::memref::MemRefDialect,
       mlir::scf::SCFDialect,
       mlir::sparse_tensor::SparseTensorDialect,
-      mlir::zkir::elliptic_curve::EllipticCurveDialect,
-      mlir::zkir::field::FieldDialect,
-      mlir::zkir::mod_arith::ModArithDialect,
-      mlir::zkir::poly::PolyDialect
+      mlir::prime_ir::elliptic_curve::EllipticCurveDialect,
+      mlir::prime_ir::field::FieldDialect,
+      mlir::prime_ir::mod_arith::ModArithDialect,
+      mlir::prime_ir::poly::PolyDialect
       // clang-format on
       >();
 }
@@ -250,7 +250,7 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
   if (flag.enable_poly_to_field) {
     VLOG(2) << "add pass: -poly-to-field";
     flag.enable_field_to_arith = true;
-    pm.addPass(mlir::zkir::poly::createPolyToField());
+    pm.addPass(mlir::prime_ir::poly::createPolyToField());
   }
 
   maybe_add_elementwise_to_linalg(pm, flag);
@@ -258,22 +258,22 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
   if (flag.enable_elliptic_curve_to_field) {
     VLOG(2) << "add pass: -elliptic-curve-to-field";
     flag.enable_field_to_arith = true;
-    pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
+    pm.addPass(mlir::prime_ir::elliptic_curve::createEllipticCurveToField());
   }
 
   maybe_add_elementwise_to_linalg(pm, flag);
 
   if (flag.enable_field_to_arith) {
     VLOG(2) << "add pass: -field-to-mod-arith -mod-arith-to-arith";
-    pm.addPass(mlir::zkir::field::createFieldToModArith());
+    pm.addPass(mlir::prime_ir::field::createFieldToModArith());
     pm.addPass(mlir::createCanonicalizerPass());
-    pm.addPass(mlir::zkir::mod_arith::createModArithToArith());
+    pm.addPass(mlir::prime_ir::mod_arith::createModArithToArith());
     pm.addPass(mlir::createCanonicalizerPass());
   }
 
   if (flag.enable_tensor_ext_to_tensor) {
     VLOG(2) << "add pass: -tensor-ext-to-tensor";
-    pm.addPass(mlir::zkir::tensor_ext::createTensorExtToTensor());
+    pm.addPass(mlir::prime_ir::tensor_ext::createTensorExtToTensor());
   }
 
   if (flag.enable_tensor_to_linalg) {
@@ -340,11 +340,11 @@ void AddPasses(mlir::PassManager& pm, CpuKernelEmitter::PassFlag& flag) {
   }
   if (flag.enable_elliptic_curve_to_llvm) {
     VLOG(2) << "add pass: -convert-ec-to-llvm";
-    pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToLLVM());
+    pm.addPass(mlir::prime_ir::elliptic_curve::createEllipticCurveToLLVM());
   }
   if (flag.enable_ext_field_to_llvm) {
     VLOG(2) << "add pass: -convert-ext-field-to-llvm";
-    pm.addPass(mlir::zkir::field::createExtFieldToLLVM());
+    pm.addPass(mlir::prime_ir::field::createExtFieldToLLVM());
   }
   pm.addPass(mlir::createConvertToLLVMPass());
   pm.addPass(mlir::createCanonicalizerPass());
@@ -388,11 +388,11 @@ std::unique_ptr<llvm::Module> CreateLLVMModule(
     mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
   }
   if (pass_flag.enable_elliptic_curve_to_llvm) {
-    mlir::zkir::elliptic_curve::registerConvertEllipticCurveToLLVMInterface(
+    mlir::prime_ir::elliptic_curve::registerConvertEllipticCurveToLLVMInterface(
         registry);
   }
   if (pass_flag.enable_ext_field_to_llvm) {
-    mlir::zkir::field::registerConvertExtFieldToLLVMInterface(registry);
+    mlir::prime_ir::field::registerConvertExtFieldToLLVMInterface(registry);
   }
   module->getContext()->appendDialectRegistry(registry);
 
@@ -919,9 +919,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
                                       {value});
     }
     case HloOpcode::kInverse:
-      return b.create<mlir::zkir::field::InverseOp>(value);
+      return b.create<mlir::prime_ir::field::InverseOp>(value);
     case HloOpcode::kNegate:
-      return b.create<mlir::zkir::field::NegateOp>(value);
+      return b.create<mlir::prime_ir::field::NegateOp>(value);
 
     default:
       return absl::UnimplementedError(absl::StrFormat(
@@ -939,7 +939,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointUnaryOp(
                                         ret_type, {value});
     }
     case HloOpcode::kNegate:
-      return b.create<mlir::zkir::elliptic_curve::NegateOp>(value);
+      return b.create<mlir::prime_ir::elliptic_curve::NegateOp>(value);
 
     default:
       return absl::UnimplementedError(absl::StrFormat(
@@ -1044,20 +1044,20 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
     mlir::Value rhs_value) {
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
-      return b.create<mlir::zkir::field::AddOp>(lhs_value, rhs_value);
+      return b.create<mlir::prime_ir::field::AddOp>(lhs_value, rhs_value);
     case HloOpcode::kCompare:
       return CreateFieldCompare(b, instr->comparison_direction(), lhs_value,
                                 rhs_value);
     case HloOpcode::kDivide: {
-      auto inv = b.create<mlir::zkir::field::InverseOp>(rhs_value);
-      return b.create<mlir::zkir::field::MulOp>(lhs_value, inv);
+      auto inv = b.create<mlir::prime_ir::field::InverseOp>(rhs_value);
+      return b.create<mlir::prime_ir::field::MulOp>(lhs_value, inv);
     }
     case HloOpcode::kMaximum:
       return CreateFieldMaximum(b, lhs_value, rhs_value);
     case HloOpcode::kMinimum:
       return CreateFieldMinimum(b, lhs_value, rhs_value);
     case HloOpcode::kMultiply:
-      return b.create<mlir::zkir::field::MulOp>(lhs_value, rhs_value);
+      return b.create<mlir::prime_ir::field::MulOp>(lhs_value, rhs_value);
     case HloOpcode::kPower: {
       const PrimitiveType exponent_type =
           instr->operand(1)->shape().element_type();
@@ -1067,11 +1067,11 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldBinaryOp(
             "unsigned integer, but got %s",
             primitive_util::LowercasePrimitiveTypeName(exponent_type)));
       }
-      return b.create<mlir::zkir::field::PowUIOp>(lhs_value.getType(),
-                                                  lhs_value, rhs_value);
+      return b.create<mlir::prime_ir::field::PowUIOp>(lhs_value.getType(),
+                                                      lhs_value, rhs_value);
     }
     case HloOpcode::kSubtract:
-      return b.create<mlir::zkir::field::SubOp>(lhs_value, rhs_value);
+      return b.create<mlir::prime_ir::field::SubOp>(lhs_value, rhs_value);
     default:
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled binary field op: %s", HloOpcodeString(instr->opcode())));
@@ -1087,8 +1087,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
 
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
-      return b.create<mlir::zkir::elliptic_curve::AddOp>(ret_type, lhs_value,
-                                                         rhs_value);
+      return b.create<mlir::prime_ir::elliptic_curve::AddOp>(
+          ret_type, lhs_value, rhs_value);
     case HloOpcode::kCompare:
       if (instr->comparison_direction() != ComparisonDirection::kEq &&
           instr->comparison_direction() != ComparisonDirection::kNe) {
@@ -1096,16 +1096,16 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
             "Unsupported comparison direction for EC points: %s",
             ComparisonDirectionToString(instr->comparison_direction())));
       }
-      return b.create<mlir::zkir::elliptic_curve::CmpOp>(
+      return b.create<mlir::prime_ir::elliptic_curve::CmpOp>(
           mlir_utils::CreateMlirArithCmpIPredicate(
               instr->comparison_direction(), false),
           lhs_value, rhs_value);
     case HloOpcode::kMultiply:
-      return b.create<mlir::zkir::elliptic_curve::ScalarMulOp>(
+      return b.create<mlir::prime_ir::elliptic_curve::ScalarMulOp>(
           ret_type, lhs_value, rhs_value);
     case HloOpcode::kSubtract:
-      return b.create<mlir::zkir::elliptic_curve::SubOp>(ret_type, lhs_value,
-                                                         rhs_value);
+      return b.create<mlir::prime_ir::elliptic_curve::SubOp>(
+          ret_type, lhs_value, rhs_value);
     default:
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled binary ec point op %s", HloOpcodeString(instr->opcode())));
@@ -1210,8 +1210,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   }
 
   PrimitiveType operand_type = instr->operand(0)->shape().element_type();
-  absl::StatusOr<mlir::zkir::field::RootOfUnityAttr> root;
-  mlir::zkir::field::RootOfUnityAttr root_attr;
+  absl::StatusOr<mlir::prime_ir::field::RootOfUnityAttr> root;
+  mlir::prime_ir::field::RootOfUnityAttr root_attr;
   switch (operand_type) {
 #define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)                        \
   case enum:                                                                   \
@@ -1234,13 +1234,13 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
       mlir::ValueRange{});
   switch (instr->fft_type()) {
     case FftType::FFT: {
-      return b.create<mlir::zkir::poly::NTTOp>(
+      return b.create<mlir::prime_ir::poly::NTTOp>(
           value, alloc_tensor, twiddle_factor, root_attr,
           /*tileX=*/nullptr, /*gridSizeX=*/nullptr,
           instr->fft_do_bit_reverse());
     }
     case FftType::IFFT: {
-      return b.create<mlir::zkir::poly::NTTOp>(
+      return b.create<mlir::prime_ir::poly::NTTOp>(
           value, alloc_tensor, twiddle_factor, root_attr,
           /*tileX=*/nullptr, /*gridSizeX=*/nullptr, instr->fft_do_bit_reverse(),
           /*inverse=*/true);
@@ -1270,7 +1270,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
     if (num_scalar_mul < num_threads) {
       int32_t degree = static_cast<int32_t>(
           base::Log2Ceiling(static_cast<uint64_t>(num_scalar_mul)));
-      return b.create<mlir::zkir::elliptic_curve::MSMOp>(
+      return b.create<mlir::prime_ir::elliptic_curve::MSMOp>(
           result_type, scalars, bases, degree, window_bits);
     }
 
@@ -1334,7 +1334,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
               mlir::ValueRange{actual_chunk_size}, mlir::ValueRange{one});
 
           // Compute MSM for chunk
-          auto msm_result = b.create<mlir::zkir::elliptic_curve::MSMOp>(
+          auto msm_result = b.create<mlir::prime_ir::elliptic_curve::MSMOp>(
               result_type, scalars_chunk, bases_chunk, degree, window_bits);
 
           b.create<mlir::memref::StoreOp>(msm_result, results, i);
@@ -1349,7 +1349,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
           mlir::ImplicitLocOpBuilder b(loc, nested_b);
           auto acc = loop_vars[0];
           auto partial_result = b.create<mlir::memref::LoadOp>(results, iv);
-          auto sum = b.create<mlir::zkir::elliptic_curve::AddOp>(
+          auto sum = b.create<mlir::prime_ir::elliptic_curve::AddOp>(
               result_type, partial_result, acc);
           b.create<mlir::scf::YieldOp>(mlir::ValueRange{sum});
         });
@@ -1474,8 +1474,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
           mlir::Block* block = b.createBlock(&overlap_region);
           block->addArguments({x.getType(), y.getType()}, {loc, loc});
           b.setInsertionPointToStart(block);
-          auto mul = b.create<mlir::zkir::field::MulOp>(block->getArgument(0),
-                                                        block->getArgument(1));
+          auto mul = b.create<mlir::prime_ir::field::MulOp>(
+              block->getArgument(0), block->getArgument(1));
           b.create<mlir::sparse_tensor::YieldOp>(mul);
         }
 
@@ -1483,14 +1483,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
         auto reduce_op = b.create<mlir::sparse_tensor::ReduceOp>(
             mul_op.getType(), mul_op, z,
             /*identity=*/
-            b.create<mlir::zkir::field::ConstantOp>(mul_op.getType(), 0));
+            b.create<mlir::prime_ir::field::ConstantOp>(mul_op.getType(), 0));
         {
           mlir::Region& reduce_region = reduce_op.getRegion();
           mlir::Block* block = b.createBlock(&reduce_region);
           block->addArguments({mul_op.getType(), z.getType()}, {loc, loc});
           b.setInsertionPointToStart(block);
-          auto add = b.create<mlir::zkir::field::AddOp>(block->getArgument(0),
-                                                        block->getArgument(1));
+          auto add = b.create<mlir::prime_ir::field::AddOp>(
+              block->getArgument(0), block->getArgument(1));
           b.create<mlir::sparse_tensor::YieldOp>(add);
         }
 
@@ -1615,17 +1615,20 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
                                                          value_as_index);
           }
         } else if (auto prime_field_type =
-                       mlir::dyn_cast<mlir::zkir::field::PrimeFieldType>(
+                       mlir::dyn_cast<mlir::prime_ir::field::PrimeFieldType>(
                            element_type)) {
           value = b.create<mlir::arith::IndexCastUIOp>(
               prime_field_type.getStorageType(), value_as_index);
 
           if (prime_field_type.isMontgomery()) {
-            value = b.create<mlir::zkir::field::BitcastOp>(
-                mlir::zkir::field::getStandardFormType(element_type), value);
-            value = b.create<mlir::zkir::field::ToMontOp>(element_type, value);
+            value = b.create<mlir::prime_ir::field::BitcastOp>(
+                mlir::prime_ir::field::getStandardFormType(element_type),
+                value);
+            value =
+                b.create<mlir::prime_ir::field::ToMontOp>(element_type, value);
           } else {
-            value = b.create<mlir::zkir::field::BitcastOp>(element_type, value);
+            value =
+                b.create<mlir::prime_ir::field::BitcastOp>(element_type, value);
           }
         }
 

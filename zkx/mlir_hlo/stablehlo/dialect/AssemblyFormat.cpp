@@ -26,7 +26,7 @@ limitations under the License.
 #include "llvm/Support/raw_ostream.h"
 #include "mlir/IR/Builders.h"
 
-#include "zkir/Dialect/Field/IR/FieldOps.h"
+#include "prime_ir/Dialect/Field/IR/FieldOps.h"
 
 #define DEBUG_TYPE "hlo-assembly"
 
@@ -196,7 +196,7 @@ ParseResult parseConstantOp(OpAsmParser &parser, OperationState &result) {
   // constant parsing logic.
   result.attributes.clear();
   parser.resetToken(startPtr);
-  return zkir::field::parseFieldConstant(parser, result);
+  return prime_ir::field::parseFieldConstant(parser, result);
 }
 
 void printTupleOpType(OpAsmPrinter &p, Operation *, TypeRange operands,

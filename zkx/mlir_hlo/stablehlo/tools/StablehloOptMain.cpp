@@ -20,8 +20,8 @@ limitations under the License.
 #include "mlir/InitAllPasses.h"
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
-#include "zkir/Dialect/Field/IR/FieldDialect.h"
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
+#include "prime_ir/Dialect/Field/IR/FieldDialect.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/Register.h"
 
 int main(int argc, char **argv) {
@@ -40,8 +40,8 @@ int main(int argc, char **argv) {
   mlir::registerAllDialects(registry);
   mlir::registerAllExtensions(registry);
   mlir::stablehlo::registerAllDialects(registry);
-  registry.insert<mlir::zkir::field::FieldDialect>();
-  registry.insert<mlir::zkir::elliptic_curve::EllipticCurveDialect>();
+  registry.insert<mlir::prime_ir::field::FieldDialect>();
+  registry.insert<mlir::prime_ir::elliptic_curve::EllipticCurveDialect>();
 
   // clang-format off
   // TODO(chokobole): Uncomment this. Dependency: zkx::stablehlo::check::CheckDialect

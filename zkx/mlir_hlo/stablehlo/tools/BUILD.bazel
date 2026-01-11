@@ -27,7 +27,7 @@ cc_binary(
         "@llvm-project//mlir:AllExtensions",
         "@llvm-project//mlir:AllPassesAndDialects",
         "@llvm-project//mlir:MlirOptLib",
-        "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
-        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@prime_ir//prime_ir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@prime_ir//prime_ir/Dialect/Field/IR:Field",
     ],
 )

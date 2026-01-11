@@ -76,7 +76,7 @@ class LowerToLLVMPass : public impl::LowerToLLVMPassBase<LowerToLLVMPass> {
                                        mlir::DataLayout(getOperation()));
     mlir::LLVMTypeConverter type_converter(getOperation().getContext(),
                                            llvm_opts);
-    mlir_utils::PopulateTypeConverterWithZkir(type_converter);
+    mlir_utils::PopulateTypeConverterWithPrimeIR(type_converter);
     mlir::LLVMConversionTarget target(*getOperation().getContext());
 
     // Populate patterns.

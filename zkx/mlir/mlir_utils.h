@@ -23,12 +23,12 @@ limitations under the License.
 #include "mlir/IR/ImplicitLocOpBuilder.h"
 #include "mlir/IR/MLIRContext.h"
 
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
-#include "zkir/Dialect/Field/IR/FieldOps.h"
-#include "zkir/Dialect/Field/IR/FieldTypes.h"
-#include "zkir/Dialect/ModArith/IR/ModArithAttributes.h"
-#include "zkir/Dialect/ModArith/IR/ModArithTypes.h"
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
+#include "prime_ir/Dialect/Field/IR/FieldOps.h"
+#include "prime_ir/Dialect/Field/IR/FieldTypes.h"
+#include "prime_ir/Dialect/ModArith/IR/ModArithAttributes.h"
+#include "prime_ir/Dialect/ModArith/IR/ModArithTypes.h"
 #include "zkx/comparison_util.h"
 #include "zkx/service/llvm_ir/llvm_util.h"
 #include "zkx/shape.h"
@@ -39,7 +39,7 @@ namespace zkx::mlir_utils {
 mlir::Value GetConstantOrSplat(mlir::ImplicitLocOpBuilder& b, mlir::Type t,
                                mlir::Attribute v);
 
-void PopulateTypeConverterWithZkir(mlir::LLVMTypeConverter& converter);
+void PopulateTypeConverterWithPrimeIR(mlir::LLVMTypeConverter& converter);
 
 template <size_t N>
 llvm::APInt ConvertUnderlyingValueToAPInt(const zk_dtypes::BigInt<N>& value) {
@@ -104,40 +104,40 @@ mlir::DenseIntElementsAttr GetMlirDenseIntElementsAttr(
 }
 
 template <typename T>
-mlir::zkir::mod_arith::ModArithType GetMlirModArithType(
+mlir::prime_ir::mod_arith::ModArithType GetMlirModArithType(
     mlir::MLIRContext* context) {
-  return mlir::zkir::mod_arith::ModArithType::get(
+  return mlir::prime_ir::mod_arith::ModArithType::get(
       context, GetMlirIntegerAttr(context, T::Config::kModulus));
 }
 
 template <typename T>
-mlir::zkir::mod_arith::MontgomeryAttr GetMlirMontgomeryAttr(
+mlir::prime_ir::mod_arith::MontgomeryAttr GetMlirMontgomeryAttr(
     mlir::MLIRContext* context) {
-  return mlir::zkir::mod_arith::MontgomeryAttr::get(
+  return mlir::prime_ir::mod_arith::MontgomeryAttr::get(
       context, GetMlirIntegerAttr(context, T::Config::kModulus));
 }
 
 template <typename T>
-mlir::zkir::field::PrimeFieldType GetMlirPrimeFieldType(
+mlir::prime_ir::field::PrimeFieldType GetMlirPrimeFieldType(
     mlir::MLIRContext* context) {
-  return mlir::zkir::field::PrimeFieldType::get(
+  return mlir::prime_ir::field::PrimeFieldType::get(
       context, GetMlirIntegerAttr(context, T::Config::kModulus),
       T::kUseMontgomery);
 }
 
 template <typename T>
-mlir::zkir::field::QuadraticExtFieldType GetMlirQuadraticExtFieldType(
+mlir::prime_ir::field::QuadraticExtFieldType GetMlirQuadraticExtFieldType(
     mlir::MLIRContext* context) {
   using BaseField = typename T::BaseField;
 
-  return mlir::zkir::field::QuadraticExtFieldType::get(
+  return mlir::prime_ir::field::QuadraticExtFieldType::get(
       context, GetMlirPrimeFieldType<BaseField>(context),
       GetMlirIntegerAttr(context, T::Config::kNonResidue.value()));
 }
 
 template <typename T>
-mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMlirG1ShortWeierstrassAttr(
-    mlir::MLIRContext* context) {
+mlir::prime_ir::elliptic_curve::ShortWeierstrassAttr
+GetMlirG1ShortWeierstrassAttr(mlir::MLIRContext* context) {
   using BaseField = typename T::BaseField;
   using UnderlyingType = typename BaseField::UnderlyingType;
 
@@ -149,13 +149,13 @@ mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMlirG1ShortWeierstrassAttr(
   mlir::IntegerAttr b = GetMlirIntegerAttr(context, b_value);
   mlir::IntegerAttr x = GetMlirIntegerAttr(context, x_value);
   mlir::IntegerAttr y = GetMlirIntegerAttr(context, y_value);
-  return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(
+  return mlir::prime_ir::elliptic_curve::ShortWeierstrassAttr::get(
       context, GetMlirPrimeFieldType<BaseField>(context), a, b, x, y);
 }
 
 template <typename T>
-mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMlirG2ShortWeierstrassAttr(
-    mlir::MLIRContext* context) {
+mlir::prime_ir::elliptic_curve::ShortWeierstrassAttr
+GetMlirG2ShortWeierstrassAttr(mlir::MLIRContext* context) {
   using BaseField = typename T::BaseField;
   using BasePrimeField = typename BaseField::Config::BasePrimeField;
   using UnderlyingType = typename BasePrimeField::UnderlyingType;
@@ -180,44 +180,44 @@ mlir::zkir::elliptic_curve::ShortWeierstrassAttr GetMlirG2ShortWeierstrassAttr(
       context, llvm::ArrayRef<UnderlyingType>(x_value.data(), x_value.size()));
   mlir::DenseIntElementsAttr y = GetMlirDenseIntElementsAttr(
       context, llvm::ArrayRef<UnderlyingType>(y_value.data(), y_value.size()));
-  return mlir::zkir::elliptic_curve::ShortWeierstrassAttr::get(
+  return mlir::prime_ir::elliptic_curve::ShortWeierstrassAttr::get(
       context, GetMlirQuadraticExtFieldType<BaseField>(context), a, b, x, y);
 }
 template <typename T>
-mlir::zkir::elliptic_curve::AffineType GetMlirAffinePointType(
+mlir::prime_ir::elliptic_curve::AffineType GetMlirAffinePointType(
     mlir::MLIRContext* context) {
   using BaseField = typename T::BaseField;
   if constexpr (BaseField::ExtensionDegree() == 1) {
-    return mlir::zkir::elliptic_curve::AffineType::get(
+    return mlir::prime_ir::elliptic_curve::AffineType::get(
         context, GetMlirG1ShortWeierstrassAttr<T>(context));
   } else {
-    return mlir::zkir::elliptic_curve::AffineType::get(
+    return mlir::prime_ir::elliptic_curve::AffineType::get(
         context, GetMlirG2ShortWeierstrassAttr<T>(context));
   }
 }
 
 template <typename T>
-mlir::zkir::elliptic_curve::JacobianType GetMlirJacobianPointType(
+mlir::prime_ir::elliptic_curve::JacobianType GetMlirJacobianPointType(
     mlir::MLIRContext* context) {
   using BaseField = typename T::BaseField;
   if constexpr (BaseField::ExtensionDegree() == 1) {
-    return mlir::zkir::elliptic_curve::JacobianType::get(
+    return mlir::prime_ir::elliptic_curve::JacobianType::get(
         context, GetMlirG1ShortWeierstrassAttr<T>(context));
   } else {
-    return mlir::zkir::elliptic_curve::JacobianType::get(
+    return mlir::prime_ir::elliptic_curve::JacobianType::get(
         context, GetMlirG2ShortWeierstrassAttr<T>(context));
   }
 }
 
 template <typename T>
-mlir::zkir::elliptic_curve::XYZZType GetMlirPointXyzzType(
+mlir::prime_ir::elliptic_curve::XYZZType GetMlirPointXyzzType(
     mlir::MLIRContext* context) {
   using BaseField = typename T::BaseField;
   if constexpr (BaseField::ExtensionDegree() == 1) {
-    return mlir::zkir::elliptic_curve::XYZZType::get(
+    return mlir::prime_ir::elliptic_curve::XYZZType::get(
         context, GetMlirG1ShortWeierstrassAttr<T>(context));
   } else {
-    return mlir::zkir::elliptic_curve::XYZZType::get(
+    return mlir::prime_ir::elliptic_curve::XYZZType::get(
         context, GetMlirG2ShortWeierstrassAttr<T>(context));
   }
 }
@@ -268,7 +268,7 @@ PrimitiveType MlirTypeToPrimitiveTypeWithSign(mlir::Type type);
 template <typename T>
 mlir::Value CreateMlirPrimeFieldConstant(mlir::ImplicitLocOpBuilder& b,
                                          const T& value) {
-  return b.create<mlir::zkir::field::ConstantOp>(
+  return b.create<mlir::prime_ir::field::ConstantOp>(
       GetMlirPrimeFieldType<T>(b.getContext()),
       llvm_ir::ConvertBigIntToAPInt(value.value()));
 }
@@ -280,7 +280,7 @@ mlir::Value CreateMlirQuadraticExtFieldConstant(mlir::ImplicitLocOpBuilder& b,
   using UnderlyingType = typename BaseField::UnderlyingType;
 
   std::array<UnderlyingType, 2> values{value[0].value(), value[1].value()};
-  return b.create<mlir::zkir::field::ConstantOp>(
+  return b.create<mlir::prime_ir::field::ConstantOp>(
       GetMlirQuadraticExtFieldType<T>(b.getContext()),
       GetMlirDenseIntElementsAttr(
           b.getContext(),
@@ -305,14 +305,14 @@ mlir::Value CreateMlirEcPointConstant(mlir::ImplicitLocOpBuilder& b,
     llvm::SmallVector<mlir::Value, 2> values;
     values.push_back(CreateMlirFieldConstant(b, value.x()));
     values.push_back(CreateMlirFieldConstant(b, value.y()));
-    return b.create<mlir::zkir::elliptic_curve::PointOp>(
+    return b.create<mlir::prime_ir::elliptic_curve::PointOp>(
         GetMlirAffinePointType<T>(b.getContext()), values);
   } else if constexpr (zk_dtypes::IsJacobianPoint<T>) {
     llvm::SmallVector<mlir::Value, 3> values;
     values.push_back(CreateMlirFieldConstant(b, value.x()));
     values.push_back(CreateMlirFieldConstant(b, value.y()));
     values.push_back(CreateMlirFieldConstant(b, value.z()));
-    return b.create<mlir::zkir::elliptic_curve::PointOp>(
+    return b.create<mlir::prime_ir::elliptic_curve::PointOp>(
         GetMlirJacobianPointType<T>(b.getContext()), values);
   } else {
     static_assert(zk_dtypes::IsPointXyzz<T>);
@@ -321,7 +321,7 @@ mlir::Value CreateMlirEcPointConstant(mlir::ImplicitLocOpBuilder& b,
     values.push_back(CreateMlirFieldConstant(b, value.y()));
     values.push_back(CreateMlirFieldConstant(b, value.zz()));
     values.push_back(CreateMlirFieldConstant(b, value.zzz()));
-    return b.create<mlir::zkir::elliptic_curve::PointOp>(
+    return b.create<mlir::prime_ir::elliptic_curve::PointOp>(
         GetMlirPointXyzzType<T>(b.getContext()), values);
   }
 }

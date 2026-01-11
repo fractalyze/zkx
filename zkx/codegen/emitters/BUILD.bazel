@@ -78,7 +78,7 @@ zkx_cc_library(
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
         "@llvm-project//mlir:VectorDialect",
-        "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@prime_ir//prime_ir/Dialect/EllipticCurve/IR:EllipticCurve",
     ],
 )
 
