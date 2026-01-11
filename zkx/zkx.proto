@@ -179,6 +179,8 @@ message DebugOptions {
   //   coll.2-done = collective(coll.2-start)
   int32 zkx_gpu_experimental_parallel_collective_overlap_limit = 336;
 
+  bool zkx_gpu_experimental_stream_annotation = 342;
+
   // If true, PTX compilation will fail if a kernel spills registers.
   // This is meant for debugging and only applies to CUDA PTX compilation.
   bool zkx_gpu_fail_ptx_compilation_on_register_spilling = 353;
