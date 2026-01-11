@@ -500,6 +500,14 @@ Shape ShapeUtil::MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes) {
 }
 
 // static
+Shape ShapeUtil::MakeMaybeTupleShape(absl::Span<const Shape> shapes) {
+  if (shapes.size() == 1) {
+    return shapes[0];
+  }
+  return MakeTupleShape(shapes);
+}
+
+// static
 Shape ShapeUtil::MakeOpaqueShape() {
   Shape result;
   result.set_element_type(OPAQUE_TYPE);
@@ -1463,6 +1471,37 @@ ShapeUtil::BitcastDecomposition ShapeUtil::DecomposeBitcast(
   }
 
   return DecomposeBitcastToTrt(input_shape, output_shape);
+}
+
+// static
+Shape ShapeUtil::DeleteDimension(int64_t dim_to_delete, Shape shape) {
+  CHECK(shape.IsArray());
+  shape.DeleteDimension(dim_to_delete);
+  return shape;
+}
+
+// static
+Shape ShapeUtil::DeleteDimensions(absl::Span<int64_t const> dims_to_delete,
+                                  Shape shape) {
+  std::vector<int64_t> dims_to_delete_v(dims_to_delete.begin(),
+                                        dims_to_delete.end());
+  absl::c_sort(dims_to_delete_v);
+  shape.DeleteDimensions(dims_to_delete_v);
+  return shape;
+}
+
+// static
+Shape ShapeUtil::FilterDimensions(absl::FunctionRef<bool(int64_t)> p,
+                                  Shape shape) {
+  CHECK(shape.IsArray());
+  std::vector<int64_t> dims_to_delete;
+  for (int64_t i = 0; i < shape.rank(); ++i) {
+    if (!p(i)) {
+      dims_to_delete.push_back(i);
+    }
+  }
+  shape.DeleteDimensions(dims_to_delete);
+  return shape;
 }
 
 // static
