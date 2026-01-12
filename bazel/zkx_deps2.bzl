@@ -22,8 +22,8 @@ load(
     # TODO(chokobole): Uncomment this when we need cuDNN.
     # "CUDNN_REDISTRIBUTIONS",
 )
+load("@prime_ir//bazel:prime_ir_deps.bzl", "prime_ir_deps")
 load("@version//:lastchange.bzl", "lastchange_setup")
-load("@zkir//bazel:zkir_deps.bzl", "zkir_deps")
 load("@zkx//third_party/gpus/cuda/hermetic:cuda_configure.bzl", "cuda_configure")
 load(
     "@zkx//third_party/gpus/cuda/hermetic:cuda_redist_init_repositories.bzl",
@@ -42,7 +42,7 @@ def zkx_deps2():
     lastchange_setup(name = "lastchange")
 
     grpc_deps()
-    zkir_deps()
+    prime_ir_deps()
 
     cuda_redist_init_repositories(
         cuda_redistributions = CUDA_REDISTRIBUTIONS,

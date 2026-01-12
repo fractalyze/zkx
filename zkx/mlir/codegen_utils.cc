@@ -19,9 +19,9 @@ limitations under the License.
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/TypeUtilities.h"
 
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
-#include "zkir/Dialect/Field/IR/FieldOps.h"
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
+#include "prime_ir/Dialect/Field/IR/FieldOps.h"
 #include "zkx/mlir/mlir_utils.h"
 
 namespace zkx::mlir_utils {
@@ -280,7 +280,7 @@ Value ConvertField(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
 
   if (auto integer_type = dyn_cast<IntegerType>(source_element_type)) {
     if (auto pf_element_type =
-            dyn_cast<zkir::field::PrimeFieldType>(target_element_type)) {
+            dyn_cast<prime_ir::field::PrimeFieldType>(target_element_type)) {
       unsigned src_width = integer_type.getWidth();
       unsigned dst_width = pf_element_type.getStorageType().getWidth();
       Value current_val = args[0];
@@ -301,25 +301,28 @@ Value ConvertField(ImplicitLocOpBuilder& b, ArrayRef<Type> result_types,
       }
 
       if (pf_element_type.isMontgomery()) {
-        Type std_source_type = zkir::field::getStandardFormType(target_type);
+        Type std_source_type =
+            prime_ir::field::getStandardFormType(target_type);
         auto bitcast =
-            b.create<zkir::field::BitcastOp>(std_source_type, current_val);
-        return b.create<zkir::field::ToMontOp>(target_type, bitcast);
+            b.create<prime_ir::field::BitcastOp>(std_source_type, current_val);
+        return b.create<prime_ir::field::ToMontOp>(target_type, bitcast);
       }
 
-      return b.create<zkir::field::BitcastOp>(target_type, current_val);
+      return b.create<prime_ir::field::BitcastOp>(target_type, current_val);
     }
   }
 
-  if (zkir::field::isMontgomery(source_type)) {
-    if (zkir::field::isMontgomery(target_type)) {
+  if (prime_ir::field::isMontgomery(source_type)) {
+    if (prime_ir::field::isMontgomery(target_type)) {
       return args[0];
     } else {
-      return b.create<zkir::field::FromMontOp>(result_types, args, attributes);
+      return b.create<prime_ir::field::FromMontOp>(result_types, args,
+                                                   attributes);
     }
   } else {
-    if (zkir::field::isMontgomery(target_type)) {
-      return b.create<zkir::field::ToMontOp>(result_types, args, attributes);
+    if (prime_ir::field::isMontgomery(target_type)) {
+      return b.create<prime_ir::field::ToMontOp>(result_types, args,
+                                                 attributes);
     } else {
       return args[0];
     }
@@ -338,15 +341,15 @@ mlir::Value ConvertEcPoint(mlir::ImplicitLocOpBuilder& b,
   }
 
   auto is_ec_point_type = [](mlir::Type t) {
-    return isa<zkir::elliptic_curve::AffineType>(t) ||
-           isa<zkir::elliptic_curve::JacobianType>(t) ||
-           isa<zkir::elliptic_curve::XYZZType>(t);
+    return isa<prime_ir::elliptic_curve::AffineType>(t) ||
+           isa<prime_ir::elliptic_curve::JacobianType>(t) ||
+           isa<prime_ir::elliptic_curve::XYZZType>(t);
   };
 
   if (is_ec_point_type(source_element_type) &&
       is_ec_point_type(target_element_type)) {
-    return b.create<zkir::elliptic_curve::ConvertPointTypeOp>(result_types,
-                                                              args, attributes);
+    return b.create<prime_ir::elliptic_curve::ConvertPointTypeOp>(
+        result_types, args, attributes);
   }
 
   return args[0];

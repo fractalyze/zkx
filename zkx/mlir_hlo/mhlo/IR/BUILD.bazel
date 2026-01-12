@@ -112,6 +112,6 @@ zkx_cc_library(
         "@llvm-project//mlir:InliningUtils",
         "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
-        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@prime_ir//prime_ir/Dialect/Field/IR:Field",
     ],
 )

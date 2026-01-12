@@ -69,18 +69,18 @@ limitations under the License.
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
 
+#include "prime_ir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
+#include "prime_ir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
+#include "prime_ir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
+#include "prime_ir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
+#include "prime_ir/Dialect/Field/IR/FieldDialect.h"
+#include "prime_ir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
+#include "prime_ir/Dialect/ModArith/IR/ModArithDialect.h"
+#include "prime_ir/Dialect/Poly/IR/PolyDialect.h"
 #include "xla/tsl/framework/mlir/status_scoped_diagnostic_handler.h"
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
-#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToField/EllipticCurveToField.h"
-#include "zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM/EllipticCurveToLLVM.h"
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveDialect.h"
-#include "zkir/Dialect/Field/Conversions/ExtFieldToLLVM/ExtFieldToLLVM.h"
-#include "zkir/Dialect/Field/Conversions/FieldToModArith/FieldToModArith.h"
-#include "zkir/Dialect/Field/IR/FieldDialect.h"
-#include "zkir/Dialect/ModArith/Conversions/ModArithToArith/ModArithToArith.h"
-#include "zkir/Dialect/ModArith/IR/ModArithDialect.h"
-#include "zkir/Dialect/Poly/IR/PolyDialect.h"
 #include "zkx/backends/gpu/codegen/emitters/ir/zkx_gpu_ops.h"
 #include "zkx/backends/gpu/codegen/emitters/transforms/passes.h"
 #include "zkx/backends/gpu/runtime/kernel_thunk.h"
@@ -334,10 +334,10 @@ absl::StatusOr<mlir::OwningOpRef<mlir::ModuleOp>> EmitterBase::CreateMLIRModule(
       mlir::scf::SCFDialect,
       mlir::tensor::TensorDialect,
       mlir::vector::VectorDialect,
-      mlir::zkir::elliptic_curve::EllipticCurveDialect,
-      mlir::zkir::field::FieldDialect,
-      mlir::zkir::mod_arith::ModArithDialect,
-      mlir::zkir::poly::PolyDialect,
+      mlir::prime_ir::elliptic_curve::EllipticCurveDialect,
+      mlir::prime_ir::field::FieldDialect,
+      mlir::prime_ir::mod_arith::ModArithDialect,
+      mlir::prime_ir::poly::PolyDialect,
       ZkxDialect,
       ZkxGpuDialect
       // clang-format on
@@ -349,8 +349,8 @@ absl::StatusOr<mlir::OwningOpRef<mlir::ModuleOp>> EmitterBase::CreateMLIRModule(
   mlir::registerROCDLDialectTranslation(registry);
   mlir::func::registerInlinerExtension(registry);
   mlir::LLVM::registerInlinerInterface(registry);
-  mlir::zkir::field::registerConvertExtFieldToLLVMInterface(registry);
-  mlir::zkir::elliptic_curve::registerConvertEllipticCurveToLLVMInterface(
+  mlir::prime_ir::field::registerConvertExtFieldToLLVMInterface(registry);
+  mlir::prime_ir::elliptic_curve::registerConvertEllipticCurveToLLVMInterface(
       registry);
   context.appendDialectRegistry(registry);
 
@@ -628,11 +628,11 @@ void AddLoweringPasses(mlir::OpPassManager& pm,
                        const se::DeviceDescription& device) {
   pm.addNestedPass<FuncOp>(emitters::CreateConvertPureCallOpsPass());
 
-  pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToField());
-  pm.addPass(mlir::zkir::field::createFieldToModArith());
-  pm.addPass(mlir::zkir::mod_arith::createModArithToArith());
-  pm.addPass(mlir::zkir::elliptic_curve::createEllipticCurveToLLVM());
-  pm.addPass(mlir::zkir::field::createExtFieldToLLVM());
+  pm.addPass(mlir::prime_ir::elliptic_curve::createEllipticCurveToField());
+  pm.addPass(mlir::prime_ir::field::createFieldToModArith());
+  pm.addPass(mlir::prime_ir::mod_arith::createModArithToArith());
+  pm.addPass(mlir::prime_ir::elliptic_curve::createEllipticCurveToLLVM());
+  pm.addPass(mlir::prime_ir::field::createExtFieldToLLVM());
 
   pm.addPass(emitters::CreateLowerTensorsPass(device));
   pm.addPass(emitters::CreateMergePointersToSameSlicePass());

@@ -40,7 +40,7 @@ zkx_cc_library(
         "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
-        "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@prime_ir//prime_ir/Dialect/EllipticCurve/IR:EllipticCurve",
     ],
 )
 

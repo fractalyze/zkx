@@ -28,7 +28,7 @@ cc_library(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Support",
-        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@prime_ir//prime_ir/Dialect/Field/IR:Field",
     ],
 )
 
@@ -65,7 +65,7 @@ td_library(
     deps = [
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
-        "@zkir//zkir/Dialect/Field/IR:td_files",
+        "@prime_ir//prime_ir/Dialect/Field/IR:td_files",
     ],
 )
 
@@ -145,7 +145,7 @@ cc_library(
         "@llvm-project//mlir:SparseTensorDialect",
         "@llvm-project//mlir:Support",
         "@llvm-project//mlir:TensorDialect",
-        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@prime_ir//prime_ir/Dialect/Field/IR:Field",
     ],
 )
 
@@ -211,7 +211,7 @@ cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:Support",
-        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@prime_ir//prime_ir/Dialect/Field/IR:Field",
     ],
 )
 

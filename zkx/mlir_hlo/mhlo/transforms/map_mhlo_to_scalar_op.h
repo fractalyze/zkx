@@ -25,8 +25,8 @@ limitations under the License.
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/Support/LLVM.h"
 
-#include "zkir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
-#include "zkir/Dialect/Field/IR/FieldOps.h"
+#include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveOps.h"
+#include "prime_ir/Dialect/Field/IR/FieldOps.h"
 #include "zkx/mlir/codegen_utils.h"
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h"
 
@@ -47,21 +47,21 @@ template <>
 struct MhloToScalarOp<mhlo::AddOp> {
   using IOp = arith::AddIOp;
   using UOp = arith::AddIOp;
-  using FOp = zkir::field::AddOp;
-  using ECOp = zkir::elliptic_curve::AddOp;
+  using FOp = prime_ir::field::AddOp;
+  using ECOp = prime_ir::elliptic_curve::AddOp;
 };
 template <>
 struct MhloToScalarOp<mhlo::MulOp> {
   using IOp = arith::MulIOp;
   using UOp = arith::MulIOp;
-  using FOp = zkir::field::MulOp;
+  using FOp = prime_ir::field::MulOp;
 };
 template <>
 struct MhloToScalarOp<mhlo::SubtractOp> {
   using IOp = arith::SubIOp;
   using UOp = arith::SubIOp;
-  using FOp = zkir::field::SubOp;
-  using ECOp = zkir::elliptic_curve::SubOp;
+  using FOp = prime_ir::field::SubOp;
+  using ECOp = prime_ir::elliptic_curve::SubOp;
 };
 
 // Alias for the map from MHLO binary op type to STD signed integer op type.
@@ -140,16 +140,16 @@ struct IsUnsignedIntegerType {
 
 struct IsFieldType {
   bool operator()(Type t) {
-    return isa<zkir::field::PrimeFieldType>(t) ||
-           isa<zkir::field::QuadraticExtFieldType>(t);
+    return isa<prime_ir::field::PrimeFieldType>(t) ||
+           isa<prime_ir::field::QuadraticExtFieldType>(t);
   }
 };
 
 struct IsEllipticCurveType {
   bool operator()(Type t) {
-    return isa<zkir::elliptic_curve::AffineType>(t) ||
-           isa<zkir::elliptic_curve::JacobianType>(t) ||
-           isa<zkir::elliptic_curve::XYZZType>(t);
+    return isa<prime_ir::elliptic_curve::AffineType>(t) ||
+           isa<prime_ir::elliptic_curve::JacobianType>(t) ||
+           isa<prime_ir::elliptic_curve::XYZZType>(t);
   }
 };
 
@@ -209,13 +209,13 @@ inline Value mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
     return zkx::mlir_utils::ConvertInteger(
         lb, resultTypes, sourceType, targetType, args,
         IsSignedIntegerType{}(sourceType), attributes);
-  } else if (isa<zkir::field::PrimeFieldType>(sourceType) ||
-             isa<zkir::field::QuadraticExtFieldType>(sourceType)) {
+  } else if (isa<prime_ir::field::PrimeFieldType>(sourceType) ||
+             isa<prime_ir::field::QuadraticExtFieldType>(sourceType)) {
     return zkx::mlir_utils::ConvertField(lb, resultTypes, sourceType,
                                          targetType, args, attributes);
-  } else if (isa<zkir::elliptic_curve::AffineType>(sourceType) ||
-             isa<zkir::elliptic_curve::JacobianType>(sourceType) ||
-             isa<zkir::elliptic_curve::XYZZType>(sourceType)) {
+  } else if (isa<prime_ir::elliptic_curve::AffineType>(sourceType) ||
+             isa<prime_ir::elliptic_curve::JacobianType>(sourceType) ||
+             isa<prime_ir::elliptic_curve::XYZZType>(sourceType)) {
     return zkx::mlir_utils::ConvertEcPoint(lb, resultTypes, sourceType,
                                            targetType, args, attributes);
   }
@@ -239,11 +239,11 @@ inline Value mapMhloOpToStdScalarOp<mhlo::MulOp>(
     Type rightType = adaptor.getRhs().getType();
     Type rightElementType = getElementTypeOrSelf(rightType);
     if (IsEllipticCurveType{}(rightElementType)) {
-      return b->create<zkir::elliptic_curve::ScalarMulOp>(
+      return b->create<prime_ir::elliptic_curve::ScalarMulOp>(
           loc, resultTypes, adaptor.getOperands(), attributes);
     } else {
-      return b->create<zkir::field::MulOp>(loc, resultTypes,
-                                           adaptor.getOperands(), attributes);
+      return b->create<prime_ir::field::MulOp>(
+          loc, resultTypes, adaptor.getOperands(), attributes);
     }
   }
   return nullptr;
@@ -263,8 +263,8 @@ inline Value mapMhloOpToStdScalarOp<mhlo::DivOp>(
     return zkx::mlir_utils::DivideInteger(lb, adaptor.getLhs(),
                                           adaptor.getRhs(), isSigned);
   } else if (IsFieldType{}(elementType)) {
-    auto inv = b->create<zkir::field::InverseOp>(loc, adaptor.getRhs());
-    return b->create<zkir::field::MulOp>(loc, adaptor.getLhs(), inv);
+    auto inv = b->create<prime_ir::field::InverseOp>(loc, adaptor.getRhs());
+    return b->create<prime_ir::field::MulOp>(loc, adaptor.getLhs(), inv);
   }
   return nullptr;
 }
@@ -282,9 +282,10 @@ inline Value mapMhloOpToStdScalarOp<mhlo::NegOp>(
         b->create<arith::ConstantOp>(loc, b->getZeroAttr(lhs.getType()));
     return b->create<ScalarIOp<mhlo::SubtractOp>>(loc, zeroIntval, lhs);
   } else if (IsFieldType{}(elementType)) {
-    return b->create<zkir::field::NegateOp>(loc, adaptor.getOperand());
+    return b->create<prime_ir::field::NegateOp>(loc, adaptor.getOperand());
   } else if (IsEllipticCurveType{}(elementType)) {
-    return b->create<zkir::elliptic_curve::NegateOp>(loc, adaptor.getOperand());
+    return b->create<prime_ir::elliptic_curve::NegateOp>(loc,
+                                                         adaptor.getOperand());
   }
   return nullptr;
 }
@@ -301,8 +302,8 @@ inline Value mapMhloOpToStdScalarOp<mhlo::PowOp>(
     return zkx::mlir_utils::PowerInteger(lb, adaptor.getLhs(), adaptor.getRhs(),
                                          elementType.isSignedInteger());
   } else if (IsFieldType{}(elementType)) {
-    return b->create<zkir::field::PowUIOp>(loc, adaptor.getLhs(),
-                                           adaptor.getRhs());
+    return b->create<prime_ir::field::PowUIOp>(loc, adaptor.getLhs(),
+                                               adaptor.getRhs());
   }
   return nullptr;
 }

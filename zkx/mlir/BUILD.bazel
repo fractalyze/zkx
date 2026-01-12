@@ -27,8 +27,8 @@ zkx_cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:Support",
-        "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
-        "@zkir//zkir/Dialect/Field/IR:Field",
+        "@prime_ir//prime_ir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@prime_ir//prime_ir/Dialect/Field/IR:Field",
     ],
 )
 
@@ -51,11 +51,11 @@ zkx_cc_library(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:LLVMCommonConversion",
         "@llvm-project//mlir:SparseTensorDialect",
+        "@prime_ir//prime_ir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",
+        "@prime_ir//prime_ir/Dialect/EllipticCurve/IR:EllipticCurve",
+        "@prime_ir//prime_ir/Dialect/Field/Conversions/ExtFieldToLLVM",
+        "@prime_ir//prime_ir/Dialect/Field/IR:Field",
+        "@prime_ir//prime_ir/Dialect/ModArith/IR:ModArith",
         "@zk_dtypes//zk_dtypes:all_types",
-        "@zkir//zkir/Dialect/EllipticCurve/Conversions/EllipticCurveToLLVM",
-        "@zkir//zkir/Dialect/EllipticCurve/IR:EllipticCurve",
-        "@zkir//zkir/Dialect/Field/Conversions/ExtFieldToLLVM",
-        "@zkir//zkir/Dialect/Field/IR:Field",
-        "@zkir//zkir/Dialect/ModArith/IR:ModArith",
     ],
 )

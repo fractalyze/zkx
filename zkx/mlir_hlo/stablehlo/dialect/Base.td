@@ -21,7 +21,7 @@ limitations under the License.
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/IR/OpBase.td"
-include "zkir/Dialect/Field/IR/FieldTypes.td"
+include "prime_ir/Dialect/Field/IR/FieldTypes.td"
 
 //===----------------------------------------------------------------------===//
 // Common type definitions.
