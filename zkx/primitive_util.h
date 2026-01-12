@@ -309,6 +309,16 @@ constexpr bool IsComparableType(PrimitiveType type) {
   return !IsExtensionFieldType(type) && !IsEcPointType(type);
 }
 
+constexpr bool IsZkDtypesType(PrimitiveType type) {
+  if (type == U1 || type == S1 || type == U2 || type == S2 || type == U4 ||
+      type == S4) {
+    return true;
+  }
+#define ZK_DTYPES_CASE(unused, unused2, enum, unused3) type == enum ||
+  return ZK_DTYPES_PUBLIC_TYPE_LIST(ZK_DTYPES_CASE) false;
+#undef ZK_DTYPES_CASE
+}
+
 template <typename R, typename F>
 constexpr R PrimitiveTypeSwitch(F&& f, PrimitiveType type);
 
@@ -599,15 +609,8 @@ inline void UnpackIntN(PrimitiveType input_type, absl::Span<const char> input,
 
 template <typename NativeT>
 std::string NativeTypeToString(NativeT value) {
-  // TODO(chokobole): XLA just uses absl::StrCat(). Maybe our absl is
-  // too old...
-  if constexpr (std::is_same_v<NativeT, u1> || std::is_same_v<NativeT, s1> ||
-                std::is_same_v<NativeT, u2> || std::is_same_v<NativeT, s2> ||
-                std::is_same_v<NativeT, u4> || std::is_same_v<NativeT, s4>) {
-    return value.ToString();
-    // NOLINTNEXTLINE(readability/braces)
-  } else if constexpr (zk_dtypes::IsField<NativeT> ||
-                       zk_dtypes::IsEcPoint<NativeT>) {
+  constexpr PrimitiveType primitive_type = NativeToPrimitiveType<NativeT>();
+  if constexpr (IsZkDtypesType(primitive_type)) {
     return value.ToString();
   } else {
     return absl::StrCat(value);

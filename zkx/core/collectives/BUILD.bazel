@@ -103,3 +103,15 @@ zkx_cc_library(
     hdrs = ["rank_id.h"],
     deps = ["//xla/tsl/lib/gtl:int_type"],
 )
+
+zkx_cc_library(
+    name = "reduction_util",
+    hdrs = ["reduction_util.h"],
+    deps = [
+        "//zkx/service:collective_ops_utils",
+        "@com_google_absl//absl/status:statusor",
+        "@zk_dtypes//zk_dtypes:comparable_traits",
+        "@zk_dtypes//zk_dtypes:field",
+        "@zk_dtypes//zk_dtypes:group",
+    ],
+)

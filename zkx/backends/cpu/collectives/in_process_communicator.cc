@@ -24,12 +24,15 @@ limitations under the License.
 #include "absl/algorithm/container.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/log.h"
+#include "zk_dtypes/include/comparable_traits.h"
 #include "zk_dtypes/include/field/field.h"
+#include "zk_dtypes/include/group/group.h"
 
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/collectives/cpu_collectives.h"
 #include "zkx/base/types/always_false.h"
+#include "zkx/core/collectives/reduction_util.h"
 #include "zkx/primitive_util.h"
 #include "zkx/service/collective_ops_utils.h"
 #include "zkx/service/rendezvous.h"
@@ -44,63 +47,80 @@ bool ByRank(const Participant* a, const Participant* b) {
 
 template <typename T>
 T GetInitialValue(ReductionKind reduction_kind) {
-  if constexpr (zk_dtypes::IsField<T>) {
-    switch (reduction_kind) {
-      case ReductionKind::kSum:
+  struct Selector {
+    static auto sum() {
+      if constexpr (zk_dtypes::IsAdditiveGroup<T>) {
         return T::Zero();
-      case ReductionKind::kProduct:
-        return T::One();
-      case ReductionKind::kMin:
-        return -T::One();
-      case ReductionKind::kMax:
-        return T::Zero();
-    }
-  } else if constexpr (zk_dtypes::IsEcPoint<T>) {
-    switch (reduction_kind) {
-      case ReductionKind::kSum:
-        return T::Zero();
-      case ReductionKind::kProduct:
-        return T::One();
-      case ReductionKind::kMin:
-      case ReductionKind::kMax:
-        LOG(FATAL) << "Min/Max reduction is not supported for EcPoint types.";
-    }
-  } else {
-    switch (reduction_kind) {
-      case ReductionKind::kSum:
+      } else {
         return T{0};
-      case ReductionKind::kProduct:
-        return T{1};
-      case ReductionKind::kMin:
-        return std::numeric_limits<T>::max();
-      case ReductionKind::kMax:
-        return std::numeric_limits<T>::lowest();
+      }
     }
-  }
+
+    static auto product() {
+      if constexpr (zk_dtypes::IsMultiplicativeGroup<T>) {
+        return T::One();
+      } else {
+        return T{1};
+      }
+    }
+
+    static auto min() {
+      if constexpr (zk_dtypes::IsComparable<T>) {
+        return T::Max();
+      } else {
+        return std::numeric_limits<T>::max();
+      }
+    }
+
+    static auto max() {
+      if constexpr (zk_dtypes::IsComparable<T>) {
+        return T::Min();
+      } else {
+        return std::numeric_limits<T>::lowest();
+      }
+    }
+  };
+
+  absl::StatusOr<T> value_or =
+      SelectReduction<T, T>(reduction_kind, Selector{});
+  CHECK_OK(value_or.status());
+  return value_or.value();
 }
 
 template <ReductionKind kReductionKind, typename T>
 void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
   // TODO(penporn): make sure this gets vectorized.
   if constexpr (kReductionKind == ReductionKind::kSum) {
-    for (size_t j = 0; j < inputs.size(); ++j) {
-      for (size_t i = 0; i < acc.size(); ++i) {
-        acc[i] += inputs[j][i];
+    if constexpr (zk_dtypes::IsAdditiveGroup<T> || std::is_integral_v<T>) {
+      if constexpr (zk_dtypes::IsAffinePoint<T>) {
+        LOG(FATAL) << "Sum reduction is not supported for AffinePoint types.";
+      } else {
+        for (size_t j = 0; j < inputs.size(); ++j) {
+          for (size_t i = 0; i < acc.size(); ++i) {
+            acc[i] += inputs[j][i];
+          }
+        }
       }
+    } else {
+      LOG(FATAL) << "Sum reduction is only supported for additive groups or "
+                    "integral types.";
     }
   } else if constexpr (kReductionKind == ReductionKind::kProduct) {
-    if constexpr (zk_dtypes::IsEcPoint<T>) {
-      LOG(FATAL) << "Product reduction is not supported for EcPoint types.";
-    } else {
+    if constexpr (zk_dtypes::IsMultiplicativeGroup<T> ||
+                  std::is_integral_v<T>) {
       for (size_t j = 0; j < inputs.size(); ++j) {
         for (size_t i = 0; i < acc.size(); ++i) {
           acc[i] *= inputs[j][i];
         }
       }
+    } else {
+      LOG(FATAL) << "Product reduction is only supported for "
+                    "MultiplicativeGroup types or integral types.";
     }
   } else if constexpr (kReductionKind == ReductionKind::kMin) {
-    if constexpr (zk_dtypes::IsEcPoint<T>) {
-      LOG(FATAL) << "Min reduction is not supported for EcPoint types.";
+    constexpr PrimitiveType PT = primitive_util::NativeToPrimitiveType<T>();
+    if constexpr (!primitive_util::IsComparableType(PT)) {
+      LOG(FATAL) << "Min reduction is not supported for non-comparable types.";
     } else {
       for (size_t j = 0; j < inputs.size(); ++j) {
         for (size_t i = 0; i < acc.size(); ++i) {
@@ -109,8 +129,9 @@ void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
       }
     }
   } else if constexpr (kReductionKind == ReductionKind::kMax) {
-    if constexpr (zk_dtypes::IsEcPoint<T>) {
-      LOG(FATAL) << "Max reduction is not supported for EcPoint types.";
+    constexpr PrimitiveType PT = primitive_util::NativeToPrimitiveType<T>();
+    if constexpr (!primitive_util::IsComparableType(PT)) {
+      LOG(FATAL) << "Max reduction is not supported for non-comparable types.";
     } else {
       for (size_t j = 0; j < inputs.size(); ++j) {
         for (size_t i = 0; i < acc.size(); ++i) {
@@ -148,26 +169,46 @@ absl::Status ReduceScatter(ReductionKind reduction_kind,
 
   absl::Span<T const* const> input_chunks(
       reinterpret_cast<T const* const*>(inputs.data()), inputs.size());
-  switch (reduction_kind) {
-    case ReductionKind::kSum:
-      ReduceHelper<ReductionKind::kSum, T>(out_chunk, input_chunks);
-      break;
-    case ReductionKind::kProduct:
-      ReduceHelper<ReductionKind::kProduct, T>(out_chunk, input_chunks);
-      break;
-    case ReductionKind::kMin:
-      if constexpr (primitive_util::IsComparableType(PT)) {
-        ReduceHelper<ReductionKind::kMin, T>(out_chunk, input_chunks);
-      }
-      break;
-    case ReductionKind::kMax:
-      if constexpr (primitive_util::IsComparableType(PT)) {
-        ReduceHelper<ReductionKind::kMax, T>(out_chunk, input_chunks);
-      }
-      break;
-  }
 
-  return absl::OkStatus();
+  struct Selector {
+    Selector(absl::Span<T const* const> input_chunks, absl::Span<T> out_chunk)
+        : input_chunks(input_chunks), out_chunk(out_chunk) {}
+
+    auto sum() const {
+      ReduceHelper<ReductionKind::kSum, T>(out_chunk, input_chunks);
+      return absl::OkStatus();
+    }
+
+    auto product() const {
+      ReduceHelper<ReductionKind::kProduct, T>(out_chunk, input_chunks);
+      return absl::OkStatus();
+    }
+
+    auto min() const {
+      if constexpr (zk_dtypes::IsComparable<T> || std::is_integral_v<T>) {
+        ReduceHelper<ReductionKind::kMin, T>(out_chunk, input_chunks);
+        return absl::OkStatus();
+      } else {
+        return absl::InvalidArgumentError(
+            "Min reduction is not supported for non-comparable types");
+      }
+    }
+
+    auto max() const {
+      if constexpr (zk_dtypes::IsComparable<T> || std::is_integral_v<T>) {
+        ReduceHelper<ReductionKind::kMax, T>(out_chunk, input_chunks);
+        return absl::OkStatus();
+      } else {
+        return absl::InvalidArgumentError(
+            "Max reduction is not supported for non-comparable types");
+      }
+    }
+
+    absl::Span<T const* const> input_chunks;
+    absl::Span<T> out_chunk;
+  };
+
+  return SelectReduction<T>(reduction_kind, Selector{input_chunks, out_chunk});
 }
 
 //===----------------------------------------------------------------------===//
