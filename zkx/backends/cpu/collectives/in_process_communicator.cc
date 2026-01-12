@@ -83,24 +83,31 @@ template <ReductionKind kReductionKind, typename T>
 void ReduceHelper(absl::Span<T> acc, absl::Span<T const* const> inputs) {
   // TODO(penporn): make sure this gets vectorized.
   if constexpr (kReductionKind == ReductionKind::kSum) {
-    if constexpr (zk_dtypes::IsAffinePoint<T>) {
-      LOG(FATAL) << "Sum reduction is not supported for AffinePoint types.";
-    } else {
-      for (size_t j = 0; j < inputs.size(); ++j) {
-        for (size_t i = 0; i < acc.size(); ++i) {
-          acc[i] += inputs[j][i];
+    if constexpr (zk_dtypes::IsAdditiveGroup<T> || std::is_integral_v<T>) {
+      if constexpr (zk_dtypes::IsAffinePoint<T>) {
+        LOG(FATAL) << "Sum reduction is not supported for AffinePoint types.";
+      } else {
+        for (size_t j = 0; j < inputs.size(); ++j) {
+          for (size_t i = 0; i < acc.size(); ++i) {
+            acc[i] += inputs[j][i];
+          }
         }
       }
+    } else {
+      LOG(FATAL) << "Sum reduction is only supported for additive groups or "
+                    "integral types.";
     }
   } else if constexpr (kReductionKind == ReductionKind::kProduct) {
-    if constexpr (zk_dtypes::IsEcPoint<T>) {
-      LOG(FATAL) << "Product reduction is not supported for EcPoint types.";
-    } else {
+    if constexpr (zk_dtypes::IsMultiplicativeGroup<T> ||
+                  std::is_integral_v<T>) {
       for (size_t j = 0; j < inputs.size(); ++j) {
         for (size_t i = 0; i < acc.size(); ++i) {
           acc[i] *= inputs[j][i];
         }
       }
+    } else {
+      LOG(FATAL) << "Product reduction is only supported for "
+                    "MultiplicativeGroup types or integral types.";
     }
   } else if constexpr (kReductionKind == ReductionKind::kMin) {
     if constexpr (zk_dtypes::IsEcPoint<T>) {
