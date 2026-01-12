@@ -1138,6 +1138,7 @@ zkx_cc_unittest(
     srcs = [
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
         # "call_graph_unittest.cc",
+        "call_inliner_unittest.cc",
         "compilation_environments_unittest.cc",
         "custom_call_status_test_c_caller.c",
         "custom_call_status_test_c_caller.h",
@@ -1172,6 +1173,7 @@ zkx_cc_unittest(
         # "zkx_debug_info_manager_unittest.cc",
     ],
     deps = [
+        ":call_inliner",
         ":compilation_environments",
         ":custom_call_status",
         ":custom_call_target_registry",
@@ -1195,7 +1197,12 @@ zkx_cc_unittest(
         "//xla/tsl/platform:statusor",
         "//xla/tsl/platform:test_util",
         "//zkx:literal_util",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
         "//zkx/hlo/parser:hlo_parser",
+        "//zkx/hlo/testlib:file_check",
+        "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/hlo/utils:hlo_matchers",
         "//zkx/stream_executor:platform_manager",
         "//zkx/stream_executor/host:host_platform",
         "//zkx/tests:test_utils",
