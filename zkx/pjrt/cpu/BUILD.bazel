@@ -76,6 +76,7 @@ zkx_cc_library(
         "//zkx/backends/cpu/runtime:thunk_executor",
         "//zkx/pjrt:host_callback",
         "//zkx/pjrt:host_memory_spaces",
+        "//zkx/pjrt:mlir_to_hlo",
         "//zkx/pjrt:pjrt_client",
         "//zkx/pjrt:pjrt_common",
         "//zkx/pjrt:utils",

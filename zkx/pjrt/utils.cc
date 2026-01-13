@@ -192,6 +192,56 @@ absl::StatusOr<std::vector<LayoutMode>> MlirAttrsToLayoutModes(
   return result;
 }
 
+// TODO(b/329428415): Make this generic enough to be used by the GPU and TPU
+// compilers.
+absl::StatusOr<MemorySpaceColor> GetMemorySpaceColor(
+    const std::string& memory_kind) {
+  // TODO(yashkatariya,zce): Unpinned_host is not valid for compiler. Only
+  // pinned_host matters. So should there be a different lowering for
+  // unpinned_host?
+  if (memory_kind == "unpinned_host" || memory_kind == "pinned_host") {
+    return Layout::kHostMemorySpace;
+  } else if (memory_kind == "device") {
+    return Layout::kDefaultMemorySpace;
+  } else {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("Unknown memory kind %s", memory_kind));
+  }
+}
+
+// Helper method that takes an ArrayAttr of DictionaryAttrs for each arg or
+// result of a function, and looks for "mhlo.layout_mode". `all_attrs` can be
+// nullptr. `num_values` is the number of arguments or results.
+absl::StatusOr<std::vector<MemorySpaceColor>> MlirAttrsToMemoryKinds(
+    mlir::ArrayAttr all_attrs, size_t num_values) {
+  if (all_attrs == nullptr) {
+    return std::vector<MemorySpaceColor>(num_values,
+                                         Layout::kDefaultMemorySpace);
+  }
+  if (all_attrs.size() != num_values) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "MlirAttrsToMemoryKinds got unexpected number of attributes: %d, "
+        "expected: %d",
+        all_attrs.size(), num_values));
+  }
+
+  std::vector<MemorySpaceColor> result;
+  result.reserve(all_attrs.size());
+  for (const mlir::Attribute& dict_attr : all_attrs) {
+    mlir::StringAttr attr =
+        mlir::cast<mlir::DictionaryAttr>(dict_attr).getAs<mlir::StringAttr>(
+            "mhlo.memory_kind");
+    if (attr != nullptr) {
+      TF_ASSIGN_OR_RETURN(MemorySpaceColor memory_space,
+                          GetMemorySpaceColor(attr.getValue().str()));
+      result.push_back(memory_space);
+    } else {
+      result.emplace_back(Layout::kDefaultMemorySpace);
+    }
+  }
+  return result;
+}
+
 // Helper function for getting default LayoutModes for tupled arguments or
 // outputs. Returns nullopt if the arguments/outputs are not tupled. Raises an
 // error if layout modes are requested on tupled values.
@@ -217,7 +267,52 @@ absl::StatusOr<std::optional<std::vector<LayoutMode>>> GetTupleLayoutModes(
   return std::vector<LayoutMode>(mlir::cast<mlir::TupleType>(types[0]).size());
 }
 
+// Helper function for getting default LayoutModes for tupled arguments or
+// outputs. Returns nullopt if the arguments/outputs are not tupled. Raises an
+// error if layout modes are requested on tupled values.
+absl::StatusOr<std::optional<std::vector<MemorySpaceColor>>>
+GetTupleMemoryKinds(mlir::ArrayRef<mlir::Type> types,
+                    mlir::ArrayAttr all_attrs) {
+  if (types.size() != 1 || !llvm::isa<mlir::TupleType>(types[0])) {
+    return std::nullopt;
+  }
+  if (all_attrs != nullptr) {
+    if (all_attrs.size() != 1) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "GetTupleMemoryKinds expected single tuple attr, got %d attrs",
+          all_attrs.size()));
+    }
+    mlir::StringAttr attr = mlir::cast<mlir::DictionaryAttr>(*all_attrs.begin())
+                                .getAs<mlir::StringAttr>("mhlo.memory_kind");
+    if (attr != nullptr) {
+      return absl::UnimplementedError(
+          "mhlo.memory_kind not supported with tupled values");
+    }
+  }
+  // Use default layout for all outputs.
+  return std::vector<MemorySpaceColor>(
+      mlir::cast<mlir::TupleType>(types[0]).size(),
+      Layout::kDefaultMemorySpace);
+}
+
 }  // namespace
+
+absl::StatusOr<std::vector<LayoutMode>> GetArgLayoutModes(
+    mlir::ModuleOp module) {
+  mlir::func::FuncOp main = module.lookupSymbol<mlir::func::FuncOp>("main");
+  if (main == nullptr) {
+    return absl::InvalidArgumentError(
+        "GetArgLayoutModes passed module without main function");
+  }
+
+  // Special case: tupled arguments
+  TF_ASSIGN_OR_RETURN(std::optional<std::vector<LayoutMode>> maybe_result,
+                      GetTupleLayoutModes(main.getFunctionType().getInputs(),
+                                          main.getAllArgAttrs()));
+  if (maybe_result) return *maybe_result;
+
+  return MlirAttrsToLayoutModes(main.getAllArgAttrs(), main.getNumArguments());
+}
 
 absl::StatusOr<std::vector<LayoutMode>> GetOutputLayoutModes(
     mlir::ModuleOp module) {
@@ -234,6 +329,216 @@ absl::StatusOr<std::vector<LayoutMode>> GetOutputLayoutModes(
   if (maybe_tuple_result) return *maybe_tuple_result;
 
   return MlirAttrsToLayoutModes(main.getAllResultAttrs(), main.getNumResults());
+}
+
+absl::StatusOr<std::vector<MemorySpaceColor>> GetArgMemoryKinds(
+    mlir::ModuleOp module) {
+  mlir::func::FuncOp main = module.lookupSymbol<mlir::func::FuncOp>("main");
+  if (main == nullptr) {
+    return absl::InvalidArgumentError(
+        "GetArgMemoryKinds passed module without main function");
+  }
+
+  // Special case: tupled arguments
+  TF_ASSIGN_OR_RETURN(
+      std::optional<std::vector<MemorySpaceColor>> maybe_tuple_result,
+      GetTupleMemoryKinds(main.getFunctionType().getInputs(),
+                          main.getAllArgAttrs()));
+  if (maybe_tuple_result) return *maybe_tuple_result;
+
+  return MlirAttrsToMemoryKinds(main.getAllArgAttrs(), main.getNumArguments());
+}
+
+absl::StatusOr<std::vector<MemorySpaceColor>> GetOutputMemoryKinds(
+    mlir::ModuleOp module) {
+  mlir::func::FuncOp main = module.lookupSymbol<mlir::func::FuncOp>("main");
+  if (main == nullptr) {
+    return absl::InvalidArgumentError(
+        "GetOutputMemoryKinds passed module without main function");
+  }
+
+  // Special case: tupled outputs
+  TF_ASSIGN_OR_RETURN(
+      std::optional<std::vector<MemorySpaceColor>> maybe_tuple_result,
+      GetTupleMemoryKinds(main.getFunctionType().getResults(),
+                          main.getAllResultAttrs()));
+  if (maybe_tuple_result) return *maybe_tuple_result;
+
+  return MlirAttrsToMemoryKinds(main.getAllResultAttrs(), main.getNumResults());
+}
+
+absl::StatusOr<Shape> LayoutModeToZkxShape(
+    const LayoutMode& layout_mode, const Shape& unsharded_shape,
+    const Shape& sharded_shape, MemorySpaceColor memory_space,
+    std::function<absl::StatusOr<Shape>(Shape)>
+        choose_compact_layout_for_shape_function) {
+  if (unsharded_shape.IsToken() || unsharded_shape.IsOpaque()) {
+    return unsharded_shape;
+  }
+  if (!unsharded_shape.IsArray() || !sharded_shape.IsArray()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("LayoutModeToZkxShape must be passed array shapes, got "
+                        "unsharded_shape: %s, sharded_shape: %s",
+                        unsharded_shape.ToString(), sharded_shape.ToString()));
+  }
+  // For sharded computations, XLA expects the layout to specified as the global
+  // shape with the sharded layout.
+  Shape result = unsharded_shape;
+  LayoutUtil::ClearLayout(&result);
+  switch (layout_mode.mode) {
+    case LayoutMode::Mode::kDefault: {
+      TF_ASSIGN_OR_RETURN(
+          Shape layout,
+          choose_compact_layout_for_shape_function(sharded_shape));
+      *result.mutable_layout() = layout.layout();
+      break;
+    }
+    case LayoutMode::Mode::kUserSpecified: {
+      CHECK(layout_mode.user_layout);
+      *result.mutable_layout() = *layout_mode.user_layout;
+      break;
+    }
+    case LayoutMode::Mode::kAuto: {
+      // Don't set any layout on `result`.
+      break;
+    }
+  }
+  // When layout is AUTO, memory space can't be set since it will be partial.
+  if (result.has_layout()) {
+    result.mutable_layout()->set_memory_space(memory_space);
+  }
+  return result;
+}
+
+absl::StatusOr<std::pair<std::vector<Shape>, Shape>> LayoutModesToZkxShapes(
+    const ZkxComputation& computation, std::vector<LayoutMode> arg_layout_modes,
+    std::vector<LayoutMode> out_layout_modes,
+    const std::vector<MemorySpaceColor>& arg_memory_spaces,
+    const std::vector<MemorySpaceColor>& out_memory_spaces,
+    std::function<absl::StatusOr<Shape>(Shape)>
+        choose_compact_layout_for_shape_function) {
+  // Compute sharded argument and output shapes.
+  TF_ASSIGN_OR_RETURN(ProgramShape program_shape,
+                      computation.GetProgramShape());
+  TF_ASSIGN_OR_RETURN(auto sharded_shapes,
+                      GetShardedProgramShapes(computation, program_shape));
+
+  // Untuple if necessary.
+  bool args_tupled = program_shape.parameters_size() == 1 &&
+                     program_shape.parameters(0).IsTuple();
+  const std::vector<Shape>& unsharded_arg_shapes =
+      args_tupled ? program_shape.parameters(0).tuple_shapes()
+                  : program_shape.parameters();
+  const std::vector<Shape>& sharded_arg_shapes =
+      args_tupled ? sharded_shapes.first[0].tuple_shapes()
+                  : sharded_shapes.first;
+
+  bool out_tupled = program_shape.result().IsTuple();
+  const std::vector<Shape>& unsharded_out_shapes =
+      out_tupled ? program_shape.result().tuple_shapes()
+                 : std::vector<Shape>{program_shape.result()};
+  const std::vector<Shape>& sharded_out_shapes =
+      out_tupled ? sharded_shapes.second.tuple_shapes()
+                 : std::vector<Shape>{sharded_shapes.second};
+
+  if (unsharded_arg_shapes.size() != arg_layout_modes.size()) {
+    return absl::InvalidArgumentError(
+        absl::StrFormat("LayoutModesToZkxShapes got mismatched number of "
+                        "arguments and layout modes (%d vs %d)",
+                        unsharded_arg_shapes.size(), arg_layout_modes.size()));
+  }
+  if (sharded_arg_shapes.size() != arg_layout_modes.size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "LayoutModesToZkxShapes got mismatched number of sharded arguments and "
+        "layout modes (%d vs %d)",
+        sharded_arg_shapes.size(), arg_layout_modes.size()));
+  }
+  if (unsharded_out_shapes.size() != out_layout_modes.size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "LayoutModesToZkxShapes got mismatched number of outputs and layout "
+        "modes (%d vs %d)",
+        unsharded_out_shapes.size(), out_layout_modes.size()));
+  }
+  if (sharded_out_shapes.size() != out_layout_modes.size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "LayoutModesToZkxShapes got mismatched number of sharded outputs and "
+        "layout modes (%d vs %d)",
+        sharded_out_shapes.size(), out_layout_modes.size()));
+  }
+
+  // Convert each LayoutMode to an xla::Shape with the appropriate Layout set or
+  // unset.
+  if (arg_memory_spaces.size() != arg_layout_modes.size()) {
+    return absl::InvalidArgumentError(
+        "The sizes of arg_memory_spaces and arg_layout_modes don't match");
+  }
+  std::vector<Shape> flat_arg_layouts;
+  flat_arg_layouts.reserve(arg_layout_modes.size());
+  for (int i = 0; i < arg_layout_modes.size(); ++i) {
+    TF_ASSIGN_OR_RETURN(
+        Shape layout,
+        LayoutModeToZkxShape(arg_layout_modes[i], unsharded_arg_shapes[i],
+                             sharded_arg_shapes[i], arg_memory_spaces[i],
+                             choose_compact_layout_for_shape_function));
+    flat_arg_layouts.emplace_back(std::move(layout));
+  }
+
+  if (out_memory_spaces.size() != out_layout_modes.size()) {
+    return absl::InvalidArgumentError(
+        "The sizes of out_memory_spaces and out_layout_modes don't match");
+  }
+  std::vector<Shape> flat_out_layouts;
+  flat_out_layouts.reserve(out_layout_modes.size());
+  for (int i = 0; i < out_layout_modes.size(); ++i) {
+    TF_ASSIGN_OR_RETURN(
+        Shape layout,
+        LayoutModeToZkxShape(out_layout_modes[i], unsharded_out_shapes[i],
+                             sharded_out_shapes[i], out_memory_spaces[i],
+                             choose_compact_layout_for_shape_function));
+    flat_out_layouts.emplace_back(std::move(layout));
+  }
+
+  // Tuple final shapes if necessary.
+  std::vector<Shape> arg_layouts =
+      args_tupled
+          ? std::vector<Shape>{ShapeUtil::MakeTupleShape(flat_arg_layouts)}
+          : std::move(flat_arg_layouts);
+  Shape out_layout = out_tupled ? ShapeUtil::MakeTupleShape(flat_out_layouts)
+                                : flat_out_layouts[0];
+
+  return std::pair<std::vector<Shape>, Shape>{std::move(arg_layouts),
+                                              std::move(out_layout)};
+}
+
+absl::StatusOr<std::pair<std::vector<Shape>, std::vector<const Shape*>>>
+LayoutModesToZkx(const ZkxComputation& computation,
+                 std::vector<LayoutMode> arg_layout_modes,
+                 std::vector<LayoutMode> out_layout_modes,
+                 const std::vector<MemorySpaceColor>& arg_memory_spaces,
+                 const std::vector<MemorySpaceColor>& out_memory_spaces,
+                 std::function<absl::StatusOr<Shape>(Shape)>
+                     choose_compact_layout_for_shape_function,
+                 ExecutableBuildOptions& build_options) {
+  TF_ASSIGN_OR_RETURN(
+      auto pair,
+      LayoutModesToZkxShapes(computation, arg_layout_modes, out_layout_modes,
+                             arg_memory_spaces, out_memory_spaces,
+                             choose_compact_layout_for_shape_function));
+  std::vector<Shape>& arg_layouts = pair.first;
+  Shape& out_layout = pair.second;
+
+  // Generate result vector of pointers
+  std::vector<const Shape*> arg_layout_pointers;
+  arg_layout_pointers.reserve(arg_layouts.size());
+  for (int i = 0; i < arg_layouts.size(); ++i) {
+    arg_layout_pointers.push_back(&arg_layouts[i]);
+  }
+
+  // Update build_options
+  build_options.set_result_layout(out_layout);
+
+  return std::pair<std::vector<Shape>, std::vector<const Shape*>>{
+      std::move(arg_layouts), std::move(arg_layout_pointers)};
 }
 
 absl::Status DetermineArgumentLayoutsFromCompileOptions(

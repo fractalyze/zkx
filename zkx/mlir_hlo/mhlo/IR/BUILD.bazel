@@ -26,7 +26,9 @@ td_library(
         "//zkx/mlir_hlo/stablehlo/dialect:base_td_files",
         "@llvm-project//mlir:InferTypeOpInterfaceTdFiles",
         "@llvm-project//mlir:OpBaseTdFiles",
+        "@llvm-project//mlir:ShapeOpsTdFiles",
         "@llvm-project//mlir:SideEffectInterfacesTdFiles",
+        "@llvm-project//mlir:TensorOpsTdFiles",
     ],
 )
 
@@ -81,6 +83,20 @@ gentbl_cc_library(
     deps = [":hlo_ops_td_files"],
 )
 
+gentbl_cc_library(
+    name = "canonicalize_inc_gen",
+    strip_include_prefix = ".",
+    tbl_outs = [
+        (
+            ["-gen-rewriters"],
+            "mhlo_canonicalize.inc",
+        ),
+    ],
+    tblgen = "@llvm-project//mlir:mlir-tblgen",
+    td_file = "mhlo_canonicalize.td",
+    deps = [":hlo_ops_td_files"],
+)
+
 zkx_cc_library(
     name = "mlir_hlo",
     srcs = [
@@ -95,6 +111,7 @@ zkx_cc_library(
     hdrs = ["hlo_ops.h"],
     strip_include_prefix = ".",
     deps = [
+        ":canonicalize_inc_gen",
         ":hlo_ops_attrs_inc_gen",
         ":hlo_ops_enums_inc_gen",
         ":hlo_ops_inc_gen",
@@ -103,15 +120,20 @@ zkx_cc_library(
         "//zkx/mlir_hlo/stablehlo/dialect:base",
         "//zkx/mlir_hlo/stablehlo/dialect:type_inference",
         "//zkx/mlir_hlo/utils:convert_op_folder",
+        "//zkx/mlir_hlo/utils:hlo_utils",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:ArithDialect",
         "@llvm-project//mlir:BytecodeOpInterface",
+        "@llvm-project//mlir:DataLayoutInterfaces",
         "@llvm-project//mlir:Dialect",
         "@llvm-project//mlir:FuncDialect",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:InferTypeOpInterface",
         "@llvm-project//mlir:InliningUtils",
+        "@llvm-project//mlir:ShapeDialect",
         "@llvm-project//mlir:SideEffectInterfaces",
         "@llvm-project//mlir:Support",
+        "@llvm-project//mlir:TensorDialect",
         "@prime_ir//prime_ir/Dialect/Field/IR:Field",
     ],
 )

@@ -852,7 +852,7 @@ TEST(CoordinationServiceTest, ListClusterDevices_TfDevice) {
   // EXPECT_THAT(cluster_devices, EqualsProto(expected_cluster_devices));
 }
 
-TEST(CoordinationServiceTest, ListClusterDevices_XlaDevice) {
+TEST(CoordinationServiceTest, ListClusterDevices_ZkxDevice) {
   const CoordinationServiceConfig config =
       GetCoordinationServiceConfig(/*num_tasks=*/3);
   CoordinatedTask task_0;

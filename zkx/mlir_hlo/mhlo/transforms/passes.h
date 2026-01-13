@@ -19,6 +19,7 @@ limitations under the License.
 
 #include <memory>
 
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
 
@@ -27,8 +28,25 @@ namespace mlir::mhlo {
 #define GEN_PASS_DECL
 #include "zkx/mlir_hlo/mhlo/transforms/mhlo_passes.h.inc"
 
+// Sinks constants implicitly captured in control flow regions. This is
+// necessary to export to ZKX.
+std::unique_ptr<OperationPass<func::FuncOp>>
+createSinkConstantsToControlFlowPass();
+
+// Creates a pass to analyze shapes and to use that information for
+// shape-related optimizations.
+std::unique_ptr<OperationPass<func::FuncOp>>
+createSymbolicShapeOptimizationPass();
+
 // Pass to replace unsigned types with signless integers.
 std::unique_ptr<OperationPass<ModuleOp>> createConvertToSignlessPass();
+
+// Legalizes from the StableHLO dialect to the MHLO dialect.
+std::unique_ptr<OperationPass<ModuleOp>> createStablehloLegalizeToHloPass();
+
+// Legalizes from the Shape dialect to the MHLO dialect.
+std::unique_ptr<OperationPass<func::FuncOp>>
+createShapeLegalizeToHloPass(bool legalizeConstraints = false);
 
 #define GEN_PASS_REGISTRATION
 #include "zkx/mlir_hlo/mhlo/transforms/mhlo_passes.h.inc" // NOLINT(build/include)

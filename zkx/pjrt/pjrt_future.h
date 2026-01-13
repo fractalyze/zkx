@@ -440,6 +440,7 @@ class PjRtFuture : public internal::PjRtFutureBase<absl::StatusOr<T>> {
   }
 
   using Base::Await;
+  using Base::BlockUntilReady;
   using Base::OnReady;
 };
 
@@ -497,6 +498,7 @@ class PjRtFuture<void> : public internal::PjRtFutureBase<absl::Status> {
              std::move(on_block_end)) {}
 
   using Base::Await;
+  using Base::BlockUntilReady;
   using Base::OnReady;
 };
 

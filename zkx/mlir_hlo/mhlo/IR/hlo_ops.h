@@ -23,6 +23,7 @@ limitations under the License.
 #include "mlir/Bytecode/BytecodeOpInterface.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/OpDefinition.h"
+#include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TensorEncoding.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Interfaces/InferTypeOpInterface.h"
@@ -86,5 +87,14 @@ public:
 
 #define GET_OP_CLASSES
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h.inc"
+
+namespace mlir::mhlo {
+
+SortOp createSortOp(PatternRewriter *rewriter, const Location &loc,
+                    const llvm::ArrayRef<Value> &operands,
+                    const llvm::ArrayRef<Type> &elementTypes, int64_t dimension,
+                    bool isStable, ComparisonDirection direction);
+
+} // namespace mlir::mhlo
 
 #endif // ZKX_MLIR_HLO_MHLO_IR_HLO_OPS_H_
