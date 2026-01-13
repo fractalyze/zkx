@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -2154,6 +2155,23 @@ absl::StatusOr<HloInstruction::FusionKind> StringToFusionKind(
 // pretty printing.
 std::string FrontendAttributesToString(
     const FrontendAttributes& frontend_attributes);
+
+// Map classes that guarantee a deterministic iteration order when the key is
+// an HloInstruction* or a const HloInstruction*.
+// To make the iteration order over the map deterministic, the comparator
+// should not be using the pointer values, but rather an intrinsic property of
+// the hlo. Exception: null pointer values compare less than non-null.
+struct HloPtrComparator {
+  bool operator()(const HloInstruction* const& lhs,
+                  const HloInstruction* const& rhs) const;
+};
+
+template <typename ValueT>
+using HloInstructionMap = std::map<HloInstruction*, ValueT, HloPtrComparator>;
+
+template <typename ValueT>
+using ConstHloInstructionMap =
+    std::map<const HloInstruction*, ValueT, HloPtrComparator>;
 
 template <HloOpcode op, HloOpcode... rest>
 bool HloPredicateIsOp(const HloInstruction* instruction) {

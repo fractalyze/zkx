@@ -328,6 +328,44 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "dynamic_dimension_inference",
+    srcs = ["dynamic_dimension_inference.cc"],
+    hdrs = ["dynamic_dimension_inference.h"],
+    deps = [
+        ":hlo_creation_utils",
+        ":hlo_value",
+        ":tuple_util",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:literal_util",
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/analysis:hlo_dataflow_analysis",
+        "//zkx/hlo/ir:dfs_hlo_visitor_with_default",
+        "//zkx/hlo/ir:dynamic_parameter_binding",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_opcode",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "executable",
     srcs = ["executable.cc"],
     hdrs = ["executable.h"],
@@ -1028,6 +1066,8 @@ zkx_cc_unittest(
         "custom_call_status_test_c_caller.h",
         "custom_call_target_registry_unittest.cc",
         "dump_unittest.cc",
+        # TODO(chokobole): Add unittest. Dependency: HloTestBase
+        # "dynamic_dimension_inference_unittest.cc",
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
         # "hlo_creation_utils_unittest.cc",
         "hlo_module_config_unittest.cc",
