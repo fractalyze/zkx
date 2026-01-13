@@ -3498,19 +3498,21 @@ struct Remainder<APSInt> {
 // APInts need a special implementation. Currently, it replicates signed int
 // op behavior.
 BINARY_FOLDER(SubtractOp, std::minus)
-BINARY_FOLDER(DivOp, Divide) BINARY_FOLDER(RemOp, Remainder)
-    BINARY_FOLDER(MaxOp, Max) BINARY_FOLDER(MinOp, Min)
+BINARY_FOLDER(DivOp, Divide)
+BINARY_FOLDER(RemOp, Remainder)
+BINARY_FOLDER(MaxOp, Max)
+BINARY_FOLDER(MinOp, Min)
 
-        namespace {
+namespace {
 
-  bool isSplatZero(SplatElementsAttr attr) {
-    if (!attr)
-      return false;
-    if (isa<IntegerType>(attr.getElementType())) {
-      return attr.getSplatValue<APInt>().isZero();
-    }
+bool isSplatZero(SplatElementsAttr attr) {
+  if (!attr)
     return false;
+  if (isa<IntegerType>(attr.getElementType())) {
+    return attr.getSplatValue<APInt>().isZero();
   }
+  return false;
+}
 
 } // namespace
 
