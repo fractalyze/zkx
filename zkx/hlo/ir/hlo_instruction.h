@@ -36,6 +36,7 @@
 #include "zkx/service/mapped_ptr_container_sorter.h"
 #include "zkx/service/name_uniquer.h"
 #include "zkx/shape.h"
+#include "zkx/shape_util.h"
 
 namespace zkx {
 
@@ -1442,6 +1443,15 @@ class HloInstruction {
   // multiple times.
   absl::InlinedVector<int64_t, 4> OperandIndices(
       const HloInstruction* operand) const;
+
+  // Convenience helper for ShapeUtil::InsertedOrDeleted1SizedDimensions. If
+  // this reshape merely inserts or deletes 1-sized dimensions, return the input
+  // indices of the deleted dimensions and the output indices of the inserted
+  // dimensions.
+  //
+  // Precondition: this op must be a reshape.
+  std::optional<ShapeUtil::ShapeEqualityDescriptor>
+  ReshapeMerelyInsertsOrDeletes1SizedDimensions() const;
 
   // Gets the string identifier for this instruction.
   std::string_view name() const { return name_; }

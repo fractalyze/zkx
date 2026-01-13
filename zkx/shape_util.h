@@ -27,6 +27,7 @@ limitations under the License.
 
 #include "absl/base/attributes.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/functional/function_ref.h"
 #include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -306,6 +307,10 @@ class ShapeUtil {
   // Creates a tuple shape from a slice of element shapes within the tuple.
   static Shape MakeTupleShape(absl::Span<const Shape> shapes);
   static Shape MakeTupleShapeWithPtrs(absl::Span<const Shape* const> shapes);
+
+  // Creates a tuple shape from a slice of element shapes within the tuple. If
+  // only one shape is passed, returns that.
+  static Shape MakeMaybeTupleShape(absl::Span<const Shape> shapes);
 
   // Creates an opaque shape. These are generally used for threading a context
   // into a custom operation.
@@ -723,6 +728,23 @@ class ShapeUtil {
   // Decomposes a bitcast to one of the possible decompositions.
   static BitcastDecomposition DecomposeBitcast(const Shape& input_shape,
                                                const Shape& output_shape);
+
+  // Returns a shape with the given dimension deleted.
+  // For example:
+  // • `DeleteDimension(1, T[m, n, k]) = T[m, k]`
+  static Shape DeleteDimension(int64_t dim_to_delete, Shape shape);
+
+  // Returns a shape with the given dimensions deleted.
+  static Shape DeleteDimensions(absl::Span<int64_t const> dims_to_delete,
+                                Shape shape);
+
+  // Returns a shape with all the dimensions of the input shape for which `p`
+  // returns true.
+  // For examples:
+  // • `FilterDimensions((< 2), T[m, n, k]) = T[m, n]`
+  // • `FilterDimensions(is_even_number, T[m, n, k]) = T[m, k]`
+  static Shape FilterDimensions(absl::FunctionRef<bool(int64_t)> p,
+                                Shape shape);
 
   // Returns true if `dynamic_shape` has dimensions that are less-equal to the
   // "bounded_shape". Shapes must be arrays.

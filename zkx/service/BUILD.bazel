@@ -402,6 +402,36 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_creation_utils",
+    srcs = ["hlo_creation_utils.cc"],
+    hdrs = ["hlo_creation_utils.h"],
+    deps = [
+        ":hlo_cc_proto",
+        ":hlo_module_config",
+        ":shape_inference",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:comparison_util",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/builder:zkx_computation",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_clone_context",
+        "//zkx/hlo/ir:hlo_opcode",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_module_config",
     srcs = ["hlo_module_config.cc"],
     hdrs = ["hlo_module_config.h"],
@@ -998,6 +1028,8 @@ zkx_cc_unittest(
         "custom_call_status_test_c_caller.h",
         "custom_call_target_registry_unittest.cc",
         "dump_unittest.cc",
+        # TODO(chokobole): Add unittest. Dependency: HloTestBase
+        # "hlo_creation_utils_unittest.cc",
         "hlo_module_config_unittest.cc",
         "hlo_proto_util_unittest.cc",
         # TODO(chokobole): Add unittest. Dependency: HloTestBase

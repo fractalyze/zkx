@@ -26,7 +26,6 @@ limitations under the License.
 #include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/hlo/ir/hlo_module.h"
 #include "zkx/hlo/ir/hlo_op_metadata.h"
-#include "zkx/shape_util.h"
 
 namespace zkx {
 
@@ -3680,6 +3679,15 @@ bool HloInstruction::IsElementwise() const {
 
 bool HloInstruction::IsElementwiseOnOperand(int64_t operand_idx) const {
   return IsElementwiseImpl(operand_idx);
+}
+
+std::optional<ShapeUtil::ShapeEqualityDescriptor>
+HloInstruction::ReshapeMerelyInsertsOrDeletes1SizedDimensions() const {
+  if (HloOpcode::kReshape != opcode_) {
+    return std::nullopt;
+  }
+  return ShapeUtil::InsertedOrDeleted1SizedDimensions(operand(0)->shape_,
+                                                      shape_);
 }
 
 HloModule* HloInstruction::GetModule() const {
