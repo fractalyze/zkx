@@ -169,6 +169,46 @@ class FieldScalarBinaryTest : public CudaKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<F>(x_ + y_);
   }
 
+  void SetUpCompareEq() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = pred[] compare(%x, %y), direction=EQ
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = pred[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<bool>(x_ == y_);
+  }
+
+  void SetUpCompareNe() {
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = pred[] compare(%x, %y), direction=NE
+      }
+
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+
+        ROOT %ret = pred[] fusion(%x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<bool>(x_ != y_);
+  }
+
   void SetUpDiv() {
     hlo_text_ = absl::Substitute(R"(
       %f {
@@ -187,7 +227,7 @@ class FieldScalarBinaryTest : public CudaKernelEmitterTest {
     )",
                                  x_typename_);
     if (y_.IsZero()) {
-      expected_literal_ = LiteralUtil::CreateR0<F>(0);
+      expected_literal_ = LiteralUtil::CreateR0<F>(F::Zero());
     } else {
       expected_literal_ = LiteralUtil::CreateR0<F>(x_ / y_);
     }
@@ -292,6 +332,72 @@ class FieldScalarBinaryTest : public CudaKernelEmitterTest {
                                  x_typename_);
     literals_.pop_back();
     expected_literal_ = LiteralUtil::CreateR0<F>(x_.Square());
+  }
+
+ private:
+  F x_;
+  F y_;
+};
+
+template <typename F>
+class FieldScalarTernaryTest : public CudaKernelEmitterTest {
+ public:
+  void SetUp() override {
+    CudaKernelEmitterTest::SetUp();
+    x_typename_ = primitive_util::LowercasePrimitiveTypeName(
+        primitive_util::NativeToPrimitiveType<F>());
+    x_ = F::Random();
+    y_ = F::Random();
+    literals_.emplace_back();  // Placeholder for the predicate.
+    literals_.push_back(LiteralUtil::CreateR0<F>(x_));
+    literals_.push_back(LiteralUtil::CreateR0<F>(y_));
+  }
+
+ protected:
+  void SetUpSelectTrue() {
+    literals_[0] = LiteralUtil::CreateR0<bool>(true);
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+        %y = $0[] parameter(2)
+
+        ROOT %ret = $0[] select(%cond, %x, %y)
+      }
+
+      ENTRY %main {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+        %y = $0[] parameter(2)
+
+        ROOT %ret = $0[] fusion(%cond, %x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(x_);
+  }
+
+  void SetUpSelectFalse() {
+    literals_[0] = LiteralUtil::CreateR0<bool>(false);
+    hlo_text_ = absl::Substitute(R"(
+      %f {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+        %y = $0[] parameter(2)
+
+        ROOT %ret = $0[] select(%cond, %x, %y)
+      }
+
+      ENTRY %main {
+        %cond = pred[] parameter(0)
+        %x = $0[] parameter(1)
+        %y = $0[] parameter(2)
+
+        ROOT %ret = $0[] fusion(%cond, %x, %y), kind=kLoop, calls=%f
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<F>(y_);
   }
 
  private:
