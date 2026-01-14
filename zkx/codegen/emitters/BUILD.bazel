@@ -82,17 +82,37 @@ zkx_cc_library(
     ],
 )
 
-# TODO(chokobole): Add elemental_hlo_to_mlir_unittest.cc. Dependency: HloTestBase
-
 zkx_cc_unittest(
     name = "emitters_unittests",
-    srcs = ["computation_partitioner_unittest.cc"],
+    srcs = [
+        "computation_partitioner_unittest.cc",
+        "elemental_hlo_to_mlir_unittest.cc",
+    ],
     deps = [
         ":computation_partitioner",
+        ":elemental_hlo_to_mlir",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:status_macros",
+        "//zkx/backends/gpu/codegen/emitters/ir:zkx_gpu",
+        "//zkx/codegen/emitters/ir:zkx",
         "//zkx/hlo/analysis:indexing_analysis",
         "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/testlib:file_check",
+        "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
+        "//zkx/service/llvm_ir:llvm_util",
         "//zkx/tests:hlo_test_base",
         "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:DLTIDialect",
         "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMDialect",
+        "@llvm-project//mlir:MathDialect",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:TensorDialect",
+        "@llvm-project//mlir:Transforms",
     ],
 )
