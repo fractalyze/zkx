@@ -7,6 +7,7 @@ zkx_cc_library(
     srcs = [
         "hlo_evaluator.cc",
         "hlo_evaluator_typed_visitor.h",
+        "hlo_evaluator_typed_visitor_bool.cc",
         "hlo_evaluator_typed_visitor_int1.cc",
         "hlo_evaluator_typed_visitor_int16.cc",
         "hlo_evaluator_typed_visitor_int2.cc",
