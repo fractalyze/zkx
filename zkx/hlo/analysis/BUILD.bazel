@@ -207,13 +207,13 @@ zkx_cc_library(
 
 # TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: FlattenCallGraph
 # TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: FlattenCallGraph
-# TODO(chokobole): Add indexing_map_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add indexing_map_serialization_unittest.cc. Dependency: HloTestBase
 zkx_cc_unittest(
     name = "analysis_unittests",
     srcs = [
         "hlo_reachability_unittest.cc",
         "indexing_analysis_unittest.cc",
+        "indexing_map_unittest.cc",
         "tuple_points_to_analysis_unittest.cc",
     ],
     deps = [
@@ -230,6 +230,7 @@ zkx_cc_unittest(
         "//zkx/service:computation_placer",
         "//zkx/service:hlo_module_config",
         "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/hash:hash_testing",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/types:span",
     ],
