@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -82,5 +82,17 @@ zkx_cc_library(
     ],
 )
 
-# TODO(chokobole): Add computation_partitioner_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add elemental_hlo_to_mlir_unittest.cc. Dependency: HloTestBase
+
+zkx_cc_unittest(
+    name = "emitters_unittests",
+    srcs = ["computation_partitioner_unittest.cc"],
+    deps = [
+        ":computation_partitioner",
+        "//zkx/hlo/analysis:indexing_analysis",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/tests:hlo_test_base",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:IR",
+    ],
+)
