@@ -26,8 +26,8 @@ limitations under the License.
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/types/span.h"
 #include "absl/strings/str_format.h"
+#include "absl/types/span.h"
 
 #include "xla/tsl/platform/env.h"
 #include "xla/tsl/platform/errors.h"

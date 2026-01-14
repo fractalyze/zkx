@@ -25,10 +25,10 @@ namespace zkx::interpreter {
 InterpreterExecutable::InterpreterExecutable(
     std::unique_ptr<HloModule> hlo_module,
     std::unique_ptr<HloEvaluator> evaluator,
-    std::optional<DynamicDimensionInference> dynamic_dymension_inference)
+    std::optional<DynamicDimensionInference> dynamic_dimension_inference)
     : InterpreterExecutableBase(std::move(hlo_module)),
       evaluator_(std::move(evaluator)),
-      dynamic_dimension_inference_(std::move(dynamic_dymension_inference)) {
+      dynamic_dimension_inference_(std::move(dynamic_dimension_inference)) {
   if (dynamic_dimension_inference_.has_value()) {
     evaluator_->set_dynamic_dimension_inference(
         &dynamic_dimension_inference_.value());
