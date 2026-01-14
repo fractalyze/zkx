@@ -47,6 +47,7 @@ limitations under the License.
 #include "prime_ir/Dialect/EllipticCurve/IR/EllipticCurveTypes.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/codegen/emitters/ir/zkx_ops.h"
+#include "zkx/comparison_util.h"
 #include "zkx/hlo/analysis/indexing_analysis.h"
 #include "zkx/hlo/translate/hlo_to_mhlo/hlo_utils.h"
 #include "zkx/mlir/mlir_utils.h"
@@ -177,6 +178,30 @@ SmallVector<Value, 1> MapElementwiseOp(
   // We use the last argument's type because of select.
   return MapHloOp<MhloOp>(args.back().getType(), arg_types, args, attributes,
                           b);
+}
+
+absl::StatusOr<SmallVector<Value, 1>> EmitCompare(
+    const HloInstruction* instr, llvm::ArrayRef<mlir::Type> arg_types,
+    ValueRange operands, ImplicitLocOpBuilder& builder) {
+  auto* context = builder.getContext();
+  PrimitiveType operand_type = instr->operand(0)->shape().element_type();
+  if (primitive_util::IsExtensionFieldType(operand_type) &&
+      instr->comparison_direction() != ComparisonDirection::kEq &&
+      instr->comparison_direction() != ComparisonDirection::kNe) {
+    return absl::InvalidArgumentError(
+        "Extension fields only support EQ and NE comparisons");
+  }
+  auto direction = mhlo::symbolizeComparisonDirection(
+      ComparisonDirectionToString(instr->comparison_direction()));
+  mhlo::CompareOp::Properties properties;
+  properties.comparison_direction =
+      mhlo::ComparisonDirectionAttr::get(context, direction.value());
+  SmallVector<Value> args(operands.begin(), operands.end());
+  auto result_types = llvm::to_vector(mlir::TypeRange{builder.getI1Type()});
+  return {{mhlo::MhloOpToStdScalarOp::mapOpOfType<mhlo::CompareOp>(
+      builder.getLoc(), result_types, arg_types,
+      mhlo::CompareOp::Adaptor(args, nullptr, properties),
+      /*attributes=*/std::nullopt, &builder)}};
 }
 
 }  // namespace
@@ -489,10 +514,7 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
       return absl::UnimplementedError(
           "HloToMlir not implemented for HloOpcode::kClz");
     case HloOpcode::kCompare:
-      // TODO(chokobole): Implement this. Dependency: EmitCompare
-      // return EmitCompare(instr, arg_types, operands, builder);
-      return absl::UnimplementedError(
-          "HloToMlir not implemented for HloOpcode::kCompare");
+      return EmitCompare(instr, arg_types, operands, builder);
     case HloOpcode::kDivide:
       return MapElementwiseOp<mhlo::DivOp>(arg_types, operands, builder);
     case HloOpcode::kMap: {
@@ -571,13 +593,9 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
       return absl::UnimplementedError(
           "HloToMlir not implemented for HloOpcode::kRemainder");
     case HloOpcode::kSelect: {
-      // TODO(chokobole): Uncomment this. Dependency: mhlo::SelectOp
-      // operands[0] =
-      // builder.createOrFold<arith::TruncIOp>(builder.getI1Type(),
-      //                                                     operands[0]);
-      // return MapElementwiseOp<mhlo::SelectOp>(arg_types, operands, builder);
-      return absl::UnimplementedError(
-          "HloToMlir not implemented for HloOpcode::kSelect");
+      operands[0] = builder.createOrFold<arith::TruncIOp>(builder.getI1Type(),
+                                                          operands[0]);
+      return MapElementwiseOp<mhlo::SelectOp>(arg_types, operands, builder);
     }
     case HloOpcode::kShiftLeft:
       // TODO(chokobole): Uncomment this. Dependency: mhlo::ShiftLeftOp
@@ -921,9 +939,10 @@ absl::Status SubgraphToMlirFunction(
                      parameters, indices, builder));
   CHECK_EQ(results.size(), func.getResultTypes().size());
 
-  for (auto& result : results) {
-    if (result.getType().isInteger(1)) {
-      result = builder.create<arith::ExtUIOp>(builder.getI8Type(), result);
+  for (auto [i, result] : llvm::enumerate(results)) {
+    mlir::Type expected_type = func.getResultTypes()[i];
+    if (result.getType().isInteger(1) && expected_type.isInteger(8)) {
+      results[i] = builder.create<arith::ExtUIOp>(builder.getI8Type(), result);
     }
   }
 

@@ -136,6 +136,39 @@ mlir::prime_ir::field::QuadraticExtFieldType GetMlirQuadraticExtFieldType(
 }
 
 template <typename T>
+mlir::prime_ir::field::CubicExtFieldType GetMlirCubicExtFieldType(
+    mlir::MLIRContext* context) {
+  using BaseField = typename T::BaseField;
+
+  return mlir::prime_ir::field::CubicExtFieldType::get(
+      context, GetMlirPrimeFieldType<BaseField>(context),
+      GetMlirIntegerAttr(context, T::Config::kNonResidue.value()));
+}
+
+template <typename T>
+mlir::prime_ir::field::QuarticExtFieldType GetMlirQuarticExtFieldType(
+    mlir::MLIRContext* context) {
+  using BaseField = typename T::BaseField;
+
+  return mlir::prime_ir::field::QuarticExtFieldType::get(
+      context, GetMlirPrimeFieldType<BaseField>(context),
+      GetMlirIntegerAttr(context, T::Config::kNonResidue.value()));
+}
+
+template <typename T>
+mlir::Type GetMlirExtFieldType(mlir::MLIRContext* context) {
+  constexpr uint32_t kDegree = T::Config::kDegreeOverBaseField;
+  if constexpr (kDegree == 2) {
+    return GetMlirQuadraticExtFieldType<T>(context);
+  } else if constexpr (kDegree == 3) {
+    return GetMlirCubicExtFieldType<T>(context);
+  } else {
+    static_assert(kDegree == 4);
+    return GetMlirQuarticExtFieldType<T>(context);
+  }
+}
+
+template <typename T>
 mlir::prime_ir::elliptic_curve::ShortWeierstrassAttr
 GetMlirG1ShortWeierstrassAttr(mlir::MLIRContext* context) {
   using BaseField = typename T::BaseField;

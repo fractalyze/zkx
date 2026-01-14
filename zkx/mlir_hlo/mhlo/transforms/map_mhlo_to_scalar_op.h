@@ -17,6 +17,8 @@ limitations under the License.
 #ifndef ZKX_MLIR_HLO_MHLO_TRANSFORMS_MAP_MHLO_TO_SCALAR_OP_H_
 #define ZKX_MLIR_HLO_MHLO_TRANSFORMS_MAP_MHLO_TO_SCALAR_OP_H_
 
+#include <cassert>
+#include <optional>
 #include <type_traits>
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -62,6 +64,11 @@ struct MhloToScalarOp<mhlo::SubtractOp> {
   using UOp = arith::SubIOp;
   using FOp = prime_ir::field::SubOp;
   using ECOp = prime_ir::elliptic_curve::SubOp;
+};
+template <>
+struct MhloToScalarOp<mhlo::CompareOp> {
+  using IOp = arith::CmpIOp;
+  using FOp = prime_ir::field::CmpOp;
 };
 
 // Alias for the map from MHLO binary op type to STD signed integer op type.
@@ -141,7 +148,9 @@ struct IsUnsignedIntegerType {
 struct IsFieldType {
   bool operator()(Type t) {
     return isa<prime_ir::field::PrimeFieldType>(t) ||
-           isa<prime_ir::field::QuadraticExtFieldType>(t);
+           isa<prime_ir::field::QuadraticExtFieldType>(t) ||
+           isa<prime_ir::field::CubicExtFieldType>(t) ||
+           isa<prime_ir::field::QuarticExtFieldType>(t);
   }
 };
 
@@ -306,6 +315,89 @@ inline Value mapMhloOpToStdScalarOp<mhlo::PowOp>(
                                                adaptor.getRhs());
   }
   return nullptr;
+}
+
+struct IsPrimeFieldType {
+  bool operator()(Type t) { return isa<prime_ir::field::PrimeFieldType>(t); }
+};
+
+struct IsExtFieldType {
+  bool operator()(Type t) {
+    return isa<prime_ir::field::ExtensionFieldTypeInterface>(t);
+  }
+};
+
+// Converts mhlo::ComparisonDirection to comparison predicate.
+template <typename PredicateType>
+inline std::optional<PredicateType> getCmpPredicate(mhlo::ComparisonDirection,
+                                                    bool) {
+  return std::nullopt;
+}
+
+template <>
+inline std::optional<arith::CmpIPredicate>
+getCmpPredicate<arith::CmpIPredicate>(
+    mhlo::ComparisonDirection comparisonDirection, bool isSigned) {
+  return llvm::StringSwitch<std::optional<arith::CmpIPredicate>>(
+             stringifyComparisonDirection(comparisonDirection))
+      .Case("EQ", arith::CmpIPredicate::eq)
+      .Case("NE", arith::CmpIPredicate::ne)
+      .Case("GE",
+            isSigned ? arith::CmpIPredicate::sge : arith::CmpIPredicate::uge)
+      .Case("GT",
+            isSigned ? arith::CmpIPredicate::sgt : arith::CmpIPredicate::ugt)
+      .Case("LE",
+            isSigned ? arith::CmpIPredicate::sle : arith::CmpIPredicate::ule)
+      .Case("LT",
+            isSigned ? arith::CmpIPredicate::slt : arith::CmpIPredicate::ult)
+      .Default(std::nullopt);
+}
+
+template <>
+inline Value mapMhloOpToStdScalarOp<mhlo::CompareOp>(
+    Location loc, ArrayRef<Type> /*resultTypes*/, ArrayRef<Type> argTypes,
+    mhlo::CompareOp::Adaptor adaptor, ArrayRef<NamedAttribute> /*attributes*/,
+    OpBuilder *b) {
+  ComparisonDirection comparisonDirection = adaptor.getComparisonDirection();
+  const auto &lhs = adaptor.getLhs();
+  const auto &rhs = adaptor.getRhs();
+  Type elementType = getElementTypeOrSelf(argTypes.front());
+
+  if (mlir::isa<IntegerType>(elementType)) {
+    bool isUnsigned = IsUnsignedIntegerType{}(elementType);
+    auto predicate =
+        getCmpPredicate<arith::CmpIPredicate>(comparisonDirection, !isUnsigned);
+    assert(predicate.has_value() && "expected valid comparison direction");
+    return b->create<ScalarIOp<mhlo::CompareOp>>(loc, predicate.value(), lhs,
+                                                 rhs);
+  } else if (IsPrimeFieldType{}(elementType)) {
+    auto predicate =
+        getCmpPredicate<arith::CmpIPredicate>(comparisonDirection, false);
+    assert(predicate.has_value() && "expected valid comparison direction");
+    return b->create<ScalarFOp<mhlo::CompareOp>>(loc, predicate.value(), lhs,
+                                                 rhs);
+  } else if (IsExtFieldType{}(elementType)) {
+    // Extension fields only support EQ/NE comparisons.
+    if (comparisonDirection != ComparisonDirection::EQ &&
+        comparisonDirection != ComparisonDirection::NE) {
+      return nullptr;
+    }
+    auto predicate =
+        getCmpPredicate<arith::CmpIPredicate>(comparisonDirection, false);
+    assert(predicate.has_value() && "expected valid comparison direction");
+    return b->create<ScalarFOp<mhlo::CompareOp>>(loc, predicate.value(), lhs,
+                                                 rhs);
+  }
+  return nullptr;
+}
+
+template <>
+inline Value mapMhloOpToStdScalarOp<mhlo::SelectOp>(
+    Location loc, ArrayRef<Type> resultTypes, ArrayRef<Type> argTypes,
+    mhlo::SelectOp::Adaptor adaptor, ArrayRef<NamedAttribute> attributes,
+    OpBuilder *b) {
+  return MapMhloOpToScalarOpImpl<arith::SelectOp>{}(
+      loc, resultTypes, argTypes, adaptor.getOperands(), attributes, b);
 }
 
 } // namespace impl
