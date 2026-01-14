@@ -67,6 +67,15 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "cpu_plugin",
+    deps = [
+        "//zkx/service/cpu:cpu_compiler_registerer",
+        "//zkx/service/cpu:cpu_transfer_manager",
+        "//zkx/stream_executor/host:host_platform",
+    ],
+)
+
+zkx_cc_library(
     name = "backend",
     srcs = ["backend.cc"],
     hdrs = ["backend.h"],
