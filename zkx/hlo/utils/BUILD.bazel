@@ -31,6 +31,20 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_matchers",
+    srcs = ["hlo_matchers.cc"],
+    hdrs = ["hlo_matchers.h"],
+    deps = [
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/parser:hlo_parser",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_traversal",
     srcs = ["hlo_traversal.cc"],
     hdrs = ["hlo_traversal.h"],
@@ -66,11 +80,13 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "utils_unittests",
     srcs = [
+        "hlo_matchers_unittest.cc",
         "hlo_query_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: HloTestBase.
         # "hlo_traversal_unittest.cc",
     ],
     deps = [
+        ":hlo_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx/hlo/parser:hlo_parser",
         "//zkx/hlo/testlib:hlo_hardware_independent_test_base",

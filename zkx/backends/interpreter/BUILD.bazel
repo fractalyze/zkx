@@ -1,0 +1,140 @@
+# Copyright 2026 The ZKX Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "compiler",
+    srcs = ["compiler.cc"],
+    hdrs = ["compiler.h"],
+    deps = [
+        ":executable",
+        ":platform_id",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx/hlo/evaluator:hlo_evaluator",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_module_group",
+        "//zkx/hlo/pass:hlo_pass_pipeline",
+        "//zkx/service:computation_placer",
+        "//zkx/service:custom_call_target_registry",
+        "//zkx/service:dynamic_dimension_inference",
+        "//zkx/service:executable",
+        "//zkx/service:hlo_cost_analysis",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:platform",
+    ],
+)
+
+zkx_cc_library(
+    name = "executable",
+    srcs = ["executable.cc"],
+    hdrs = ["executable.h"],
+    deps = [
+        ":executable_base",
+        "//zkx:shape_util",
+        "//zkx/hlo/evaluator:hlo_evaluator",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:dynamic_dimension_inference",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_library(
+    name = "executable_base",
+    srcs = ["executable_base.cc"],
+    hdrs = ["executable_base.h"],
+    deps = [
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal",
+        "//zkx:shape_tree",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:executable",
+        "//zkx/service:maybe_owning_device_memory",
+        "//zkx/service:shaped_buffer",
+        "//zkx/service:transfer_manager",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:device_memory_allocator",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:stream",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
+    name = "executor",
+    srcs = ["executor.cc"],
+    hdrs = ["executor.h"],
+    deps = [
+        "//zkx/stream_executor:generic_memory_allocation",
+        "//zkx/stream_executor:generic_memory_allocator",
+        "//zkx/stream_executor:stream_executor_common",
+        "//zkx/stream_executor/host:host_stream",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_library(
+    name = "interpreter_transfer_manager",
+    srcs = ["interpreter_transfer_manager.cc"],
+    hdrs = ["interpreter_transfer_manager.h"],
+    deps = [
+        ":platform_id",
+        "//zkx/service:generic_transfer_manager",
+        "//zkx/service:transfer_manager",
+    ],
+)
+
+zkx_cc_library(
+    name = "platform_id",
+    srcs = ["platform_id.cc"],
+    hdrs = ["platform_id.h"],
+    deps = ["//zkx/stream_executor:platform"],
+)
+
+zkx_cc_library(
+    name = "platform",
+    srcs = ["platform.cc"],
+    hdrs = ["platform.h"],
+    deps = [
+        ":executor",
+        ":platform_id",
+        "//zkx/stream_executor:executor_cache",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor/platform:initialize",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)

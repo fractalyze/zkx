@@ -3697,6 +3697,26 @@ HloModule* HloInstruction::GetModule() const {
   return nullptr;
 }
 
+bool HloPtrComparator::operator()(const HloInstruction* const& lhs,
+                                  const HloInstruction* const& rhs) const {
+  if (rhs == nullptr) {
+    // Nothing compares less than nullptr.
+    return false;
+  }
+  if (lhs == nullptr) {
+    return true;
+  }
+  auto lhs_module = lhs->GetModule();
+  auto rhs_module = rhs->GetModule();
+  CHECK((lhs_module == nullptr && rhs_module == nullptr) ||
+        (lhs_module != nullptr && rhs_module != nullptr));
+  if (lhs_module != nullptr &&
+      lhs_module->unique_id() != rhs_module->unique_id()) {
+    return lhs_module->unique_id() < rhs_module->unique_id();
+  }
+  return lhs->unique_id() < rhs->unique_id();
+}
+
 void HloInstruction::UniquifyName(HloModule* module) {
   UniquifyName(&module->instruction_name_uniquer());
 }

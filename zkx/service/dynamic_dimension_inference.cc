@@ -968,6 +968,11 @@ absl::Status DynamicDimensionInferenceVisitor::HandleElementwiseBinary(
   return HandleElementwiseNary(hlo);
 }
 
+absl::Status DynamicDimensionInferenceVisitor::HandleClamp(
+    HloInstruction* hlo) {
+  return PassThroughDynamicDimension(hlo);
+}
+
 absl::Status DynamicDimensionInferenceVisitor::HandleDynamicReshape(
     HloInstruction* hlo) {
   if (!CanInfer(hlo)) {

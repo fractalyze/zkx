@@ -136,9 +136,7 @@ zkx_cc_library(
     hdrs = ["cpu_kernel_emitter_test.h"],
     deps = [
         "//zkx/backends:kernel_emitter_test",
-        "//zkx/service/cpu:cpu_compiler_registerer",
-        "//zkx/service/cpu:cpu_transfer_manager",
-        "//zkx/stream_executor/host:host_platform",
+        "//zkx/service:cpu_plugin",
     ],
 )
 
