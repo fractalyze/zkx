@@ -354,7 +354,6 @@ zkx_cc_unittest(
         "jit_compiler_unittest.cc",
         # TODO(chokobole): Uncomment this. Dependency: HloTestBase
         # "kernel_api_ir_builder_unittest.cc",
-        # TODO(chokobole): Add elemental_kernel_emitter_unittest.cc Dependency: HloTestBase
         "object_loader_unittest.cc",
     ],
     deps = [
