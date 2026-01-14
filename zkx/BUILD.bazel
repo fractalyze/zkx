@@ -504,6 +504,22 @@ zkx_cc_library(
     ],
 )
 
+zkx_cc_library(
+    name = "window_util",
+    srcs = ["window_util.cc"],
+    hdrs = ["window_util.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":types",
+        ":zkx_data_cc_proto",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
 zkx_cc_unittest(
     name = "zkx_unittests",
     srcs = [
@@ -521,6 +537,7 @@ zkx_cc_unittest(
         "permutation_util_unittest.cc",
         "status_macros_unittest.cc",
         "util_unittest.cc",
+        "window_util_unittest.cc",
     ],
     deps = [
         ":array",
@@ -536,6 +553,7 @@ zkx_cc_unittest(
         ":shape_util",
         ":status_macros",
         ":util",
+        ":window_util",
         ":zkx_cc_proto",
         "//xla/tsl/platform:env",
         "//xla/tsl/platform:errors",
