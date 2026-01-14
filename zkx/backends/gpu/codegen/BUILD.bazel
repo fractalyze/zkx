@@ -27,9 +27,7 @@ zkx_cc_library(
     ],
     deps = [
         "//zkx/backends:kernel_emitter_test",
-        "//zkx/service/gpu:gpu_transfer_manager",
-        "//zkx/service/gpu:nvptx_compiler_registerer",
-        "//zkx/stream_executor/cuda:cuda_platform",
+        "//zkx/service:gpu_plugin",
     ],
 )
 
