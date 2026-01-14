@@ -15,6 +15,7 @@
 
 load("@llvm-project//mlir:tblgen.bzl", "gentbl_cc_library", "td_library")
 load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//zkx/tests:build_defs.bzl", "zkx_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -96,4 +97,22 @@ cc_library(
     ],
 )
 
-# TODO(chokobole): Add zkx_ops_unittest.cc Dependency: HloTestBase
+zkx_test(
+    name = "ir_unittests",
+    srcs = ["zkx_ops_unittest.cc"],
+    backends = ["cpu"],
+    deps = [
+        ":zkx",
+        "//xla/tsl/platform:statusor",
+        "//zkx/hlo/analysis:indexing_map",
+        "//zkx/hlo/testlib:file_check",
+        "//zkx/mlir/utils:error_util",
+        "//zkx/tests:hlo_test_base",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Parser",
+    ],
+)
