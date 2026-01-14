@@ -89,7 +89,7 @@ zkx_cc_unittest(
         ":hlo_matchers",
         "//xla/tsl/platform:statusor",
         "//zkx/hlo/parser:hlo_parser",
-        "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/tests:hlo_test_base",
         "@com_google_absl//absl/strings",
     ],
 )

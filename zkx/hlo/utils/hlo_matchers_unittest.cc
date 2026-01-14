@@ -21,9 +21,9 @@ limitations under the License.
 
 #include "gmock/gmock.h"
 
-#include "zkx/hlo/testlib/hlo_hardware_independent_test_base.h"
 #include "zkx/literal_util.h"
 #include "zkx/shape_util.h"
+#include "zkx/tests/hlo_test_base.h"
 #include "zkx/zkx_data.pb.h"
 
 namespace op = zkx::testing::opcode_matchers;
@@ -34,7 +34,7 @@ using ::testing::HasSubstr;
 namespace zkx {
 namespace {
 
-using HloMatchersTest = HloHardwareIndependentTestBase;
+using HloMatchersTest = HloTestBase;
 
 std::string DescribeHloMatcher(
     const ::testing::Matcher<const HloInstruction*>& m) {

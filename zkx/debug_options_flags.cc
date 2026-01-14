@@ -93,6 +93,8 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
   opts.set_zkx_gpu_nccl_collective_max_nchannels(0);
   opts.set_zkx_gpu_nccl_p2p_max_nchannels(0);
 
+  opts.set_zkx_gpu_experimental_stream_annotation(false);
+
   opts.set_zkx_gpu_nccl_terminate_on_error(false);
 
   opts.set_zkx_syntax_sugar_async_ops(false);
@@ -668,6 +670,13 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
           &DebugOptions::set_zkx_gpu_executable_terminate_timeout_seconds),
       debug_options->zkx_gpu_executable_terminate_timeout_seconds(),
       "Set timeout for Rendezvous termination"));
+  flag_list->push_back(
+      tsl::Flag("zkx_gpu_experimental_stream_annotation",
+                bool_setter_for(
+                    &DebugOptions::set_zkx_gpu_experimental_stream_annotation),
+                debug_options->zkx_gpu_experimental_stream_annotation(),
+                "Enable the experimental explicit stream annotation support. "
+                "If false, the annotations are ignored."));
   flag_list->push_back(tsl::Flag(
       "zkx_gpu_experimental_parallel_collective_overlap_limit",
       int32_setter_for(

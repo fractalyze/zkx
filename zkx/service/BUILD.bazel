@@ -209,6 +209,30 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "call_inliner",
+    srcs = ["call_inliner.cc"],
+    hdrs = ["call_inliner.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:side_effect_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:dfs_hlo_visitor_with_default",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_opcode",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "//zkx/hlo/transforms/simplifiers:hlo_dce",
+        "//zkx/service:call_graph",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+zkx_cc_library(
     name = "compilation_stats",
     srcs = ["compilation_stats.cc"],
     hdrs = ["compilation_stats.h"],
@@ -1114,6 +1138,7 @@ zkx_cc_unittest(
     srcs = [
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
         # "call_graph_unittest.cc",
+        "call_inliner_unittest.cc",
         "compilation_environments_unittest.cc",
         "custom_call_status_test_c_caller.c",
         "custom_call_status_test_c_caller.h",
@@ -1148,6 +1173,7 @@ zkx_cc_unittest(
         # "zkx_debug_info_manager_unittest.cc",
     ],
     deps = [
+        ":call_inliner",
         ":compilation_environments",
         ":custom_call_status",
         ":custom_call_target_registry",
@@ -1171,7 +1197,12 @@ zkx_cc_unittest(
         "//xla/tsl/platform:statusor",
         "//xla/tsl/platform:test_util",
         "//zkx:literal_util",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
         "//zkx/hlo/parser:hlo_parser",
+        "//zkx/hlo/testlib:file_check",
+        "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/hlo/utils:hlo_matchers",
         "//zkx/stream_executor:platform_manager",
         "//zkx/stream_executor/host:host_platform",
         "//zkx/tests:test_utils",
