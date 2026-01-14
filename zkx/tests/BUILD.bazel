@@ -96,7 +96,6 @@ zkx_cc_library(
         "//zkx/pjrt:pjrt_client",
         "//zkx/service:backend",
         "//zkx/service:computation_placer",
-        "//zkx/service:cpu_plugin",
         "//zkx/service:hlo_runner",
         "//zkx/service:hlo_runner_interface",
         "//zkx/service:hlo_runner_pjrt",
