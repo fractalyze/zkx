@@ -405,6 +405,15 @@ class LiteralBase {
   // This literal must be an array.
   Literal Transpose(absl::Span<const int64_t> permutation) const;
 
+  // Creates a sub-array from this literal by extracting the indices
+  // [start_index, limit_index) of each dimension. The result literal has the
+  // same rank and layout as for the given literal. The number of indices in
+  // start_indices and limit_indices must be the rank of the literal, and the
+  // indices follow the order of the dimensions.
+  // This literal must be an array.
+  Literal Slice(absl::Span<const int64_t> start_indices,
+                absl::Span<const int64_t> limit_indices) const;
+
   // Returns true if the leaf arrays of the literal within the given shape index
   // are all determined.
   // See comments on ArrayValueState for detailed explanation.
