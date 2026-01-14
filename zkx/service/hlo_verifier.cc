@@ -1392,12 +1392,9 @@ absl::Status ShapeVerifier::HandleConditional(HloInstruction* conditional) {
 }
 
 absl::Status ShapeVerifier::HandlePad(HloInstruction* pad) {
-  // TODO(chokobole): Implement this. Dependency: HloPadInstruction
-  // return CheckShape(pad,
-  // ShapeInference::InferPadShape(pad->operand(0)->shape(),
-  //                                                      pad->operand(1)->shape(),
-  //                                                      pad->padding_config()));
-  return absl::UnimplementedError("HandlePad not supported");
+  return CheckShape(pad, ShapeInference::InferPadShape(pad->operand(0)->shape(),
+                                                       pad->operand(1)->shape(),
+                                                       pad->padding_config()));
 }
 
 namespace {

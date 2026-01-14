@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -131,4 +131,41 @@ zkx_cc_library(
     ],
 )
 
-# TODO(chokobole): Add emitter_base_unittest.cc. Dependency: HloTestBase
+zkx_cc_unittest(
+    name = "emitters_unittests",
+    srcs = ["emitter_base_unittest.cc"],
+    deps = [
+        ":emitter_base",
+        "//xla/tsl/platform:statusor",
+        "//zkx/codegen/emitters:computation_partitioner",
+        "//zkx/hlo/analysis:indexing_map",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/testlib:file_check",
+        "//zkx/mlir_hlo/mhlo/IR:mlir_hlo",
+        "//zkx/service/gpu:gpu_device_info_for_tests",
+        "//zkx/service/gpu:launch_dimensions",
+        "//zkx/stream_executor:device_description",
+        "//zkx/tests:hlo_test_base",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@llvm-project//llvm:Core",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AffineDialect",
+        "@llvm-project//mlir:ArithDialect",
+        "@llvm-project//mlir:BufferizationInterfaces",
+        "@llvm-project//mlir:BuiltinToLLVMIRTranslation",
+        "@llvm-project//mlir:FuncDialect",
+        "@llvm-project//mlir:FuncExtensions",
+        "@llvm-project//mlir:GPUDialect",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:LLVMToLLVMIRTranslation",
+        "@llvm-project//mlir:MathDialect",
+        "@llvm-project//mlir:NVVMDialect",
+        "@llvm-project//mlir:NVVMToLLVMIRTranslation",
+        "@llvm-project//mlir:Pass",
+        "@llvm-project//mlir:ROCDLDialect",
+        "@llvm-project//mlir:ROCDLToLLVMIRTranslation",
+        "@llvm-project//mlir:SCFDialect",
+        "@llvm-project//mlir:TensorDialect",
+    ],
+)
