@@ -142,6 +142,35 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "indexing_test_utils",
+    testonly = True,
+    srcs = ["indexing_test_utils.cc"],
+    hdrs = ["indexing_test_utils.h"],
+    deps = [
+        ":indexing_analysis",
+        ":indexing_map",
+        "//xla/tsl/platform:errors",
+        "//zkx:status_macros",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/testlib:verified_hlo_module",
+        "//zkx/tests:hlo_test_base",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AsmParser",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "logical_buffer_analysis",
     srcs = ["logical_buffer_analysis.cc"],
     hdrs = ["logical_buffer_analysis.h"],
@@ -178,17 +207,18 @@ zkx_cc_library(
 
 # TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: FlattenCallGraph
 # TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: FlattenCallGraph
-# TODO(chokobole): Add indexing_analysis_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add indexing_map_unittest.cc. Dependency: HloTestBase
 # TODO(chokobole): Add indexing_map_serialization_unittest.cc. Dependency: HloTestBase
 zkx_cc_unittest(
     name = "analysis_unittests",
     srcs = [
         "hlo_reachability_unittest.cc",
+        "indexing_analysis_unittest.cc",
         "tuple_points_to_analysis_unittest.cc",
     ],
     deps = [
         ":hlo_reachability",
+        ":indexing_test_utils",
         ":tuple_points_to_analysis",
         "//zkx:literal_util",
         "//zkx:shape_util",
@@ -196,6 +226,7 @@ zkx_cc_unittest(
         "//zkx/base:logging",
         "//zkx/hlo/ir:hlo",
         "//zkx/hlo/testlib:hlo_hardware_independent_test_base",
+        "//zkx/hlo/utils:hlo_traversal",
         "//zkx/service:computation_placer",
         "//zkx/service:hlo_module_config",
         "@com_google_absl//absl/algorithm:container",
