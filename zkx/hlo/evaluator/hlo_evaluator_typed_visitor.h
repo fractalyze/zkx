@@ -28,6 +28,7 @@ limitations under the License.
 
 #include "absl/base/attributes.h"
 #include "absl/log/check.h"
+#include "absl/numeric/bits.h"
 #include "absl/strings/str_format.h"
 #include "absl/types/span.h"
 #include "zk_dtypes/include/comparable_traits.h"
@@ -38,9 +39,12 @@ limitations under the License.
 #include "xla/tsl/platform/errors.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/hlo/evaluator/hlo_evaluator.h"
+#include "zkx/hlo/ir/hlo_casting_utils.h"
 #include "zkx/hlo/ir/hlo_instruction.h"
+#include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/index_util.h"
 #include "zkx/literal.h"
+#include "zkx/service/shape_inference.h"
 #include "zkx/shape_util.h"
 #include "zkx/status_macros.h"
 #include "zkx/types.h"
@@ -142,6 +146,53 @@ class HloEvaluatorTypedVisitor : public ConstDfsHloVisitorWithDefault {
                         HloOpcodeString(hlo_instruction->opcode())));
   }
 
+  template <typename NativeT,
+            typename std::enable_if_t<std::is_unsigned_v<NativeT>>* = nullptr>
+  absl::Status HandleAbs(const HloInstruction* abs) {
+    TF_ASSIGN_OR_RETURN(parent_->evaluated_[abs],
+                        ElementWiseUnaryOp(abs, [](NativeT elem_operand) {
+                          return elem_operand;
+                        }));
+    return absl::OkStatus();
+  }
+
+  template <typename NativeT,
+            typename std::enable_if_t<std::is_signed_v<NativeT>>* = nullptr>
+  absl::Status HandleAbs(const HloInstruction* abs) {
+    TF_ASSIGN_OR_RETURN(parent_->evaluated_[abs],
+                        ElementWiseUnaryOp(abs, [](NativeT elem_operand) {
+                          return std::abs(elem_operand);
+                        }));
+    return absl::OkStatus();
+  }
+
+  template <typename NativeT,
+            typename std::enable_if_t<!std::is_integral_v<NativeT>>* = nullptr>
+  absl::Status HandleAbs(const HloInstruction* abs) {
+    return UnsupportedTypeError(abs);
+  }
+
+  absl::Status HandleAbs(const HloInstruction* abs) override {
+    return HandleAbs<ElementwiseT>(abs);
+  }
+
+  absl::Status HandleNot(const HloInstruction* not_) override {
+    if constexpr (std::is_arithmetic_v<ElementwiseT>) {
+      TF_ASSIGN_OR_RETURN(
+          parent_->evaluated_[not_],
+          ElementWiseUnaryOp(not_, [](ElementwiseT elem_operand) {
+            if constexpr (std::is_same_v<ElementwiseT, bool>) {
+              return !elem_operand;
+            } else {
+              static_assert(std::is_integral_v<ElementwiseT>);
+              return ~elem_operand;
+            }
+          }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(not_);
+  }
+
   // Negation that is safe and consistent across types.
   // Key idea:
   // - For *signed integers*, plain `-x` is UB when x == INT_MIN.
@@ -177,6 +228,19 @@ class HloEvaluatorTypedVisitor : public ConstDfsHloVisitorWithDefault {
 
   absl::Status HandleNegate(const HloInstruction* negate) override {
     return HandleNegate<ReturnT>(negate);
+  }
+
+  absl::Status HandleSign(const HloInstruction* sign) override {
+    if constexpr (std::is_integral_v<ElementwiseT>) {
+      TF_ASSIGN_OR_RETURN(
+          parent_->evaluated_[sign],
+          ElementWiseUnaryOp(sign, [](ElementwiseT elem_operand) {
+            return (ElementwiseT(0) < elem_operand) -
+                   (elem_operand < ElementwiseT(0));
+          }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(sign);
   }
 
   absl::Status HandleMultiply(const HloInstruction* multiply) override {
@@ -327,6 +391,138 @@ class HloEvaluatorTypedVisitor : public ConstDfsHloVisitorWithDefault {
           }
         }));
     return absl::OkStatus();
+  }
+
+  absl::Status HandleRemainder(const HloInstruction* remainder) override {
+    if constexpr (std::is_integral_v<ElementwiseT>) {
+      TF_ASSIGN_OR_RETURN(
+          parent_->evaluated_[remainder],
+          ElementWiseBinaryOp(
+              remainder,
+              [](ElementwiseT lhs_el, ElementwiseT rhs_el) -> ElementwiseT {
+                if (rhs_el == 0) {
+                  return lhs_el;
+                }
+                if constexpr (std::is_signed_v<ElementwiseT>) {
+                  if (rhs_el == -1 &&
+                      lhs_el == std::numeric_limits<ElementwiseT>::min()) {
+                    return 0;
+                  }
+                }
+                return lhs_el % rhs_el;
+              }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(remainder);
+  }
+
+  absl::Status HandleAnd(const HloInstruction* and_inst) override {
+    if constexpr (std::is_integral_v<ElementwiseT>) {
+      TF_ASSIGN_OR_RETURN(
+          parent_->evaluated_[and_inst],
+          ElementWiseBinaryOp(and_inst,
+                              [](ElementwiseT lhs_el, ElementwiseT rhs_el) {
+                                return lhs_el & rhs_el;
+                              }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(and_inst);
+  }
+
+  absl::Status HandleOr(const HloInstruction* or_inst) override {
+    if constexpr (std::is_integral_v<ElementwiseT>) {
+      TF_ASSIGN_OR_RETURN(parent_->evaluated_[or_inst],
+                          ElementWiseBinaryOp(or_inst, [](ElementwiseT lhs_el,
+                                                          ElementwiseT rhs_el) {
+                            return lhs_el | rhs_el;
+                          }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(or_inst);
+  }
+
+  absl::Status HandleXor(const HloInstruction* xor_inst) override {
+    if constexpr (std::is_integral_v<ElementwiseT>) {
+      TF_ASSIGN_OR_RETURN(
+          parent_->evaluated_[xor_inst],
+          ElementWiseBinaryOp(xor_inst,
+                              [](ElementwiseT lhs_el, ElementwiseT rhs_el) {
+                                return lhs_el ^ rhs_el;
+                              }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(xor_inst);
+  }
+
+  absl::Status HandleShiftLeft(const HloInstruction* shl) override {
+    if constexpr (std::is_integral_v<ElementwiseT> &&
+                  !std::is_same_v<ElementwiseT, bool>) {
+      TF_ASSIGN_OR_RETURN(parent_->evaluated_[shl],
+                          ElementWiseBinaryOp(shl, [](ElementwiseT lhs_elem,
+                                                      ElementwiseT rhs_elem) {
+                            return IsShiftOutOfBounds<ReturnT>(rhs_elem)
+                                       ? 0
+                                       : (lhs_elem << rhs_elem);
+                          }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(shl);
+  }
+
+  absl::Status HandleShiftRightArithmetic(const HloInstruction* shr) override {
+    if constexpr (std::is_integral_v<ElementwiseT> &&
+                  !std::is_same_v<ElementwiseT, bool>) {
+      using SignedT = make_specialized_signed_t<ReturnT>;
+      TF_ASSIGN_OR_RETURN(
+          parent_->evaluated_[shr],
+          ElementWiseBinaryOp(
+              shr, [](ElementwiseT lhs_elem, ElementwiseT rhs_elem) {
+                SignedT lhs_signed = static_cast<SignedT>(lhs_elem);
+                if (IsShiftOutOfBounds<ReturnT>(rhs_elem)) {
+                  return lhs_signed < 0 ? static_cast<ElementwiseT>(-1) : 0;
+                } else {
+                  return static_cast<ElementwiseT>(lhs_signed >> rhs_elem);
+                }
+              }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(shr);
+  }
+
+  absl::Status HandleShiftRightLogical(const HloInstruction* shr) override {
+    if constexpr (std::is_integral_v<ElementwiseT> &&
+                  !std::is_same_v<ElementwiseT, bool>) {
+      using UnsignedT = make_specialized_unsigned_t<ReturnT>;
+      TF_ASSIGN_OR_RETURN(parent_->evaluated_[shr],
+                          ElementWiseBinaryOp(shr, [](ElementwiseT lhs_elem,
+                                                      ElementwiseT rhs_elem) {
+                            // If shift amount is greater than the number of
+                            // bits, then return 0.
+                            if (IsShiftOutOfBounds<ReturnT>(rhs_elem)) {
+                              return static_cast<ElementwiseT>(0);
+                            }
+                            return static_cast<ElementwiseT>(
+                                static_cast<UnsignedT>(lhs_elem) >> rhs_elem);
+                          }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(shr);
+  }
+
+  absl::Status HandleClamp(const HloInstruction* clamp) override {
+    if constexpr (std::is_integral_v<ElementwiseT> ||
+                  zk_dtypes::IsComparable<ElementwiseT>) {
+      auto clamp_op = [](ElementwiseT low, ElementwiseT value,
+                         ElementwiseT high) {
+        return std::min(high, std::max(value, low));
+      };
+      TF_ASSIGN_OR_RETURN(
+          parent_->evaluated_[clamp],
+          ElementwiseTernaryOp(clamp,
+                               std::move(ConvertTernaryFunction(clamp_op))));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(clamp);
   }
 
   absl::Status HandleSelect(const HloInstruction* select) override {
@@ -489,6 +685,144 @@ class HloEvaluatorTypedVisitor : public ConstDfsHloVisitorWithDefault {
         rhs_literal.Convert(dot->shape().element_type()).value());
   }
 
+  absl::Status HandlePad(const HloInstruction* pad) override {
+    CHECK(pad->operand(0)->shape().IsArray());
+    // Padding value must be scalar.
+    CHECK(ShapeUtil::IsScalar(pad->operand(1)->shape()));
+    CHECK_EQ(pad->operand(0)->shape().rank(),
+             pad->padding_config().dimensions_size());
+
+    TF_ASSIGN_OR_RETURN(auto inferred_return_shape,
+                        ShapeInference::InferPadShape(
+                            /*operand_shape=*/pad->operand(0)->shape(),
+                            /*padding_value_shape=*/pad->operand(1)->shape(),
+                            /*padding_config=*/pad->padding_config()));
+    // Try to convert the element type if the inferred type is not compatible.
+    bool convert_element_type =
+        pad->shape().element_type() != inferred_return_shape.element_type();
+    if (convert_element_type) {
+      inferred_return_shape.set_element_type(pad->shape().element_type());
+    }
+    CHECK(ShapeUtil::Compatible(pad->shape(), inferred_return_shape))
+        << "return shape is set to: " << ShapeUtil::HumanString(pad->shape())
+        << " but is inferred to be: "
+        << ShapeUtil::HumanString(inferred_return_shape);
+    ReturnT scalar;
+    if (convert_element_type) {
+      TF_ASSIGN_OR_RETURN(auto literal,
+                          parent_->GetEvaluatedLiteralFor(pad->operand(1))
+                              .Convert(inferred_return_shape.element_type()));
+      scalar = literal.Get<ReturnT>({});
+    } else {
+      scalar =
+          parent_->GetEvaluatedLiteralFor(pad->operand(1)).Get<ReturnT>({});
+    }
+
+    // Create new HLO of padded shape with padding value.
+    Literal result(pad->shape());
+    TF_RETURN_IF_ERROR(result.PopulateParallel<ReturnT>(
+        [&scalar](absl::Span<const int64_t> multi_index, int) {
+          return scalar;
+        }));
+
+    const Literal& evaluated_operand =
+        parent_->GetEvaluatedLiteralFor(pad->operand(0));
+
+    std::vector<int64_t> target_index(result.shape().rank(), 0);
+
+    // Loop through each element of the operand, assign them to the
+    // corresponding index of the resulting padded literal.
+    const PaddingConfig& pad_config = pad->padding_config();
+
+    auto func = [&](absl::Span<const int64_t> input_index) {
+      for (auto i = 0; i < input_index.size(); ++i) {
+        // Interior padding occurs logically before edge padding, so in the case
+        // of negative edge padding elements are removed from the
+        // interior-padded operand.
+        // TODO(chokobole): Do we need this? Dependency: interior_padding
+        // target_index[i] =
+        //     pad_config.dimensions(i).edge_padding_low() +
+        //     input_index[i] * (pad_config.dimensions(i).interior_padding() +
+        //     1);
+        target_index[i] =
+            pad_config.dimensions(i).edge_padding_low() + input_index[i];
+
+        // Account for negative low and high padding: skip assignment if the
+        // any target index is out of range.
+        if (!(target_index[i] >= 0 &&
+              target_index[i] < pad->shape().dimensions(i))) {
+          return true;
+        }
+      }
+      result.Set<ReturnT>(target_index,
+                          evaluated_operand.Get<ReturnT>(input_index));
+      return true;
+    };
+
+    std::vector<int64_t> zero_base(evaluated_operand.shape().dimensions_size(),
+                                   0);
+    std::vector<int64_t> step(evaluated_operand.shape().dimensions_size(), 1);
+
+    ShapeUtil::ForEachIndexNoStatus(evaluated_operand.shape(), zero_base,
+                                    evaluated_operand.shape().dimensions(),
+                                    step, func);
+
+    parent_->evaluated_[pad] = std::move(result);
+    return absl::OkStatus();
+  }
+
+  absl::Status HandleClz(const HloInstruction* clz) override {
+    // Enable CLZ only for integer types.
+    if constexpr (std::is_integral_v<ElementwiseT> &&
+                  !std::is_same_v<ElementwiseT, bool>) {
+      TF_ASSIGN_OR_RETURN(
+          parent_->evaluated_[clz],
+          ElementWiseUnaryOp(clz, [](ElementwiseT elem_operand) {
+            using UnsignedT = make_specialized_unsigned_t<ElementwiseT>;
+            if (elem_operand == 0) {
+              return static_cast<ElementwiseT>(
+                  std::numeric_limits<UnsignedT>::digits);
+            }
+            return static_cast<ElementwiseT>(
+                absl::countl_zero(static_cast<UnsignedT>(elem_operand)));
+          }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(clz);
+  }
+
+  absl::Status HandlePopulationCount(const HloInstruction* popcnt) override {
+    if constexpr (std::is_integral_v<ElementwiseT> &&
+                  !std::is_same_v<ElementwiseT, bool>) {
+      TF_ASSIGN_OR_RETURN(
+          parent_->evaluated_[popcnt],
+          ElementWiseUnaryOp(popcnt, [](ElementwiseT elem_operand) {
+            using UnsignedT = make_specialized_unsigned_t<ElementwiseT>;
+            return static_cast<ElementwiseT>(
+                absl::popcount(static_cast<UnsignedT>(elem_operand)));
+          }));
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(popcnt);
+  }
+
+  absl::Status HandleIota(const HloInstruction* instruction) override {
+    auto* iota = Cast<HloIotaInstruction>(instruction);
+    if constexpr (std::is_integral_v<ElementwiseT> ||
+                  zk_dtypes::IsAdditiveGroup<ElementwiseT> ||
+                  zk_dtypes::IsMultiplicativeGroup<ElementwiseT>) {
+      Literal result(iota->shape());
+      ShapeUtil::ForEachIndexNoStatus(
+          iota->shape(), [&](absl::Span<const int64_t> idx) {
+            result.Set(idx, static_cast<ReturnT>(idx[iota->iota_dimension()]));
+            return true;
+          });
+      parent_->evaluated_[iota] = std::move(result);
+      return absl::OkStatus();
+    }
+    return UnsupportedTypeError(iota);
+  }
+
  private:
   absl::StatusOr<Literal> ElementWiseUnaryOp(
       const HloInstruction* instruction,
@@ -553,6 +887,15 @@ class HloEvaluatorTypedVisitor : public ConstDfsHloVisitorWithDefault {
         }));
 
     return std::move(result);
+  }
+
+  template <typename NativeT>
+  static bool IsShiftOutOfBounds(ElementwiseT rhs) {
+    using UnsignedT = make_specialized_unsigned_t<NativeT>;
+    UnsignedT lhs_bits_unsigned =
+        static_cast<UnsignedT>(std::numeric_limits<UnsignedT>::digits);
+    UnsignedT rhs_unsigned = static_cast<UnsignedT>(rhs);
+    return rhs_unsigned >= lhs_bits_unsigned;
   }
 
   HloEvaluator* parent_;  // not owned

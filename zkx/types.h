@@ -40,6 +40,48 @@ using s2 = ::zk_dtypes::int2;
 using u4 = ::zk_dtypes::uint4;
 using s4 = ::zk_dtypes::int4;
 
+template <class T>
+struct is_intN : std::false_type {};
+template <int kN, typename UnderlyingType>
+struct is_intN<::zk_dtypes::intN<kN, UnderlyingType>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_intN_v = is_intN<T>::value;
+
+// std::make_signed_t is “behavior undefined” for custom types, so provide a
+// general util to make signed/unsigned for both primitive and custom types.
+template <typename T, typename = void>
+struct make_specialized_unsigned {
+  using type = std::make_unsigned_t<T>;
+};
+
+template <typename T>
+struct make_specialized_unsigned<T, typename std::enable_if_t<is_intN_v<T>>> {
+  static_assert(std::is_integral_v<typename T::underlying_type>);
+  using type =
+      ::zk_dtypes::intN<T::bits,
+                        std::make_unsigned_t<typename T::underlying_type>>;
+};
+
+template <typename T>
+using make_specialized_unsigned_t = typename make_specialized_unsigned<T>::type;
+
+template <typename T, typename = void>
+struct make_specialized_signed {
+  using type = std::make_signed_t<T>;
+};
+
+template <typename T>
+struct make_specialized_signed<T, typename std::enable_if_t<is_intN_v<T>>> {
+  static_assert(std::is_integral_v<typename T::underlying_type>);
+  using type =
+      ::zk_dtypes::intN<T::bits,
+                        std::make_signed_t<typename T::underlying_type>>;
+};
+
+template <typename T>
+using make_specialized_signed_t = typename make_specialized_signed<T>::type;
+
 }  // namespace zkx
 
 #endif  // ZKX_TYPES_H_
