@@ -13,9 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//zkx/tests:build_defs.bzl", "generate_backend_test_macros")
 
 package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "test_macros_header",
+    testonly = True,
+    hdrs = ["test_macros.h"],
+)
+
+# Generate a test_macros_${BACKEND} library per backend with the proper copts.
+generate_backend_test_macros()
 
 zkx_cc_library(
     name = "hlo_runner_agnostic_reference_mixin",
