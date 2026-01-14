@@ -207,12 +207,12 @@ zkx_cc_library(
 
 # TODO(chokobole): Add hlo_alias_analysis_unittest.cc. Dependency: FlattenCallGraph
 # TODO(chokobole): Add hlo_data_flow_analysis_unittest.cc. Dependency: FlattenCallGraph
-# TODO(chokobole): Add indexing_map_serialization_unittest.cc. Dependency: HloTestBase
 zkx_cc_unittest(
     name = "analysis_unittests",
     srcs = [
         "hlo_reachability_unittest.cc",
         "indexing_analysis_unittest.cc",
+        "indexing_map_serialization_unittest.cc",
         "indexing_map_unittest.cc",
         "tuple_points_to_analysis_unittest.cc",
     ],
