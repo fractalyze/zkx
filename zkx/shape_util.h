@@ -142,6 +142,9 @@ class ShapeUtil {
     return product;
   }
 
+  // As ElementsIn(), but recurses through tuples.
+  static int64_t ElementsInRecursive(const Shape& shape);
+
   // Returns true if shape has the primitive type, recurses through tuples.
   static bool HasPrimitiveType(const Shape& shape,
                                PrimitiveType primitive_type);

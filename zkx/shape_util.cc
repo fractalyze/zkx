@@ -663,6 +663,19 @@ int64_t ShapeUtil::SubshapeCount(const Shape& shape) {
 }
 
 // static
+int64_t ShapeUtil::ElementsInRecursive(const Shape& shape) {
+  CHECK(shape.IsArray() || shape.IsTuple());
+  if (shape.IsArray()) {
+    return ElementsIn(shape);
+  }
+  int64_t count = 0;
+  for (const Shape& element_shape : shape.tuple_shapes()) {
+    count += ElementsInRecursive(element_shape);
+  }
+  return count;
+}
+
+// static
 bool ShapeUtil::HasPrimitiveType(const Shape& shape,
                                  PrimitiveType primitive_type) {
   if (shape.element_type() == primitive_type) {
