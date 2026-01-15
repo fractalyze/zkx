@@ -260,6 +260,12 @@ DimensionVector GetNonContractingDims(
 // Removes illegal characters from filenames.
 std::string SanitizeFileName(std::string_view file_name);
 
+template <typename C, typename Value>
+int64_t FindIndex(const C& c, Value&& value) {
+  auto it = absl::c_find(c, std::forward<Value>(value));
+  return std::distance(c.begin(), it);
+}
+
 template <typename T>
 std::vector<T> SpanToVector(absl::Span<const T> slice) {
   return std::vector<T>(slice.begin(), slice.end());

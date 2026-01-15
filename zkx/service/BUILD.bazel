@@ -564,6 +564,26 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "gather_scatter_utils",
+    srcs = ["gather_scatter_utils.cc"],
+    hdrs = ["gather_scatter_utils.h"],
+    deps = [
+        ":hlo_creation_utils",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal_util",
+        "//zkx:permutation_util",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/ir:hlo_opcode",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "generic_transfer_manager",
     srcs = ["generic_transfer_manager.cc"],
     hdrs = ["generic_transfer_manager.h"],
