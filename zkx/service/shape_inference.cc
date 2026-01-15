@@ -2593,4 +2593,294 @@ absl::StatusOr<Shape> ShapeInference::InferCallShape(
   return to_apply.result();
 }
 
+namespace {
+
+absl::Status ValidateScatterDimensionNumbers(
+    const Shape& operand_shape, absl::Span<const int64_t> scatter_indices_shape,
+    const Shape& updates_shape, const ScatterDimensionNumbers& dim_numbers) {
+  // Validate update_window_dims in ScatterDimensionNumbers.
+  if (!absl::c_is_sorted(dim_numbers.update_window_dims())) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "update_window_dims in scatter op must be sorted; got: %s.",
+        absl::StrJoin(dim_numbers.update_window_dims(), ", ")));
+  }
+  if (absl::c_adjacent_find(dim_numbers.update_window_dims()) !=
+      dim_numbers.update_window_dims().end()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "update_window_dims in scatter op must not repeat; got: %s.",
+        absl::StrJoin(dim_numbers.update_window_dims(), ", ")));
+  }
+  const int64_t updates_rank = updates_shape.rank();
+  for (int64_t window_dim : dim_numbers.update_window_dims()) {
+    if (window_dim < 0 || window_dim >= updates_rank) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Invalid update_window_dims set in scatter op; valid range is [0, "
+          "%d). got: %d.",
+          updates_rank, window_dim));
+    }
+  }
+
+  // Validate inserted_window_dims in ScatterDimensionNumbers.
+  if (!absl::c_is_sorted(dim_numbers.inserted_window_dims())) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "inserted_window_dims in scatter op must be sorted; got: %s.",
+        absl::StrJoin(dim_numbers.inserted_window_dims(), ", ")));
+  }
+  if (absl::c_adjacent_find(dim_numbers.inserted_window_dims()) !=
+      dim_numbers.inserted_window_dims().end()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "inserted_window_dims in scatter op must not repeat; got: %s.",
+        absl::StrJoin(dim_numbers.inserted_window_dims(), ", ")));
+  }
+  for (int64_t inserted_dim : dim_numbers.inserted_window_dims()) {
+    if (inserted_dim < 0 || inserted_dim >= operand_shape.dimensions_size()) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Invalid inserted_window_dims set in scatter op; valid range is [0, "
+          "%d), got: %d.",
+          operand_shape.dimensions_size(), inserted_dim));
+    }
+  }
+
+  // Validate window size.
+  auto window_size = dim_numbers.update_window_dims_size() +
+                     dim_numbers.inserted_window_dims_size() +
+                     dim_numbers.input_batching_dims_size();
+  if (window_size != operand_shape.rank()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Scatter op has window of size %d; doesn't match operand of rank %d.",
+        window_size, operand_shape.rank()));
+  }
+
+  // Validate scatter_dims_to_operand_dims in ScatterDimensionNumbers.
+  if (!CompatibleDimensionSizes(
+          dim_numbers.scatter_dims_to_operand_dims_size(),
+          scatter_indices_shape[dim_numbers.index_vector_dim()])) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Scatter op has %d elements in scatter_dims_to_operand_dims and the "
+        "bound of dimension index_vector_dim=%d of scatter_indices is %d. "
+        "These two numbers must be equal.",
+        dim_numbers.scatter_dims_to_operand_dims_size(),
+        dim_numbers.index_vector_dim(),
+        scatter_indices_shape[dim_numbers.index_vector_dim()]));
+  }
+  for (int i = 0; i < dim_numbers.scatter_dims_to_operand_dims_size(); ++i) {
+    int64_t scatter_dim_to_operand_dim =
+        dim_numbers.scatter_dims_to_operand_dims(i);
+    if (scatter_dim_to_operand_dim < 0 ||
+        scatter_dim_to_operand_dim >= operand_shape.dimensions_size()) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Invalid scatter_dims_to_operand_dims mapping; domain is [0, %d), "
+          "got: %d->%d.",
+          operand_shape.dimensions_size(), i, scatter_dim_to_operand_dim));
+    }
+  }
+  std::vector<int64_t> sorted_scatter_dims_to_operand_dims(
+      dim_numbers.scatter_dims_to_operand_dims().begin(),
+      dim_numbers.scatter_dims_to_operand_dims().end());
+  absl::c_sort(sorted_scatter_dims_to_operand_dims);
+  if (absl::c_adjacent_find(sorted_scatter_dims_to_operand_dims) !=
+      sorted_scatter_dims_to_operand_dims.end()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Repeated dimensions not allowed in scatter_dims_to_operand_dims; "
+        "got: %s.",
+        absl::StrJoin(dim_numbers.scatter_dims_to_operand_dims(), ", ")));
+  }
+
+  // Validate input_batching_dims and scatter_indices_batching_dims in
+  // ScatterDimensionNumbers.
+  if (dim_numbers.input_batching_dims_size() !=
+      dim_numbers.scatter_indices_batching_dims_size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "input_batching_dims and scatter_indices_batching_dims in scatter op "
+        "must be of the same size; got: %d and %d.",
+        dim_numbers.input_batching_dims_size(),
+        dim_numbers.scatter_indices_batching_dims_size()));
+  }
+
+  // Validate input_batching_dims in ScatterDimensionNumbers.
+  if (!absl::c_is_sorted(dim_numbers.input_batching_dims())) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "input_batching_dims in scatter op must be sorted; got: %s.",
+        absl::StrJoin(dim_numbers.input_batching_dims(), ", ")));
+  }
+  if (absl::c_adjacent_find(dim_numbers.input_batching_dims()) !=
+      dim_numbers.input_batching_dims().end()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "input_batching_dims in scatter op must not repeat; got: %s.",
+        absl::StrJoin(dim_numbers.input_batching_dims(), ", ")));
+  }
+  for (int64_t input_batching_dim : dim_numbers.input_batching_dims()) {
+    if (input_batching_dim < 0 ||
+        input_batching_dim >= operand_shape.dimensions_size()) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Invalid input_batching_dims set in scatter op; valid range is [0, "
+          "%d), got: %d.",
+          operand_shape.dimensions_size(), input_batching_dim));
+    }
+  }
+
+  // Validate scatter_indices_batching_dims in ScatterDimensionNumbers.
+  for (int64_t scatter_indices_batching_dim :
+       dim_numbers.scatter_indices_batching_dims()) {
+    if (scatter_indices_batching_dim < 0 ||
+        scatter_indices_batching_dim >= scatter_indices_shape.size()) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Invalid scatter_indices_batching_dims set in scatter op; valid "
+          "range is [0, %d), got: %d.",
+          scatter_indices_shape.size(), scatter_indices_batching_dim));
+    }
+  }
+  std::vector<int64_t> sorted_scatter_indices_batching_dims(
+      dim_numbers.scatter_indices_batching_dims().begin(),
+      dim_numbers.scatter_indices_batching_dims().end());
+  absl::c_sort(sorted_scatter_indices_batching_dims);
+  if (absl::c_adjacent_find(sorted_scatter_indices_batching_dims) !=
+      sorted_scatter_indices_batching_dims.end()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "scatter_indices_batching_dims in scatter op must not repeat; got: %s.",
+        absl::StrJoin(dim_numbers.scatter_indices_batching_dims(), ", ")));
+  }
+
+  return absl::OkStatus();
+}
+
+}  // namespace
+
+// static
+absl::StatusOr<Shape> ShapeInference::InferScatterShape(
+    absl::Span<const Shape* const> arg_shapes,
+    const ProgramShape& to_apply_shape,
+    const ScatterDimensionNumbers& scatter_dim_numbers) {
+  const int64_t operand_count = arg_shapes.size() / 2;
+  if (operand_count * 2 + 1 != arg_shapes.size()) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Invalid argument count of scatter op: Expected %d, saw %d",
+        operand_count * 2 + 1, arg_shapes.size()));
+  }
+
+  const Shape& scatter_indices_shape = *arg_shapes[operand_count];
+  TF_RETURN_IF_ERROR(
+      ExpectArray(scatter_indices_shape, "scatter indices of scatter op"));
+  if (!ShapeUtil::ElementIsIntegral(scatter_indices_shape)) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Scatter indices parameter must be an integral tensor; got %s.",
+        ShapeUtil::HumanString(scatter_indices_shape)));
+  }
+  if (scatter_indices_shape.dimensions_size() <
+          scatter_dim_numbers.index_vector_dim() ||
+      scatter_dim_numbers.index_vector_dim() < 0) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Scatter index leaf dimension must be within [0, rank(scatter_indices)"
+        " + 1). rank(scatter_indices) is %d and scatter index leaf dimension "
+        "is %d.",
+        scatter_indices_shape.dimensions_size(),
+        scatter_dim_numbers.index_vector_dim()));
+  }
+
+  std::vector<int64_t> expanded_scatter_indices_shape =
+      SpanToVector(scatter_indices_shape.dimensions());
+  if (expanded_scatter_indices_shape.size() ==
+      scatter_dim_numbers.index_vector_dim()) {
+    expanded_scatter_indices_shape.push_back(1);
+  }
+
+  auto operand_shapes = arg_shapes.first(operand_count);
+  auto updates_shapes = arg_shapes.last(operand_count);
+  for (int64_t operand_i = 0; operand_i < operand_count; ++operand_i) {
+    const Shape& operand_shape = *operand_shapes[operand_i];
+    const Shape& updates_shape = *updates_shapes[operand_i];
+    TF_RETURN_IF_ERROR(ExpectArray(
+        operand_shape, absl::StrCat("operand ", operand_i, " of scatter op")));
+    TF_RETURN_IF_ERROR(ExpectArray(
+        updates_shape, absl::StrCat("updates ", operand_i, " of scatter op")));
+
+    int64_t inserted_dims_seen = 0, input_batching_dims_seen = 0;
+    std::vector<int64_t> max_update_slice_sizes;
+    const auto dimensions_size = operand_shape.dimensions_size();
+    max_update_slice_sizes.reserve(dimensions_size);
+    for (int i = 0; i < dimensions_size; ++i) {
+      if (inserted_dims_seen <
+              scatter_dim_numbers.inserted_window_dims_size() &&
+          scatter_dim_numbers.inserted_window_dims(inserted_dims_seen) == i) {
+        ++inserted_dims_seen;
+      } else if (input_batching_dims_seen <
+                     scatter_dim_numbers.input_batching_dims_size() &&
+                 scatter_dim_numbers.input_batching_dims(
+                     input_batching_dims_seen) == i) {
+        ++input_batching_dims_seen;
+      } else {
+        max_update_slice_sizes.push_back(operand_shape.dimensions(i));
+      }
+    }
+    int64_t expected_updates_rank =
+        expanded_scatter_indices_shape.size() - 1 +
+        scatter_dim_numbers.update_window_dims_size();
+    if (updates_shape.rank() != expected_updates_rank) {
+      return absl::InvalidArgumentError(
+          absl::StrFormat("Updates tensor must be of rank %d; got %d.",
+                          expected_updates_rank, updates_shape.rank()));
+    }
+
+    TF_RETURN_IF_ERROR(ValidateScatterDimensionNumbers(
+        operand_shape, expanded_scatter_indices_shape, updates_shape,
+        scatter_dim_numbers));
+
+    for (int i = 0; i < scatter_dim_numbers.update_window_dims_size(); ++i) {
+      auto update_window_dim = scatter_dim_numbers.update_window_dims(i);
+      if (updates_shape.dimensions(update_window_dim) >
+          max_update_slice_sizes[i]) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Bounds of the window dimensions of updates must not exceed the "
+            "bounds of the corresponding dimensions of operand. For dimension "
+            "%d, updates bound is %d, operand bound is %d.",
+            update_window_dim, updates_shape.dimensions(update_window_dim),
+            max_update_slice_sizes[i]));
+      }
+    }
+
+    int64_t scatter_dims_seen = 0;
+    for (int64_t i = 0; i < updates_shape.rank(); ++i) {
+      bool is_update_window_dim =
+          absl::c_binary_search(scatter_dim_numbers.update_window_dims(), i);
+      if (is_update_window_dim) {
+        continue;
+      }
+      if (scatter_dims_seen == scatter_dim_numbers.index_vector_dim()) {
+        ++scatter_dims_seen;
+      }
+      if (!CompatibleDimensionSizes(
+              updates_shape.dimensions(i),
+              expanded_scatter_indices_shape[scatter_dims_seen])) {
+        return absl::InvalidArgumentError(absl::StrFormat(
+            "Bounds of the scatter dimensions of updates must be same as the "
+            "bounds of the corresponding dimensions of scatter indices. For "
+            "scatter dimension %d, updates bound is %d, scatter_indices "
+            "bound is %d.",
+            i, updates_shape.dimensions(i),
+            expanded_scatter_indices_shape[scatter_dims_seen]));
+      }
+      ++scatter_dims_seen;
+    }
+  }
+
+  // Check if the update computation has a proper shape as a reduction.
+  absl::InlinedVector<Shape, 1> init_element_shapes;
+  absl::InlinedVector<const Shape*, 1> init_element_shape_ptrs;
+  absl::InlinedVector<PrimitiveType, 1> updates_element_types;
+  init_element_shapes.reserve(operand_count);
+  init_element_shape_ptrs.reserve(operand_count);
+  updates_element_types.reserve(operand_count);
+  for (int64_t i = 0; i < operand_count; ++i) {
+    init_element_shapes.push_back(
+        ShapeUtil::MakeShape(operand_shapes[i]->element_type(), {}));
+    init_element_shape_ptrs.push_back(&init_element_shapes.back());
+    updates_element_types.push_back(updates_shapes[i]->element_type());
+  }
+  TF_RETURN_IF_ERROR(VerifyReducerShape(to_apply_shape, init_element_shape_ptrs,
+                                        updates_element_types, operand_count));
+
+  return operand_count == 1 ? *operand_shapes[0]
+                            : ShapeUtil::MakeTupleShapeWithPtrs(operand_shapes);
+}
+
 }  // namespace zkx
