@@ -1459,6 +1459,9 @@ class HloInstruction {
 
   static bool IsOpElementwise(HloOpcode opcode);
 
+  // Returns whether this instruction may reuse elements of its `i`th operand.
+  bool ReusesOperandElements(int64_t i) const;
+
   // Returns true if this is a cross module all-reduce instruction.
   bool IsCrossModuleAllReduce() const;
 
