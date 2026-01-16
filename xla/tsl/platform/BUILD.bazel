@@ -19,6 +19,16 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "base64",
+    srcs = ["base64.cc"],
+    hdrs = ["base64.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+zkx_cc_library(
     name = "casts",
     hdrs = ["casts.h"],
 )

@@ -293,6 +293,9 @@ message DebugOptions {
   // the code that emits a particular instruction.
   bool zkx_annotate_with_emitter_loc = 358;
 
+  // Show addresses of HLO ops in graph dump.
+  bool zkx_hlo_graph_addresses = 2;
+
   // Instrument the computation to collect per-HLO cycle counts.
   bool zkx_hlo_profile = 9;
 
@@ -334,6 +337,10 @@ message DebugOptions {
 
   // If true, a set of expensive LLVM optimization passes will not be run.
   bool zkx_llvm_disable_expensive_passes = 73;
+
+  // Assign colors based on sharding information when generating the Graphviz
+  // HLO graph.
+  bool zkx_hlo_graph_sharding_color = 92;
 
   // Enable fast math with eigen in the HLO evaluator.
   bool zkx_hlo_evaluator_use_fast_path = 106;

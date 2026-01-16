@@ -547,6 +547,40 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "hlo_graph_dumper",
+    srcs = ["hlo_graph_dumper.cc"],
+    hdrs = ["hlo_graph_dumper.h"],
+    deps = [
+        ":pattern_matcher",
+        "//xla/tsl/lib/gtl:map_util",
+        "//xla/tsl/lib/io:zlib_compression_options",
+        "//xla/tsl/lib/io:zlib_outputbuffer",
+        "//xla/tsl/platform:base64",
+        "//zkx:comparison_util",
+        "//zkx:literal",
+        "//zkx:shape_util",
+        "//zkx:types",
+        "//zkx:util",
+        "//zkx:window_util",
+        "//zkx:zkx_cc_proto",
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+    ],
+    alwayslink = 1,
+)
+
+zkx_cc_library(
     name = "hlo_module_config",
     srcs = ["hlo_module_config.cc"],
     hdrs = ["hlo_module_config.h"],
@@ -1146,6 +1180,7 @@ zkx_cc_unittest(
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
         # "dynamic_dimension_inference_unittest.cc",
         "hlo_creation_utils_unittest.cc",
+        "hlo_graph_dumper_unittest.cc",
         "hlo_module_config_unittest.cc",
         "hlo_proto_util_unittest.cc",
         # TODO(chokobole): Add unittest. Dependency: HloTestBase
@@ -1179,6 +1214,7 @@ zkx_cc_unittest(
         ":custom_call_target_registry",
         ":dump",
         ":hlo_creation_utils",
+        ":hlo_graph_dumper",
         ":hlo_module_config",
         ":hlo_proto_util",
         ":lockable",

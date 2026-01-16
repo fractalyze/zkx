@@ -17,7 +17,10 @@ limitations under the License.
 #include "zkx/debug_options_flags.h"
 
 #include "absl/base/call_once.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/node_hash_map.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/log/check.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_join.h"
 
@@ -112,6 +115,42 @@ DebugOptions DefaultDebugOptionsIgnoringFlags() {
 static absl::once_flag flags_init;
 static DebugOptions* flag_values;
 static std::vector<tsl::Flag>* flag_objects;
+
+// Maps pass -> initial fuel values (parsed when AllocateFlags was run).
+static auto* const initial_fuel =
+    absl::IgnoreLeak(new absl::flat_hash_map<std::string, int64_t>());
+
+// Maps pass -> whether fuel was ever consumed for that pass.
+static auto* const fuel_ever_consumed =
+    absl::IgnoreLeak(new absl::node_hash_map<std::string, std::atomic<bool>>());
+
+// Maps pass -> remaining fuel.
+//
+// All threads start off using this global fuel pool, but ResetThreadLocalFuel()
+// switches them to a thread-local fuel pool.
+static auto* const global_fuel = absl::IgnoreLeak(
+    new absl::node_hash_map<std::string, std::atomic<int64_t>>());
+
+// If we're using thread-local fuel, this stores it.
+static thread_local std::unique_ptr<
+    absl::node_hash_map<std::string, std::atomic<int64_t>>>
+    thread_fuel;  // NOLINT (global variable with nontrivial destructor)
+
+// Logs a warning if a pass's fuel was never consumed, on the theory that this
+// may be a typo in the flag value.  Called atexit.
+static void WarnIfFuelWasNeverConsumed() {
+  CHECK(fuel_ever_consumed != nullptr);
+  for (const auto& kv : *fuel_ever_consumed) {
+    std::string_view pass = kv.first;
+    bool was_consumed = kv.second;
+    if (!was_consumed) {
+      LOG(ERROR) << absl::StreamFormat(
+          "Compiler fuel for \"%s\" was never consumed. This may be a typo in "
+          "the --zkx_fuel flag you passed.",
+          pass);
+    }
+  }
+}
 
 void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
                            DebugOptions* debug_options) {
@@ -214,6 +253,51 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
             level);
         return true;
       };
+
+  // Custom "sub-parser" for zkx_fuel.  Note that ConsumeFuel does not do any
+  // locking on the fuel global variables.  This means that it's
+  // illegal/undefined behavior to modify this flag value while the compiler is
+  // running.
+  auto setter_for_zkx_fuel = [](std::string zkx_fuel_value) {
+    initial_fuel->clear();
+    global_fuel->clear();
+    fuel_ever_consumed->clear();
+
+    for (const auto& kv : absl::StrSplit(zkx_fuel_value, ',')) {
+      std::vector<std::string> pass_and_fuel = absl::StrSplit(kv, '=');
+      if (pass_and_fuel.size() != 2) {
+        LOG(ERROR) << absl::StreamFormat(
+            "Illegal value for --zkx_fuel. Saw %s, but expected token %s to "
+            "have format X=INTEGER.",
+            zkx_fuel_value, kv);
+        return false;
+      }
+      const auto& pass = pass_and_fuel[0];
+      const auto& fuel_str = pass_and_fuel[1];
+      int64_t fuel;
+      if (!absl::SimpleAtoi(fuel_str, &fuel)) {
+        LOG(ERROR) << absl::StreamFormat(
+            "Illegal value for --zkx_fuel. Saw %s, but expected token %s to be "
+            "an integer.",
+            zkx_fuel_value, fuel_str);
+        return false;
+      }
+      initial_fuel->emplace(pass, fuel);
+      global_fuel->emplace(pass, fuel);
+      fuel_ever_consumed->emplace(pass, false);
+    }
+
+    // If --zkx_fuel was specified, register an atexit handler which logs a
+    // warning if a pass was specified but never consumed any fuel, on the
+    // theory that this is may be a typo.
+    if (!initial_fuel->empty()) {
+      static absl::once_flag register_atexit_once;
+      absl::call_once(
+          register_atexit_once,
+          +[] { std::atexit(WarnIfFuelWasNeverConsumed); });
+    }
+    return true;
+  };
 
   auto collective_op_types_to_string =
       [](google::protobuf::RepeatedField<int> collective_ops) -> std::string {
@@ -394,6 +478,10 @@ void MakeDebugOptionsFlags(std::vector<tsl::Flag>* flag_list,
                 bool_setter_for(&DebugOptions::set_zkx_gpu_generate_line_info),
                 debug_options->zkx_gpu_generate_line_info(),
                 "Generate line info for codegened CUDA kernels."));
+  flag_list->push_back(tsl::Flag(
+      "zkx_fuel", setter_for_zkx_fuel, /*default_value_for_display=*/"",
+      "Sets compiler fuel, useful for bisecting bugs in passes. Format "
+      "--zkx_fuel=PASS1=NUM1,PASS2=NUM2,..."));
   flag_list->push_back(tsl::Flag(
       "zkx_dump_to", string_setter_for(&DebugOptions::set_zkx_dump_to),
       debug_options->zkx_dump_to(),
@@ -911,6 +999,41 @@ DebugOptions GetDebugOptionsFromFlags() {
                                      /*reset_envvar=*/true);
   }
   return *flag_values;
+}
+
+void ResetThreadLocalFuel() {
+  absl::call_once(flags_init, &AllocateFlags, nullptr);
+
+  thread_fuel = std::make_unique<
+      absl::node_hash_map<std::string, std::atomic<int64_t>>>();
+  CHECK(initial_fuel != nullptr);
+  for (const auto& kv : *initial_fuel) {
+    thread_fuel->emplace(kv.first, kv.second);
+  }
+}
+
+bool ConsumeFuel(std::string_view pass, bool* just_ran_out) {
+  absl::call_once(flags_init, &AllocateFlags, nullptr);
+  if (just_ran_out != nullptr) {
+    *just_ran_out = false;
+  }
+  auto* fuel_pool = thread_fuel ? thread_fuel.get() : global_fuel;
+  if (fuel_pool->empty()) {
+    return true;
+  }
+  auto it = fuel_pool->find(pass);
+  if (it == fuel_pool->end()) {
+    return true;
+  }
+  std::atomic<int64_t>& remaining_fuel = it->second;
+  std::atomic<bool>& fuel_has_been_consumed = fuel_ever_consumed->at(pass);
+  fuel_has_been_consumed = true;
+
+  int64_t remaining = remaining_fuel.fetch_sub(1);
+  if (just_ran_out != nullptr) {
+    *just_ran_out = remaining == 0;
+  }
+  return remaining > 0;
 }
 
 }  // namespace zkx
