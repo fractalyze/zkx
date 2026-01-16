@@ -422,6 +422,17 @@ class HloModule {
       const ProgramShape& program_shape, const DebugOptions& debug_options,
       const ExecutionOptions* execution_options = nullptr);
 
+  // Outlines the given expression from the given computation.
+  // instructions_to_outline contains the instructions that form the expression.
+  //
+  // Precondition: instructions in instructions_to_outline are in topological
+  // order (root of outlined instructions last). TODO(jingyue): takes a set of
+  // instructions and topologically sorts them.
+  absl::StatusOr<HloInstruction*> OutlineExpressionFromComputation(
+      absl::Span<HloInstruction* const> instructions_to_outline,
+      const std::string& outlined_computation_name,
+      HloComputation* computation);
+
   // Returns a randomly generated uint64_t.
   uint64_t RandomNew64() const;
 
