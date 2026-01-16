@@ -74,6 +74,9 @@ message DebugOptions {
     PGLE_STRICTNESS_LEVEL_ERROR = 2;
   }
 
+  // Use region analysis in copy insertion pass.
+  bool zkx_cpu_copy_insertion_use_region_analysis = 337;
+
   // When true, ZKX:CPU uses HLO module scheduler that is optimized for
   // extracting concurrency at the cost of extra memory: we extend the live
   // ranges of temporaries to allow ZKX runtime to schedule independent

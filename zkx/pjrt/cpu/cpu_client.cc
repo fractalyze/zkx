@@ -592,13 +592,12 @@ static absl::StatusOr<std::unique_ptr<Executable>> JitCompile(
 
   // Run Hlo Passes
   cpu::CpuCompiler compiler;
-  // TODO(chokobole): Uncomment this. Dependency: CpuCompiler::RunHloPasses
-  // if (!build_options.run_backend_only()) {
-  //   TF_ASSIGN_OR_RETURN(
-  //       hlo_module,
-  //       compiler.RunHloPasses(std::move(hlo_module),
-  //                             /*stream_exec=*/nullptr, compile_options));
-  // }
+  if (!build_options.run_backend_only()) {
+    TF_ASSIGN_OR_RETURN(
+        hlo_module,
+        compiler.RunHloPasses(std::move(hlo_module),
+                              /*stream_exec=*/nullptr, compile_options));
+  }
 
   // Run backend.
   return compiler.RunBackend(std::move(hlo_module), /*stream_exec=*/nullptr,
