@@ -67,10 +67,8 @@ class HloDimensionsInstruction : public HloInstruction {
                            absl::Span<const int64_t> dimensions)
       : HloInstruction(opcode, shape),
         dimensions_(dimensions.begin(), dimensions.end()) {}
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
 
   bool IdenticalSlowPath(
       const HloInstruction& other,
@@ -117,10 +115,8 @@ class HloFftInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -155,10 +151,8 @@ class HloMsmInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -226,11 +220,9 @@ class HloAsyncInstruction : public HloInstruction {
  private:
   // async-{update,done} inherit all their attributes from async-start,
   // so they shouldn't print any.
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override {
-  // }
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override {
+  }
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -273,10 +265,8 @@ class HloAsyncStartInstruction : public HloAsyncInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
       const Shape& shape, absl::Span<HloInstruction* const> new_operands,
       HloCloneContext* context) const override;
@@ -300,10 +290,8 @@ class HloCopyStartInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -338,10 +326,8 @@ class HloCompareInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -382,10 +368,8 @@ class HloChannelInstruction : public HloInstruction {
                                  const std::optional<int64_t>& channel_id);
 
   HloInstructionProto ToProto() const override;
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
 
   // Do not override IdenticalSlowPath(). Override
   // IdenticalSlowPathIgnoringChannelIdValues() instead.
@@ -423,10 +407,8 @@ class HloSendRecvInstruction : public HloChannelInstruction {
                                   bool is_host_transfer);
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPathIgnoringChannelIdValues(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -539,10 +521,8 @@ class HloCollectiveInstruction : public HloChannelInstruction {
       const std::optional<int64_t>& channel_id);
 
   HloInstructionProto ToProto() const override;
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPathIgnoringChannelIdValues(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -586,10 +566,8 @@ class HloAllGatherInstruction : public HloCollectiveInstruction {
   }
 
  protected:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   HloInstructionProto ToProto() const override;
 
  private:
@@ -633,10 +611,8 @@ class HloAllReduceInstructionBase : public HloCollectiveInstruction {
   static bool ClassOf(const HloInstruction* hlo);
 
  protected:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   HloInstructionProto ToProto() const override;
 
   bool IdenticalSlowPathIgnoringChannelIdValues(
@@ -696,10 +672,8 @@ class HloReduceScatterInstruction : public HloAllReduceInstructionBase {
   }
 
  protected:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
 
   HloInstructionProto ToProto() const override;
 
@@ -747,10 +721,8 @@ class HloAllToAllInstruction : public HloCollectiveInstruction {
   }
 
  protected:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   HloInstructionProto ToProto() const override;
 
  private:
@@ -786,10 +758,8 @@ class HloRaggedAllToAllInstruction : public HloCollectiveInstruction {
   }
 
  protected:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
 
   HloInstructionProto ToProto() const override;
 
@@ -864,10 +834,8 @@ class HloCollectivePermuteInstruction : public HloChannelInstruction {
   bool inplace() const { return inplace_; }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPathIgnoringChannelIdValues(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -996,10 +964,8 @@ class HloSortInstruction : public HloDimensionsInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1065,10 +1031,8 @@ class HloReshapeInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1099,10 +1063,8 @@ class HloMapInstruction : public HloInstruction {
  private:
   bool IsElementwiseImpl(
       const std::optional<int64_t>& operand_idx) const override;
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1151,10 +1113,8 @@ class HloSliceInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1470,10 +1430,8 @@ class HloFusionInstruction : public HloCallableInstruction {
  private:
   bool IsElementwiseImpl(
       const std::optional<int64_t>& operand_idx) const override;
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1557,10 +1515,8 @@ class HloParameterInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1599,10 +1555,8 @@ class HloGetTupleElementInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1640,10 +1594,8 @@ class HloInfeedInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1680,10 +1632,8 @@ class HloOutfeedInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1721,10 +1671,8 @@ class HloPadInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1794,10 +1742,8 @@ class HloDynamicSliceInstruction : public HloDynamicIndexInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1848,10 +1794,8 @@ class HloIotaInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1902,10 +1846,8 @@ class HloDotInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1940,10 +1882,8 @@ class HloGetDimensionSizeInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
@@ -1973,10 +1913,8 @@ class HloSetDimensionSizeInstruction : public HloInstruction {
   }
 
  private:
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // void PrintExtraAttributesImpl(AttributePrinter& printer,
-  //                               const HloPrintOptions& options) const
-  //                               override;
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
   bool IdenticalSlowPath(
       const HloInstruction& other,
       absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>

@@ -2973,13 +2973,11 @@ void HloInstruction::PrintWithCanonicalNameMap(
 
   // Print additional attributes. If an instruction contains a subcomputation,
   // the subcomputation is also printed here.
-  // TODO(chokobole): Uncomment this. Dependency: AttributePrinter
-  // AttributePrinter attr_printer([printer]() {
-  //   printer->Append(", ");
-  //   return printer;
-  // });
-  // TODO(chokobole): Uncomment this. Dependency: PrintExtraAttributes
-  // PrintExtraAttributes(attr_printer, options);
+  AttributePrinter attr_printer([printer]() {
+    printer->Append(", ");
+    return printer;
+  });
+  PrintExtraAttributes(attr_printer, options);
 
   if (options.print_original_value() && original_value_) {
     printer->Append(", origin={");
@@ -3077,6 +3075,268 @@ void HloInstruction::PrintOperandsWithCanonicalNameMap(
     printer->Append(remaining);
     printer->Append(")");
   }
+}
+
+namespace {
+
+bool IsSequentialCall(HloOpcode opcode) {
+  switch (opcode) {
+    case HloOpcode::kCall:
+    case HloOpcode::kConditional:
+    case HloOpcode::kWhile:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
+void HloInstruction::PrintExtraAttributes(
+    AttributePrinter& printer, const HloPrintOptions& options) const {
+  if (options.print_extra_attributes()) {
+    PrintExtraAttributesImpl(printer, options);
+  }
+
+  const auto subcomputation_mode = options.print_subcomputation_mode();
+  if (subcomputation_mode ==
+      HloPrintOptions::PrintSubcomputationMode::kNameOnly) {
+    if (opcode() == HloOpcode::kWhile) {
+      printer.Next([this, &options](Printer* printer) {
+        printer->Append("condition=");
+        PrintNameInternal(printer, while_condition()->name(), options);
+      });
+      printer.Next([this, &options](Printer* printer) {
+        printer->Append("body=");
+        PrintNameInternal(printer, while_body()->name(), options);
+      });
+      // TODO(batzor): Uncomment this. Dependency: SelectAndScatter
+      // } else if (opcode() == HloOpcode::kSelectAndScatter) {
+      //   printer.Next([this, &options](Printer* printer) {
+      //     printer->Append("select=");
+      //     PrintNameInternal(printer, select()->name(), options);
+      //   });
+      //   printer.Next([this, &options](Printer* printer) {
+      //     printer->Append("scatter=");
+      //     PrintNameInternal(printer, scatter()->name(), options);
+      //   });
+    } else if (opcode() == HloOpcode::kConditional) {
+      if (operand(0)->shape().element_type() == PRED) {
+        printer.Next([this, &options](Printer* printer) {
+          printer->Append("true_computation=");
+          PrintNameInternal(printer, true_computation()->name(), options);
+        });
+        printer.Next([this, &options](Printer* printer) {
+          printer->Append("false_computation=");
+          PrintNameInternal(printer, false_computation()->name(), options);
+        });
+      } else {
+        printer.Next([this, &options](Printer* printer) {
+          printer->Append("branch_computations={");
+          AppendJoin(printer, branch_computations(), ", ",
+                     [&](Printer* printer, const HloComputation* computation) {
+                       PrintNameInternal(printer, computation->name(), options);
+                     });
+          printer->Append("}");
+        });
+      }
+    } else if (opcode() == HloOpcode::kCall || opcode() == HloOpcode::kMap ||
+               // TODO(batzor): Uncomment this. Dependency: ReduceWindow
+               // opcode() == HloOpcode::kReduceWindow ||
+               opcode() == HloOpcode::kReduce ||
+               opcode() == HloOpcode::kAllReduce ||
+               opcode() == HloOpcode::kReduceScatter ||
+               opcode() == HloOpcode::kAllReduceStart ||
+               opcode() == HloOpcode::kScatter ||
+               opcode() == HloOpcode::kSort) {
+      if (!called_computations().empty()) {
+        printer.Next([this, &options](Printer* printer) {
+          printer->Append("to_apply=");
+          PrintNameInternal(printer, to_apply()->name(), options);
+        });
+      }
+      if (opcode() == HloOpcode::kCall && is_composite()) {
+        printer.Next(
+            [](Printer* printer) { printer->Append("is_composite=true"); });
+      }
+    } else if (opcode() == HloOpcode::kCustomCall) {
+      if (!called_computations().empty()) {
+        printer.Next([this, &options](Printer* printer) {
+          printer->Append("called_computations={");
+          AppendJoin(printer, called_computations(), ", ",
+                     [&](Printer* printer, const HloComputation* computation) {
+                       PrintNameInternal(printer, computation->name(), options);
+                     });
+          printer->Append("}");
+        });
+      }
+    } else if (HloOpcodeIsAsync(opcode())) {
+      if (opcode() == HloOpcode::kAsyncStart &&
+          (!options.syntax_sugar_async_ops() ||
+           (async_wrapped_computation() &&
+            !async_wrapped_computation()->CanExpandIntoSingleInstruction()))) {
+        printer.Next([this, &options](Printer* printer) {
+          printer->Append("calls=");
+          PrintNameInternal(printer, async_wrapped_computation()->name(),
+                            options);
+        });
+      }
+    } else if (!called_computations().empty()) {
+      printer.Next([this, &options](Printer* printer) {
+        printer->Append("calls=");
+        AppendJoin(printer, called_computations(), ", ",
+                   [&](Printer* printer, const HloComputation* computation) {
+                     PrintNameInternal(printer, computation->name(), options);
+                   });
+      });
+    }
+  } else if ((subcomputation_mode ==
+              HloPrintOptions::PrintSubcomputationMode::kFullBodies) ||
+             (subcomputation_mode == HloPrintOptions::PrintSubcomputationMode::
+                                         kNonSequentialBodies &&
+              !IsSequentialCall(opcode()))) {
+    HloPrintOptions new_options = options;
+    new_options.set_is_in_nested_computation(true);
+    switch (opcode()) {
+      case HloOpcode::kWhile:
+        printer.Next([this, &new_options](Printer* printer) {
+          printer->Append("condition=\n");
+          while_condition()->Print(printer, new_options);
+        });
+        printer.Next([this, &new_options](Printer* printer) {
+          printer->Append("body=\n");
+          while_body()->Print(printer, new_options);
+        });
+        break;
+      // TODO(batzor): Uncomment this. Dependency: SelectAndScatter
+      // case HloOpcode::kSelectAndScatter:
+      //   printer.Next([this, &new_options](Printer* printer) {
+      //     printer->Append("select=\n");
+      //     select()->Print(printer, new_options);
+      //   });
+      //   printer.Next([this, &new_options](Printer* printer) {
+      //     printer->Append("scatter=\n");
+      //     scatter()->Print(printer, new_options);
+      //   });
+      //   break;
+      case HloOpcode::kConditional:
+        if (operand(0)->shape().element_type() == PRED) {
+          printer.Next([this, &new_options](Printer* printer) {
+            printer->Append("true_computation=\n");
+            true_computation()->Print(printer, new_options);
+          });
+          printer.Next([this, &new_options](Printer* printer) {
+            printer->Append("false_computation=\n");
+            false_computation()->Print(printer, new_options);
+          });
+        } else {
+          printer.Next([this, &new_options](Printer* printer) {
+            printer->Append("branch_computations={\n");
+            AppendJoin(
+                printer, branch_computations(), ",\n",
+                [&](Printer* printer, const HloComputation* computation) {
+                  computation->Print(printer, new_options);
+                });
+            printer->Append("\n}");
+          });
+        }
+        break;
+      case HloOpcode::kCall:
+      case HloOpcode::kMap:
+      // TODO(batzor): Uncomment this. Dependency: ReduceWindow
+      // case HloOpcode::kReduceWindow:
+      case HloOpcode::kReduce:
+      case HloOpcode::kAllReduce:
+      case HloOpcode::kAllReduceStart:
+      case HloOpcode::kScatter:
+      case HloOpcode::kSort:
+        if (!called_computations().empty()) {
+          printer.Next([this, &new_options](Printer* printer) {
+            printer->Append("to_apply=\n");
+            to_apply()->Print(printer, new_options);
+          });
+        }
+        if (opcode() == HloOpcode::kCall && is_composite()) {
+          printer.Next(
+              [](Printer* printer) { printer->Append("is_composite=true"); });
+        }
+        break;
+      default:
+        if (!called_computations().empty()) {
+          printer.Next([this, &new_options](Printer* printer) {
+            printer->Append("calls=\n");
+            AppendJoin(
+                printer, called_computations(), ", ",
+                [&](Printer* printer, const HloComputation* computation) {
+                  computation->Print(printer, new_options);
+                });
+          });
+        }
+        break;
+    }
+  }
+
+  if (has_sharding()) {
+    printer.Next([this, &options](Printer* printer) {
+      printer->Append("sharding=");
+      sharding().Print(printer, options.print_metadata());
+    });
+  }
+  if (!frontend_attributes().map().empty()) {
+    printer.Next([this](Printer* printer) {
+      AppendCat(printer, "frontend_attributes=",
+                FrontendAttributesToString(frontend_attributes()));
+    });
+  }
+
+  if (opcode() != HloOpcode::kCall) {
+    CHECK(!is_composite())
+        << "Only kCall instructions should have is_composite set";
+  }
+
+  if (options.print_control_dependencies() && !control_predecessors().empty()) {
+    printer.Next([this, &options](Printer* printer) {
+      printer->Append("control-predecessors={");
+      AppendJoin(printer, control_predecessors(), ", ",
+                 [&](Printer* printer, HloInstruction* pre) {
+                   PrintNameInternal(printer, pre->name(), options);
+                 });
+      printer->Append("}");
+    });
+  }
+
+  if (!statistics_viz().statistics().empty()) {
+    printer.Next([this](Printer* printer) {
+      AppendCat(printer,
+                "statistics=", StatisticsVizToString(statistics_viz()));
+    });
+  }
+}
+
+std::vector<std::string> HloInstruction::ExtraAttributesToString(
+    const HloPrintOptions& options) const {
+  class MultiStringPrinter : public Printer {
+   public:
+    void Append(const absl::AlphaNum& a) override {
+      if (strings_.empty()) {
+        strings_.push_back({});
+      }
+      absl::StrAppend(&strings_.back(), a);
+    }
+
+    void Next() { strings_.push_back({}); }
+
+    std::vector<std::string> ConsumeStrings() && { return std::move(strings_); }
+
+   private:
+    std::vector<std::string> strings_;
+  } multi_string_printer;
+  AttributePrinter attr_printer(/*next_printer=*/[&multi_string_printer] {
+    multi_string_printer.Next();
+    return &multi_string_printer;
+  });
+  PrintExtraAttributes(attr_printer, options);
+  return std::move(multi_string_printer).ConsumeStrings();
 }
 
 void HloInstruction::Print(Printer* printer,
@@ -3688,6 +3948,60 @@ HloInstruction::ReshapeMerelyInsertsOrDeletes1SizedDimensions() const {
   }
   return ShapeUtil::InsertedOrDeleted1SizedDimensions(operand(0)->shape_,
                                                       shape_);
+}
+
+std::string StatisticsVizToString(const StatisticsViz& statistics_viz) {
+  // Statistics is either empty, or always starts with the index of the
+  // statistic that is rendered on the graph, followed by the statistics that
+  // are being tracked. The index is 0 based, starting from the first statistic
+  // being tracked. The index and statistics are within a comma-separated list
+  // of attribute=value pairs,
+  // e.g., statistics={visualizing_index=0, count_nan=100, count_inf=200}.
+
+  if (statistics_viz.statistics().empty()) return "{}";
+
+  std::vector<Statistic> all_statistics(statistics_viz.statistics().begin(),
+                                        statistics_viz.statistics().end());
+
+  const auto formatter = [](std::string* out, const Statistic& item) {
+    absl::StrAppend(out, item.stat_name(), "=", item.stat_val());
+  };
+  return absl::StrFormat("{%s,%s}",
+                         absl::StrCat("visualizing_index=",
+                                      statistics_viz.stat_index_to_visualize()),
+                         absl::StrJoin(all_statistics, ",", formatter));
+}
+
+std::string PaddingConfigToString(const PaddingConfig& padding) {
+  return absl::StrJoin(
+      padding.dimensions(), "x",
+      [&](std::string* out, const PaddingConfig::PaddingConfigDimension& dim) {
+        absl::StrAppend(out, dim.edge_padding_low(), "_",
+                        dim.edge_padding_high());
+      });
+}
+
+std::string DotDimensionNumbersToString(const DotDimensionNumbers& dnums) {
+  std::vector<std::string> result;
+  if (!dnums.lhs_batch_dimensions().empty()) {
+    result.push_back(
+        absl::StrCat("lhs_batch_dims={",
+                     absl::StrJoin(dnums.lhs_batch_dimensions(), ","), "}"));
+  }
+  result.push_back(absl::StrCat(
+      "lhs_contracting_dims={",
+      absl::StrJoin(dnums.lhs_contracting_dimensions(), ","), "}"));
+
+  if (!dnums.rhs_batch_dimensions().empty()) {
+    result.push_back(
+        absl::StrCat("rhs_batch_dims={",
+                     absl::StrJoin(dnums.rhs_batch_dimensions(), ","), "}"));
+  }
+  result.push_back(absl::StrCat(
+      "rhs_contracting_dims={",
+      absl::StrJoin(dnums.rhs_contracting_dimensions(), ","), "}"));
+
+  return absl::StrJoin(result, ", ");
 }
 
 HloModule* HloInstruction::GetModule() const {

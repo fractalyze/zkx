@@ -1259,6 +1259,29 @@ class HloInstruction {
   std::string ToString() const;
   std::string ToString(const HloPrintOptions& options) const;
 
+  // Components of the Print() and ToString() representation:
+
+  // Helper class for PrintExtraAttributes.
+  class AttributePrinter {
+   public:
+    explicit AttributePrinter(std::function<Printer*()> next_printer)
+        : next_printer_(std::move(next_printer)) {}
+
+    void Next(absl::FunctionRef<void(Printer*)> print_func) {
+      print_func(next_printer_());
+    }
+
+   private:
+    std::function<Printer*()> next_printer_;
+  };
+  // Prints the string representation of op-specific attributes.
+  void PrintExtraAttributes(AttributePrinter& printer,
+                            const HloPrintOptions& options) const;
+
+  // Returns string representation of op-specific attributes.
+  std::vector<std::string> ExtraAttributesToString(
+      const HloPrintOptions& options) const;
+
   // As ToString, but returns a shorter string.
   std::string ToShortString() const;
 
@@ -1943,6 +1966,10 @@ class HloInstruction {
       bool ignore_channel_id_values,
       bool ignore_commutative_operand_order) const;
 
+  // Implementation for non-common logic of PrintExtraAttributes.
+  virtual void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                        const HloPrintOptions& options) const {}
+
   // Implementation for IsElementwise if operand_idx is nullopt and for
   // IsElementwiseOnOperand if otherwise.
   //
@@ -2148,6 +2175,10 @@ std::string_view ToString(HloInstruction::FusionKind kind);
 absl::StatusOr<HloInstruction::FusionKind> StringToFusionKind(
     std::string_view kind_name);
 
+// Custom (de)stringification functions for protos that live inside
+// HloInstruction.
+std::string PaddingConfigToString(const PaddingConfig& padding);
+
 // Returns string representation of frontend attributes.
 // Frontend attribute is a list of attribute=<value> pairs where value is either
 // a "string" or a JSON-like dict surrounded in {}. Similar to custom_call
@@ -2155,6 +2186,8 @@ absl::StatusOr<HloInstruction::FusionKind> StringToFusionKind(
 // pretty printing.
 std::string FrontendAttributesToString(
     const FrontendAttributes& frontend_attributes);
+std::string StatisticsVizToString(const StatisticsViz& statistics_viz);
+std::string DotDimensionNumbersToString(const DotDimensionNumbers& dnums);
 
 // Map classes that guarantee a deterministic iteration order when the key is
 // an HloInstruction* or a const HloInstruction*.
