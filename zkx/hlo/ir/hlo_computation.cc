@@ -1145,6 +1145,92 @@ absl::StatusOr<HloInstruction*> HloComputation::CreateAsyncInstructions(
   return async_done;
 }
 
+absl::StatusOr<HloInstruction*> HloComputation::DeepCopyHelper(
+    HloInstruction* instruction, ShapeIndex* index,
+    absl::FunctionRef<HloInstruction*(HloInstruction* leaf,
+                                      const ShapeIndex& leaf_index,
+                                      HloComputation* computation)>
+        copy_leaf) {
+  if (instruction->shape().IsTuple()) {
+    std::vector<HloInstruction*> elements;
+    for (int64_t i = 0; i < ShapeUtil::TupleElementCount(instruction->shape());
+         i++) {
+      HloInstruction* gte =
+          AddInstruction(HloInstruction::CreateGetTupleElement(
+              ShapeUtil::GetTupleElementShape(instruction->shape(), i),
+              instruction, i));
+
+      index->push_back(i);
+      TF_ASSIGN_OR_RETURN(HloInstruction * element,
+                          DeepCopyHelper(gte, index, copy_leaf));
+      elements.push_back(element);
+      index->pop_back();
+    }
+    return AddInstruction(HloInstruction::CreateTuple(elements));
+  }
+  if (instruction->shape().IsToken()) {
+    // Tokens have no on-device representation and cannot be copied. Pass
+    // through transparently.
+    return instruction;
+  }
+
+  // Array shape.
+  TF_RET_CHECK(instruction->shape().IsArray());
+  return copy_leaf(instruction, *index, this);
+}
+
+absl::StatusOr<HloInstruction*> HloComputation::DeepCopyInstruction(
+    HloInstruction* instruction, const ShapeTree<bool>* indices_to_copy,
+    ShapeTree<HloInstruction*>* copies_added) {
+  if (instruction->parent() != this) {
+    return absl::FailedPreconditionError(absl::StrFormat(
+        "Can't deep copy instruction %s: instruction is not in computation %s",
+        instruction->name(), name()));
+  }
+  if (indices_to_copy != nullptr &&
+      !ShapeUtil::Compatible(instruction->shape(), indices_to_copy->shape())) {
+    return absl::FailedPreconditionError(absl::StrFormat(
+        "Can't deep copy instruction %s: given shape tree of indices to copy "
+        "has incompatible shapes: %s vs. %s",
+        instruction->name(), ShapeUtil::HumanString(instruction->shape()),
+        ShapeUtil::HumanString(indices_to_copy->shape())));
+  }
+
+  ShapeIndex index;
+  auto copy_leaf = [indices_to_copy, copies_added](
+                       HloInstruction* leaf, const ShapeIndex& leaf_index,
+                       HloComputation* computation) {
+    if (indices_to_copy == nullptr || indices_to_copy->element(leaf_index)) {
+      HloInstruction* copy = computation->AddInstruction(
+          HloInstruction::CreateUnary(leaf->shape(), HloOpcode::kCopy, leaf));
+      if (copies_added != nullptr) {
+        *copies_added->mutable_element(leaf_index) = copy;
+      }
+      return copy;
+    }
+    // Elements which are not to be copied are passed through
+    // transparently.
+    return leaf;
+  };
+  return DeepCopyHelper(instruction, &index, copy_leaf);
+}
+
+absl::StatusOr<HloInstruction*>
+HloComputation::DeepCopyInstructionWithCustomCopier(
+    HloInstruction* instruction,
+    absl::FunctionRef<HloInstruction*(HloInstruction* leaf,
+                                      const ShapeIndex& leaf_index,
+                                      HloComputation* computation)>
+        copy_leaf) {
+  if (instruction->parent() != this) {
+    return absl::FailedPreconditionError(absl::StrFormat(
+        "Can't deep copy instruction %s: instruction is not in computation %s",
+        instruction->name(), name()));
+  }
+  ShapeIndex index;
+  return DeepCopyHelper(instruction, &index, copy_leaf);
+}
+
 ProgramShape HloComputation::ComputeProgramShape(bool include_ids) const {
   ProgramShape program_shape;
 

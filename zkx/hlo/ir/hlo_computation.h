@@ -492,6 +492,30 @@ class HloComputation {
       absl::Span<HloInstruction* const> instructions_to_fuse,
       HloInstruction::FusionKind fusion_kind);
 
+  // Create a deep copy of the given instruction and return the instruction
+  // producing the copied result. All instructions performing the copy are added
+  // to the computation. For array-shaped values, this method trivially returns
+  // a kCopy instruction. For tuple-shaped instructions, the copy is performed
+  // with a series of kGetTupleElement and kTuple instructions. If
+  // 'indices_to_copy' is non-null then this ShapeTree indicates which elements
+  // (arrays) of the shape to copy. Non-copied elements are passed through
+  // transparently. If 'copies_added' is non-null, then the added kCopy
+  // instructions will be inserted in the respective index in the given
+  // ShapeTree.
+  absl::StatusOr<HloInstruction*> DeepCopyInstruction(
+      HloInstruction* instruction,
+      const ShapeTree<bool>* indices_to_copy = nullptr,
+      ShapeTree<HloInstruction*>* copies_added = nullptr);
+
+  // As above, but uses a custom function to copy the leaf nodes, which could
+  // create alternative HLOs other than kCopy, or even pass-throughs.
+  absl::StatusOr<HloInstruction*> DeepCopyInstructionWithCustomCopier(
+      HloInstruction* instruction,
+      absl::FunctionRef<HloInstruction*(HloInstruction* leaf,
+                                        const ShapeIndex& leaf_index,
+                                        HloComputation* computation)>
+          copy_leaf);
+
   // Computes and returns the ProgramShape of this computation (shape of
   // parameters and result with layout).
   ProgramShape ComputeProgramShape(bool include_ids = true) const;
@@ -762,6 +786,13 @@ class HloComputation {
     SetInstruction(while_call_instruction, InstructionType::kWhile);
   }
 
+  // Returns if this computation is a branch computation of a conditional.
+  [[deprecated(
+      "This is broken. Use CallGraph::GetComputationCallers() instead")]]
+  bool IsConditionalBranchComputation() const {
+    return instruction_type() == InstructionType::kConditional;
+  }
+
   [[deprecated(
       "This is broken. Use CallGraph::GetComputationCallers() instead")]]
   void SetConditionalCallInstruction(
@@ -863,6 +894,15 @@ class HloComputation {
   void AppendInstructionsIntoCalledComputation(
       absl::Span<HloInstruction* const> instructions_to_append,
       HloInstruction* caller);
+
+  // Internal helper for recursive copying of an instruction. Creates and
+  // returns a deep copy of the given instruction.
+  absl::StatusOr<HloInstruction*> DeepCopyHelper(
+      HloInstruction* instruction, ShapeIndex* index,
+      absl::FunctionRef<HloInstruction*(HloInstruction* leaf,
+                                        const ShapeIndex& leaf_index,
+                                        HloComputation* computation)>
+          copy_leaf);
 
   // Internal helper to collect unreachable roots.
   std::vector<HloInstruction*> CollectUnreachableRoots() const;

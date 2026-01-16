@@ -42,8 +42,11 @@ limitations under the License.
 #include "zkx/backends/cpu/codegen/jit_compiler.h"
 #include "zkx/backends/cpu/codegen/object_loader.h"
 #include "zkx/backends/cpu/runtime/thunk_proto_serdes.h"
+#include "zkx/hlo/pass/hlo_pass_pipeline.h"
+#include "zkx/hlo/transforms/simplifiers/hlo_dce.h"
 #include "zkx/hlo/transforms/simplifiers/hlo_memory_scheduler.h"
 #include "zkx/service/buffer_value.h"
+#include "zkx/service/copy_insertion.h"
 #include "zkx/service/cpu/cpu_options.h"
 #include "zkx/service/cpu/executable.pb.h"
 #include "zkx/service/cpu/runtime_symbol_generator.h"
@@ -368,14 +371,37 @@ absl::StatusOr<std::vector<std::unique_ptr<Executable>>> CpuCompiler::Compile(
 absl::Status CpuCompiler::RunHloPassesThroughLayoutAssn(
     HloModule* module, bool is_aot_compile,
     TargetMachineFeatures* target_machine_features) {
-  return absl::UnimplementedError("...");
+  return absl::OkStatus();
 }
 
 absl::Status CpuCompiler::RunHloPassesAfterLayoutAssn(
     HloModule* module, bool is_aot_compile,
     TargetMachineFeatures* target_machine_features,
     const CompileOptions& compile_options) {
-  return absl::UnimplementedError("...");
+  HloPassPipeline pipeline("HLO passes after layout assignment");
+  // Copy insertion should be performed immediately before IR emission to
+  // avoid inserting unnecessary copies (later pass adds an instruction which
+  // materializes the value) or missing a necessary copy (later pass removes
+  // an instruction which materializes a value). DCE must be run immediately
+  // before (and sometime after) copy insertion, to avoid dead code from
+  // interfering with the rewrites.
+  pipeline.AddPass<HloDCE>();
+  // TODO(chokobole): Uncomment this. Dependency: OptimizeInputOutputBufferAlias
+  // pipeline.AddPass<OptimizeInputOutputBufferAlias>(true);
+
+  // If enabled we'll use more precise region based analysis for copy removal.
+  if (module->config()
+          .debug_options()
+          .zkx_cpu_copy_insertion_use_region_analysis()) {
+    pipeline.AddPass<CopyInsertion>(
+        /*can_share_buffer=*/nullptr,
+        /*use_region_based_live_range_analysis=*/-1);
+  } else {
+    pipeline.AddPass<CopyInsertion>();
+  }
+
+  pipeline.AddPass<HloDCE>();
+  return pipeline.Run(module).status();
 }
 
 absl::Status CpuCompiler::RunHloPasses(HloModule* module, bool is_aot_compile,
