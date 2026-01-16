@@ -469,6 +469,18 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "fusion_node_indexing_evaluation",
+    srcs = ["fusion_node_indexing_evaluation.cc"],
+    hdrs = ["fusion_node_indexing_evaluation.h"],
+    deps = [
+        "//zkx:types",
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+    ],
+)
+
+zkx_cc_library(
     name = "fusion_queue",
     hdrs = ["fusion_queue.h"],
     deps = [
@@ -1171,6 +1183,37 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "transpose_folding",
+    srcs = ["transpose_folding.cc"],
+    hdrs = ["transpose_folding.h"],
+    deps = [
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/ir:dfs_hlo_visitor_with_default",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "transpose_folding_unittest",
+    srcs = ["transpose_folding_unittest.cc"],
+    deps = [
+        ":transpose_folding",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/hlo/builder:zkx_builder",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/utils:hlo_matchers",
+        "//zkx/tests:hlo_test_base",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "tuple_util",
     srcs = ["tuple_util.cc"],
     hdrs = ["tuple_util.h"],
@@ -1296,5 +1339,19 @@ zkx_cc_unittest(
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "fusion_node_indexing_evaluation_unittest",
+    srcs = [
+        "fusion_node_indexing_evaluation_unittest.cc",
+    ],
+    deps = [
+        ":fusion_node_indexing_evaluation",
+        ":instruction_fusion",
+        "//zkx/tests:hlo_test_base",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/log:check",
     ],
 )
