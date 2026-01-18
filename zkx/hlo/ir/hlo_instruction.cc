@@ -2239,6 +2239,29 @@ std::unique_ptr<HloInstruction> HloInstruction::Clone(
   return clone;
 }
 
+std::pair<const HloInstruction*, ShapeIndex>
+HloInstruction::LatestNonGteAncestorAndIndex() const {
+  const HloInstruction* hlo = this;
+  ShapeIndex index;
+  while (hlo->opcode() == HloOpcode::kGetTupleElement) {
+    index.push_back(hlo->tuple_index());
+    hlo = hlo->operand(0);
+  }
+
+  // We built up index in the reverse order from what we want.
+  std::reverse(index.begin(), index.end());
+
+  return {hlo, index};
+}
+
+const HloInstruction* HloInstruction::LatestNonGteAncestor() const {
+  const HloInstruction* hlo = this;
+  while (hlo->opcode() == HloOpcode::kGetTupleElement) {
+    hlo = hlo->operand(0);
+  }
+  return hlo;
+}
+
 HloInstruction::InstructionVector HloInstruction::unique_operands() const {
   InstructionVector unique;
   absl::flat_hash_set<const HloInstruction*> seen;
