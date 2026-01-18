@@ -1606,20 +1606,15 @@ absl::Status ShapeVerifier::HandleGather(HloInstruction* gather) {
 }
 
 absl::Status ShapeVerifier::HandleScatter(HloInstruction* scatter) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferScatterShape
-  // clang-format on
-  // absl::InlinedVector<const Shape*, 3> arg_shapes;
-  // arg_shapes.reserve(scatter->operand_count());
-  // for (const HloInstruction* operand : scatter->operands()) {
-  //   arg_shapes.push_back(&operand->shape());
-  // }
-  // return CheckShape(scatter,
-  //                   ShapeInference::InferScatterShape(
-  //                       arg_shapes,
-  //                       scatter->to_apply()->ComputeProgramShape(),
-  //                       scatter->scatter_dimension_numbers()));
-  return absl::UnimplementedError("HandleScatter not supported");
+  absl::InlinedVector<const Shape*, 3> arg_shapes;
+  arg_shapes.reserve(scatter->operand_count());
+  for (const HloInstruction* operand : scatter->operands()) {
+    arg_shapes.push_back(&operand->shape());
+  }
+  return CheckShape(scatter,
+                    ShapeInference::InferScatterShape(
+                        arg_shapes, scatter->to_apply()->ComputeProgramShape(),
+                        scatter->scatter_dimension_numbers()));
 }
 
 absl::Status ShapeVerifier::HandleAfterAll(HloInstruction* token) {
