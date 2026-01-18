@@ -1128,6 +1128,56 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR3FromArray3D<T>(expected_array);
   }
 
+  void SetUpScatter() {
+    constexpr static int64_t M = 10;  // Operand size
+    constexpr static int64_t N = 3;   // Number of updates
+
+    hlo_text_ = absl::Substitute(R"(
+      %update_func {
+        %p0 = $0[] parameter(0)
+        %p1 = $0[] parameter(1)
+        ROOT %ret = $0[] add(%p0, %p1)
+      }
+
+      ENTRY %main {
+        %operand = $0[$1] parameter(0)
+        %indices = s32[$2, 1] parameter(1)
+        %updates = $0[$2] parameter(2)
+
+        ROOT %ret = $0[$1] scatter(%operand, %indices, %updates),
+          update_window_dims={},
+          inserted_window_dims={0},
+          scatter_dims_to_operand_dims={0},
+          index_vector_dim=1,
+          to_apply=%update_func
+      }
+    )",
+                                 x_typename_, M, N);
+
+    std::vector<T> operand_vec = base::CreateVector(
+        M, []() { return BaseIntTest<T>::GetRandomValue(); });
+
+    std::vector<int32_t> indices_vec = {1, 4, 8};
+    std::vector<T> updates_vec = base::CreateVector(
+        N, []() { return BaseIntTest<T>::GetRandomValue(); });
+
+    literals_.push_back(LiteralUtil::CreateR1<T>(operand_vec));
+
+    Array2D<int32_t> indices_array(N, 1);
+    for (int64_t i = 0; i < N; ++i) {
+      indices_array({i, 0}) = indices_vec[i];
+    }
+    literals_.push_back(
+        LiteralUtil::CreateR2FromArray2D<int32_t>(indices_array));
+    literals_.push_back(LiteralUtil::CreateR1<T>(updates_vec));
+
+    std::vector<T> expected_vec = operand_vec;
+    for (int64_t i = 0; i < N; ++i) {
+      expected_vec[indices_vec[i]] += updates_vec[i];
+    }
+    expected_literal_ = LiteralUtil::CreateR1<T>(expected_vec);
+  }
+
   void SetUpSlice() {
     constexpr static int64_t N = 6;
     constexpr static int64_t S = 2;

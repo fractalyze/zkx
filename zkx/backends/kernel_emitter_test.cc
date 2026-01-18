@@ -28,13 +28,12 @@ namespace zkx {
 KernelEmitterTest::KernelEmitterTest(std::string_view platform_name)
     : runner_(PlatformUtil::GetPlatform(platform_name).value()) {}
 
-void KernelEmitterTest::RunAndVerify() {
+void KernelEmitterTest::RunAndVerify(bool run_hlo_passes) {
   TF_ASSERT_OK_AND_ASSIGN(std::unique_ptr<HloModule> module,
                           ParseAndReturnUnverifiedModule(hlo_text_));
 
   absl::StatusOr<std::unique_ptr<OpaqueExecutable>> opaque_executable =
-      runner_.CreateExecutable(std::move(module),
-                               /*run_hlo_passes=*/false);
+      runner_.CreateExecutable(std::move(module), run_hlo_passes);
   if (expected_status_code_ != absl::StatusCode::kOk) {
     EXPECT_THAT(opaque_executable,
                 ::absl_testing::StatusIs(expected_status_code_));

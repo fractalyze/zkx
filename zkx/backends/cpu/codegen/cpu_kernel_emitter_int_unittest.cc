@@ -262,6 +262,11 @@ TYPED_TEST(IntTest, Reverse) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, Scatter) {
+  this->SetUpScatter();
+  this->RunAndVerify(true);
+}
+
 TYPED_TEST(IntTest, Slice) {
   this->SetUpSlice();
   this->RunAndVerify();

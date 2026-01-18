@@ -31,7 +31,7 @@ class KernelEmitterTest : public testing::Test {
  public:
   explicit KernelEmitterTest(std::string_view platform_name);
 
-  void RunAndVerify();
+  void RunAndVerify(bool run_hlo_passes = false);
 
  protected:
   virtual void Verify(const Literal& ret_literal) const;
