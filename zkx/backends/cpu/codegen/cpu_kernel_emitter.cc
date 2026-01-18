@@ -868,6 +868,17 @@ absl::StatusOr<std::unique_ptr<KernelSource>> CpuKernelEmitter::EmitComparator(
                                               std::move(llvm_module));
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPredUnaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
+  switch (instr->opcode()) {
+    case HloOpcode::kNot:
+      return EmitIntegerUnaryOp(instr, b, value, false);
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled unary pred op: %s", HloOpcodeString(instr->opcode())));
+  }
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
     bool is_signed) {
@@ -951,7 +962,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   Shape shape = instr->operand(0)->shape();
   PrimitiveType operand_type = shape.element_type();
-  if (ShapeUtil::ElementIsIntegral(shape)) {
+  if (operand_type == PRED) {
+    return EmitPredUnaryOp(instr, b, value);
+  } else if (ShapeUtil::ElementIsIntegral(shape)) {
     if (instr->opcode() == HloOpcode::kConvert) {
       Shape output_shape = instr->shape();
       if (ShapeUtil::ElementIsIntegral(output_shape)) {
@@ -976,6 +989,21 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitUnaryOp(
   return absl::UnimplementedError(absl::StrFormat(
       "Unhandled primitive type: %s",
       primitive_util::LowercasePrimitiveTypeName(operand_type)));
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPredBinaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
+    mlir::Value rhs_value) {
+  switch (instr->opcode()) {
+    case HloOpcode::kAnd:
+    case HloOpcode::kCompare:
+    case HloOpcode::kOr:
+    case HloOpcode::kXor:
+      return EmitIntegerBinaryOp(instr, b, lhs_value, rhs_value, false);
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled binary pred op: %s", HloOpcodeString(instr->opcode())));
+  }
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
@@ -1117,7 +1145,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
     mlir::Value rhs_value) {
   Shape shape = instr->operand(0)->shape();
   PrimitiveType operand_type = shape.element_type();
-  if (ShapeUtil::ElementIsIntegral(shape)) {
+  if (operand_type == PRED) {
+    return EmitPredBinaryOp(instr, b, lhs_value, rhs_value);
+  } else if (ShapeUtil::ElementIsIntegral(shape)) {
     return EmitIntegerBinaryOp(
         instr, b, lhs_value, rhs_value,
         primitive_util::IsSignedIntegralType(operand_type));
@@ -1130,6 +1160,18 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBinaryOp(
   return absl::UnimplementedError(absl::StrFormat(
       "Unhandled primitive type: %s",
       primitive_util::LowercasePrimitiveTypeName(operand_type)));
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPredTernaryOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value1,
+    mlir::Value value2, mlir::Value value3) {
+  switch (instr->opcode()) {
+    case HloOpcode::kSelect:
+      return EmitIntegerTernaryOp(instr, b, value1, value2, value3, false);
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled ternary pred op: %s", HloOpcodeString(instr->opcode())));
+  }
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerTernaryOp(
@@ -1186,7 +1228,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitTernaryOp(
   Shape shape =
       instr->operand(instr->opcode() == HloOpcode::kSelect ? 1 : 0)->shape();
   PrimitiveType operand_type = shape.element_type();
-  if (ShapeUtil::ElementIsIntegral(shape)) {
+  if (operand_type == PRED) {
+    return EmitPredTernaryOp(instr, b, value1, value2, value3);
+  } else if (ShapeUtil::ElementIsIntegral(shape)) {
     return EmitIntegerTernaryOp(
         instr, b, value1, value2, value3,
         primitive_util::IsSignedIntegralType(operand_type));

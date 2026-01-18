@@ -171,6 +171,10 @@ class CpuKernelEmitter final : public KernelEmitter {
                                               EmitterLocOpBuilder& b,
                                               mlir::Value value);
 
+  absl::StatusOr<mlir::Value> EmitPredUnaryOp(const HloInstruction* instr,
+                                              EmitterLocOpBuilder& b,
+                                              mlir::Value value);
+
   absl::StatusOr<mlir::Value> EmitIntegerUnaryOp(const HloInstruction* instr,
                                                  EmitterLocOpBuilder& b,
                                                  mlir::Value value,
@@ -183,6 +187,11 @@ class CpuKernelEmitter final : public KernelEmitter {
   absl::StatusOr<mlir::Value> EmitEcPointUnaryOp(const HloInstruction* instr,
                                                  EmitterLocOpBuilder& b,
                                                  mlir::Value value);
+
+  absl::StatusOr<mlir::Value> EmitPredBinaryOp(const HloInstruction* instr,
+                                               EmitterLocOpBuilder& b,
+                                               mlir::Value lhs_value,
+                                               mlir::Value rhs_value);
 
   absl::StatusOr<mlir::Value> EmitIntegerBinaryOp(const HloInstruction* instr,
                                                   EmitterLocOpBuilder& b,
@@ -199,6 +208,12 @@ class CpuKernelEmitter final : public KernelEmitter {
                                                   EmitterLocOpBuilder& b,
                                                   mlir::Value lhs_value,
                                                   mlir::Value rhs_value);
+
+  absl::StatusOr<mlir::Value> EmitPredTernaryOp(const HloInstruction* instr,
+                                                EmitterLocOpBuilder& b,
+                                                mlir::Value value1,
+                                                mlir::Value value2,
+                                                mlir::Value value3);
 
   absl::StatusOr<mlir::Value> EmitIntegerTernaryOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value1,

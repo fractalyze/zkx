@@ -334,6 +334,22 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "pred_test",
+    testonly = True,
+    hdrs = ["pred_test.h"],
+    deps = [
+        ":cpu_kernel_emitter_test",
+        "//zkx:array2d",
+        "//zkx:comparison_util",
+        "//zkx:literal_util",
+        "//zkx:primitive_util",
+        "//zkx/base:random",
+        "//zkx/base/containers:container_util",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "target_machine_features",
     srcs = ["target_machine_features.cc"],
     hdrs = ["target_machine_features.h"],
@@ -411,4 +427,10 @@ zkx_cc_unittest(
     name = "cpu_kernel_emitter_small_int_unittest",
     srcs = ["cpu_kernel_emitter_small_int_unittest.cc"],
     deps = [":small_int_test"],
+)
+
+zkx_cc_unittest(
+    name = "cpu_kernel_emitter_pred_unittest",
+    srcs = ["cpu_kernel_emitter_pred_unittest.cc"],
+    deps = [":pred_test"],
 )
