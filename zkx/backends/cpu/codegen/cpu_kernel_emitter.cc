@@ -1738,6 +1738,33 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPadOp(
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReduceOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     mlir::ValueRange inputs, mlir::ValueRange inits) {
+  if (instr->dimensions().empty()) {
+    // NOTE(chokobole): Detected an execution discrepancy between XLA runners
+    // (verified on XLA commit 8bac4a2).
+    //
+    // For a reduction over an empty dimension set (dimensions={}), the
+    // behavior is inconsistent:
+    // 1. Interpreter: Correctly returns the identity value (%init).
+    // 2. CPU Runner: Incorrectly returns the input tensor (%x) instead of
+    //    reducing it to a scalar.
+    //
+    // HLO Snippet:
+    // %func {
+    //   %a = s32[] parameter(0)
+    //   %b = s32[] parameter(1)
+    //   %mul = s32[] multiply(%a, %b)
+    //   ROOT %ret = s32[] add(%mul, %a)
+    // }
+    //
+    // ENTRY %main {
+    //   %x = s32[4] constant({1, 2, 3, 4})
+    //   %init = s32[] constant(0)
+    //   ROOT %ret = s32[4] reduce(%x, %init), dimensions={}, to_apply=%func
+    // }
+    return absl::UnimplementedError(
+        "ReduceOp with empty dimensions is not supported");
+  }
+
   pass_flag_.enable_linalg_to_parallel_loops = true;
 
   HloComputation* to_apply = instr->to_apply();
@@ -1772,6 +1799,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReverseOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  if (instr->dimensions().empty()) {
+    return input;
+  }
+
   pass_flag_.enable_linalg_to_parallel_loops = true;
   pass_flag_.enable_lower_affine = true;
 
@@ -1848,6 +1879,10 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitTransposeOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  if (instr->dimensions().empty()) {
+    return input;
+  }
+
   pass_flag_.enable_linalg_to_parallel_loops = true;
 
   auto output = b.create<mlir::tensor::EmptyOp>(

@@ -262,6 +262,11 @@ TYPED_TEST(IntTest, Reverse) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, ReverseWithEmptyDimensions) {
+  this->SetUpReverseWithEmptyDimensions();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Scatter) {
   this->SetUpScatter();
   this->RunAndVerify(true);
@@ -284,6 +289,11 @@ TYPED_TEST(IntTest, Transpose) {
 
 TYPED_TEST(IntTest, TransposeWithLayout) {
   this->SetUpTransposeWithLayout();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, TransposeWithEmptyDimensions) {
+  this->SetUpTransposeWithEmptyDimensions();
   this->RunAndVerify();
 }
 
