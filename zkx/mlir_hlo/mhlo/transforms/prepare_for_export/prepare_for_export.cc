@@ -147,10 +147,10 @@ void PrepareForExportPass::runOnOperation() {
     // IfOp, CaseOp, WhileOp are already being handled during
     // mhlo --> hlo translation. MapOp soon be deprecated.
     // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: mhlo::AllReduceOp, mhlo::ReduceScatterOp, mhlo::ReduceWindowOp, mhlo::ScatterOp, mhlo::SelectAndScatterOp, mhlo::SortOp
-    if (isa<ReduceOp, /*AllReduceOp, ReduceScatterOp, ReduceWindowOp, ScatterOp,*/
+    // TODO(chokobole): Uncomment this. Dependency: mhlo::AllReduceOp, mhlo::ReduceScatterOp, mhlo::ReduceWindowOp, mhlo::SelectAndScatterOp, mhlo::SortOp
+    if (isa<ReduceOp, /*AllReduceOp, ReduceScatterOp, ReduceWindowOp, */
            // clang-format on
-           SortOp>(op))
+           ScatterOp, SortOp>(op))
       return prepareExplicitCapturedConstants(op);
   });
 }

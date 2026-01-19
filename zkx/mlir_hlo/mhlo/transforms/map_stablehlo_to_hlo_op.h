@@ -125,8 +125,7 @@ MAP_STABLEHLO_TO_HLO(RemOp)
 MAP_STABLEHLO_TO_HLO(ReshapeOp)
 MAP_STABLEHLO_TO_HLO(ReturnOp)
 MAP_STABLEHLO_TO_HLO(ReverseOp)
-// TODO(chokobole): Uncomment this. Dependency: stablehlo::ScatterOp
-// MAP_STABLEHLO_TO_HLO(ScatterOp)
+MAP_STABLEHLO_TO_HLO(ScatterOp)
 MAP_STABLEHLO_TO_HLO(SelectOp)
 // TODO(chokobole): Uncomment this. Dependency: stablehlo::SendOp
 // MAP_STABLEHLO_TO_HLO(SendOp)

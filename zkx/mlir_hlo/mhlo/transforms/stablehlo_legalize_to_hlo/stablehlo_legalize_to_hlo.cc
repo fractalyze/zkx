@@ -88,15 +88,13 @@ Attribute convertAttr(Attribute stablehloAttr) {
   //       attr.getContext(), attr.getOutputTupleIndices(),
   //       attr.getOperandIndex(), attr.getOperandTupleIndices());
   // }
-  // TODO(chokobole): Uncomment this. Dependency: ScatterDimensionNumbersAttr
-  // if (auto attr = mlir::dyn_cast<ScatterDimensionNumbersAttr>(stablehloAttr))
-  // {
-  //   return mhlo::ScatterDimensionNumbersAttr::get(
-  //       attr.getContext(), attr.getUpdateWindowDims(),
-  //       attr.getInsertedWindowDims(), attr.getInputBatchingDims(),
-  //       attr.getScatterIndicesBatchingDims(),
-  //       attr.getScatterDimsToOperandDims(), attr.getIndexVectorDim());
-  // }
+  if (auto attr = mlir::dyn_cast<ScatterDimensionNumbersAttr>(stablehloAttr)) {
+    return mhlo::ScatterDimensionNumbersAttr::get(
+        attr.getContext(), attr.getUpdateWindowDims(),
+        attr.getInsertedWindowDims(), attr.getInputBatchingDims(),
+        attr.getScatterIndicesBatchingDims(),
+        attr.getScatterDimsToOperandDims(), attr.getIndexVectorDim());
+  }
   if (stablehloAttr.getDialect().getNamespace() ==
       StablehloDialect::getDialectNamespace()) {
     // Our guiding principle is to support all StableHLO functionality in MHLO.
