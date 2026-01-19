@@ -166,6 +166,9 @@ LogicalResult
 deriveShapeFromOperand(OpBuilder *builder, Operation *op, Value operand,
                        SmallVectorImpl<Value> *reifiedReturnShapes);
 
+// Type derivation function that returns a tensor type with a new element type.
+ShapedType getSameShapeTensorType(ShapedType shapedType, Type elementType);
+
 // Verify bounds expressed by HLO_BoundedAttrInterface against the provided
 // type. See documentation for HLO_BoundedAttrInterface for the list of checks.
 LogicalResult verifyBounds(ArrayRef<int64_t> bounds, RankedTensorType type,

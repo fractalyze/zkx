@@ -135,6 +135,10 @@ inferReduceOp(std::optional<Location> location, TypeRange inputTypes,
 LogicalResult inferReverseOp(std::optional<Location> location, Type operandType,
                              SmallVectorImpl<Type> &inferredReturnTypes);
 
+LogicalResult inferScatterOp(std::optional<Location> location,
+                             ValueRange inputs, Region &update_computation,
+                             SmallVectorImpl<Type> &inferredReturnTypes);
+
 LogicalResult
 inferSelectOp(std::optional<Location> location, Value pred, Value onTrue,
               Value onFalse,
@@ -222,6 +226,14 @@ LogicalResult verifyReshapeOp(std::optional<Location> location, Value operand,
 
 LogicalResult verifyReverseOp(std::optional<Location> location, Value operand,
                               llvm::ArrayRef<int64_t> dimensions);
+
+LogicalResult verifyScatterOp(
+    std::optional<Location> location, ValueRange inputs, Value scatterIndices,
+    ValueRange updates, ArrayRef<int64_t> updateWindowDims,
+    ArrayRef<int64_t> insertedWindowDims, ArrayRef<int64_t> inputBatchingDims,
+    ArrayRef<int64_t> scatterIndicesBatchingDims,
+    ArrayRef<int64_t> scatterDimsToOperandDims, int64_t indexVectorDim,
+    Region &updateComputation);
 
 LogicalResult verifySortOp(std::optional<Location> location, ValueRange inputs,
                            int64_t dimension, Region &comparator);

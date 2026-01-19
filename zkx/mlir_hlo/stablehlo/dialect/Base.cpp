@@ -177,6 +177,12 @@ deriveShapeFromOperand(OpBuilder *builder, Operation *op, Value operand,
   return success();
 }
 
+ShapedType getSameShapeTensorType(ShapedType shapedType, Type elementType) {
+  if (isa<TensorType>(shapedType))
+    return shapedType.clone(elementType);
+  llvm::report_fatal_error("unsupported type");
+}
+
 //===----------------------------------------------------------------------===//
 // Utils for shape functions with bounded dynamism.
 //===----------------------------------------------------------------------===//

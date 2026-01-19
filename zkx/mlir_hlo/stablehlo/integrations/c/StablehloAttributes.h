@@ -29,6 +29,54 @@ extern "C" {
 #endif
 
 //===----------------------------------------------------------------------===//
+// ScatterDimensionNumbers
+//===----------------------------------------------------------------------===//
+
+MLIR_CAPI_EXPORTED MlirAttribute stablehloScatterDimensionNumbersGet(
+    MlirContext ctx,                                                 //
+    intptr_t nUpdateWindowDims, const int64_t *updateWindowDims,     //
+    intptr_t nInsertedWindowDims, const int64_t *insertedWindowDims, //
+    intptr_t nInputBatchingDims, const int64_t *inputBatchingDims,   //
+    intptr_t nScatterIndicesBatchingDims,                            //
+    const int64_t *scatterIndicesBatchingDims,                       //
+    intptr_t nScatteredDimsToOperandDims,                            //
+    const int64_t *scatteredDimsToOperandDims,                       //
+    int64_t indexVectorDim);
+
+MLIR_CAPI_EXPORTED bool
+stablehloAttributeIsAScatterDimensionNumbers(MlirAttribute attr);
+
+MLIR_CAPI_EXPORTED intptr_t
+stablehloScatterDimensionNumbersGetUpdateWindowDimsSize(MlirAttribute attr);
+MLIR_CAPI_EXPORTED int64_t
+stablehloScatterDimensionNumbersGetUpdateWindowDimsElem(MlirAttribute attr,
+                                                        intptr_t pos);
+MLIR_CAPI_EXPORTED intptr_t
+stablehloScatterDimensionNumbersGetInsertedWindowDimsSize(MlirAttribute attr);
+MLIR_CAPI_EXPORTED int64_t
+stablehloScatterDimensionNumbersGetInsertedWindowDimsElem(MlirAttribute attr,
+                                                          intptr_t pos);
+MLIR_CAPI_EXPORTED intptr_t
+stablehloScatterDimensionNumbersGetInputBatchingDimsSize(MlirAttribute attr);
+MLIR_CAPI_EXPORTED int64_t
+stablehloScatterDimensionNumbersGetInputBatchingDimsElem(MlirAttribute attr,
+                                                         intptr_t pos);
+MLIR_CAPI_EXPORTED intptr_t
+stablehloScatterDimensionNumbersGetScatterIndicesBatchingDimsSize(
+    MlirAttribute attr);
+MLIR_CAPI_EXPORTED int64_t
+stablehloScatterDimensionNumbersGetScatterIndicesBatchingDimsElem(
+    MlirAttribute attr, intptr_t pos);
+MLIR_CAPI_EXPORTED intptr_t
+stablehloScatterDimensionNumbersGetScatteredDimsToOperandDimsSize(
+    MlirAttribute attr);
+MLIR_CAPI_EXPORTED int64_t
+stablehloScatterDimensionNumbersGetScatteredDimsToOperandDimsElem(
+    MlirAttribute attr, intptr_t pos);
+MLIR_CAPI_EXPORTED int64_t
+stablehloDimensionNumbersGetIndexVectorDim(MlirAttribute attr);
+
+//===----------------------------------------------------------------------===//
 // ComparisonDirectionAttr
 //===----------------------------------------------------------------------===//
 

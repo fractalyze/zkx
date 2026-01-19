@@ -88,6 +88,74 @@ NB_MODULE(_stablehlo, m) {
   // Attributes.
   //
 
+  auto scatteredDimsToOperandDimsFunc = [](MlirAttribute self) {
+    return attributePropertyVector(
+        self, stablehloScatterDimensionNumbersGetScatteredDimsToOperandDimsSize,
+        stablehloScatterDimensionNumbersGetScatteredDimsToOperandDimsElem);
+  };
+
+  mlir::python::nanobind_adaptors::mlir_attribute_subclass(
+      m, "ScatterDimensionNumbers",
+      stablehloAttributeIsAScatterDimensionNumbers)
+      .def_classmethod(
+          "get",
+          [](nb::object cls, const std::vector<int64_t> &updateWindowDims,
+             const std::vector<int64_t> &insertedWindowDims,
+             const std::vector<int64_t> &inputBatchingDims,
+             const std::vector<int64_t> &scatterIndicesBatchingDims,
+             const std::vector<int64_t> &scatteredDimsToOperandDims,
+             int64_t indexVectorDim, MlirContext ctx) {
+            return cls(stablehloScatterDimensionNumbersGet(
+                ctx, updateWindowDims.size(), updateWindowDims.data(),
+                insertedWindowDims.size(), insertedWindowDims.data(),
+                inputBatchingDims.size(), inputBatchingDims.data(),
+                scatterIndicesBatchingDims.size(),
+                scatterIndicesBatchingDims.data(),
+                scatteredDimsToOperandDims.size(),
+                scatteredDimsToOperandDims.data(), indexVectorDim));
+          },
+          nb::arg("cls"), nb::arg("update_window_dims"),
+          nb::arg("inserted_window_dims"), nb::arg("input_batching_dims"),
+          nb::arg("scatter_indices_batching_dims"),
+          nb::arg("scattered_dims_to_operand_dims"),
+          nb::arg("index_vector_dim"), nb::arg("context").none() = nb::none(),
+          "Creates a ScatterDimensionNumbers with the given dimension "
+          "configuration.")
+      .def_property_readonly(
+          "update_window_dims",
+          [](MlirAttribute self) {
+            return attributePropertyVector(
+                self, stablehloScatterDimensionNumbersGetUpdateWindowDimsSize,
+                stablehloScatterDimensionNumbersGetUpdateWindowDimsElem);
+          })
+      .def_property_readonly(
+          "inserted_window_dims",
+          [](MlirAttribute self) {
+            return attributePropertyVector(
+                self, stablehloScatterDimensionNumbersGetInsertedWindowDimsSize,
+                stablehloScatterDimensionNumbersGetInsertedWindowDimsElem);
+          })
+      .def_property_readonly(
+          "input_batching_dims",
+          [](MlirAttribute self) {
+            return attributePropertyVector(
+                self, stablehloScatterDimensionNumbersGetInputBatchingDimsSize,
+                stablehloScatterDimensionNumbersGetInputBatchingDimsElem);
+          })
+      .def_property_readonly(
+          "scatter_indices_batching_dims",
+          [](MlirAttribute self) {
+            return attributePropertyVector(
+                self,
+                stablehloScatterDimensionNumbersGetScatterIndicesBatchingDimsSize, // NOLINT
+                stablehloScatterDimensionNumbersGetScatterIndicesBatchingDimsElem); // NOLINT
+          })
+      .def_property_readonly("scattered_dims_to_operand_dims",
+                             scatteredDimsToOperandDimsFunc)
+      .def_property_readonly("index_vector_dim", [](MlirAttribute self) {
+        return stablehloDimensionNumbersGetIndexVectorDim(self);
+      });
+
   mlir::python::nanobind_adaptors::mlir_attribute_subclass(
       m, "ComparisonDirectionAttr",
       stablehloAttributeIsAComparisonDirectionAttr)
