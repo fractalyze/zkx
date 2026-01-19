@@ -671,6 +671,24 @@ class IntR2TensorBinaryTest : public BaseIntTest<T>,
     });
   }
 
+  void SetUpAddWithLayout() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2]{0, 1} parameter(0)
+        %y = $0[$1, $2]{0, 1} parameter(1)
+
+        ROOT %ret = $0[$1, $2]{0, 1} add(%x, %y)
+      }
+    )",
+                                 x_typename_, M, N);
+    literals_[0] = literals_[0].Relayout(LayoutUtil::MakeLayout({0, 1}));
+    literals_[1] = literals_[1].Relayout(LayoutUtil::MakeLayout({0, 1}));
+    expected_ = base::CreateVector(M, [this](size_t i) {
+      return base::CreateVector(
+          N, [this, i](size_t j) { return x_[i][j] + y_[i][j]; });
+    });
+  }
+
  private:
   std::vector<std::vector<T>> x_;
   std::vector<std::vector<T>> y_;

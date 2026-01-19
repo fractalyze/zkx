@@ -175,6 +175,11 @@ TYPED_TEST(IntR2TensorBinaryTest, Add) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntR2TensorBinaryTest, AddWithLayout) {
+  this->SetUpAddWithLayout();
+  this->RunAndVerify();
+}
+
 TYPED_TEST_SUITE(IntTest, IntTypes);
 
 TYPED_TEST(IntTest, BroadcastScalar) {
