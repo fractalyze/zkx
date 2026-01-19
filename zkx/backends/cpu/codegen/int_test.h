@@ -1257,6 +1257,9 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
                                  x_typename_, D0, D1, D2);
 
     SetUpTransposeHelper(D0, D1, D2);
+    literals_[0] = literals_[0].Relayout(LayoutUtil::MakeLayout({2, 1, 0}));
+    expected_literal_ =
+        expected_literal_.Relayout(LayoutUtil::MakeLayout({0, 2, 1}));
   }
 
   void SetUpTransposeWithEmptyDimensions() {
