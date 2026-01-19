@@ -92,6 +92,7 @@ zkx_cc_library(
     ],
     hdrs = ["mlir_hlo_to_hlo.h"],
     deps = [
+        "@com_google_protobuf//:protobuf_lite",
         ":attribute_exporter",
         ":layout_util",
         ":literal_exporter",

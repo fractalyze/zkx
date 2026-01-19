@@ -1597,6 +1597,75 @@ absl::StatusOr<ZkxOp> ZkxBuilder::WhileInternal(const Shape& shape,
   return AddInstruction(std::move(instr), HloOpcode::kWhile, {init});
 }
 
+ZkxOp ZkxBuilder::Scatter(ZkxOp input, ZkxOp scatter_indices, ZkxOp updates,
+                          const ZkxComputation& update_computation,
+                          const ScatterDimensionNumbers& dimension_numbers,
+                          bool indices_are_sorted, bool unique_indices) {
+  return Scatter(absl::MakeConstSpan(&input, 1), scatter_indices,
+                 absl::MakeConstSpan(&updates, 1), update_computation,
+                 dimension_numbers, indices_are_sorted, unique_indices);
+}
+
+ZkxOp ZkxBuilder::Scatter(absl::Span<const ZkxOp> inputs, ZkxOp scatter_indices,
+                          absl::Span<const ZkxOp> updates,
+                          const ZkxComputation& update_computation,
+                          const ScatterDimensionNumbers& dimension_numbers,
+                          bool indices_are_sorted, bool unique_indices) {
+  return ReportErrorOrReturn([&]() -> absl::StatusOr<ZkxOp> {
+    if (inputs.empty()) {
+      return absl::InvalidArgumentError("Scatter inputs cannot be empty.");
+    }
+    if (inputs.size() != updates.size()) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Scatter should have same number of inputs and updates: %d vs %d.",
+          inputs.size(), updates.size()));
+    }
+    absl::InlinedVector<const Shape*, 3> operand_shapes;
+    operand_shapes.reserve(inputs.size() + 1 + updates.size());
+    for (const ZkxOp& input : inputs) {
+      TF_ASSIGN_OR_RETURN(const Shape* input_shape, GetShapePtr(input));
+      operand_shapes.push_back(input_shape);
+    }
+    TF_ASSIGN_OR_RETURN(const Shape* scatter_indices_shape,
+                        GetShapePtr(scatter_indices));
+    operand_shapes.push_back(scatter_indices_shape);
+    for (const ZkxOp& update : updates) {
+      TF_ASSIGN_OR_RETURN(const Shape* update_shape, GetShapePtr(update));
+      operand_shapes.push_back(update_shape);
+    }
+    TF_ASSIGN_OR_RETURN(const ProgramShape& to_apply_shape,
+                        update_computation.GetProgramShape());
+    TF_ASSIGN_OR_RETURN(Shape shape,
+                        ShapeInference::InferScatterShape(
+                            operand_shapes, to_apply_shape, dimension_numbers));
+    return ScatterInternal(shape, inputs, scatter_indices, updates,
+                           update_computation, dimension_numbers,
+                           indices_are_sorted, unique_indices);
+  });
+}
+
+absl::StatusOr<ZkxOp> ZkxBuilder::ScatterInternal(
+    const Shape& shape, absl::Span<const ZkxOp> inputs, ZkxOp scatter_indices,
+    absl::Span<const ZkxOp> updates, const ZkxComputation& update_computation,
+    const ScatterDimensionNumbers& dimension_numbers, bool indices_are_sorted,
+    bool unique_indices) {
+  return ReportErrorOrReturn([&]() -> absl::StatusOr<ZkxOp> {
+    HloInstructionProto instr;
+    instr.set_indices_are_sorted(indices_are_sorted);
+    instr.set_unique_indices(unique_indices);
+    *instr.mutable_shape() = shape.ToProto();
+    *instr.mutable_scatter_dimension_numbers() = dimension_numbers;
+
+    AddCalledComputation(update_computation, &instr);
+    absl::InlinedVector<ZkxOp, 3> operands;
+    operands.reserve(inputs.size() + 1 + updates.size());
+    absl::c_copy(inputs, std::back_inserter(operands));
+    operands.push_back(scatter_indices);
+    absl::c_copy(updates, std::back_inserter(operands));
+    return AddInstruction(std::move(instr), HloOpcode::kScatter, operands);
+  });
+}
+
 ZkxOp ZkxBuilder::Conditional(ZkxOp predicate, ZkxOp true_operand,
                               const ZkxComputation& true_computation,
                               ZkxOp false_operand,
@@ -2486,6 +2555,25 @@ ZkxOp Conditional(const ZkxOp branch_index,
                   absl::Span<const ZkxOp> branch_operands) {
   return branch_index.builder()->Conditional(branch_index, branch_computations,
                                              branch_operands);
+}
+
+ZkxOp Scatter(const ZkxOp input, const ZkxOp scatter_indices,
+              const ZkxOp updates, const ZkxComputation& update_computation,
+              const ScatterDimensionNumbers& dimension_numbers,
+              bool indices_are_sorted, bool unique_indices) {
+  return input.builder()->Scatter(input, scatter_indices, updates,
+                                  update_computation, dimension_numbers,
+                                  indices_are_sorted, unique_indices);
+}
+
+ZkxOp Scatter(absl::Span<const ZkxOp> inputs, ZkxOp scatter_indices,
+              absl::Span<const ZkxOp> updates,
+              const ZkxComputation& update_computation,
+              const ScatterDimensionNumbers& dimension_numbers,
+              bool indices_are_sorted, bool unique_indices) {
+  return scatter_indices.builder()->Scatter(
+      inputs, scatter_indices, updates, update_computation, dimension_numbers,
+      indices_are_sorted, unique_indices);
 }
 
 ZkxOp CreateToken(ZkxBuilder* builder) { return builder->CreateToken(); }
