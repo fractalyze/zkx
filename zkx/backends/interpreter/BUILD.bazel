@@ -38,6 +38,7 @@ zkx_cc_library(
         "//zkx/service:dynamic_dimension_inference",
         "//zkx/service:executable",
         "//zkx/service:hlo_cost_analysis",
+        "//zkx/service:layout_assignment",
         "//zkx/stream_executor",
         "//zkx/stream_executor:platform",
     ],
