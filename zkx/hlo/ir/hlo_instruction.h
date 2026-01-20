@@ -1776,6 +1776,10 @@ class HloInstruction {
   // Returns whether the instruction is a constant.
   bool IsConstant() const;
 
+  // Delegates to HloConstantInstruction::RelayoutConstant.
+  void RelayoutConstant(const Layout& new_layout,
+                        const ShapeIndex& shape_index = {});
+
   // Delegates to
   // HloCallableInstruction::AppendInstructionIntoCalledComputation.
   HloInstruction* AppendInstructionIntoCalledComputation(

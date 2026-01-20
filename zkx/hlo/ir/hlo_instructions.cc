@@ -1474,6 +1474,30 @@ bool HloConstantInstruction::IsElementwiseImpl(
   return true;
 }
 
+void HloConstantInstruction::RelayoutConstant(const Layout& new_layout,
+                                              const ShapeIndex& shape_index) {
+  Shape* mutable_array_subshape =
+      ShapeUtil::GetMutableSubshape(mutable_shape(), shape_index);
+  CHECK(mutable_array_subshape->IsArray());
+
+  // Normally array_subshape will always have a layout, but this invariant is
+  // temporarily broken in LayoutAssignment::AssignLayouts where all shape
+  // layouts are cleared. The inner condition below ensures that we don't
+  // unnecessarily relayout literals in that case.
+
+  if (!mutable_array_subshape->has_layout() ||
+      !LayoutUtil::Equal(mutable_array_subshape->layout(), new_layout)) {
+    if (!LayoutUtil::Equal(
+            new_layout,
+            ShapeUtil::GetSubshape(literal().shape(), shape_index).layout())) {
+      // Only relayout literals if that's really necessary.
+      Literal new_literal = literal_->Relayout(new_layout, shape_index);
+      *mutable_literal() = std::move(new_literal);
+    }
+    *mutable_array_subshape->mutable_layout() = new_layout;
+  }
+}
+
 bool HloConstantInstruction::IdenticalSlowPath(
     const HloInstruction& other,
     absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
