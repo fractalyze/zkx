@@ -1036,6 +1036,18 @@ std::vector<ShapeUtil::IndexedShape> ShapeUtil::GetLeafShapes(
 }
 
 // static
+bool ShapeUtil::HasDegenerateDimensions(const Shape& shape) {
+  CHECK(shape.IsArray());
+  return absl::c_linear_search(shape.dimensions(), 1);
+}
+
+// static
+Shape ShapeUtil::DropDegenerateDimensions(const Shape& shape) {
+  return FilterDimensions(
+      [&](int64_t dim) -> bool { return shape.dimensions()[dim] != 1; }, shape);
+}
+
+// static
 Shape ShapeUtil::PermuteDimensions(absl::Span<const int64_t> permutation,
                                    const Shape& shape) {
   Shape new_shape = shape;
@@ -1484,6 +1496,95 @@ ShapeUtil::BitcastDecomposition ShapeUtil::DecomposeBitcast(
   }
 
   return DecomposeBitcastToTrt(input_shape, output_shape);
+}
+
+// static
+std::optional<Shape> ShapeUtil::AlignLayouts(const Shape& input_shape,
+                                             const Shape& output_shape) {
+  CHECK(input_shape.IsArray());
+  CHECK(output_shape.IsArray());
+  // Removing trivial dimensions from the shape simplifies the alignment
+  // algorithm since ones can go in any position.
+  if (HasDegenerateDimensions(input_shape) ||
+      HasDegenerateDimensions(output_shape)) {
+    auto simple_output_shape =
+        AlignLayouts(DropDegenerateDimensions(input_shape),
+                     DropDegenerateDimensions(output_shape));
+    if (!simple_output_shape) {
+      return std::nullopt;
+    }
+
+    std::vector<int64_t> layout =
+        SpanToVector(simple_output_shape->layout().minor_to_major());
+    // For each one sized dimension in the output, increment the dimension
+    // numbers in layout that are more minor than the one.
+    absl::InlinedVector<int64_t, 8> dim_map;
+    dim_map.reserve(simple_output_shape->rank());
+    for (int64_t i = 0; i < output_shape.rank(); ++i) {
+      if (output_shape.dimensions(i) != 1) {
+        dim_map.push_back(i);
+      }
+    }
+    for (int64_t& d : layout) {
+      d = dim_map[d];
+    }
+
+    // Add the ones in descending order to the layout. Descending layouts tend
+    // to reduce the number of copies inserted in layout assignment.
+    for (int64_t i = output_shape.rank() - 1; i >= 0; --i) {
+      if (output_shape.dimensions(i) == 1) {
+        layout.push_back(i);
+      }
+    }
+    Shape output_shape_with_layout = output_shape;
+    *output_shape_with_layout.mutable_layout() = Layout{layout};
+    return output_shape_with_layout;
+  }
+
+  auto common_factors =
+      CommonFactors(input_shape.dimensions(), output_shape.dimensions());
+  const int64_t input_rank = input_shape.rank();
+  DimensionVector input_to_factor(input_rank);
+  for (int64_t pos = 0; pos < common_factors.size() - 1; ++pos) {
+    const int64_t input_start = common_factors[pos].first;
+    const int64_t input_end = common_factors[pos + 1].first;
+    int64_t input_physical =
+        PositionInContainer(input_shape.layout().minor_to_major(), input_start);
+    input_to_factor[input_start] = pos;
+    for (int64_t i = input_start + 1; i < input_end; ++i) {
+      --input_physical;
+      if (input_physical < 0 ||
+          input_shape.layout().minor_to_major(input_physical) != i) {
+        return std::nullopt;
+      }
+      input_to_factor[i] = pos;
+    }
+  }
+
+  int64_t output_rank = output_shape.rank();
+  DimensionVector output_layout;
+  output_layout.reserve(output_rank);
+  int64_t input_minor = 0;
+  while (output_layout.size() < output_rank) {
+    const int64_t input_dim = input_shape.layout().minor_to_major(input_minor);
+    const int64_t common_factor = input_to_factor[input_dim];
+    const auto start_factor = common_factors[common_factor];
+    const auto end_factor = common_factors[common_factor + 1];
+    for (int64_t dim = end_factor.second - 1; dim >= start_factor.second;
+         --dim) {
+      output_layout.push_back(dim);
+    }
+    input_minor += end_factor.first - start_factor.first;
+  }
+
+  Shape output_shape_with_layout = MakeShapeWithDenseLayout(
+      output_shape.element_type(), output_shape.dimensions(), output_layout);
+  CHECK(ReshapeIsBitcast(input_shape, output_shape_with_layout))
+      << "reshape is not a bitcast for input_shape: "
+      << ShapeUtil::HumanStringWithLayout(input_shape)
+      << " and output_shape_with_layout: "
+      << ShapeUtil::HumanStringWithLayout(output_shape_with_layout);
+  return output_shape_with_layout;
 }
 
 // static
