@@ -1620,9 +1620,18 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicUpdateSliceOp(
     static_sizes.push_back(mlir::ShapedType::kDynamic);
     static_strides.push_back(1);
   }
+  auto update_shape_type = mlir::cast<mlir::ShapedType>(update.getType());
+  llvm::SmallVector<int64_t> update_shape;
+  for (int64_t i = 0; i < instr->shape().rank(); ++i) {
+    update_shape.push_back(mlir::ShapedType::kDynamic);
+  }
+  auto dynamic_update_tensor_type = mlir::RankedTensorType::get(
+      update_shape, update_shape_type.getElementType());
+  auto casted_update =
+      b.create<mlir::tensor::CastOp>(dynamic_update_tensor_type, update);
 
   return b.create<mlir::tensor::InsertSliceOp>(
-      update, dest, offsets, sizes,
+      casted_update, dest, offsets, sizes,
       /*strides=*/mlir::ValueRange{},
       /*static_offsets=*/static_offsets, static_sizes, static_strides);
 }

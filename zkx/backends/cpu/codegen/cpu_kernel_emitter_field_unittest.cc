@@ -159,4 +159,9 @@ TYPED_TEST(FieldTest, CSRMatrixVectorMultiplication) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(FieldTest, DynamicUpdateSlice) {
+  this->SetUpDynamicUpdateSliceBug();
+  this->RunAndVerify();
+}
+
 }  // namespace zkx::cpu

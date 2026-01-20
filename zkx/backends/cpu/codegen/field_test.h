@@ -651,6 +651,34 @@ class FieldTest : public CpuKernelEmitterTest {
     }
     expected_literal_ = LiteralUtil::CreateR1<F>(expected);
   }
+
+  void SetUpDynamicUpdateSliceBug() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[16] parameter(0)
+        %update = $0[1] parameter(1)
+        %offset = s32[] parameter(2)
+
+        ROOT %ret = $0[16] dynamic-update-slice(%x, %update, %offset)
+      }
+    )",
+                                 x_typename_);
+    size_t size = 16;
+    int32_t offset = 3;
+    std::vector<F> x = base::CreateVector(size, []() { return F::Random(); });
+    std::vector<F> update = base::CreateVector(1, []() { return F::Random(); });
+    literals_.push_back(LiteralUtil::CreateR1<F>(x));
+    literals_.push_back(LiteralUtil::CreateR1<F>(update));
+    literals_.push_back(LiteralUtil::CreateR0<int32_t>(offset));
+    std::vector<F> expected = base::CreateVector(size, [&](size_t i) {
+      if (i == offset) {
+        return update[0];
+      } else {
+        return x[i];
+      }
+    });
+    expected_literal_ = LiteralUtil::CreateR1<F>(expected);
+  }
 };
 
 }  // namespace zkx::cpu
