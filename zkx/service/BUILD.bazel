@@ -469,6 +469,12 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "fusion_queue",
+    hdrs = ["fusion_queue.h"],
+    deps = ["//zkx/hlo/ir:hlo"],
+)
+
+zkx_cc_library(
     name = "generic_transfer_manager",
     srcs = ["generic_transfer_manager.cc"],
     hdrs = ["generic_transfer_manager.h"],
