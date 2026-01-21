@@ -22,7 +22,6 @@ limitations under the License.
 
 #include "zkx/hlo/analysis/hlo_dataflow_analysis.h"
 #include "zkx/hlo/ir/hlo_casting_utils.h"
-#include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/literal_util.h"
 
 namespace zkx {
@@ -337,6 +336,19 @@ absl::StatusOr<std::vector<Literal>> MakeFakeArguments(
                           treat_gte_as_data_formatting, max_bits_of_precision));
   }
   return std::move(arguments);
+}
+
+std::unique_ptr<HloDotInstruction> CreateCanonicalDot(const Shape& shape,
+                                                      HloInstruction* lhs,
+                                                      HloInstruction* rhs) {
+  CHECK_LE(lhs->shape().rank(), 2);
+  CHECK_LE(rhs->shape().rank(), 2);
+  DotDimensionNumbers dot_dimension_numbers;
+  dot_dimension_numbers.add_lhs_contracting_dimensions(
+      lhs->shape().rank() > 1 ? 1 : 0);
+  dot_dimension_numbers.add_rhs_contracting_dimensions(0);
+  return std::make_unique<HloDotInstruction>(shape, lhs, rhs,
+                                             dot_dimension_numbers);
 }
 
 }  // namespace zkx
