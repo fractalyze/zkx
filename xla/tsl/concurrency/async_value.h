@@ -720,10 +720,19 @@ class ConcreteAsyncValue : public AsyncValue {
   bool HasData() const { return data_store_.HasData(state()); }
 
   static void VerifyOffsets() {
+    // Suppress -Winvalid-offsetof warning as we intentionally use offsetof on
+    // non-standard-layout types
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
     static_assert(offsetof(ConcreteAsyncValue<T>, data_store_.data_) ==
                       AsyncValue::kDataOffset,
                   "Offset of ConcreteAsyncValue data payload is assumed to be "
                   "AsyncValue::kDataOffset == 64");
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
   }
 
   static const uint16_t concrete_type_id_;
