@@ -17,9 +17,14 @@
 
 load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+load("@zkx//third_party/llvm:setup.bzl", "llvm_setup")
 
 def zkx_deps3():
     """ZKX dependencies."""
+
+    # Load the raw llvm-project. llvm does not have build rules set up by default,
+    # but provides a script for setting up build rules via overlays.
+    llvm_setup(name = "llvm-project")
 
     grpc_extra_deps()
     protobuf_deps()
