@@ -650,6 +650,110 @@ absl::StatusOr<std::unique_ptr<HloModule>> HloModule::CreateFromProtoWithConfig(
                                     prohibit_empty_literal);
 }
 
+namespace {
+// Returns whether `hlo` is used outside the given subcomputation.
+// `instructions_in_subcomputation` is the instruction set of the given
+// subcomputation.
+bool IsUsedOutsideSubcomputation(const HloInstruction& hlo,
+                                 const absl::flat_hash_set<HloInstruction*>&
+                                     instructions_in_subcomputation) {
+  return absl::c_any_of(hlo.users(), [&](HloInstruction* user) {
+    return !instructions_in_subcomputation.contains(user);
+  });
+}
+}  // anonymous namespace
+
+absl::StatusOr<HloInstruction*> HloModule::OutlineExpressionFromComputation(
+    absl::Span<HloInstruction* const> instructions_to_outline,
+    const std::string& outlined_computation_name, HloComputation* computation) {
+  auto builder = HloComputation::Builder(outlined_computation_name);
+
+  // A map from original instructions to their counterparts in the new outlined
+  // function.
+  absl::flat_hash_map<HloInstruction*, HloInstruction*> outlined_instructions;
+  // A set that contains all instructions to be outlined.
+  absl::flat_hash_set<HloInstruction*> instruction_set_to_outline(
+      instructions_to_outline.begin(), instructions_to_outline.end());
+  std::vector<HloInstruction*> arguments;
+  std::vector<HloInstruction*> outputs;
+  int64_t parameter_count = 0;
+  for (HloInstruction* instruction_to_outline : instructions_to_outline) {
+    // Clone the original instruction.
+    HloInstruction* outlined_instruction =
+        builder.AddInstruction(instruction_to_outline->Clone());
+
+    // Replace its operands to their counterparts in the new function.
+    for (int64_t operand_num = 0;
+         operand_num < outlined_instruction->operand_count(); ++operand_num) {
+      HloInstruction* old_operand =
+          outlined_instruction->mutable_operand(operand_num);
+
+      HloInstruction** operand_slot = &(outlined_instructions[old_operand]);
+      if (*operand_slot == nullptr) {
+        // Because instructions_to_outline is in topological order, if
+        // old_operand is not in outlined_instructions, old_operand must be an
+        // input of the outlined subcomputation and thus should be represented
+        // as a parameter in the new function.
+        arguments.push_back(old_operand);
+        *operand_slot = builder.AddInstruction(HloInstruction::CreateParameter(
+            parameter_count, old_operand->shape(), "p"));
+        ++parameter_count;
+      }
+      CHECK_OK(
+          outlined_instruction->ReplaceOperandWith(operand_num, *operand_slot));
+    }
+
+    // Insert the new instruction into the outlined_instructions map.
+    InsertOrDie(&outlined_instructions, instruction_to_outline,
+                outlined_instruction);
+
+    // Mark instruction_to_outline an output if it is used outside the
+    // sub-computation or is the output of the original computation (i.e. used
+    // externally).
+    if (instruction_to_outline->user_count() == 0 ||
+        IsUsedOutsideSubcomputation(*instruction_to_outline,
+                                    instruction_set_to_outline)) {
+      outputs.push_back(instruction_to_outline);
+    }
+  }
+
+  if (outputs.size() != 1) {
+    if (outputs.empty()) {
+      return absl::InvalidArgumentError(
+          "The subcomputation to outline has no outputs.");
+    }
+    std::string error_message =
+        "The subcomputation to outline has multiple outputs:\n";
+    for (HloInstruction* output : outputs) {
+      absl::StrAppend(&error_message, output->ToString(), "\n");
+    }
+    return absl::InvalidArgumentError(error_message);
+  }
+
+  HloInstruction* output = outputs[0];
+
+  // Creates a call to the nested computation.
+  HloComputation* nested_computation = AddEmbeddedComputation(
+      builder.Build(FindOrDie(outlined_instructions, output)));
+  HloInstruction* call = computation->AddInstruction(HloInstruction::CreateCall(
+      output->shape(), arguments, nested_computation));
+
+  VLOG(2) << "Outlining the following instructions";
+  for (auto* instruction_to_outline : instructions_to_outline) {
+    VLOG(2) << "  " << instruction_to_outline->ToString();
+  }
+  VLOG(2) << "as a call " << call->ToString();
+  VLOG(2) << "to " << nested_computation->ToString();
+
+  CHECK_OK(output->ReplaceAllUsesWith(call));
+  for (auto i = instructions_to_outline.rbegin();
+       i != instructions_to_outline.rend(); ++i) {
+    CHECK_OK(computation->RemoveInstruction(*i));
+  }
+
+  return call;
+}
+
 int64_t HloModule::instruction_count() const {
   int64_t n = 0;
   for (const auto& computation : computations_) {
