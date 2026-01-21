@@ -51,6 +51,7 @@ zkx_cc_library(
     hdrs = ["cpu_compiler.h"],
     deps = [
         ":cpu_executable",
+        ":cpu_instruction_fusion",
         ":cpu_options",
         ":executable_cc_proto",
         ":runtime_symbol_generator",

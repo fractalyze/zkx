@@ -95,6 +95,9 @@ class CpuKernelEmitter final : public KernelEmitter {
       absl::flat_hash_map<const HloInstruction*, mlir::Value>& values,
       const HloInstruction* instr);
 
+  absl::StatusOr<mlir::Value> EmitConstantOp(const HloInstruction* instr,
+                                             EmitterLocOpBuilder& b);
+
   absl::StatusOr<mlir::Value> EmitUnaryOp(const HloInstruction* instr,
                                           EmitterLocOpBuilder& b,
                                           mlir::Value value);
@@ -113,6 +116,10 @@ class CpuKernelEmitter final : public KernelEmitter {
   absl::StatusOr<mlir::Value> EmitFftOp(
       const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value,
       mlir::Value twiddle_factor = mlir::Value());
+
+  absl::StatusOr<mlir::Value> EmitFusionOp(const HloInstruction* instr,
+                                           EmitterLocOpBuilder& b,
+                                           mlir::ValueRange operands);
 
   absl::StatusOr<mlir::Value> EmitMsmOp(const HloInstruction* instr,
                                         EmitterLocOpBuilder& b,
@@ -170,6 +177,12 @@ class CpuKernelEmitter final : public KernelEmitter {
   absl::StatusOr<mlir::Value> EmitTransposeOp(const HloInstruction* instr,
                                               EmitterLocOpBuilder& b,
                                               mlir::Value value);
+
+  absl::StatusOr<mlir::Value> EmitIntegerConstantOp(const HloInstruction* instr,
+                                                    EmitterLocOpBuilder& b);
+
+  absl::StatusOr<mlir::Value> EmitFieldConstantOp(const HloInstruction* instr,
+                                                  EmitterLocOpBuilder& b);
 
   absl::StatusOr<mlir::Value> EmitPredUnaryOp(const HloInstruction* instr,
                                               EmitterLocOpBuilder& b,

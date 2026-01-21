@@ -73,6 +73,11 @@ TYPED_TEST(FieldScalarBinaryTest, Double) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(FieldScalarBinaryTest, Fusion) {
+  this->SetUpFusion();
+  this->RunAndVerify(true);
+}
+
 TYPED_TEST(FieldScalarBinaryTest, Maximum) {
   this->SetUpMaximum();
   this->RunAndVerify();

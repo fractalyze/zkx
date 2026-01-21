@@ -89,6 +89,7 @@ limitations under the License.
 #include "zkx/hlo/ir/hlo_casting_utils.h"
 #include "zkx/hlo/ir/hlo_instructions.h"
 #include "zkx/layout_util.h"
+#include "zkx/literal.h"
 #include "zkx/mlir/codegen_utils.h"
 #include "zkx/mlir/mlir_utils.h"
 #include "zkx/primitive_util.h"
@@ -874,6 +875,112 @@ absl::StatusOr<std::unique_ptr<KernelSource>> CpuKernelEmitter::EmitComparator(
                                               std::move(llvm_module));
 }
 
+namespace {
+
+template <typename T>
+mlir::DenseIntElementsAttr CreateDenseIntElementsAttr(EmitterLocOpBuilder& b,
+                                                      const Shape& shape,
+                                                      const Literal& literal) {
+  mlir::RankedTensorType type =
+      MakeMlirTensorTypeWithoutLayout(shape, b.getContext());
+  absl::Span<const T> data = literal.data<T>();
+
+  if constexpr (is_specialized_integral_v<T>) {
+    return mlir::DenseIntElementsAttr::get(
+        type, llvm::ArrayRef<T>(data.data(), data.size()));
+  } else {
+    static_assert(zk_dtypes::IsPrimeField<T>);
+
+    using UnderlyingType = typename T::UnderlyingType;
+
+    type = type.clone(mlir::IntegerType::get(b.getContext(), T::kStorageBits));
+
+    if constexpr (T::kStorageBits <= 64) {
+      return mlir::DenseIntElementsAttr::get(
+          type, llvm::ArrayRef<UnderlyingType>(
+                    reinterpret_cast<const UnderlyingType*>(data.data()),
+                    data.size()));
+    } else {
+      llvm::SmallVector<llvm::APInt> mlir_data;
+      mlir_data.reserve(data.size());
+      for (const T& value : data) {
+        mlir_data.push_back(
+            mlir_utils::ConvertUnderlyingValueToAPInt(value.value()));
+      }
+      return mlir::DenseIntElementsAttr::get(type, mlir_data);
+    }
+  }
+}
+
+}  // namespace
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerConstantOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b) {
+  Shape shape = ShapeUtil::MakeShape(instr->literal().shape().element_type(),
+                                     instr->literal().shape().dimensions());
+  mlir::DenseIntElementsAttr attr;
+  PrimitiveType element_type = shape.element_type();
+  if (element_type == PRED) {
+    attr = CreateDenseIntElementsAttr<bool>(b, shape, instr->literal());
+  } else if (primitive_util::IsIntegralType(element_type)) {
+    attr = primitive_util::IntegralTypeSwitch<mlir::DenseIntElementsAttr>(
+        [&](auto type_constant) {
+          using NativeT = primitive_util::NativeTypeOf<type_constant>;
+          return CreateDenseIntElementsAttr<NativeT>(b, shape,
+                                                     instr->literal());
+        },
+        element_type);
+  } else {
+    return absl::UnimplementedError(absl::StrFormat(
+        "Unhandled integer constant type: %s",
+        primitive_util::LowercasePrimitiveTypeName(element_type)));
+  }
+  return b.create<mlir::arith::ConstantOp>(
+      MakeMlirTensorTypeWithoutLayout(shape, b.getContext()), attr);
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldConstantOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b) {
+  Shape shape = ShapeUtil::MakeShape(instr->literal().shape().element_type(),
+                                     instr->literal().shape().dimensions());
+  mlir::DenseIntElementsAttr attr;
+  PrimitiveType element_type = shape.element_type();
+  // TODO(chokobole): Currently, PrimeIR's constant representation is limited
+  // to Prime Fields. We need to extend the IR and the attribute system to
+  // support tensors of Extension Field constants before they can be emitted
+  // here.
+  switch (element_type) {
+#define ZK_DTYPES_CASE(cpp_type, unused, enum, unused2)                      \
+  case enum:                                                                 \
+    attr = CreateDenseIntElementsAttr<cpp_type>(b, shape, instr->literal()); \
+    break;
+    ZK_DTYPES_PUBLIC_PRIME_FIELD_TYPE_LIST(ZK_DTYPES_CASE)
+#undef ZK_DTYPES_CASE
+    default:
+      return absl::UnimplementedError(absl::StrFormat(
+          "Unhandled field constant type: %s",
+          primitive_util::LowercasePrimitiveTypeName(element_type)));
+  }
+  return b.create<mlir::prime_ir::field::ConstantOp>(
+      MakeMlirTensorTypeWithoutLayout(shape, b.getContext()), attr);
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitConstantOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b) {
+  Shape shape = instr->shape();
+  PrimitiveType type = instr->shape().element_type();
+  if (type == PRED || ShapeUtil::ElementIsIntegral(shape)) {
+    return EmitIntegerConstantOp(instr, b);
+  } else if (ShapeUtil::ElementIsField(shape)) {
+    return EmitFieldConstantOp(instr, b);
+  }
+  // TODO(chokobole): Support creating ec point constants.
+
+  return absl::UnimplementedError(
+      absl::StrFormat("Unhandled primitive type: %s",
+                      primitive_util::LowercasePrimitiveTypeName(type)));
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPredUnaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value value) {
   switch (instr->opcode()) {
@@ -1299,6 +1406,20 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
       return absl::UnimplementedError(absl::StrFormat(
           "Unhandled fft type: %s", FftType_Name(instr->fft_type())));
   }
+}
+
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFusionOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b,
+    mlir::ValueRange operands) {
+  auto* fusion_instr = Cast<HloFusionInstruction>(instr);
+  HloComputation* computation = fusion_instr->called_computation();
+  absl::flat_hash_map<const HloInstruction*, mlir::Value> values;
+  for (int64_t i = 0; i < computation->num_parameters(); ++i) {
+    values[computation->parameter_instruction(i)] = operands[i];
+  }
+  computation->ForEachInstructionPostOrder(absl::bind_front(
+      &CpuKernelEmitter::EmitOpInToApply, this, std::ref(b), std::ref(values)));
+  return values[computation->root_instruction()];
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
@@ -2013,6 +2134,13 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
             "HloFftInstruction shouldn't have more than 2 arguments");
       }
     }
+    case HloOpcode::kFusion: {
+      llvm::SmallVector<mlir::Value> operands;
+      for (int64_t i = 0; i < instr->operand_count(); ++i) {
+        operands.push_back(values[instr->operand(i)]);
+      }
+      return EmitFusionOp(instr, b, operands);
+    }
     case HloOpcode::kIota:
       return EmitIotaOp(instr, b);
     case HloOpcode::kMap: {
@@ -2065,7 +2193,13 @@ void CpuKernelEmitter::EmitOpInToApply(
     const HloInstruction* instr) {
   if (instr->opcode() == HloOpcode::kParameter) return;
 
-  absl::StatusOr<mlir::Value> result = EmitOp(instr, b, values);
+  absl::StatusOr<mlir::Value> result;
+  if (instr->opcode() == HloOpcode::kConstant) {
+    result = EmitConstantOp(instr, b);
+  } else {
+    result = EmitOp(instr, b, values);
+  }
+
   CHECK(result.ok()) << result.status();
   values[instr] = result.value();
 }

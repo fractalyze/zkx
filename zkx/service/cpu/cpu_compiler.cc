@@ -47,6 +47,7 @@ limitations under the License.
 #include "zkx/hlo/transforms/simplifiers/hlo_memory_scheduler.h"
 #include "zkx/service/buffer_value.h"
 #include "zkx/service/copy_insertion.h"
+#include "zkx/service/cpu/cpu_instruction_fusion.h"
 #include "zkx/service/cpu/cpu_options.h"
 #include "zkx/service/cpu/executable.pb.h"
 #include "zkx/service/cpu/runtime_symbol_generator.h"
@@ -383,6 +384,10 @@ absl::Status CpuCompiler::RunHloPassesAfterLayoutAssn(
     TargetMachineFeatures* target_machine_features,
     const CompileOptions& compile_options) {
   HloPassPipeline pipeline("HLO passes after layout assignment");
+
+  // Add a fusion pass now that layout assignment is done.
+  pipeline.AddPass<CpuInstructionFusion>();
+
   // Copy insertion should be performed immediately before IR emission to
   // avoid inserting unnecessary copies (later pass adds an instruction which
   // materializes the value) or missing a necessary copy (later pass removes
