@@ -1479,6 +1479,9 @@ class HloInstruction {
 
   static bool IsOpElementwise(HloOpcode opcode);
 
+  // Returns whether this instruction may reuse elements of its `i`th operand.
+  bool ReusesOperandElements(int64_t i) const;
+
   // Returns true if this is a cross module all-reduce instruction.
   bool IsCrossModuleAllReduce() const;
 
@@ -1930,6 +1933,12 @@ class HloInstruction {
 
   // Delegates to HloAsyncInstruction::set_async_execution_thread().
   void set_async_execution_thread(std::string_view async_execution_thread);
+
+  // Delegates to
+  // HloCallableInstruction::RecursivelySetComputationsThreadName().
+  void set_called_computations_execution_thread(
+      std::string_view async_execution_thread,
+      bool skip_async_execution_thread_overwrite);
 
   // Delegates to HloCopyStartInstruction::is_cross_program_prefetch_index().
   std::optional<int> cross_program_prefetch_index() const;

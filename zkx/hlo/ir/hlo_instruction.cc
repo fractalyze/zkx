@@ -3964,6 +3964,137 @@ bool HloInstruction::IsElementwiseOnOperand(int64_t operand_idx) const {
   return IsElementwiseImpl(operand_idx);
 }
 
+namespace {
+
+// Indicates how an instruction uses a value (such as an operand).
+//
+// Does it (a) use it multiple times, (b) use it, or (c) not use it?
+enum class UseKind { kReuse = 0, kUse = 1, kNoUse = 2 };
+
+// A helper class for memoized, recursive computation of HloOpcode::kFusion
+// in HloInstruction::OperandElementUse below.
+class FusionReusesParamElements {
+ public:
+  static UseKind Compute(int64_t i, const HloInstruction& hlo) {
+    absl::flat_hash_map<const HloInstruction*, UseKind> memoization_cache;
+    return ComputeInternal(i, hlo, &memoization_cache);
+  }
+
+ private:
+  static UseKind ComputeInternal(
+      int64_t outer_param_num, const HloInstruction& hlo,
+      absl::flat_hash_map<const HloInstruction*, UseKind>* cache);
+};
+
+}  // namespace
+
+// Returns how this instruction uses elements of its operand at operand_num.
+static UseKind OperandElementUse(const HloInstruction& instr,
+                                 int64_t operand_num) {
+  switch (instr.opcode()) {
+    case HloOpcode::kBitcast:
+    case HloOpcode::kConcatenate:
+    case HloOpcode::kReshape:
+    case HloOpcode::kReverse:
+    case HloOpcode::kSlice:
+    case HloOpcode::kTranspose:
+    case HloOpcode::kGather:
+      return UseKind::kUse;
+    case HloOpcode::kPad:
+      // Pad reuses the padding value but not the padded array elements.
+      return operand_num > 0 ? UseKind::kReuse : UseKind::kUse;
+    case HloOpcode::kReduce:
+      // Reduce reuses the init values but not the operand array elements.
+      return operand_num >= Cast<HloReduceInstruction>(&instr)->input_count()
+                 ? UseKind::kReuse
+                 : UseKind::kUse;
+    case HloOpcode::kFusion:
+      // Uses the memoizing, recursive computation defined above.
+      return FusionReusesParamElements::Compute(operand_num,
+                                                *instr.fused_expression_root());
+    case HloOpcode::kDot:
+      // Matrix-vector dots do not reuse the matrix operand.
+      if (instr.shape().dimensions_size() <= 1) {
+        if ((operand_num == 0 && instr.operand(1)->shape().rank() <= 1) ||
+            (operand_num == 1 && instr.operand(0)->shape().rank() <= 1)) {
+          return UseKind::kUse;
+        }
+      }
+      return UseKind::kReuse;
+    case HloOpcode::kDynamicUpdateSlice:
+      // Dynamic-update-slice reuses only start_indices.
+      if (operand_num == 0 || operand_num == 1) {
+        return UseKind::kUse;
+      }
+      return UseKind::kReuse;
+    default:
+      return instr.IsElementwise() ? UseKind::kUse : UseKind::kReuse;
+  }
+}
+
+UseKind FusionReusesParamElements::ComputeInternal(
+    int64_t outer_param_num, const HloInstruction& hlo,
+    absl::flat_hash_map<const HloInstruction*, UseKind>* cache) {
+  if (auto hlo_param = DynCast<HloParameterInstruction>(&hlo)) {
+    if (hlo_param->parameter_number() == outer_param_num) {
+      return UseKind::kUse;
+    }
+  }
+
+  auto p = cache->emplace(&hlo, UseKind::kNoUse);
+  auto value_it = p.first;
+  const bool key_is_new = p.second;
+
+  if (!key_is_new) {
+    return value_it->second;
+  }
+
+  // Our dataflow graph has no loops, so we don't need the fixed point
+  // computation.
+  for (int64_t operand_num = 0; operand_num < hlo.operands().size();
+       ++operand_num) {
+    UseKind old_val = value_it->second;
+
+    // Compute updated value.
+    UseKind new_val = [&] {
+      // How does the HLO use this operand.
+      UseKind hlo_use = OperandElementUse(hlo, operand_num);
+
+      // If the HLO does not use the outer operand, return previous value.
+      if (hlo_use == UseKind::kNoUse) {
+        return old_val;
+      }
+
+      UseKind operand_use =
+          ComputeInternal(outer_param_num, *hlo.operand(operand_num), cache);
+
+      // If the operand does not use the outer operand, return the previous
+      // value.
+      if (operand_use == UseKind::kNoUse) {
+        return old_val;
+      }
+
+      // Meet operator on a lattice:
+      //
+      //   kReuse < kUse < kNoUse.
+      return std::min({old_val, hlo_use, operand_use});
+    }();
+
+    value_it = cache->find(&hlo);
+    value_it->second = new_val;
+    // Fold() minimizes the UseKind value. If it is already minimum, we do not
+    // have to check all the remaining operands.
+    if (new_val == UseKind::kReuse) {
+      break;
+    }
+  }
+  return value_it->second;
+}
+
+bool HloInstruction::ReusesOperandElements(int64_t i) const {
+  return OperandElementUse(*this, i) == UseKind::kReuse;
+}
+
 std::optional<ShapeUtil::ShapeEqualityDescriptor>
 HloInstruction::ReshapeMerelyInsertsOrDeletes1SizedDimensions() const {
   if (HloOpcode::kReshape != opcode_) {
@@ -4386,6 +4517,13 @@ void HloInstruction::set_async_execution_thread(
     std::string_view async_execution_thread) {
   Cast<HloAsyncInstruction>(this)->set_async_execution_thread(
       async_execution_thread);
+}
+
+void HloInstruction::set_called_computations_execution_thread(
+    std::string_view async_execution_thread,
+    bool skip_async_execution_thread_overwrite) {
+  Cast<HloCallableInstruction>(this)->RecursivelySetComputationsThreadName(
+      async_execution_thread, skip_async_execution_thread_overwrite);
 }
 
 std::optional<int> HloInstruction::cross_program_prefetch_index() const {
