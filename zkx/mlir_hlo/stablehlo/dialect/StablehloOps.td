@@ -245,7 +245,7 @@ def StableHLO_ConvertOp : StableHLO_UnaryElementwiseOp<"convert",
 
 def StableHLO_ClzOp: StableHLO_UnaryElementwiseOp<"count_leading_zeros",
     [HLO_CompatibleOperandsAndResultType /*count_leading_zeros_c1*/],
-     HLO_IntTensor /*count_leading_zeros_i1*/> { /*count_leading_zeros_c1*/
+     HLO_IntOrFieldTensor /*count_leading_zeros_i1*/> { /*count_leading_zeros_c1*/
   let summary = "Clz operation";
   let description = [{
     Performs element-wise count of the number of leading zero bits in the
@@ -279,7 +279,7 @@ def StableHLO_NotOp: StableHLO_UnaryElementwiseOp<"not",
 }
 
 def StableHLO_NegOp: StableHLO_UnaryElementwiseOp<"negate",
-    [HLO_CompatibleOperandsAndResultType], HLO_IntTensor> {
+    [HLO_CompatibleOperandsAndResultType], HLO_IntOrFieldTensor> {
   let summary = "Neg operation";
   let description = [{
     Performs element-wise negation of `operand` tensor and produces a `result`
@@ -297,7 +297,7 @@ def StableHLO_NegOp: StableHLO_UnaryElementwiseOp<"negate",
 
 def StableHLO_PopulationCountOp: StableHLO_UnaryElementwiseOp<"popcnt",
     [HLO_CompatibleOperandsAndResultType /*popcnt_c1*/],
-    HLO_IntTensor /*popcnt_i1*/> { /*popcnt_c1*/
+    HLO_IntOrFieldTensor /*popcnt_i1*/> { /*popcnt_c1*/
   let summary = "PopulationCount operation";
   let description = [{
     Performs element-wise count of the number of bits set in the `operand`
@@ -409,7 +409,7 @@ def StableHLO_AddOp : StableHLO_BinaryElementwiseOp<"add", [HLO_Commutative,
 
 def StableHLO_DivOp : StableHLO_BinaryElementwiseOp<"divide",
     [HLO_CompatibleOperandsAndResultType /* div_c1 */],
-    HLO_IntTensor /* div_i1, div_i2 */> {
+    HLO_IntOrFieldTensor /* div_i1, div_i2 */> {
   let summary = "Div operation";
   let description = [{
     Performs element-wise division of dividend `lhs` and divisor `rhs` tensors
@@ -478,7 +478,7 @@ def StableHLO_MulOp : StableHLO_BinaryElementwiseOp<"multiply",
 
 def StableHLO_PowOp : StableHLO_BinaryElementwiseOp<"power",
       [HLO_CompatibleOperandsAndResultType /* pow_c1 */],
-      HLO_IntTensor /* pow_i1, pow_i2 */> {
+      HLO_IntOrFieldTensor /* pow_i1, pow_i2 */> {
   let summary = "Power operation";
   let description = [{
     Performs element-wise exponentiation of `lhs` tensor by `rhs` tensor and
@@ -496,7 +496,7 @@ def StableHLO_PowOp : StableHLO_BinaryElementwiseOp<"power",
 
 def StableHLO_RemOp : StableHLO_BinaryElementwiseOp<"remainder",
       [HLO_CompatibleOperandsAndResultType /*remainder_c1*/],
-      HLO_IntTensor /*remainder_i1, remainder_i2*/> {
+      HLO_IntOrFieldTensor /*remainder_i1, remainder_i2*/> {
   let summary = "Rem operation";
   let description = [{
     Performs element-wise remainder of dividend `lhs` and divisor `rhs` tensors
@@ -514,7 +514,7 @@ def StableHLO_RemOp : StableHLO_BinaryElementwiseOp<"remainder",
 
 def StableHLO_ShiftLeftOp : StableHLO_BinaryElementwiseOp<"shift_left",
       [HLO_CompatibleOperandsAndResultType /*shift_left_c1*/],
-      HLO_IntTensor /*shift_left_i1, shift_left_i2*/> { /*shift_left_c1*/
+      HLO_IntOrFieldTensor /*shift_left_i1, shift_left_i2*/> { /*shift_left_c1*/
   let summary = "ShiftLeft operation";
   let description = [{
     Performs element-wise left-shift operation on the `lhs` tensor by `rhs`
@@ -532,7 +532,7 @@ def StableHLO_ShiftLeftOp : StableHLO_BinaryElementwiseOp<"shift_left",
 
 def StableHLO_ShiftRightArithmeticOp : StableHLO_BinaryElementwiseOp<"shift_right_arithmetic",
       [HLO_CompatibleOperandsAndResultType /*shift_right_arithmetic_c1*/],
-      HLO_IntTensor /*shift_right_arithmetic_i1, shift_right_arithmetic_i2*/> { /*shift_right_arithmetic_c1*/
+      HLO_IntOrFieldTensor /*shift_right_arithmetic_i1, shift_right_arithmetic_i2*/> { /*shift_right_arithmetic_c1*/
   let summary = "ShiftRightArithmetic operation";
   let description = [{
     Performs element-wise arithmetic right-shift operation on the `lhs` tensor
@@ -550,7 +550,7 @@ def StableHLO_ShiftRightArithmeticOp : StableHLO_BinaryElementwiseOp<"shift_righ
 
 def StableHLO_ShiftRightLogicalOp : StableHLO_BinaryElementwiseOp<"shift_right_logical",
       [HLO_CompatibleOperandsAndResultType /*shift_right_logical_c1*/],
-      HLO_IntTensor /*shift_right_logical_i1, shift_right_logical_i2*/> { /*shift_right_logical_c1*/
+      HLO_IntOrFieldTensor /*shift_right_logical_i1, shift_right_logical_i2*/> { /*shift_right_logical_c1*/
   let summary = "ShiftRightLogical operation";
   let description = [{
     Performs element-wise logical right-shift operation on the `lhs` tensor by

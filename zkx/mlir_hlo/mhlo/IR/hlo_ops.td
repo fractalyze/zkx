@@ -258,7 +258,7 @@ def MHLO_ConvertOp : MHLO_UnaryElementwiseOp<"convert",
 }
 
 def MHLO_NegOp: MHLO_UnaryElementwiseOp<"negate",
-    [Pure, HLO_CompatibleOperandsAndResultType], MHLO_IntTensor> {
+    [Pure, HLO_CompatibleOperandsAndResultType], MHLO_IntOrFieldTensor> {
   let summary = "Neg operation";
   let description = [{
     Performs element-wise negation of `operand` tensor and produces a `result`
@@ -383,7 +383,7 @@ def MHLO_AddOp : MHLO_BinaryElementwiseOp<"add",
 }
 
 def MHLO_DivOp : MHLO_BinaryElementwiseOp<"divide",
-      [Pure, HLO_CompatibleOperandsAndResultType], MHLO_IntTensor> {
+      [Pure, HLO_CompatibleOperandsAndResultType], MHLO_IntOrFieldTensor> {
   let summary = "Div operation";
   let description = [{
     Performs element-wise division of dividend `lhs` and divisor `rhs` tensors
