@@ -117,7 +117,7 @@ def StableHLO_IotaOp : StableHLO_Op<"iota", [Pure]> {
     ConfinedAttr<I64Attr, [IntNonNegative]>:$iota_dimension /*iota_c1*/
   );
 
-  let results = (outs HLO_StaticShapeIntTensor:$output);
+  let results = (outs HLO_StaticShapeIntOrFieldTensor:$output);
 
   let hasVerifier = 1;
 

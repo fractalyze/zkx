@@ -87,6 +87,8 @@ defvar MHLO_StaticShapeTensorOrToken = HLO_StaticShapeTensorOrToken;
 
 defvar MHLO_StaticShapeIntTensor = HLO_StaticShapeIntTensor;
 
+defvar MHLO_StaticShapeIntOrFieldTensor = HLO_StaticShapeIntOrFieldTensor;
+
 defvar MHLO_Static1DIntTensor = HLO_Static1DIntTensor;
 
 #endif // ZKX_MLIR_HLO_MHLO_IR_HLO_BASE_TD

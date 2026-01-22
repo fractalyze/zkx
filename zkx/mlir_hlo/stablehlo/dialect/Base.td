@@ -132,6 +132,8 @@ def HLO_StaticShapeOrBoundedDimTensor : RankedTensorOf<[HLO_Pred, HLO_Int, HLO_F
 
 def HLO_StaticShapeIntTensor : StaticShapeTensorOf<[HLO_Int]>;
 
+def HLO_StaticShapeIntOrFieldTensor : StaticShapeTensorOf<[HLO_Int, HLO_Field]>;
+
 //===----------------------------------------------------------------------===//
 // HLO traits
 //===----------------------------------------------------------------------===//

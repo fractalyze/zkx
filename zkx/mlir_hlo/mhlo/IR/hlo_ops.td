@@ -109,7 +109,7 @@ def MHLO_IotaOp : MHLO_Op<"iota", [Pure]> {
     ConfinedAttr<I64Attr, [IntNonNegative]>:$iota_dimension
   );
 
-  let results = (outs MHLO_StaticShapeIntTensor:$output);
+  let results = (outs MHLO_StaticShapeIntOrFieldTensor:$output);
 
   // TODO(b/130357376): Iota has special conversion logic to HLO.
   let hasCustomHLOConverter = 1;
