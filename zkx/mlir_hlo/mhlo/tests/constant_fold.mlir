@@ -42,6 +42,18 @@ func.func @concatenate_fold_field() -> tensor<4x!pf_babybear> {
   return %result : tensor<4x!pf_babybear>
 }
 
+// CHECK-LABEL: @iota_fold_field
+// CHECK-SAME: () -> [[T:.*]] {
+func.func @iota_fold_field() -> tensor<1x!pf_babybear> {
+  // CHECK: %[[RESULT:.*]] = mhlo.constant() <{value = dense<0> : tensor<1xi32>}> : () -> tensor<1x!pf_babybear>
+  // CHECK-NOT: mhlo.iota
+  // CHECK: return %[[RESULT]] : [[T]]
+  %result = "mhlo.iota"() {
+    iota_dimension = 0 : i64
+  } : () -> tensor<1x!pf_babybear>
+  return %result : tensor<1x!pf_babybear>
+}
+
 // CHECK-LABEL: @pad_fold_field_zero
 // CHECK-SAME: () -> [[T:.*]] {
 func.func @pad_fold_field_zero() -> tensor<8x!pf_babybear> {
