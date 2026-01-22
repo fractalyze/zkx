@@ -115,7 +115,7 @@ def ZKXGPU_ShuffleReduceOp : ZKXGPU_Op<"shuffle_reduce",
       return getOperandsMutable();
     }
     void setCalleeFromCallable(mlir::CallInterfaceCallable callee) {
-      (*this)->setAttr("combiner", callee.get<mlir::SymbolRefAttr>());
+      (*this)->setAttr("combiner", mlir::cast<mlir::SymbolRefAttr>(callee));
     }
     mlir::Attribute removeArgAttrsAttr() { return nullptr; }
     mlir::Attribute removeResAttrsAttr() { return nullptr; }
@@ -150,7 +150,7 @@ def ZKXGPU_MaterializeOp : ZKXGPU_Op<"materialize",
       return getInputMutable();
     }
     void setCalleeFromCallable(mlir::CallInterfaceCallable callee) {
-      (*this)->setAttr("callee", callee.get<mlir::SymbolRefAttr>());
+      (*this)->setAttr("callee", mlir::cast<mlir::SymbolRefAttr>(callee));
     }
     mlir::Attribute removeArgAttrsAttr() { return nullptr; }
     mlir::Attribute removeResAttrsAttr() { return nullptr; }
@@ -216,7 +216,7 @@ def ZKXGPU_ReduceOp : ZKXGPU_Op<"reduce", [
       return (*this)->getAttrOfType<mlir::SymbolRefAttr>("combiner");
     }
     void setCalleeFromCallable(mlir::CallInterfaceCallable callee) {
-      (*this)->setAttr("combiner", callee.get<mlir::SymbolRefAttr>());
+      (*this)->setAttr("combiner", mlir::cast<mlir::SymbolRefAttr>(callee));
     }
     mlir::Attribute removeArgAttrsAttr() { return nullptr; }
     mlir::Attribute removeResAttrsAttr() { return nullptr; }
