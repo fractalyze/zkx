@@ -116,7 +116,7 @@ longer-form discussions take place in the
 | remainder              | ✅                      | ⚪  |
 | reshape                | ✅                      | ⚪  |
 | reverse                | ✅                      | ⚪  |
-| scatter                | 🟡                      | ⚪  |
+| scatter                | ✅                      | ⚪  |
 | select                 | ✅                      | ⚪  |
 | set-dimension-size     | ⚪                      | ⚪  |
 | shift-left             | ✅                      | ⚪  |
