@@ -13,9 +13,76 @@
 # limitations under the License.
 # ==============================================================================
 
-load("//bazel:zkx_cc.bzl", "zkx_cc_library")
+load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
+
+zkx_cc_library(
+    name = "command_buffer_cmd",
+    srcs = ["command_buffer_cmd.cc"],
+    hdrs = ["command_buffer_cmd.h"],
+    deps = [
+        ":dynamic_slice_thunk",
+        ":thunk",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/runtime:buffer_use",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:computation_placer",
+        "//zkx/service:global_device_id",
+        "//zkx/service/gpu:buffer_allocations",
+        "//zkx/service/gpu:launch_dimensions",
+        "//zkx/service/gpu:stream_executor_util",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:command_buffer",
+        "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:kernel",
+        "//zkx/stream_executor:launch_dim",
+        "//zkx/stream_executor:stream",
+        "//zkx/stream_executor:trace_command_buffer_factory",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "command_buffer_cmd_unittest",
+    srcs = ["command_buffer_cmd_unittest.cc"],
+    tags = ["gpu"],
+    deps = [
+        ":command_buffer_cmd",
+        ":thunk",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:platform_util",
+        "//zkx/service/gpu:buffer_allocations",
+        "//zkx/service/gpu:launch_dimensions",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:command_buffer",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor:stream_executor_memory_allocator",
+        "//zkx/stream_executor/gpu:gpu_test_kernels_fatbin",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
 
 zkx_cc_library(
     name = "conditional_thunk",

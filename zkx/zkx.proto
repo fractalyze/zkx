@@ -442,6 +442,11 @@ message DebugOptions {
   // If true, large constants will be printed out when dumping HLOs.
   bool zkx_dump_large_constants = 290;
 
+  // The command buffer trace cache size, increasing the cache size may
+  // sometimes reduces the chances of doing command buffer tracing for
+  // updating command buffer instance.
+  int64 zkx_cmd_buffer_trace_cache_size = 311;
+
   // This flag is used for controlling HLO dumping and NVTX marker. If turned
   // on, both HLO dumping and NVTX marker will use syntactic sugar wrappers
   // as op names, while the actual op names will be shown if turned off.
