@@ -175,6 +175,8 @@ message HloInstructionProto {
   // Whether this Sort instruction should be stable.
   bool is_stable = 60;
 
+  ScatterDimensionNumbers scatter_dimension_numbers = 48;
+
   // Collective permute field.
   repeated SourceTarget source_target_pairs = 52;
 

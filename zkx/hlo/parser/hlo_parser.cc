@@ -2990,10 +2990,77 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       return nullptr;
     }
     case HloOpcode::kScatter: {
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::CreateScatter
-      // clang-format on
-      return nullptr;
+      std::optional<std::vector<int64_t>> update_window_dims;
+      attrs["update_window_dims"] = {
+          /*required=*/true, AttrTy::kBracedInt64List, &update_window_dims};
+      std::optional<std::vector<int64_t>> inserted_window_dims;
+      attrs["inserted_window_dims"] = {
+          /*required=*/true, AttrTy::kBracedInt64List, &inserted_window_dims};
+      std::optional<std::vector<int64_t>> scatter_dims_to_operand_dims;
+      attrs["scatter_dims_to_operand_dims"] = {/*required=*/true,
+                                               AttrTy::kBracedInt64List,
+                                               &scatter_dims_to_operand_dims};
+      std::optional<int64_t> index_vector_dim;
+      attrs["index_vector_dim"] = {/*required=*/true, AttrTy::kInt64,
+                                   &index_vector_dim};
+
+      std::optional<HloComputation*> update_computation;
+      attrs["to_apply"] = {/*required=*/true, AttrTy::kHloComputation,
+                           &update_computation};
+      std::optional<bool> indices_are_sorted = false;
+      attrs["indices_are_sorted"] = {/*required=*/false, AttrTy::kBool,
+                                     &indices_are_sorted};
+      std::optional<bool> unique_indices = false;
+      attrs["unique_indices"] = {/*required=*/false, AttrTy::kBool,
+                                 &unique_indices};
+      std::optional<std::vector<int64_t>> input_batching_dims;
+      attrs["input_batching_dims"] = {
+          /*required=*/false, AttrTy::kBracedInt64List, &input_batching_dims};
+      std::optional<std::vector<int64_t>> scatter_indices_batching_dims;
+      attrs["scatter_indices_batching_dims"] = {/*required=*/false,
+                                                AttrTy::kBracedInt64List,
+                                                &scatter_indices_batching_dims};
+
+      if ((!preset_operands && !ParseOperands(&operands, builder)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+
+      if (operands.size() % 2 == 0) {
+        TokenError(absl::StrCat("expects an odd number of operands, but has ",
+                                operands.size(), " operands"));
+        return nullptr;
+      }
+
+      ScatterDimensionNumbers dim_numbers =
+          HloScatterInstruction::MakeScatterDimNumbers(
+              /*update_window_dims=*/*update_window_dims,
+              /*inserted_window_dims=*/*inserted_window_dims,
+              /*scatter_dims_to_operand_dims=*/*scatter_dims_to_operand_dims,
+              /*index_vector_dim=*/*index_vector_dim,
+              /*input_batching_dims=*/
+              input_batching_dims.value_or(std::vector<int64_t>()),
+              /*scatter_indices_batching_dims=*/
+              scatter_indices_batching_dims.value_or(std::vector<int64_t>()));
+
+      if (!maybe_infer_shape([&] {
+            absl::InlinedVector<const Shape*, 3> arg_shapes;
+            arg_shapes.reserve(operands.size());
+            for (auto* operand : operands) {
+              arg_shapes.push_back(&operand->shape());
+            }
+            return ShapeInference::InferScatterShape(
+                arg_shapes, update_computation.value()->ComputeProgramShape(),
+                dim_numbers);
+          })) {
+        return nullptr;
+      }
+      auto input_count = operands.size() / 2;
+      auto operand_span = absl::MakeConstSpan(operands);
+      return builder->AddInstruction(HloInstruction::CreateScatter(
+          *shape, operand_span.first(input_count), operands[input_count],
+          operand_span.last(input_count), *update_computation, dim_numbers,
+          indices_are_sorted.value(), unique_indices.value()));
     }
     case HloOpcode::kDomain: {
       // clang-format off

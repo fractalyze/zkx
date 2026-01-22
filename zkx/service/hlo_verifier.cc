@@ -1606,20 +1606,15 @@ absl::Status ShapeVerifier::HandleGather(HloInstruction* gather) {
 }
 
 absl::Status ShapeVerifier::HandleScatter(HloInstruction* scatter) {
-  // clang-format off
-  // TODO(chokobole): Uncomment this. Dependency: ShapeInference::InferScatterShape
-  // clang-format on
-  // absl::InlinedVector<const Shape*, 3> arg_shapes;
-  // arg_shapes.reserve(scatter->operand_count());
-  // for (const HloInstruction* operand : scatter->operands()) {
-  //   arg_shapes.push_back(&operand->shape());
-  // }
-  // return CheckShape(scatter,
-  //                   ShapeInference::InferScatterShape(
-  //                       arg_shapes,
-  //                       scatter->to_apply()->ComputeProgramShape(),
-  //                       scatter->scatter_dimension_numbers()));
-  return absl::UnimplementedError("HandleScatter not supported");
+  absl::InlinedVector<const Shape*, 3> arg_shapes;
+  arg_shapes.reserve(scatter->operand_count());
+  for (const HloInstruction* operand : scatter->operands()) {
+    arg_shapes.push_back(&operand->shape());
+  }
+  return CheckShape(scatter,
+                    ShapeInference::InferScatterShape(
+                        arg_shapes, scatter->to_apply()->ComputeProgramShape(),
+                        scatter->scatter_dimension_numbers()));
 }
 
 absl::Status ShapeVerifier::HandleAfterAll(HloInstruction* token) {
@@ -2617,21 +2612,16 @@ class InstructionVerifier : public DfsHloVisitorWithDefault {
   }
 
   absl::Status HandleScatter(HloInstruction* scatter) override {
-    // clang-format off
-    // TODO(chokobole): Uncomment this. Dependency: HloInstruction::scatter_dimension_numbers
-    // clang-format on
-    // int64_t rank = scatter->operand(0)->shape().rank();
-    // for (int64_t operand_dim :
-    //      scatter->scatter_dimension_numbers().scatter_dims_to_operand_dims())
-    //      {
-    //   if (operand_dim > rank) {
-    //     return absl::OutOfRangeError(absl::StrCat(
-    //         "The provided scatter_dims_to_operand_dim was out of range.",
-    //         " (operand_dim: ", operand_dim, ", rank: ", rank, ")"));
-    //   }
-    // }
-    // return absl::OkStatus();
-    return absl::UnimplementedError("HandleScatter not supported");
+    int64_t rank = scatter->operand(0)->shape().rank();
+    for (int64_t operand_dim :
+         scatter->scatter_dimension_numbers().scatter_dims_to_operand_dims()) {
+      if (operand_dim > rank) {
+        return absl::OutOfRangeError(absl::StrCat(
+            "The provided scatter_dims_to_operand_dim was out of range.",
+            " (operand_dim: ", operand_dim, ", rank: ", rank, ")"));
+      }
+    }
+    return absl::OkStatus();
   }
 
   absl::Status Preprocess(HloInstruction* instruction) override {

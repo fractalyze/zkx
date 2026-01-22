@@ -1777,6 +1777,74 @@ class HloDynamicUpdateSliceInstruction : public HloDynamicIndexInstruction {
   }
 };
 
+class HloScatterInstruction : public HloInstruction {
+ public:
+  explicit HloScatterInstruction(
+      const Shape& shape, absl::Span<HloInstruction* const> args,
+      HloComputation* update_computation,
+      const ScatterDimensionNumbers& scatter_dim_numbers,
+      bool indices_are_sorted, bool unique_indices);
+  const ScatterDimensionNumbers& scatter_dimension_numbers() const {
+    CHECK_NE(scatter_dimension_numbers_, nullptr);
+    return *scatter_dimension_numbers_;
+  }
+  bool indices_are_sorted() const { return indices_are_sorted_; }
+  void set_indices_are_sorted(bool indices_are_sorted) {
+    indices_are_sorted_ = indices_are_sorted;
+  }
+  bool unique_indices() const override { return unique_indices_; }
+  // Returns a serialized representation of this instruction.
+  HloInstructionProto ToProto() const override;
+  int64_t scatter_operand_count() const { return operand_count() / 2; }
+  absl::Span<HloInstruction* const> scatter_operands() const {
+    return absl::MakeConstSpan(operands()).first(scatter_operand_count());
+  }
+  absl::Span<HloInstruction* const> scatter_updates() const {
+    return absl::MakeConstSpan(operands()).last(scatter_operand_count());
+  }
+  const HloInstruction* scatter_indices() const {
+    return operand(scatter_operand_count());
+  }
+  HloInstruction* scatter_indices() {
+    return mutable_operand(scatter_operand_count());
+  }
+
+  // Creates an instance of ScatterDimensionNumbers.
+  static ScatterDimensionNumbers MakeScatterDimNumbers(
+      absl::Span<const int64_t> update_window_dims,
+      absl::Span<const int64_t> inserted_window_dims,
+      absl::Span<const int64_t> scatter_dims_to_operand_dims,
+      int64_t index_vector_dim,
+      absl::Span<const int64_t> input_batching_dims = {},
+      absl::Span<const int64_t> scatter_indices_batching_dims = {});
+  // Returns the dump string of the given scatter dimension numbers.
+  static std::string ScatterDimensionNumbersToString(
+      const ScatterDimensionNumbers& dim_numbers);
+  // Prints the dump string of the given scatter dimension numbers.
+  static void PrintScatterDimensionNumbers(
+      Printer* printer, const ScatterDimensionNumbers& dim_numbers);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kScatter;
+  }
+
+ private:
+  void PrintExtraAttributesImpl(AttributePrinter& printer,
+                                const HloPrintOptions& options) const override;
+  bool IdenticalSlowPath(
+      const HloInstruction& other,
+      absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+          eq_computations) const override;
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+
+  std::unique_ptr<ScatterDimensionNumbers> scatter_dimension_numbers_;
+  bool indices_are_sorted_;
+  bool unique_indices_;
+};
+
 class HloIotaInstruction : public HloInstruction {
  public:
   explicit HloIotaInstruction(const Shape& shape, int64_t iota_dimension);

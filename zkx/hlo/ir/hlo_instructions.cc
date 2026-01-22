@@ -2662,6 +2662,125 @@ HloDynamicUpdateSliceInstruction::HloDynamicUpdateSliceInstruction(
   }
 }
 
+HloScatterInstruction::HloScatterInstruction(
+    const Shape& shape, absl::Span<HloInstruction* const> args,
+    HloComputation* update_computation,
+    const ScatterDimensionNumbers& scatter_dim_numbers, bool indices_are_sorted,
+    bool unique_indices)
+    : HloInstruction(HloOpcode::kScatter, shape),
+      indices_are_sorted_(indices_are_sorted),
+      unique_indices_(unique_indices) {
+  mutable_operands().reserve(args.size());
+  for (HloInstruction* arg : args) {
+    AppendOperand(arg);
+  }
+  AppendComputation(update_computation);
+  scatter_dimension_numbers_ =
+      std::make_unique<ScatterDimensionNumbers>(scatter_dim_numbers);
+}
+
+// static
+std::string HloScatterInstruction::ScatterDimensionNumbersToString(
+    const ScatterDimensionNumbers& dim_numbers) {
+  StringPrinter printer;
+  PrintScatterDimensionNumbers(&printer, dim_numbers);
+  return std::move(printer).ToString();
+}
+
+// static
+void HloScatterInstruction::PrintScatterDimensionNumbers(
+    Printer* printer, const ScatterDimensionNumbers& dim_numbers) {
+  printer->Append("update_window_dims={");
+  AppendJoin(printer, dim_numbers.update_window_dims(), ",");
+  printer->Append("}, inserted_window_dims={");
+  AppendJoin(printer, dim_numbers.inserted_window_dims(), ",");
+  printer->Append("}, scatter_dims_to_operand_dims={");
+  AppendJoin(printer, dim_numbers.scatter_dims_to_operand_dims(), ",");
+  if (dim_numbers.input_batching_dims_size()) {
+    printer->Append("}, input_batching_dims={");
+    AppendJoin(printer, dim_numbers.input_batching_dims(), ",");
+  }
+  if (dim_numbers.scatter_indices_batching_dims_size()) {
+    printer->Append("}, scatter_indices_batching_dims={");
+    AppendJoin(printer, dim_numbers.scatter_indices_batching_dims(), ",");
+  }
+  AppendCat(printer, "}, index_vector_dim=", dim_numbers.index_vector_dim());
+}
+
+// static
+ScatterDimensionNumbers HloScatterInstruction::MakeScatterDimNumbers(
+    absl::Span<const int64_t> update_window_dims,
+    absl::Span<const int64_t> inserted_window_dims,
+    absl::Span<const int64_t> scatter_dims_to_operand_dims,
+    int64_t index_vector_dim, absl::Span<const int64_t> input_batching_dims,
+    absl::Span<const int64_t> scatter_indices_batching_dims) {
+  ScatterDimensionNumbers scatter_dim_numbers;
+  for (int64_t update_window_dim : update_window_dims) {
+    scatter_dim_numbers.add_update_window_dims(update_window_dim);
+  }
+  for (int64_t inserted_window_dim : inserted_window_dims) {
+    scatter_dim_numbers.add_inserted_window_dims(inserted_window_dim);
+  }
+  for (int64_t scatter_dim_to_operand_dim : scatter_dims_to_operand_dims) {
+    scatter_dim_numbers.add_scatter_dims_to_operand_dims(
+        scatter_dim_to_operand_dim);
+  }
+  for (int64_t input_batching_dim : input_batching_dims) {
+    scatter_dim_numbers.add_input_batching_dims(input_batching_dim);
+  }
+  for (int64_t scatter_indices_batching_dim : scatter_indices_batching_dims) {
+    scatter_dim_numbers.add_scatter_indices_batching_dims(
+        scatter_indices_batching_dim);
+  }
+  scatter_dim_numbers.set_index_vector_dim(index_vector_dim);
+  return scatter_dim_numbers;
+}
+
+HloInstructionProto HloScatterInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  *proto.mutable_scatter_dimension_numbers() = scatter_dimension_numbers();
+  proto.set_indices_are_sorted(indices_are_sorted());
+  proto.set_unique_indices(unique_indices());
+  return proto;
+}
+
+void HloScatterInstruction::PrintExtraAttributesImpl(
+    AttributePrinter& printer, const HloPrintOptions& options) const {
+  printer.Next([this](Printer* printer) {
+    printer->Append(
+        ScatterDimensionNumbersToString(scatter_dimension_numbers()));
+  });
+  if (indices_are_sorted()) {
+    printer.Next(
+        [](Printer* printer) { printer->Append("indices_are_sorted=true"); });
+  }
+  if (unique_indices()) {
+    printer.Next(
+        [](Printer* printer) { printer->Append("unique_indices=true"); });
+  }
+}
+
+bool HloScatterInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other = static_cast<const HloScatterInstruction&>(other);
+  return protobuf_util::ProtobufEquals(
+             scatter_dimension_numbers(),
+             casted_other.scatter_dimension_numbers()) &&
+         eq_computations(to_apply(), casted_other.to_apply()) &&
+         indices_are_sorted() == casted_other.indices_are_sorted() &&
+         unique_indices() == casted_other.unique_indices();
+}
+
+std::unique_ptr<HloInstruction> HloScatterInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  return std::make_unique<HloScatterInstruction>(
+      shape, new_operands, to_apply(), scatter_dimension_numbers(),
+      indices_are_sorted(), unique_indices());
+}
+
 HloIotaInstruction::HloIotaInstruction(const Shape& shape,
                                        int64_t iota_dimension)
     : HloInstruction(HloOpcode::kIota, shape),
