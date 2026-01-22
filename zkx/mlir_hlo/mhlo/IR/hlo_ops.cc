@@ -47,6 +47,7 @@ limitations under the License.
 #include "mlir/Transforms/InliningUtils.h"
 
 #include "prime_ir/Dialect/Field/IR/FieldTypes.h"
+#include "prime_ir/IR/Attributes.h"
 #include "zkx/mlir_hlo/mhlo/IR/hlo_ops.h.inc"
 #include "zkx/mlir_hlo/stablehlo/dialect/AssemblyFormat.h"
 #include "zkx/mlir_hlo/stablehlo/dialect/TypeInference.h"
@@ -390,6 +391,7 @@ OpFoldResult BroadcastOp::fold(FoldAdaptor adaptor) {
   if (!splatOperandAttr)
     return {};
 
+  type = prime_ir::maybeConvertPrimeIRToBuiltinType(type);
   return SplatElementsAttr::get(
       type, splatOperandAttr.getSplatValue<mlir::Attribute>());
 }
@@ -473,6 +475,8 @@ OpFoldResult BroadcastInDimOp::fold(FoldAdaptor adaptor) {
   if (!splatOperandAttr)
     return {};
 
+  type =
+      cast<RankedTensorType>(prime_ir::maybeConvertPrimeIRToBuiltinType(type));
   return SplatElementsAttr::get(
       type, splatOperandAttr.getSplatValue<mlir::Attribute>());
 }
@@ -886,6 +890,7 @@ Attribute foldConcatenateHelper(ConcatenateOp *op,
     }
   }
 
+  type = prime_ir::maybeConvertPrimeIRToBuiltinType(type);
   return DenseElementsAttr::get(type, values);
 }
 
@@ -897,7 +902,7 @@ Attribute foldConcatenate(ConcatenateOp *op, ArrayRef<Attribute> operands) {
 
   auto type = cast<ShapedType>(op->getResult().getType());
   auto etype = type.getElementType();
-  if (isa<IntegerType>(etype)) {
+  if (isa<IntegerType>(etype) || isa<prime_ir::field::PrimeFieldType>(etype)) {
     return foldConcatenateHelper<APInt>(op, operands);
   }
 
@@ -927,6 +932,7 @@ OpFoldResult ConcatenateOp::fold(FoldAdaptor adaptor) {
     }
   }
 
+  type = prime_ir::maybeConvertPrimeIRToBuiltinType(type);
   return DenseElementsAttr::get(type, ArrayRef<Attribute>());
 }
 
@@ -2053,9 +2059,13 @@ OpFoldResult PadOp::fold(FoldAdaptor adaptor) {
       !returnType.hasStaticShape())
     return {};
 
-  if (isa<IntegerType>(returnType.getElementType()))
-    return padOpFoldHelper<APInt>(input, padding, returnType,
-                                  getEdgePaddingLow(), getEdgePaddingHigh());
+  Type returnElemType = returnType.getElementType();
+  if (isa<IntegerType>(returnElemType) ||
+      isa<prime_ir::field::PrimeFieldType>(returnElemType))
+    returnType = cast<RankedTensorType>(
+        prime_ir::maybeConvertPrimeIRToBuiltinType(returnType));
+  return padOpFoldHelper<APInt>(input, padding, returnType, getEdgePaddingLow(),
+                                getEdgePaddingHigh());
   return {};
 }
 
@@ -2582,7 +2592,9 @@ OpFoldResult ReshapeOp::fold(FoldAdaptor adaptor) {
   }
 
   if (auto elements = dyn_cast_or_null<DenseElementsAttr>(operands.front())) {
-    return reshape(elements, cast<ShapedType>(getResult().getType()));
+    ShapedType resultType =
+        prime_ir::maybeConvertPrimeIRToBuiltinType(getResult().getType());
+    return reshape(elements, resultType);
   }
 
   return {};
@@ -2689,8 +2701,11 @@ OpFoldResult ReverseOp::fold(FoldAdaptor adaptor) {
       mlir::dyn_cast_or_null<DenseElementsAttr>(*operands.begin());
   if (inputAttr && shapedType.hasStaticShape()) {
     auto etype = shapedType.getElementType();
-    if (isa<IntegerType>(etype))
+    if (isa<IntegerType>(etype) ||
+        isa<prime_ir::field::PrimeFieldType>(etype)) {
+      shapedType = prime_ir::maybeConvertPrimeIRToBuiltinType(shapedType);
       return foldReverseHelper<APInt>(inputAttr, shapedType, dims);
+    }
   }
 
   return {};
@@ -2873,8 +2888,9 @@ Attribute foldSlice(SliceOp *op, I values) {
   outValues.reserve(resultType.getNumElements());
   sliceElements<I, E>(values, sizes, start, limit, stride, &outValues);
 
-  return DenseElementsAttr::get(cast<ShapedType>(op->getResult().getType()),
-                                outValues);
+  ShapedType shapedType =
+      prime_ir::maybeConvertPrimeIRToBuiltinType(op->getResult().getType());
+  return DenseElementsAttr::get(shapedType, outValues);
 }
 
 } // namespace
@@ -3025,7 +3041,9 @@ void SortOp::getCanonicalizationPatterns(RewritePatternSet &results,
 OpFoldResult TransposeOp::fold(FoldAdaptor adaptor) {
   auto operands = adaptor.getOperands();
   if (auto elements = dyn_cast_or_null<SplatElementsAttr>(operands.front())) {
-    return reshape(elements, cast<ShapedType>(getResult().getType()));
+    ShapedType type =
+        prime_ir::maybeConvertPrimeIRToBuiltinType(getResult().getType());
+    return reshape(elements, type);
   }
   for (const auto &it : llvm::enumerate(getPermutation().getValues<APInt>())) {
     if (it.index() != it.value()) {
@@ -3437,10 +3455,12 @@ ScatterOp::fold(FoldAdaptor adaptor,
     // Evaluate update computation and update the value with the newly computed
     // attribute in the base tensor.
     auto lhs = DenseElementsAttr::get(
-        RankedTensorType::get({}, baseType.getElementType()),
+        prime_ir::maybeConvertPrimeIRToBuiltinType(
+            RankedTensorType::get({}, baseType.getElementType())),
         results[linearBaseIndex]);
     auto rhs = DenseElementsAttr::get(
-        RankedTensorType::get({}, baseType.getElementType()),
+        prime_ir::maybeConvertPrimeIRToBuiltinType(
+            RankedTensorType::get({}, baseType.getElementType())),
         update.getValues<Attribute>()[updateIndex]);
     auto newValue = evaluateMhloRegion(getUpdateComputation(), {lhs, rhs});
     if (newValue.size() != 1 || !newValue[0])
@@ -3449,6 +3469,8 @@ ScatterOp::fold(FoldAdaptor adaptor,
         cast<DenseElementsAttr>(newValue[0]).getValues<Attribute>()[0];
   } while (nextIndex(updateIndex, updateType.getShape()));
 
+  baseType = cast<RankedTensorType>(
+      prime_ir::maybeConvertPrimeIRToBuiltinType(baseType));
   foldResults.push_back(DenseElementsAttr::get(baseType, results));
   return success();
 }
