@@ -62,6 +62,36 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "dynamic_slice_thunk",
+    srcs = ["dynamic_slice_thunk.cc"],
+    hdrs = ["dynamic_slice_thunk.h"],
+    deps = [
+        ":sequential_thunk",
+        ":thunk",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:literal_util",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx/hlo/evaluator:hlo_evaluator",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service/gpu:buffer_allocations",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:memory_allocation",
+        "//zkx/stream_executor:stream",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@llvm-project//llvm:Support",
+    ],
+)
+
+zkx_cc_library(
     name = "kernel_thunk",
     srcs = ["kernel_thunk.cc"],
     hdrs = ["kernel_thunk.h"],
