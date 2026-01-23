@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda_is_configured")
 load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 
 package(default_visibility = ["//visibility:public"])
@@ -82,6 +83,73 @@ zkx_cc_unittest(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
+)
+
+zkx_cc_library(
+    name = "command_buffer_thunk",
+    srcs = ["command_buffer_thunk.cc"],
+    hdrs = ["command_buffer_thunk.h"],
+    deps = [
+        ":command_buffer_cmd",
+        ":sequential_thunk",
+        ":thunk",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service/gpu:buffer_allocations",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:command_buffer",
+        "//zkx/stream_executor:device_memory",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/functional:function_ref",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "command_buffer_thunk_unittest",
+    srcs = ["command_buffer_thunk_unittest.cc"],
+    tags = ["gpu"],
+    deps = [
+        ":command_buffer_cmd",
+        ":command_buffer_thunk",
+        ":memset_thunk",
+        ":sequential_thunk",
+        ":thunk",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx:types",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/runtime:buffer_use",
+        "//zkx/service:buffer_assignment",
+        "//zkx/service:executable",
+        "//zkx/service:platform_util",
+        "//zkx/service/gpu:buffer_allocations",
+        "//zkx/service/gpu:launch_dimensions",
+        "//zkx/stream_executor",
+        "//zkx/stream_executor:command_buffer",
+        "//zkx/stream_executor:device_description",
+        "//zkx/stream_executor:device_memory",
+        "//zkx/stream_executor:device_memory_allocator",
+        "//zkx/stream_executor:kernel",
+        "//zkx/stream_executor:kernel_spec",
+        "//zkx/stream_executor:platform",
+        "//zkx/stream_executor:platform_manager",
+        "//zkx/stream_executor:semantic_version",
+        "//zkx/stream_executor:stream_executor_memory_allocator",
+        "//zkx/stream_executor/gpu:gpu_test_kernels",
+        "//zkx/stream_executor/gpu:gpu_test_kernels_fatbin",
+        "//zkx/tests:hlo_test_base",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ] + if_cuda_is_configured([
+        "//zkx/stream_executor/cuda:cuda_platform",
+    ]),
 )
 
 zkx_cc_library(
