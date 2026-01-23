@@ -69,25 +69,25 @@ enum PrimitiveType {
   // primitive type will have empty dimensions and tuple_shapes fields.
   TOKEN = 18;
 
-  KOALABEAR = 33;
-  KOALABEAR_STD = 34;
-  KOALABEAR4 = 43;
-  KOALABEAR4_STD = 44;
-
   BABYBEAR = 35;
   BABYBEAR_STD = 36;
-  BABYBEAR4 = 41;
-  BABYBEAR4_STD = 42;
-
-  MERSENNE31 = 37;
-  MERSENNE31_STD = 38;
-  MERSENNE312 = 47;
-  MERSENNE312_STD = 48;
+  BABYBEARX4 = 41;
+  BABYBEARX4_STD = 42;
 
   GOLDILOCKS = 39;
   GOLDILOCKS_STD = 40;
-  GOLDILOCKS3 = 45;
-  GOLDILOCKS3_STD = 46;
+  GOLDILOCKSX3 = 45;
+  GOLDILOCKSX3_STD = 46;
+
+  KOALABEAR = 33;
+  KOALABEAR_STD = 34;
+  KOALABEARX4 = 43;
+  KOALABEARX4_STD = 44;
+
+  MERSENNE31 = 37;
+  MERSENNE31_STD = 38;
+  MERSENNE31X2 = 47;
+  MERSENNE31X2_STD = 48;
 
   BN254_SF = 19;
   BN254_SF_STD = 20;
@@ -515,22 +515,22 @@ message LiteralProto {
   repeated LiteralProto tuple_literals = 17;
   repeated int64 sparse_indices = 18;
 
-  bytes koalabears = 33;
-  bytes koalabear_stds = 34;
-  bytes koalabear4s = 43;
-  bytes koalabear4_stds = 44;
   bytes babybears = 35;
   bytes babybear_stds = 36;
-  bytes babybear4s = 41;
-  bytes babybear4_stds = 42;
-  bytes mersenne31s = 37;
-  bytes mersenne31_stds = 38;
-  bytes mersenne312s = 47;
-  bytes mersenne312_stds = 48;
+  bytes babybearx4s = 41;
+  bytes babybearx4_stds = 42;
   bytes goldilockss = 39;
   bytes goldilocks_stds = 40;
-  bytes goldilocks3s = 45;
-  bytes goldilocks3_stds = 46;
+  bytes goldilocksx3s = 45;
+  bytes goldilocksx3_stds = 46;
+  bytes koalabears = 33;
+  bytes koalabear_stds = 34;
+  bytes koalabearx4s = 43;
+  bytes koalabearx4_stds = 44;
+  bytes mersenne31s = 37;
+  bytes mersenne31_stds = 38;
+  bytes mersenne31x2s = 47;
+  bytes mersenne31x2_stds = 48;
   bytes bn254_sfs = 19;
   bytes bn254_sf_stds = 20;
   bytes bn254_g1_affines = 21;
