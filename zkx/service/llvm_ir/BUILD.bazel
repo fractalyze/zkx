@@ -18,6 +18,19 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "buffer_assignment_util",
+    srcs = ["buffer_assignment_util.cc"],
+    hdrs = ["buffer_assignment_util.h"],
+    deps = [
+        "//zkx:literal",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:buffer_assignment",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "llvm_command_line_options",
     srcs = ["llvm_command_line_options.cc"],
     hdrs = ["llvm_command_line_options.h"],

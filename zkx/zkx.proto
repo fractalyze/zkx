@@ -199,6 +199,9 @@ message DebugOptions {
   // profiling and debugging.
   bool zkx_gpu_generate_line_info = 349;
 
+  // Identify concurrent regions in GPU graphs and execute them concurrently.
+  bool zkx_gpu_graph_enable_concurrent_region = 215;
+
   bool zkx_gpu_enable_highest_priority_async_stream = 216;
 
   bool zkx_gpu_enable_latency_hiding_scheduler = 186;
@@ -441,6 +444,11 @@ message DebugOptions {
 
   // If true, large constants will be printed out when dumping HLOs.
   bool zkx_dump_large_constants = 290;
+
+  // Allow launching command buffers while profiling active.
+  // When disabled, execute in op-by-op mode.
+  // TODO(b/355487968): Remove this option when validation complete.
+  bool zkx_enable_command_buffers_during_profiling = 317;
 
   // The command buffer trace cache size, increasing the cache size may
   // sometimes reduces the chances of doing command buffer tracing for
