@@ -157,7 +157,7 @@ MockClient::MockClient(std::unique_ptr<Client> delegated)
   ON_CALL(*this, platform_id).WillByDefault([this]() {
     return delegated_->platform_id();
   });
-  ON_CALL(*this, Attributes).WillByDefault([this]() {
+  ON_CALL(*this, Attributes).WillByDefault([this]() -> const AttributeMap& {
     return delegated_->Attributes();
   });
   ON_CALL(*this, device_count).WillByDefault([this]() {
