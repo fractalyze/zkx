@@ -75,6 +75,7 @@ zkx_cc_library(
         "//zkx/service:copy_insertion",
         "//zkx/service:dump",
         "//zkx/service:llvm_compiler",
+        "//zkx/service:scatter_expander",
         "//zkx/service/llvm_ir:llvm_command_line_options",
         "//zkx/stream_executor/host:host_platform_id",
         "@com_google_absl//absl/debugging:leak_check",

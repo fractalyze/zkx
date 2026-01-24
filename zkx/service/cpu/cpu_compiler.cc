@@ -53,6 +53,7 @@ limitations under the License.
 #include "zkx/service/cpu/thunk_emitter.h"
 #include "zkx/service/dump.h"
 #include "zkx/service/llvm_ir/llvm_command_line_options.h"
+#include "zkx/service/scatter_expander.h"
 #include "zkx/shape_util.h"
 #include "zkx/stream_executor/host/host_platform_id.h"
 #include "zkx/util.h"
@@ -371,7 +372,10 @@ absl::StatusOr<std::vector<std::unique_ptr<Executable>>> CpuCompiler::Compile(
 absl::Status CpuCompiler::RunHloPassesThroughLayoutAssn(
     HloModule* module, bool is_aot_compile,
     TargetMachineFeatures* target_machine_features) {
-  return absl::OkStatus();
+  HloPassPipeline pipeline("HLO passes through layout assignment");
+  pipeline.AddPass<ScatterExpander>(ScatterExpander::kEliminateAllScatters);
+
+  return pipeline.Run(module).status();
 }
 
 absl::Status CpuCompiler::RunHloPassesAfterLayoutAssn(
