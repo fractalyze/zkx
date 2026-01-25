@@ -312,6 +312,7 @@ class HloEvaluator : public ConstDfsHloVisitorWithDefault {
   absl::Status HandleAddDependency(
       const HloInstruction* add_dependency) override;
   absl::Status HandleReverse(const HloInstruction* reverse) override;
+  absl::Status HandleBitReverse(const HloInstruction* bit_reverse) override;
   absl::Status HandleSlice(const HloInstruction* slice) override;
   absl::Status HandleSort(const HloInstruction* sort) override;
   absl::Status HandleReduce(const HloInstruction* hlo) override;

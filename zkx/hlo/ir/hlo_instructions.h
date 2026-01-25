@@ -50,6 +50,7 @@ class HloDimensionsInstruction : public HloInstruction {
 
   static bool ClassOf(const HloInstruction* hlo) {
     switch (hlo->opcode()) {
+      case HloOpcode::kBitReverse:
       case HloOpcode::kBroadcast:
       case HloOpcode::kConcatenate:
       case HloOpcode::kReduce:
@@ -877,6 +878,22 @@ class HloReverseInstruction : public HloDimensionsInstruction {
 
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kReverse;
+  }
+
+ private:
+  // Implementation for non-common logic of CloneWithNewOperands.
+  std::unique_ptr<HloInstruction> CloneWithNewOperandsImpl(
+      const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+      HloCloneContext* context) const override;
+};
+
+class HloBitReverseInstruction : public HloDimensionsInstruction {
+ public:
+  explicit HloBitReverseInstruction(const Shape& shape, HloInstruction* operand,
+                                    absl::Span<const int64_t> dimensions);
+
+  static bool ClassOf(const HloInstruction* hlo) {
+    return hlo->opcode() == HloOpcode::kBitReverse;
   }
 
  private:

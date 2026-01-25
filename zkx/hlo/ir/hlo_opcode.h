@@ -85,6 +85,7 @@ namespace zkx {
   V(kAsyncUpdate, "async-update", 1)                                           \
   V(kBitcast, "bitcast", 1)                                                    \
   V(kBitcastConvert, "bitcast-convert", 1)                                     \
+  V(kBitReverse, "bit-reverse", 1)                                             \
   V(kBroadcast, "broadcast", 1)                                                \
   V(kCall, "call", kHloOpcodeIsVariadic)                                       \
   V(kClamp, "clamp", 3)                                                        \

@@ -80,6 +80,8 @@ limitations under the License.
 #include "prime_ir/Dialect/Poly/IR/PolyDialect.h"
 #include "prime_ir/Dialect/Poly/IR/PolyOps.h"
 #include "prime_ir/Dialect/TensorExt/Conversions/TensorExtToTensor/TensorExtToTensor.h"
+#include "prime_ir/Dialect/TensorExt/IR/TensorExtDialect.h"
+#include "prime_ir/Dialect/TensorExt/IR/TensorExtOps.h"
 #include "xla/tsl/platform/cpu_info.h"
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/cpu/codegen/kernel_api_ir_builder.h"
@@ -190,7 +192,8 @@ void LoadMlirDialects(mlir::MLIRContext* mlir_context) {
       mlir::prime_ir::elliptic_curve::EllipticCurveDialect,
       mlir::prime_ir::field::FieldDialect,
       mlir::prime_ir::mod_arith::ModArithDialect,
-      mlir::prime_ir::poly::PolyDialect
+      mlir::prime_ir::poly::PolyDialect,
+      mlir::prime_ir::tensor_ext::TensorExtDialect
       // clang-format on
       >();
 }
@@ -1933,6 +1936,27 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
   return b.create<mlir::tensor::ReshapeOp>(output_type, input, shape);
 }
 
+absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBitReverseOp(
+    const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  // Enable passes needed to lower tensor_ext::BitReverseOp
+  // The TensorExtToTensor pass converts BitReverseOp to scf::ParallelOp,
+  // memref ops, and LLVM::BitReverseOp
+  pass_flag_.enable_tensor_ext_to_tensor = true;
+  pass_flag_.enable_scf_to_cf = true;
+
+  if (instr->dimensions().size() != 1) {
+    return absl::FailedPreconditionError(
+        "CPU backend for BitReverseOp only supports one dimension.");
+  }
+
+  auto dest = b.create<mlir::tensor::EmptyOp>(
+      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      mlir::ValueRange{});
+
+  return b.create<mlir::prime_ir::tensor_ext::BitReverseOp>(
+      input, dest, instr->dimensions()[0]);
+}
+
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReverseOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
   if (instr->dimensions().empty()) {
@@ -2089,6 +2113,8 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitOp(
       return EmitBinaryOp(instr, b, values[instr->operand(0)],
                           values[instr->operand(1)]);
     }
+    case HloOpcode::kBitReverse:
+      return EmitBitReverseOp(instr, b, values[instr->operand(0)]);
     case HloOpcode::kBroadcast:
       return EmitBroadcastOp(instr, b, values[instr->operand(0)],
                              instr->dimensions());

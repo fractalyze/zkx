@@ -82,6 +82,7 @@ bool InstructionFusion::IsExpensive(const HloInstruction& instruction) {
     case HloOpcode::kAnd:
     case HloOpcode::kBitcast:
     case HloOpcode::kBitcastConvert:
+    case HloOpcode::kBitReverse:
     case HloOpcode::kBroadcast:
     case HloOpcode::kClamp:
     case HloOpcode::kClz:

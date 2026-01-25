@@ -2032,6 +2032,36 @@ absl::StatusOr<Shape> ShapeInference::InferReverseShape(
 }
 
 // static
+absl::StatusOr<Shape> ShapeInference::InferBitReverseShape(
+    const Shape& operand_shape, absl::Span<const int64_t> dimensions) {
+  TF_RETURN_IF_ERROR(ExpectArray(operand_shape, "operand of bit-reverse"));
+  if (!AllUnique(dimensions)) {
+    return absl::InvalidArgumentError(
+        "a dimension number is duplicated in bit-reverse");
+  }
+  for (int64_t dimension : dimensions) {
+    if (dimension >= operand_shape.rank() || dimension < 0) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "One of the bit-reverse dimensions (%d) is out-of-bounds in shape "
+          "%s.",
+          dimension, ShapeUtil::HumanString(operand_shape)));
+    }
+    int64_t dim_size = operand_shape.dimensions(dimension);
+    if (dim_size <= 0) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Bit-reverse dimension %d must have positive size, got %d.",
+          dimension, dim_size));
+    }
+    if (!absl::has_single_bit(static_cast<uint64_t>(dim_size))) {
+      return absl::InvalidArgumentError(absl::StrFormat(
+          "Bit-reverse dimension %d has size %d which is not a power of 2.",
+          dimension, dim_size));
+    }
+  }
+  return operand_shape;
+}
+
+// static
 absl::StatusOr<Shape> ShapeInference::InferGetTupleElementShape(
     const Shape& arg, int64_t index) {
   if (!arg.IsTuple()) {

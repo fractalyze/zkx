@@ -893,6 +893,12 @@ class HloInstruction {
       const Shape& shape, HloInstruction* operand,
       absl::Span<const int64_t> dimensions);
 
+  // Creates a bit-reverse instruction, which applies bit-reversal permutation
+  // to elements along the specified dimensions.
+  static std::unique_ptr<HloInstruction> CreateBitReverse(
+      const Shape& shape, HloInstruction* operand,
+      absl::Span<const int64_t> dimensions);
+
   // Creates a Afterall instruction used for joining or creating new values of
   // token type which thread through side-effecting operations. Operands must
   // all be tokens, calls without operands generates a token.

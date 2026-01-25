@@ -720,6 +720,33 @@ class IntTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
         primitive_util::NativeToPrimitiveType<T>());
   }
 
+  void SetUpBitReverse() {
+    // Use power-of-2 for the dimension to bit-reverse
+    constexpr static int64_t D0 = 2;
+    constexpr static int64_t D1 = 8;  // power of 2
+    constexpr static int64_t D2 = 3;
+
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[$1, $2, $3] parameter(0)
+
+        ROOT %ret = $0[$1, $2, $3] bit-reverse(%x), dimensions={1}
+      }
+    )",
+                                 x_typename_, D0, D1, D2);
+
+    Array3D<T> x_array(D0, D1, D2);
+    for (int64_t i = 0; i < D0; ++i) {
+      for (int64_t j = 0; j < D1; ++j) {
+        for (int64_t k = 0; k < D2; ++k) {
+          x_array({i, j, k}) = BaseIntTest<T>::GetRandomValue();
+        }
+      }
+    }
+    literals_.push_back(LiteralUtil::CreateR3FromArray3D<T>(x_array));
+    expected_literal_ = literals_[0].BitReverse({1});
+  }
+
   void SetUpBroadcastScalar() {
     constexpr static int64_t N = 4;
 
