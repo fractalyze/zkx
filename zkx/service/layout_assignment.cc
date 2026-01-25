@@ -309,7 +309,7 @@ absl::Status LayoutAssignment::SetBufferLayout(const Layout& layout,
           << buffer_constraint->ToString();
   added_constraints_.push_back(buffer_constraint.get());
   const HloInstruction* instruction = buffer.instruction();
-  if (dynamic_cast<const HloCallableInstruction*>(instruction) != nullptr) {
+  if (HloCallableInstruction::ClassOf(instruction)) {
     // Check and propagate via output-operand aliasing
     VLOG(3) << "Propagating aliasing:" << instruction->ToString() << "\n";
     for (const std::pair<ShapeIndex, std::pair<int64_t, ShapeIndex>>&
@@ -343,7 +343,7 @@ absl::Status LayoutAssignment::SetOperandLayout(
   // The second and third operands (operand_no > 0) of a dynamic-update-slice
   // operation typically have much smaller sizes than the first (operand_no==0)
   // operand. It is necessary to downgrade the importance of the smaller
-  // operands, so that the overall layout choice of the operation is dicated by
+  // operands, so that the overall layout choice of the operation is dictated by
   // operand 0 when possible.
   if (instruction->opcode() == HloOpcode::kDynamicUpdateSlice &&
       operand_no > 0 && !mandatory &&
@@ -2694,7 +2694,7 @@ absl::StatusOr<bool> LayoutAssignment::Run(
   points_to_analysis_ = std::move(points_to_analysis);
   auto computations_to_work =
       module->MakeNonfusionComputations(execution_threads);
-  // If the reverse_comptation_order_ flag is set, reverse the ordering of
+  // If the reverse_computation_order_ flag is set, reverse the ordering of
   // traversing computations, to generate an alternative layout assignment.
   if (reverse_computation_order_ && !computations_to_work.empty()) {
     absl::c_reverse(computations_to_work);
@@ -2797,7 +2797,7 @@ absl::StatusOr<bool> LayoutAssignment::Run(
   return true;
 }
 
-/* static */
+// static
 bool LayoutAssignment::InstructionCanChangeLayout(
     const HloInstruction* instruction) {
   switch (instruction->opcode()) {
@@ -2913,7 +2913,7 @@ bool LayoutAssignment::InstructionCanChangeLayoutInstance(
   return InstructionCanChangeLayout(instruction);
 }
 
-/* static */
+// static
 bool LayoutAssignment::IsAtMostRank1(const Shape& shape) {
   if (shape.IsArray()) {
     return shape.rank() <= 1;
