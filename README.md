@@ -79,6 +79,7 @@ longer-form discussions take place in the
 | and                    | ✅                      | ⚪  |
 | bitcast                | ✅                      | ⚪  |
 | bitcast-convert        | ✅                      | ⚪  |
+| bitreverse             | ✅                      | ⚪  |
 | broadcast              | ✅                      | ⚪  |
 | call                   | ✅                      | ⚪  |
 | clamp                  | ✅                      | ⚪  |
