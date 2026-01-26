@@ -1375,6 +1375,61 @@ def StableHLO_DynamicReshapeOp: StableHLO_ShapedInterfaceOp<"dynamic_reshape",
   let assemblyFormat = "operands attr-dict `:` functional-type(operands, results)";
 }
 
+def StableHLO_ScatterOp: StableHLO_Op<"scatter",
+      [ConditionallySpeculatable, RecursiveMemoryEffects,
+      SameVariadicOperandSize /*scatter_c5*/,
+      DeclareOpInterfaceMethods<InferTypeOpInterface> /*scatter_c24,
+      scater_c25*/]> {
+  let summary = "Scatter operation";
+  let description = [{
+    Produces `results` tensors which are equal to `inputs` tensors except that
+    several slices specified by `scatter_indices` are updated with the values
+    `updates` using `update_computation`.
+
+    See:
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#scatter
+
+   Example:
+   ```mlir
+   %result = "stablehlo.scatter"(%input, %scatter_indices, %update) ({
+     ^bb0(%arg0: tensor<i64>, %arg1: tensor<i64>):
+       %0 = stablehlo.add %arg0, %arg1 : tensor<i64>
+       stablehlo.return %0 : tensor<i64>
+   }) {
+     scatter_dimension_numbers = #stablehlo.scatter<
+       update_window_dims = [3, 4],
+       inserted_window_dims = [1],
+       input_batching_dims = [0],
+       scatter_indices_batching_dims = [1],
+       scatter_dims_to_operand_dims = [2, 1],
+       index_vector_dim = 3>,
+     indices_are_sorted = false,
+     unique_indices = false
+   } : (tensor<2x3x4x2xi64>, tensor<2x2x3x2xi64>, tensor<2x2x3x2x2xi64>) -> tensor<2x3x4x2xi64>
+   ```
+  }];
+  let arguments = (ins
+    Variadic<HLO_Tensor>:$inputs, /*scatter_i1*/
+    RankedTensorOf<[AnyInteger, Index]>:$scatter_indices, /*scatter_i2*/
+    Variadic<HLO_Tensor>:$updates, /*scatter_i3*/
+    StableHLO_ScatterDimensionNumbers:$scatter_dimension_numbers, /*scatter_i4...scatter_i9*/
+    DefaultValuedOptionalAttr<BoolAttr, "false">:$indices_are_sorted, /*scatter_i10*/
+    DefaultValuedOptionalAttr<BoolAttr, "false">:$unique_indices /*scatter_i11*/
+  );
+
+  let regions = (region SizedRegion<1>:$update_computation /*scatter_i12*/);
+
+  let results = (outs Variadic<HLO_Tensor>);
+
+  let hasVerifier = 1;
+
+  let extraClassDeclaration = commonClassDeclaration # [{
+    /// Interface method for ConditionallySpeculatable.
+    mlir::Speculation::Speculatability getSpeculatability();
+  }];
+}
+
+
 def StableHLO_SelectOp: StableHLO_Op<"select",
     [HLO_SpeculatableIfAllInputsStatic, NoMemoryEffect,
     HLO_BroadcastingElementwise,

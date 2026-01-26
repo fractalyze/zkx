@@ -3244,6 +3244,254 @@ LogicalResult TupleOp::inferReturnTypes(
 }
 
 //===----------------------------------------------------------------------===//
+// ScatterOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult
+ScatterOp::inferReturnTypes(MLIRContext *, std::optional<Location> location,
+                            ValueRange operands, DictionaryAttr attributes,
+                            OpaqueProperties properties, RegionRange regions,
+                            SmallVectorImpl<Type> &inferredReturnTypes) {
+  ScatterOp::Adaptor adaptor(operands, attributes, properties, regions);
+  return hlo::inferScatterOp(location, adaptor.getInputs(),
+                             adaptor.getUpdateComputation(),
+                             inferredReturnTypes);
+}
+
+LogicalResult ScatterOp::verify() {
+  return hlo::verifyScatterOp(
+      getLoc(), getInputs(), getScatterIndices(), getUpdates(),
+      getScatterDimensionNumbers().getUpdateWindowDims(),
+      getScatterDimensionNumbers().getInsertedWindowDims(),
+      getScatterDimensionNumbers().getInputBatchingDims(),
+      getScatterDimensionNumbers().getScatterIndicesBatchingDims(),
+      getScatterDimensionNumbers().getScatterDimsToOperandDims(),
+      getScatterDimensionNumbers().getIndexVectorDim(), getUpdateComputation());
+}
+
+namespace {
+
+llvm::SmallVector<Attribute, 4> evaluateMhloRegion(Region &region,
+                                                   ArrayRef<Attribute> inputs) {
+  if (region.getNumArguments() != inputs.size())
+    return {};
+
+  llvm::DenseMap<Value, Attribute> values;
+  values.reserve(region.getNumArguments());
+  for (auto it : llvm::zip(region.getArguments(), inputs)) {
+    values.try_emplace(std::get<0>(it), std::get<1>(it));
+  }
+
+  for (auto &op : region.getOps()) {
+    llvm::SmallVector<Attribute, 4> opInputs;
+    for (auto &operand : op.getOpOperands()) {
+      opInputs.push_back(values.lookup(operand.get()));
+    }
+    if (isa<ReturnOp>(op))
+      return opInputs;
+
+    llvm::SmallVector<OpFoldResult, 4> results;
+    if (failed(op.fold(opInputs, results)))
+      return {};
+    for (auto it : llvm::zip(op.getResults(), results)) {
+      if (!std::get<1>(it).is<Attribute>())
+        return {};
+      values.insert({std::get<0>(it), std::get<1>(it).get<Attribute>()});
+    }
+  }
+  return {};
+}
+
+} // namespace
+
+LogicalResult
+ScatterOp::fold(FoldAdaptor adaptor,
+                llvm::SmallVectorImpl<OpFoldResult> &foldResults) {
+  auto args = adaptor.getOperands();
+  // Variadic Scatter not yet implemented
+  if (getInputs().size() != 1 || getUpdates().size() != 1)
+    return failure();
+  auto index = dyn_cast_or_null<DenseIntElementsAttr>(args[1]);
+  if (!index)
+    return failure();
+
+  auto baseType = dyn_cast<RankedTensorType>(getInputs().getTypes()[0]);
+  auto updateType = dyn_cast<RankedTensorType>(getUpdates().getTypes()[0]);
+  auto indexType = cast<RankedTensorType>(index.getType());
+  if (!baseType || !indexType || !updateType)
+    return failure();
+
+  // Catch a trivial full replacement of base with update, this does not require
+  // these to be constant: just that we know the type.
+  // The update computation must return the update value (second block argument)
+  // for this to be a valid full replacement.
+  auto &computationBlock = getUpdateComputation().front();
+  if (updateType == baseType && updateType.hasStaticShape() &&
+      baseType.hasStaticShape() && index.isSplat() &&
+      index.getSplatValue<APInt>().isZero() &&
+      llvm::hasSingleElement(computationBlock)) {
+    auto returnOp = dyn_cast<ReturnOp>(computationBlock.getTerminator());
+    if (returnOp && returnOp.getNumOperands() == 1 &&
+        returnOp.getOperand(0) == computationBlock.getArgument(1)) {
+      foldResults.push_back(getUpdates()[0]);
+      return success();
+    }
+  }
+  auto base = dyn_cast_or_null<DenseElementsAttr>(args[0]);
+  auto update = dyn_cast_or_null<DenseElementsAttr>(args[2]);
+  if (!base || !update)
+    return failure();
+
+  // Add the virtual trailing dimension of size 1 if indexVectorDim equals to
+  // indexType.rank.
+  const int64_t indexVectorDim =
+      getScatterDimensionNumbers().getIndexVectorDim();
+  if (indexVectorDim == indexType.getRank()) {
+    auto indexShape = indexType.getShape().vec();
+    indexShape.push_back(1);
+    indexType = RankedTensorType::get(indexShape, indexType.getElementType());
+    index = cast<DenseIntElementsAttr>(reshape(index, indexType));
+  }
+
+  // Increment the multi-dimensional index vector based on the limits for each
+  // dimension specified by shape and returns false if the index rolled around
+  // with true otherwise.
+  auto nextIndex = [](llvm::SmallVector<uint64_t, 8> &index,
+                      llvm::ArrayRef<int64_t> shape) {
+    for (int64_t i = index.size() - 1; i >= 0; --i) {
+      ++index[i];
+      if (index[i] < static_cast<unsigned long>(shape[i]))
+        return true;
+      index[i] = 0;
+    }
+    return false;
+  };
+
+  // Prevent folding if the result is too large.
+  if (base.getNumElements() > kFoldOpEltLimit)
+    return failure();
+
+  // Iterate over all elements of the update tensor, then find the corresponding
+  // value in the indices tensor to determine which location we have to update
+  // in the base/result tensor.
+  llvm::SmallVector<Attribute, 8> results(base.getValues<Attribute>());
+  llvm::SmallVector<uint64_t, 8> updateIndex(updateType.getRank(), 0);
+  llvm::SmallVector<uint64_t, 8> indexIndex;
+  indexIndex.reserve(indexType.getRank());
+  llvm::SmallVector<int64_t, 8> baseIndex;
+  baseIndex.reserve(baseType.getRank());
+  do {
+    // Compute the index for the slice of the indices tensor for this update
+    // value.
+    indexIndex.clear();
+    if (indexVectorDim == 0)
+      indexIndex.push_back(0);
+    auto updateWindowDims = getScatterDimensionNumbers().getUpdateWindowDims();
+    for (int64_t i = 0; i < static_cast<int64_t>(updateIndex.size()); ++i) {
+      if (!llvm::is_contained(updateWindowDims, i))
+        indexIndex.push_back(updateIndex[i]);
+      if (static_cast<int64_t>(indexIndex.size()) == indexVectorDim)
+        indexIndex.push_back(0);
+    }
+
+    // Compute the index for the given update value in the base tensor.
+    baseIndex.assign(baseType.getRank(), 0);
+    auto inputBatchingDims =
+        getScatterDimensionNumbers().getInputBatchingDims();
+    auto scatterIndicesBatchingDims =
+        getScatterDimensionNumbers().getScatterIndicesBatchingDims();
+    for (auto [operandDim, indicesDim] :
+         llvm::zip_equal(inputBatchingDims, scatterIndicesBatchingDims)) {
+      baseIndex[operandDim] = indexIndex[indicesDim];
+    }
+    uint64_t indexCount = indexType.getShape()[indexVectorDim];
+    for (uint64_t i = 0; i < indexCount; ++i) {
+      uint64_t operandDim =
+          getScatterDimensionNumbers().getScatterDimsToOperandDims()[i];
+      indexIndex[indexVectorDim] = i;
+      baseIndex[operandDim] +=
+          index.getValues<APInt>()[indexIndex].getSExtValue();
+    }
+    uint64_t updateWindowDimIndex = 0;
+    auto insertedWindowDims =
+        getScatterDimensionNumbers().getInsertedWindowDims();
+    for (uint64_t i = 0; i < baseIndex.size(); ++i) {
+      if (llvm::is_contained(insertedWindowDims, i) ||
+          llvm::is_contained(inputBatchingDims, i))
+        continue;
+      baseIndex[i] += updateIndex[updateWindowDims[updateWindowDimIndex]];
+      updateWindowDimIndex++;
+    }
+
+    // Compute the linear index for the index into the base tensor.
+    int64_t linearBaseIndex = 0;
+    int64_t linearBaseIndexMultiplyer = 1;
+    for (int64_t i = baseIndex.size() - 1; i >= 0; --i) {
+      // Out of bound index have backend specific behaviour so avoid folding it.
+      if (baseIndex[i] < 0 || baseIndex[i] >= baseType.getShape()[i])
+        return failure();
+      linearBaseIndex += baseIndex[i] * linearBaseIndexMultiplyer;
+      linearBaseIndexMultiplyer *= baseType.getShape()[i];
+    }
+
+    // Evaluate update computation and update the value with the newly computed
+    // attribute in the base tensor.
+    auto lhs = DenseElementsAttr::get(
+        RankedTensorType::get({}, baseType.getElementType()),
+        results[linearBaseIndex]);
+    auto rhs = DenseElementsAttr::get(
+        RankedTensorType::get({}, baseType.getElementType()),
+        update.getValues<Attribute>()[updateIndex]);
+    auto newValue = evaluateMhloRegion(getUpdateComputation(), {lhs, rhs});
+    if (newValue.size() != 1 || !newValue[0])
+      return failure();
+    results[linearBaseIndex] =
+        cast<DenseElementsAttr>(newValue[0]).getValues<Attribute>()[0];
+  } while (nextIndex(updateIndex, updateType.getShape()));
+
+  foldResults.push_back(DenseElementsAttr::get(baseType, results));
+  return success();
+}
+
+namespace {
+
+// Replace mhlo.scatter overwriting the entire input with mhlo.map.
+struct ScatterFullReplace : public OpRewritePattern<ScatterOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  LogicalResult matchAndRewrite(ScatterOp scatter,
+                                PatternRewriter &rewriter) const override {
+    // Variadic Scatter not yet implemented
+    if (scatter.getInputs().size() != 1 || scatter.getUpdates().size() != 1)
+      return failure();
+
+    auto baseType =
+        dyn_cast<RankedTensorType>(scatter.getInputs().getTypes()[0]);
+    auto updateType =
+        dyn_cast<RankedTensorType>(scatter.getUpdates().getTypes()[0]);
+    auto indexType =
+        dyn_cast<RankedTensorType>(scatter.getScatterIndices().getType());
+    if (!baseType || !indexType || !updateType)
+      return failure();
+
+    // If scatter_indices has zero elements, the scatter is a no-op.
+    // Per StableHLO spec, return the input tensor unchanged.
+    if (!indexType.hasStaticShape() || indexType.getNumElements() > 0)
+      return failure();
+
+    rewriter.replaceOp(scatter, scatter.getInputs());
+    return success();
+  }
+};
+
+} // namespace
+
+void ScatterOp::getCanonicalizationPatterns(RewritePatternSet &results,
+                                            MLIRContext *context) {
+  results.add<ScatterFullReplace>(context);
+}
+
+//===----------------------------------------------------------------------===//
 // WhileOp
 //===----------------------------------------------------------------------===//
 
@@ -3770,6 +4018,150 @@ void MhloDialect::printAttribute(Attribute attr, DialectAsmPrinter &os) const {
   LogicalResult result = generatedAttributePrinter(attr, os);
   std::ignore = result;
   assert(succeeded(result));
+}
+
+namespace {
+
+// Helpers for attributes parsing.
+ParseResult parseDims(AsmParser &parser, SmallVector<int64_t> &dimSizes) {
+  dimSizes.clear();
+  auto failOrDims = parseDimSizes(parser);
+  if (failed(failOrDims)) {
+    return failure();
+  }
+  dimSizes = std::move(*failOrDims);
+  return success();
+}
+
+// Parse a custom attribute that resembles a struct of the form
+// <
+//   foo = something_parsed_by_custom_parser,
+//   bar = something_parsed_by_different_custom_parser,
+//   baz something_parsed_by_another_custom_parser
+// >
+// The optional argument `parse_equal` array can be used to denote if
+// '=' follows the keyword (see baz in the example above) for a field. If
+// not provided, all fields must be followed by a '='.
+ParseResult parseStruct(AsmParser &parser, ArrayRef<StringRef> keywords,
+                        ArrayRef<llvm::function_ref<ParseResult()>> parseFuncs,
+                        ArrayRef<bool> parseEqual = {}) {
+  assert(keywords.size() == parseFuncs.size());
+  assert(parseEqual.empty() || parseEqual.size() == keywords.size());
+  SmallVector<bool> seen(keywords.size(), false);
+  while (failed(parser.parseOptionalGreater())) {
+    bool foundOne = false;
+    for (const auto &it : llvm::enumerate(keywords)) {
+      size_t index = it.index();
+      StringRef keyword = it.value();
+      if (succeeded(parser.parseOptionalKeyword(keyword))) {
+        if (seen[index]) {
+          return parser.emitError(parser.getCurrentLocation())
+                 << "duplicated `" << keyword << "` entry";
+        }
+        if (parseEqual.empty() || parseEqual[index]) {
+          if (failed(parser.parseEqual()))
+            return failure();
+        }
+        if (failed(parseFuncs[index]()))
+          return failure();
+        if (failed(parser.parseOptionalComma()))
+          return parser.parseGreater();
+        seen[index] = true;
+        foundOne = true;
+        break;
+      }
+    }
+    if (!foundOne) {
+      auto parseError = parser.emitError(parser.getCurrentLocation())
+                        << "expected one of: ";
+      llvm::interleaveComma(keywords, parseError, [&](StringRef kw) {
+        parseError << '`' << kw << '`';
+      });
+      return parseError;
+    }
+  }
+  return success();
+}
+
+// Helpers to print an optional array or integer field, to simplify writing
+// attribute printers.
+template <typename T>
+void printField(AsmPrinter &printer, StringRef name, T field,
+                StringRef &separator) {
+  if (field != 0) {
+    printer << separator << name << " = " << field;
+    separator = ", ";
+  }
+}
+template <typename T>
+void printField(AsmPrinter &printer, StringRef name, ArrayRef<T> field,
+                StringRef &separator) {
+  if (!field.empty()) {
+    printer << separator << name << " = [";
+    llvm::interleaveComma(field, printer);
+    printer << "]";
+    separator = ", ";
+  }
+}
+
+template <typename... Ts>
+void printStruct(AsmPrinter &printer, StringRef name, Ts... printFields) {
+  printer << "<";
+  StringRef separator = "";
+  // Fold expression to print each entry in the parameter pack.
+  // TODO(mhlo-team): this can be simplified when TF moves to C++17.
+  using unused = int[];
+  (void)unused{0, (printField(printer, std::get<0>(printFields),
+                              std::get<1>(printFields), separator),
+                   0)...};
+  printer << ">";
+}
+
+} // namespace
+
+// Custom printer and parser for ScatterDimensionNumbersAttr.
+void ScatterDimensionNumbersAttr::print(AsmPrinter &printer) const {
+  printStruct(printer, "scatter",
+              std::make_pair("update_window_dims", getUpdateWindowDims()),
+              std::make_pair("inserted_window_dims", getInsertedWindowDims()),
+              std::make_pair("input_batching_dims", getInputBatchingDims()),
+              std::make_pair("scatter_indices_batching_dims",
+                             getScatterIndicesBatchingDims()),
+              std::make_pair("scatter_dims_to_operand_dims",
+                             getScatterDimsToOperandDims()),
+              std::make_pair("index_vector_dim", getIndexVectorDim()));
+}
+
+Attribute ScatterDimensionNumbersAttr::parse(AsmParser &parser, Type type) {
+  if (failed(parser.parseLess()))
+    return {};
+  SmallVector<int64_t> updateWindowDims;
+  SmallVector<int64_t> insertedWindowDims;
+  SmallVector<int64_t> inputBatchingDims;
+  SmallVector<int64_t> scatterIndicesBatchingDims;
+  SmallVector<int64_t> scatterDimsToOperandDims;
+  int64_t indexVectorDim = 0;
+
+  if (failed(parseStruct(
+          parser,
+          {"update_window_dims", "inserted_window_dims", "input_batching_dims",
+           "scatter_indices_batching_dims", "scatter_dims_to_operand_dims",
+           "index_vector_dim"},
+          {[&]() { return parseDims(parser, updateWindowDims); },
+           [&]() { return parseDims(parser, insertedWindowDims); },
+           [&]() { return parseDims(parser, inputBatchingDims); },
+           [&]() { return parseDims(parser, scatterIndicesBatchingDims); },
+           [&]() { return parseDims(parser, scatterDimsToOperandDims); },
+           [&]() { return parser.parseInteger(indexVectorDim); }}))) {
+    parser.emitError(parser.getCurrentLocation())
+        << "failed parsing scatter dimension numbers attribute";
+    return {};
+  }
+
+  return ScatterDimensionNumbersAttr::get(
+      parser.getContext(), updateWindowDims, insertedWindowDims,
+      inputBatchingDims, scatterIndicesBatchingDims, scatterDimsToOperandDims,
+      indexVectorDim);
 }
 
 //===----------------------------------------------------------------------===//

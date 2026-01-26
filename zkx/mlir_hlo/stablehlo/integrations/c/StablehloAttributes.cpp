@@ -30,6 +30,104 @@ limitations under the License.
 #include "zkx/mlir_hlo/stablehlo/dialect/StablehloOps.h"
 
 //===----------------------------------------------------------------------===//
+// ScatterDimensionNumbers
+//===----------------------------------------------------------------------===//
+
+MlirAttribute stablehloScatterDimensionNumbersGet(
+    MlirContext ctx, intptr_t nUpdateWindowDims,
+    const int64_t *updateWindowDims, intptr_t nInsertedWindowDims,
+    const int64_t *insertedWindowDims, intptr_t nInputBatchingDims,
+    const int64_t *inputBatchingDims, intptr_t nScatterIndicesBatchingDims,
+    const int64_t *scatterIndicesBatchingDims,
+    intptr_t nScatteredDimsToOperandDims,
+    const int64_t *scatteredDimsToOperandDims, int64_t indexVectorDim) {
+  return wrap(mlir::stablehlo::ScatterDimensionNumbersAttr::get(
+      unwrap(ctx), llvm::ArrayRef(updateWindowDims, nUpdateWindowDims),
+      llvm::ArrayRef(insertedWindowDims, nInsertedWindowDims),
+      llvm::ArrayRef(inputBatchingDims, nInputBatchingDims),
+      llvm::ArrayRef(scatterIndicesBatchingDims, nScatterIndicesBatchingDims),
+      llvm::ArrayRef(scatteredDimsToOperandDims, nScatteredDimsToOperandDims),
+      indexVectorDim));
+}
+
+bool stablehloAttributeIsAScatterDimensionNumbers(MlirAttribute attr) {
+  return llvm::isa<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr));
+}
+
+intptr_t
+stablehloScatterDimensionNumbersGetUpdateWindowDimsSize(MlirAttribute attr) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getUpdateWindowDims()
+      .size();
+}
+
+int64_t
+stablehloScatterDimensionNumbersGetUpdateWindowDimsElem(MlirAttribute attr,
+                                                        intptr_t pos) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getUpdateWindowDims()[pos];
+}
+
+intptr_t
+stablehloScatterDimensionNumbersGetInsertedWindowDimsSize(MlirAttribute attr) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getInsertedWindowDims()
+      .size();
+}
+
+int64_t
+stablehloScatterDimensionNumbersGetInsertedWindowDimsElem(MlirAttribute attr,
+                                                          intptr_t pos) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getInsertedWindowDims()[pos];
+}
+
+intptr_t
+stablehloScatterDimensionNumbersGetInputBatchingDimsSize(MlirAttribute attr) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getInputBatchingDims()
+      .size();
+}
+
+int64_t
+stablehloScatterDimensionNumbersGetInputBatchingDimsElem(MlirAttribute attr,
+                                                         intptr_t pos) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getInputBatchingDims()[pos];
+}
+
+intptr_t stablehloScatterDimensionNumbersGetScatterIndicesBatchingDimsSize(
+    MlirAttribute attr) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getScatterIndicesBatchingDims()
+      .size();
+}
+
+int64_t stablehloScatterDimensionNumbersGetScatterIndicesBatchingDimsElem(
+    MlirAttribute attr, intptr_t pos) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getScatterIndicesBatchingDims()[pos];
+}
+
+intptr_t stablehloScatterDimensionNumbersGetScatteredDimsToOperandDimsSize(
+    MlirAttribute attr) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getScatterDimsToOperandDims()
+      .size();
+}
+
+int64_t stablehloScatterDimensionNumbersGetScatteredDimsToOperandDimsElem(
+    MlirAttribute attr, intptr_t pos) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getScatterDimsToOperandDims()[pos];
+}
+
+int64_t stablehloScatterDimensionNumbersGetIndexVectorDim(MlirAttribute attr) {
+  return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
+      .getIndexVectorDim();
+}
+
+//===----------------------------------------------------------------------===//
 // ComparisonDirectionAttr
 //===----------------------------------------------------------------------===//
 

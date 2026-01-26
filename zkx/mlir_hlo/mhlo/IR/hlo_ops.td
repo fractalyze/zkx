@@ -1505,6 +1505,57 @@ def MHLO_ReverseOp: MHLO_Op<"reverse",
   let hasFolder = 1;
 }
 
+def MHLO_ScatterOp: MHLO_Op<"scatter",
+      [SameVariadicOperandSize, RecursiveMemoryEffects,
+      DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+  let summary = "Scatter operation";
+  let description = [{
+    Produces `results` tensors which are equal to `inputs` tensors except that
+    several slices specified by `scatter_indices` are updated with the values
+    `updates` using `update_computation`.
+
+    See:
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#scatter
+
+   Example:
+   ```mlir
+   %result = "mhlo.scatter"(%input, %scatter_indices, %update) ({
+     ^bb0(%arg0: tensor<i32>, %arg1: tensor<i32>):
+       %0 = mhlo.add %arg0, %arg1 : tensor<i32>
+       mhlo.return %0 : tensor<i32>
+   }) {
+     scatter_dimension_numbers = #mhlo.scatter<
+       update_window_dims = [3, 4],
+       inserted_window_dims = [1],
+       input_batching_dims = [0],
+       scatter_indices_batching_dims = [1],
+       scatter_dims_to_operand_dims = [2, 1],
+       index_vector_dim = 3>,
+     indices_are_sorted = false,
+     unique_indices = false
+   } : (tensor<2x3x4x2xi64>, tensor<2x2x3x2xi64>, tensor<2x2x3x2x2xi64>) -> tensor<2x3x4x2xi64>
+   ```
+  }];
+  let arguments = (ins
+    Variadic<MHLO_Tensor>:$inputs,
+    RankedTensorOf<[AnyInteger, Index]>:$scatter_indices,
+    Variadic<MHLO_Tensor>:$updates,
+    MHLO_ScatterDimensionNumbers:$scatter_dimension_numbers,
+    DefaultValuedOptionalAttr<BoolAttr, "false">:$indices_are_sorted,
+    DefaultValuedOptionalAttr<BoolAttr, "false">:$unique_indices
+  );
+
+  let regions = (region SizedRegion<1>:$update_computation);
+
+  let results = (outs Variadic<MHLO_Tensor>);
+
+  let hasCustomHLOConverter = 1;
+
+  let hasFolder = 1;
+  let hasVerifier = 1;
+  let hasCanonicalizer = 1;
+}
+
 def MHLO_SelectOp: MHLO_Op<"select", [Pure, HLO_BroadcastingElementwise,
     InferTensorTypeWithReify]> {
   let summary = "Select operation";

@@ -175,6 +175,11 @@ TYPED_TEST(IntR2TensorBinaryTest, Add) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntR2TensorBinaryTest, AddWithLayout) {
+  this->SetUpAddWithLayout();
+  this->RunAndVerify();
+}
+
 TYPED_TEST_SUITE(IntTest, IntTypes);
 
 TYPED_TEST(IntTest, BroadcastScalar) {
@@ -262,6 +267,11 @@ TYPED_TEST(IntTest, Reverse) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntTest, ReverseWithEmptyDimensions) {
+  this->SetUpReverseWithEmptyDimensions();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, Scatter) {
   this->SetUpScatter();
   this->RunAndVerify(true);
@@ -284,6 +294,11 @@ TYPED_TEST(IntTest, Transpose) {
 
 TYPED_TEST(IntTest, TransposeWithLayout) {
   this->SetUpTransposeWithLayout();
+  this->RunAndVerify();
+}
+
+TYPED_TEST(IntTest, TransposeWithEmptyDimensions) {
+  this->SetUpTransposeWithEmptyDimensions();
   this->RunAndVerify();
 }
 

@@ -29,6 +29,7 @@ limitations under the License.
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
+#include "google/protobuf/repeated_field.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
@@ -255,6 +256,41 @@ zkx::ComparisonDirection Convert_comparison_direction(
     llvm::StringRef comparison_direction_string) {
   return zkx::StringToComparisonDirection(comparison_direction_string.str())
       .value();
+}
+
+zkx::ScatterDimensionNumbers Convert_scatter_dimension_numbers(
+    mlir::mhlo::ScatterDimensionNumbersAttr input) {
+  zkx::ScatterDimensionNumbers output;
+
+  auto update_window_dims = input.getUpdateWindowDims();
+  std::copy(update_window_dims.begin(), update_window_dims.end(),
+            google::protobuf::RepeatedFieldBackInserter(
+                output.mutable_update_window_dims()));
+
+  auto inserted_window_dims = input.getInsertedWindowDims();
+  std::copy(inserted_window_dims.begin(), inserted_window_dims.end(),
+            google::protobuf::RepeatedFieldBackInserter(
+                output.mutable_inserted_window_dims()));
+
+  auto input_batching_dims = input.getInputBatchingDims();
+  std::copy(input_batching_dims.begin(), input_batching_dims.end(),
+            google::protobuf::RepeatedFieldBackInserter(
+                output.mutable_input_batching_dims()));
+
+  auto scatter_indices_batching_dims = input.getScatterIndicesBatchingDims();
+  std::copy(scatter_indices_batching_dims.begin(),
+            scatter_indices_batching_dims.end(),
+            google::protobuf::RepeatedFieldBackInserter(
+                output.mutable_scatter_indices_batching_dims()));
+
+  auto scatter_dims_to_operand_dims = input.getScatterDimsToOperandDims();
+  std::copy(scatter_dims_to_operand_dims.begin(),
+            scatter_dims_to_operand_dims.end(),
+            google::protobuf::RepeatedFieldBackInserter(
+                output.mutable_scatter_dims_to_operand_dims()));
+
+  output.set_index_vector_dim(input.getIndexVectorDim());
+  return output;
 }
 
 // Returns an OpSharding proto from the "sharding" attribute of the op. If the
@@ -988,6 +1024,39 @@ LogicalResult ExportZkxOp(ReturnOp op, OpLoweringContext ctx) {
   // Failure on purpose because `mhlo::ReturnOp` will be handled by
   // special purpose logic in `ConvertToHloModule::Lower`.
   return failure();
+}
+
+LogicalResult ExportZkxOp(ScatterOp op, OpLoweringContext ctx) {
+  auto& value_map = *ctx.values;
+  zkx::ZkxComputation update_computation;
+  if (failed(ctx.converter->LowerRegionAsComputation(&op.getUpdateComputation(),
+                                                     &update_computation))) {
+    return failure();
+  }
+  zkx::ScatterDimensionNumbers dimension_numbers =
+      Convert_scatter_dimension_numbers(op.getScatterDimensionNumbers());
+
+  llvm::SmallVector<zkx::ZkxOp> operands;
+  llvm::SmallVector<zkx::ZkxOp> updates;
+  if (failed(GetTuple(op, op.getInputs(), ctx, operands))) return failure();
+  if (failed(GetTuple(op, op.getUpdates(), ctx, updates))) return failure();
+
+  zkx::ZkxOp scatter_indices;
+  if (failed(GetZkxOp(op.getScatterIndices(), value_map, &scatter_indices, op)))
+    return failure();
+
+  auto scatter_op = zkx::Scatter(
+      operands, scatter_indices, updates, update_computation, dimension_numbers,
+      op.getIndicesAreSorted(), op.getUniqueIndices());
+  if (op->getNumResults() == 1) {
+    value_map[op.getResult(0)] = scatter_op;
+    return success();
+  }
+
+  // mhlo.ScatterOp supports multiple returns, untuple all the results of ZKX's.
+  BuildGetTupleElementsForTupleResults(op, scatter_op, ctx);
+
+  return success();
 }
 
 // TODO(b/298671312): The semantics of zkx::SetDimensionSize have changed so

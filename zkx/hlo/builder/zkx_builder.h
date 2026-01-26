@@ -559,6 +559,22 @@ class ZkxBuilder {
                     absl::Span<const ZkxComputation* const> branch_computations,
                     absl::Span<const ZkxOp> branch_operands);
 
+  ZkxOp Scatter(ZkxOp input, ZkxOp scatter_indices, ZkxOp updates,
+                const ZkxComputation& update_computation,
+                const ScatterDimensionNumbers& dimension_numbers,
+                bool indices_are_sorted = false, bool unique_indices = false);
+  ZkxOp Scatter(absl::Span<const ZkxOp> inputs, ZkxOp scatter_indices,
+                absl::Span<const ZkxOp> updates,
+                const ZkxComputation& update_computation,
+                const ScatterDimensionNumbers& dimension_numbers,
+                bool indices_are_sorted = false, bool unique_indices = false);
+
+  virtual absl::StatusOr<ZkxOp> ScatterInternal(
+      const Shape& shape, absl::Span<const ZkxOp> inputs, ZkxOp scatter_indices,
+      absl::Span<const ZkxOp> updates, const ZkxComputation& update_computation,
+      const ScatterDimensionNumbers& dimension_numbers, bool indices_are_sorted,
+      bool unique_indices);
+
   virtual ZkxOp CreateToken();
 
   ZkxOp GetDimensionSize(ZkxOp operand, int64_t dimension);
@@ -878,6 +894,15 @@ class ZkxBuilder {
       ZkxOp branch_index,
       absl::Span<const ZkxComputation* const> branch_computations,
       absl::Span<const ZkxOp> branch_operands);
+  friend ZkxOp Scatter(ZkxOp input, ZkxOp scatter_indices, ZkxOp updates,
+                       const ZkxComputation& update_computation,
+                       const ScatterDimensionNumbers& dimension_numbers,
+                       bool indices_are_sorted, bool unique_indices);
+  friend ZkxOp Scatter(absl::Span<const ZkxOp> inputs, ZkxOp scatter_indices,
+                       absl::Span<const ZkxOp> updates,
+                       const ZkxComputation& update_computation,
+                       const ScatterDimensionNumbers& dimension_numbers,
+                       bool indices_are_sorted, bool unique_indices);
   friend ZkxOp CreateToken(ZkxBuilder* builder);
 
   friend ZkxOp GetDimensionSize(ZkxOp operand, int64_t dimension);
@@ -1486,6 +1511,17 @@ ZkxOp Conditional(ZkxOp predicate, ZkxOp true_operand,
 ZkxOp Conditional(ZkxOp branch_index,
                   absl::Span<const ZkxComputation* const> branch_computations,
                   absl::Span<const ZkxOp> branch_operands);
+
+// Enqueues a Scatter node onto the computation.
+ZkxOp Scatter(ZkxOp input, ZkxOp scatter_indices, ZkxOp updates,
+              const ZkxComputation& update_computation,
+              const ScatterDimensionNumbers& dimension_numbers,
+              bool indices_are_sorted = false, bool unique_indices = false);
+ZkxOp Scatter(absl::Span<const ZkxOp> inputs, ZkxOp scatter_indices,
+              absl::Span<const ZkxOp> updates,
+              const ZkxComputation& update_computation,
+              const ScatterDimensionNumbers& dimension_numbers,
+              bool indices_are_sorted = false, bool unique_indices = false);
 
 // Enqueues an operation (AfterAll) with no operands that produces a
 // token-shaped value. Tokens are used for ordering side-effecting operations.

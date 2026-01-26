@@ -99,6 +99,12 @@ namespace zkx::cpu {
 
 namespace {
 
+mlir::RankedTensorType MakeMlirTensorTypeWithoutLayout(
+    const Shape& shape, mlir::MLIRContext* context) {
+  return mlir_utils::ShapeToMlirTensorType(
+      ShapeUtil::MakeShape(shape.element_type(), shape.dimensions()), context);
+}
+
 template <typename T>
 absl::StatusOr<mlir::prime_ir::field::RootOfUnityAttr> GetRootOfUnityAttr(
     mlir::MLIRContext* mlir_context, int64_t fft_length) {
@@ -512,17 +518,17 @@ mlir::Value CpuKernelEmitter::EmitCSROperand(EmitterLocOpBuilder& b,
       entry_block->getArgument(i), offset2_op, mlir::ValueRange{});
 
   auto row_ptrs = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMlirTensorType(row_ptrs_shape, mlir_context_),
+      MakeMlirTensorTypeWithoutLayout(row_ptrs_shape, mlir_context_),
       row_ptrs_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto col_indices = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMlirTensorType(col_indices_shape, mlir_context_),
+      MakeMlirTensorTypeWithoutLayout(col_indices_shape, mlir_context_),
       col_indices_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto values_array = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMlirTensorType(values_array_shape, mlir_context_),
+      MakeMlirTensorTypeWithoutLayout(values_array_shape, mlir_context_),
       values_array_memref,
       /*restrict=*/true,
       /*writable=*/false);
@@ -563,17 +569,17 @@ mlir::Value CpuKernelEmitter::EmitCSCOperand(EmitterLocOpBuilder& b,
       entry_block->getArgument(i), offset2_op, mlir::ValueRange{});
 
   auto col_ptrs = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMlirTensorType(col_ptrs_shape, mlir_context_),
+      MakeMlirTensorTypeWithoutLayout(col_ptrs_shape, mlir_context_),
       col_ptrs_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto row_indices = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMlirTensorType(row_indices_shape, mlir_context_),
+      MakeMlirTensorTypeWithoutLayout(row_indices_shape, mlir_context_),
       row_indices_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto values_array = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMlirTensorType(values_array_shape, mlir_context_),
+      MakeMlirTensorTypeWithoutLayout(values_array_shape, mlir_context_),
       values_array_memref,
       /*restrict=*/true,
       /*writable=*/false);
@@ -615,12 +621,12 @@ mlir::Value CpuKernelEmitter::EmitCOOOperand(EmitterLocOpBuilder& b,
       entry_block->getArgument(i), offset1_op, mlir::ValueRange{});
 
   auto indices = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMlirTensorType(indices_shape, mlir_context_),
+      MakeMlirTensorTypeWithoutLayout(indices_shape, mlir_context_),
       indices_memref,
       /*restrict=*/true,
       /*writable=*/false);
   auto values_array = b.create<mlir::bufferization::ToTensorOp>(
-      mlir_utils::ShapeToMlirTensorType(values_array_shape, mlir_context_),
+      MakeMlirTensorTypeWithoutLayout(values_array_shape, mlir_context_),
       values_array_memref,
       /*restrict=*/true,
       /*writable=*/false);
@@ -679,7 +685,7 @@ CpuKernelEmitter::EmitOperands(EmitterLocOpBuilder& b,
       pass_flag_.enable_one_shot_bufferize = true;
 
       values[operand] = b.create<mlir::bufferization::ToTensorOp>(
-          mlir_utils::ShapeToMlirTensorType(shape, mlir_context_),
+          MakeMlirTensorTypeWithoutLayout(shape, mlir_context_),
           entry_block->getArgument(i),
           /*restrict=*/true,
           /*writable=*/false);
@@ -840,7 +846,7 @@ absl::StatusOr<std::unique_ptr<KernelSource>> CpuKernelEmitter::EmitComparator(
           instr->shape().element_type(), b.getContext());
     } else {
       param_type =
-          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+          MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext());
     }
 
     llvm::SmallVector<mlir::Value> indices = {
@@ -887,14 +893,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerUnaryOp(
       return b.create<mlir::math::AbsIOp>(value);
     case HloOpcode::kBitcastConvert: {
       mlir::Type ret_type =
-          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+          MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext());
       return b.create<mlir::arith::BitcastOp>(ret_type, value);
     }
     case HloOpcode::kClz:
       return b.create<mlir::math::CountLeadingZerosOp>(value);
     case HloOpcode::kConvert: {
       mlir::Type ret_type =
-          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+          MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext());
       return mlir_utils::ConvertInteger(b, {ret_type}, value.getType(),
                                         ret_type, {value}, is_signed);
     }
@@ -925,7 +931,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFieldUnaryOp(
   switch (instr->opcode()) {
     case HloOpcode::kConvert: {
       mlir::Type ret_type =
-          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+          MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext());
       return mlir_utils::ConvertField(b, {ret_type}, value.getType(), ret_type,
                                       {value});
     }
@@ -945,7 +951,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointUnaryOp(
   switch (instr->opcode()) {
     case HloOpcode::kConvert: {
       mlir::Type ret_type =
-          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+          MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext());
       return mlir_utils::ConvertEcPoint(b, {ret_type}, value.getType(),
                                         ret_type, {value});
     }
@@ -1034,7 +1040,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIntegerBinaryOp(
       pass_flag_.enable_linalg_to_parallel_loops = true;
 
       auto output = b.create<mlir::tensor::EmptyOp>(
-          mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+          MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext()),
           mlir::ValueRange{});
       return b
           .create<mlir::linalg::MapOp>(
@@ -1110,8 +1116,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitEcPointBinaryOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value lhs_value,
     mlir::Value rhs_value) {
   const Shape& shape = instr->shape();
-  mlir::Type ret_type =
-      mlir_utils::ShapeToMlirTensorType(shape, b.getContext());
+  mlir::Type ret_type = MakeMlirTensorTypeWithoutLayout(shape, b.getContext());
 
   switch (instr->opcode()) {
     case HloOpcode::kAdd:
@@ -1274,7 +1279,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitFftOp(
   pass_flag_.enable_tensor_ext_to_tensor = true;
 
   auto alloc_tensor = b.create<mlir::bufferization::AllocTensorOp>(
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext()),
       mlir::ValueRange{});
   switch (instr->fft_type()) {
     case FftType::FFT: {
@@ -1399,7 +1404,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMsmOp(
         });
 
     return b.create<mlir::tensor::FromElementsOp>(
-        mlir_utils::ShapeToMlirTensorType(shape, b.getContext()),
+        MakeMlirTensorTypeWithoutLayout(shape, b.getContext()),
         mlir::ValueRange{final_result.getResult(0)});
   } else {
     return absl::InvalidArgumentError("bases is not a tensor");
@@ -1445,7 +1450,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitBroadcastOp(
   };
 
   auto init = b.create<mlir::tensor::EmptyOp>(
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext()),
       mlir::ValueRange{});
 
   auto broadcast =
@@ -1477,7 +1482,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMatrixVectorMultiplicationOp(
 
   mlir::MLIRContext* ctx = lhs.getContext();
   auto result_type = mlir::cast<mlir::RankedTensorType>(
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), ctx));
+      MakeMlirTensorTypeWithoutLayout(instr->shape(), ctx));
   llvm::SmallVector<int64_t> shapes;
   for (int64_t i = 0; i < instr->shape().dimensions_size(); ++i) {
     shapes.push_back(instr->shape().dimensions(i));
@@ -1588,8 +1593,9 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicSliceOp(
   }
 
   return b.create<mlir::tensor::ExtractSliceOp>(
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()), input,
-      offsets, /*sizes=*/mlir::ValueRange{},
+      MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext()), input,
+      offsets,
+      /*sizes=*/mlir::ValueRange{},
       /*strides=*/mlir::ValueRange{},
       /*static_offsets=*/static_offsets, instr->dynamic_slice_sizes(),
       static_strides);
@@ -1614,9 +1620,18 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitDynamicUpdateSliceOp(
     static_sizes.push_back(mlir::ShapedType::kDynamic);
     static_strides.push_back(1);
   }
+  auto update_shape_type = mlir::cast<mlir::ShapedType>(update.getType());
+  llvm::SmallVector<int64_t> update_shape;
+  for (int64_t i = 0; i < instr->shape().rank(); ++i) {
+    update_shape.push_back(mlir::ShapedType::kDynamic);
+  }
+  auto dynamic_update_tensor_type = mlir::RankedTensorType::get(
+      update_shape, update_shape_type.getElementType());
+  auto casted_update =
+      b.create<mlir::tensor::CastOp>(dynamic_update_tensor_type, update);
 
   return b.create<mlir::tensor::InsertSliceOp>(
-      update, dest, offsets, sizes,
+      casted_update, dest, offsets, sizes,
       /*strides=*/mlir::ValueRange{},
       /*static_offsets=*/static_offsets, static_sizes, static_strides);
 }
@@ -1635,7 +1650,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitIotaOp(
   }
 
   auto output_type =
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext());
   bool is_signed = primitive_util::IsSignedIntegralType(element_type);
 
   int64_t iota_dimension = instr->iota_dimension();
@@ -1688,7 +1703,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitMapOp(
   pass_flag_.enable_linalg_to_parallel_loops = true;
 
   auto output = b.create<mlir::tensor::EmptyOp>(
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext()),
       mlir::ValueRange{});
 
   HloComputation* to_apply = instr->to_apply();
@@ -1731,13 +1746,40 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitPadOp(
   mlir::Value padding_value_scalar =
       b.create<mlir::tensor::ExtractOp>(padding_value, {});
   return b.create<mlir::tensor::PadOp>(
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()), input,
+      MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext()), input,
       lower_edge_padding_low, lower_edge_padding_high, padding_value_scalar);
 }
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReduceOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b,
     mlir::ValueRange inputs, mlir::ValueRange inits) {
+  if (instr->dimensions().empty()) {
+    // NOTE(chokobole): Detected an execution discrepancy between XLA runners
+    // (verified on XLA commit 8bac4a2).
+    //
+    // For a reduction over an empty dimension set (dimensions={}), the
+    // behavior is inconsistent:
+    // 1. Interpreter: Correctly returns the identity value (%init).
+    // 2. CPU Runner: Incorrectly returns the input tensor (%x) instead of
+    //    reducing it to a scalar.
+    //
+    // HLO Snippet:
+    // %func {
+    //   %a = s32[] parameter(0)
+    //   %b = s32[] parameter(1)
+    //   %mul = s32[] multiply(%a, %b)
+    //   ROOT %ret = s32[] add(%mul, %a)
+    // }
+    //
+    // ENTRY %main {
+    //   %x = s32[4] constant({1, 2, 3, 4})
+    //   %init = s32[] constant(0)
+    //   ROOT %ret = s32[4] reduce(%x, %init), dimensions={}, to_apply=%func
+    // }
+    return absl::UnimplementedError(
+        "ReduceOp with empty dimensions is not supported");
+  }
+
   pass_flag_.enable_linalg_to_parallel_loops = true;
 
   HloComputation* to_apply = instr->to_apply();
@@ -1764,7 +1806,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReduceOp(
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
   auto output_type =
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext());
+      MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext());
   mlir::Value shape = b.create<mlir::arith::ConstantOp>(
       b.getIndexTensorAttr(instr->shape().dimensions()));
   return b.create<mlir::tensor::ReshapeOp>(output_type, input, shape);
@@ -1772,33 +1814,37 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReshapeOp(
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitReverseOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  if (instr->dimensions().empty()) {
+    return input;
+  }
+
   pass_flag_.enable_linalg_to_parallel_loops = true;
   pass_flag_.enable_lower_affine = true;
 
   CHECK(mlir::cast<mlir::RankedTensorType>(input.getType()).hasStaticShape());
 
+  const Shape& shape = instr->shape();
   auto output = b.create<mlir::tensor::EmptyOp>(
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      MakeMlirTensorTypeWithoutLayout(shape, b.getContext()),
       mlir::ValueRange{});
 
   llvm::SmallVector<mlir::AffineExpr, 3> output_exprs;
-  for (int64_t i = 0; i < instr->shape().rank(); ++i) {
+  for (int64_t i = 0; i < shape.rank(); ++i) {
     auto it =
         std::find(instr->dimensions().begin(), instr->dimensions().end(), i);
     if (it != instr->dimensions().end()) {
-      output_exprs.push_back(
-          b.getAffineConstantExpr(instr->shape().dimensions(i) - 1) -
-          b.getAffineDimExpr(i));
+      output_exprs.push_back(b.getAffineConstantExpr(shape.dimensions(i) - 1) -
+                             b.getAffineDimExpr(i));
     } else {
       output_exprs.push_back(b.getAffineDimExpr(i));
     }
   }
 
   llvm::SmallVector<mlir::AffineMap, 2> indexing_maps;
-  indexing_maps.push_back(mlir::AffineMap::getMultiDimIdentityMap(
-      instr->shape().rank(), b.getContext()));
-  indexing_maps.push_back(mlir::AffineMap::get(instr->shape().rank(), 0,
-                                               output_exprs, b.getContext()));
+  indexing_maps.push_back(
+      mlir::AffineMap::getMultiDimIdentityMap(shape.rank(), b.getContext()));
+  indexing_maps.push_back(
+      mlir::AffineMap::get(shape.rank(), 0, output_exprs, b.getContext()));
 
   llvm::SmallVector<mlir::utils::IteratorType, 3> iterator_types;
   for (int64_t i = 0; i < instr->shape().rank(); ++i) {
@@ -1825,8 +1871,7 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
 
   const Shape& shape = instr->shape();
 
-  auto result_type = mlir::cast<mlir::RankedTensorType>(
-      mlir_utils::ShapeToMlirTensorType(shape, b.getContext()));
+  auto result_type = MakeMlirTensorTypeWithoutLayout(shape, b.getContext());
 
   llvm::SmallVector<mlir::OpFoldResult> offsets;
   llvm::SmallVector<mlir::OpFoldResult> sizes;
@@ -1848,10 +1893,14 @@ absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitSliceOp(
 
 absl::StatusOr<mlir::Value> CpuKernelEmitter::EmitTransposeOp(
     const HloInstruction* instr, EmitterLocOpBuilder& b, mlir::Value input) {
+  if (instr->dimensions().empty()) {
+    return input;
+  }
+
   pass_flag_.enable_linalg_to_parallel_loops = true;
 
   auto output = b.create<mlir::tensor::EmptyOp>(
-      mlir_utils::ShapeToMlirTensorType(instr->shape(), b.getContext()),
+      MakeMlirTensorTypeWithoutLayout(instr->shape(), b.getContext()),
       mlir::ValueRange{});
 
   return b
