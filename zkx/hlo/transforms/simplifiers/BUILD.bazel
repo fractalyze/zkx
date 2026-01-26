@@ -18,6 +18,27 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "flatten_call_graph",
+    srcs = ["flatten_call_graph.cc"],
+    hdrs = ["flatten_call_graph.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:util",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "//zkx/hlo/utils:hlo_query",
+        "//zkx/service:call_graph",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:string_view",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_dce",
     srcs = ["hlo_dce.cc"],
     hdrs = ["hlo_dce.h"],
@@ -71,18 +92,22 @@ zkx_cc_library(
 zkx_cc_unittest(
     name = "simplifiers_unittests",
     srcs = [
+        "flatten_call_graph_unittest.cc",
         "hlo_dce_unittest.cc",
         "hlo_memory_scheduler_unittest.cc",
         "tuple_simplifier_unittest.cc",
     ],
     deps = [
+        ":flatten_call_graph",
         ":hlo_dce",
         ":hlo_memory_scheduler",
         ":tuple_simplifier",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
+        "//zkx:comparison_util",
         "//zkx:literal_util",
         "//zkx:shape_util",
+        "//zkx:util",
         "//zkx:zkx_data_cc_proto",
         "//zkx/hlo/analysis:hlo_alias_analysis",
         "//zkx/hlo/analysis:hlo_ordering",
@@ -91,6 +116,7 @@ zkx_cc_unittest(
         "//zkx/hlo/testlib:pattern_matcher_gmock",
         "//zkx/hlo/utils:hlo_matchers",
         "//zkx/service:buffer_value",
+        "//zkx/service:call_graph",
         "//zkx/service:hlo_value",
         "//zkx/service:logical_buffer",
         "//zkx/service:pattern_matcher",
@@ -98,6 +124,7 @@ zkx_cc_unittest(
         "//zkx/tests:literal_test_util",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/types:span",
     ],
 )
