@@ -3283,15 +3283,15 @@ llvm::SmallVector<Attribute, 4> evaluateMhloRegion(Region &region,
   }
 
   for (auto &op : region.getOps()) {
-    llvm::SmallVector<Attribute, 4> inputs;
+    llvm::SmallVector<Attribute, 4> opInputs;
     for (auto &operand : op.getOpOperands()) {
-      inputs.push_back(values.lookup(operand.get()));
+      opInputs.push_back(values.lookup(operand.get()));
     }
     if (isa<ReturnOp>(op))
-      return inputs;
+      return opInputs;
 
     llvm::SmallVector<OpFoldResult, 4> results;
-    if (failed(op.fold(inputs, results)))
+    if (failed(op.fold(opInputs, results)))
       return {};
     for (auto it : llvm::zip(op.getResults(), results)) {
       if (!std::get<1>(it).is<Attribute>())

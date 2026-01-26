@@ -1809,16 +1809,16 @@ LogicalResult verifyScatterOp(
     SmallVector<int64_t> maxUpdateSliceSizes;
     const auto dimensionsSize = operandTypes[i].getRank();
     maxUpdateSliceSizes.reserve(dimensionsSize);
-    for (int i = 0; i < dimensionsSize; ++i) {
+    for (int dim = 0; dim < dimensionsSize; ++dim) {
       if (insertedDimsSeen < static_cast<int64_t>(insertedWindowDims.size()) &&
-          insertedWindowDims[insertedDimsSeen] == i)
+          insertedWindowDims[insertedDimsSeen] == dim)
         ++insertedDimsSeen;
       else if (batchingDimsSeen <
                    static_cast<int64_t>(inputBatchingDims.size()) &&
-               inputBatchingDims[batchingDimsSeen] == i)
+               inputBatchingDims[batchingDimsSeen] == dim)
         ++batchingDimsSeen;
       else
-        maxUpdateSliceSizes.push_back(operandShape[i]);
+        maxUpdateSliceSizes.push_back(operandShape[dim]);
     }
 
     for (int64_t i = 0; i < static_cast<int64_t>(updateWindowDims.size());
