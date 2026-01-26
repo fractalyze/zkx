@@ -3325,7 +3325,7 @@ ScatterOp::fold(FoldAdaptor adaptor,
   // these to be constant: just that we know the type.
   if (updateType == baseType && updateType.hasStaticShape() &&
       baseType.hasStaticShape() && index.isSplat() &&
-      index.getSplatValue<uint32_t>() == 0 &&
+      index.getSplatValue<APInt>().isZero() &&
       llvm::hasSingleElement(getUpdateComputation().front())) {
     foldResults.push_back(getUpdates()[0]);
     return success();
