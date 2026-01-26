@@ -122,7 +122,7 @@ int64_t stablehloScatterDimensionNumbersGetScatteredDimsToOperandDimsElem(
       .getScatterDimsToOperandDims()[pos];
 }
 
-int64_t stablehloDimensionNumbersGetIndexVectorDim(MlirAttribute attr) {
+int64_t stablehloScatterDimensionNumbersGetIndexVectorDim(MlirAttribute attr) {
   return llvm::cast<mlir::stablehlo::ScatterDimensionNumbersAttr>(unwrap(attr))
       .getIndexVectorDim();
 }

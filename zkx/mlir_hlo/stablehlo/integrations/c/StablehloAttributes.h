@@ -74,7 +74,7 @@ MLIR_CAPI_EXPORTED int64_t
 stablehloScatterDimensionNumbersGetScatteredDimsToOperandDimsElem(
     MlirAttribute attr, intptr_t pos);
 MLIR_CAPI_EXPORTED int64_t
-stablehloDimensionNumbersGetIndexVectorDim(MlirAttribute attr);
+stablehloScatterDimensionNumbersGetIndexVectorDim(MlirAttribute attr);
 
 //===----------------------------------------------------------------------===//
 // ComparisonDirectionAttr

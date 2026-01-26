@@ -153,7 +153,7 @@ NB_MODULE(_stablehlo, m) {
       .def_property_readonly("scattered_dims_to_operand_dims",
                              scatteredDimsToOperandDimsFunc)
       .def_property_readonly("index_vector_dim", [](MlirAttribute self) {
-        return stablehloDimensionNumbersGetIndexVectorDim(self);
+        return stablehloScatterDimensionNumbersGetIndexVectorDim(self);
       });
 
   mlir::python::nanobind_adaptors::mlir_attribute_subclass(

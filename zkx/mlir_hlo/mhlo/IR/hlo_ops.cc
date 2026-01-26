@@ -3323,12 +3323,19 @@ ScatterOp::fold(FoldAdaptor adaptor,
 
   // Catch a trivial full replacement of base with update, this does not require
   // these to be constant: just that we know the type.
+  // The update computation must return the update value (second block argument)
+  // for this to be a valid full replacement.
+  auto &computationBlock = getUpdateComputation().front();
   if (updateType == baseType && updateType.hasStaticShape() &&
       baseType.hasStaticShape() && index.isSplat() &&
       index.getSplatValue<APInt>().isZero() &&
-      llvm::hasSingleElement(getUpdateComputation().front())) {
-    foldResults.push_back(getUpdates()[0]);
-    return success();
+      llvm::hasSingleElement(computationBlock)) {
+    auto returnOp = dyn_cast<ReturnOp>(computationBlock.getTerminator());
+    if (returnOp && returnOp.getNumOperands() == 1 &&
+        returnOp.getOperand(0) == computationBlock.getArgument(1)) {
+      foldResults.push_back(getUpdates()[0]);
+      return success();
+    }
   }
   auto base = dyn_cast_or_null<DenseElementsAttr>(args[0]);
   auto update = dyn_cast_or_null<DenseElementsAttr>(args[2]);
@@ -3467,27 +3474,12 @@ struct ScatterFullReplace : public OpRewritePattern<ScatterOp> {
     if (!baseType || !indexType || !updateType)
       return failure();
 
-    // If updates is an empty shape, scatter overwrites the entire tensor.
-    // Transform it into a map with the combiner function.
+    // If scatter_indices has zero elements, the scatter is a no-op.
+    // Per StableHLO spec, return the input tensor unchanged.
     if (!indexType.hasStaticShape() || indexType.getNumElements() > 0)
       return failure();
 
-    // Require the same shape for base and updates. This isn't strictly
-    // necessary, but handling other cases would require turning scatter options
-    // into the appropriate reshapes and transposes.
-    if (!baseType.hasStaticShape() || !updateType.hasStaticShape() ||
-        baseType != updateType)
-      return failure();
-
-    auto dimensions =
-        llvm::to_vector(llvm::seq<int64_t>(0, baseType.getRank()));
-    auto map = rewriter.create<mhlo::MapOp>(
-        scatter.getLoc(), scatter->getResultTypes(),
-        ValueRange{scatter.getOperands()[0], scatter.getUpdates()[0]},
-        rewriter.getI64TensorAttr(dimensions));
-    rewriter.inlineRegionBefore(scatter.getRegion(), map.getRegion(),
-                                map.getRegion().begin());
-    rewriter.replaceOp(scatter, map->getResults());
+    rewriter.replaceOp(scatter, scatter.getInputs());
     return success();
   }
 };
@@ -4076,6 +4068,7 @@ ParseResult parseStruct(AsmParser &parser, ArrayRef<StringRef> keywords,
           return parser.parseGreater();
         seen[index] = true;
         foundOne = true;
+        break;
       }
     }
     if (!foundOne) {
