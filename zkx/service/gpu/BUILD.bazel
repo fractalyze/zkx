@@ -143,6 +143,56 @@ zkx_cc_library(
     ],
 )
 
+proto_library(
+    name = "fusion_process_dump_proto",
+    srcs = ["fusion_process_dump.proto"],
+    deps = [
+        "//zkx/stream_executor:device_description_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "fusion_process_dump_cc_proto",
+    deps = [":fusion_process_dump_proto"],
+)
+
+zkx_cc_library(
+    name = "fusion_process_dump",
+    srcs = ["fusion_process_dump.cc"],
+    hdrs = ["fusion_process_dump.h"],
+    deps = [
+        ":fusion_process_dump_cc_proto",
+        "//xla/tsl/platform:env",
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:path",
+        "//xla/tsl/platform:status",
+        "//zkx:util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/stream_executor:device_description",
+        "//zkx/tools:hlo_module_loader",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "fusion_process_dump_unittest",
+    srcs = ["fusion_process_dump_unittest.cc"],
+    deps = [
+        ":fusion_process_dump",
+        ":fusion_process_dump_cc_proto",
+        ":gpu_device_info_for_tests",
+        "//zkx/hlo/testlib:pattern_matcher_gmock",
+        "//zkx/service:pattern_matcher",
+        "//zkx/tests:hlo_test_base",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
 zkx_cc_library(
     name = "gpu_compiler",
     srcs = ["gpu_compiler.cc"],
