@@ -35,6 +35,29 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "sub_byte_normalization",
+    srcs = ["sub_byte_normalization.cc"],
+    hdrs = ["sub_byte_normalization.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:status",
+        "//zkx:primitive_util",
+        "//zkx:shape_layout",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:logging",
+        "//zkx/hlo/ir:dfs_hlo_visitor_with_default",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/hlo/pass:hlo_pass_interface",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings:string_view",
+    ],
+)
+
+zkx_cc_library(
     name = "hlo_memory_scheduler",
     srcs = ["hlo_memory_scheduler.cc"],
     hdrs = ["hlo_memory_scheduler.h"],
@@ -73,15 +96,18 @@ zkx_cc_unittest(
     srcs = [
         "hlo_dce_unittest.cc",
         "hlo_memory_scheduler_unittest.cc",
+        "sub_byte_normalization_unittest.cc",
         "tuple_simplifier_unittest.cc",
     ],
     deps = [
         ":hlo_dce",
         ":hlo_memory_scheduler",
+        ":sub_byte_normalization",
         ":tuple_simplifier",
         "//xla/tsl/platform:status",
         "//xla/tsl/platform:statusor",
         "//zkx:literal_util",
+        "//zkx:primitive_util",
         "//zkx:shape_util",
         "//zkx:zkx_data_cc_proto",
         "//zkx/hlo/analysis:hlo_alias_analysis",
