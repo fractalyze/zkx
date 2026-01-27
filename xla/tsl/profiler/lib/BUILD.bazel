@@ -22,3 +22,12 @@ zkx_cc_library(
     srcs = ["context_types.cc"],
     hdrs = ["context_types.h"],
 )
+
+zkx_cc_library(
+    name = "profiler_interface",
+    hdrs = ["profiler_interface.h"],
+    deps = [
+        "//xla/tsl/platform:status",
+        "//xla/tsl/profiler/protobuf:xplane_cc_proto",
+    ],
+)
