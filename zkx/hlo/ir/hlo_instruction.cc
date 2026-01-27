@@ -4321,6 +4321,11 @@ bool HloInstruction::IsConstant() const {
   return DynCast<HloConstantInstruction>(this) != nullptr;
 }
 
+void HloInstruction::RelayoutConstant(const Layout& new_layout,
+                                      const ShapeIndex& shape_index) {
+  Cast<HloConstantInstruction>(this)->RelayoutConstant(new_layout, shape_index);
+}
+
 // Delegates to HloCallableInstruction::AppendInstructionIntoCalledComputation.
 HloInstruction* HloInstruction::AppendInstructionIntoCalledComputation(
     HloInstruction* instruction_to_append, bool add_output) {

@@ -41,6 +41,7 @@ limitations under the License.
 #include "zkx/service/dynamic_dimension_inference.h"
 #include "zkx/service/executable.h"
 #include "zkx/service/hlo_cost_analysis.h"
+#include "zkx/service/layout_assignment.h"
 #include "zkx/status_macros.h"
 #include "zkx/stream_executor/platform.h"
 #include "zkx/stream_executor/stream_executor.h"
@@ -55,12 +56,10 @@ absl::Status InterpreterCompiler::RunHloOptimization(HloModule* hlo_module) {
   // run before the ComparisonExpander which rewrites such comparisons.
   // TODO(chokobole): Uncomment this. Dependency: DynamicIndexSplitter
   // pipeline.AddPass<DynamicIndexSplitter>();
-  // TODO(chokobole): Uncomment this. Dependency: LayoutAssignment
-  // pipeline.AddPass<LayoutAssignment>(
-  //     hlo_module->mutable_entry_computation_layout());
+  pipeline.AddPass<LayoutAssignment>(
+      hlo_module->mutable_entry_computation_layout());
 
-  // return pipeline.Run(hlo_module).status();
-  return absl::OkStatus();
+  return pipeline.Run(hlo_module).status();
 }
 
 absl::StatusOr<std::unique_ptr<HloModule>> InterpreterCompiler::RunHloPasses(

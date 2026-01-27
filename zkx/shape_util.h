@@ -655,6 +655,13 @@ class ShapeUtil {
     return ForEachMutableSubshapePostOrderWithStatusHelper(shape, fn, &index);
   }
 
+  // Returns true if `shape` (which must be an array) with degenerate dimensions
+  // (dimensions with bound 1).
+  static bool HasDegenerateDimensions(const Shape& shape);
+
+  // Drops any degenerate dimensions (i.e. dimensions of size 1)
+  static Shape DropDegenerateDimensions(const Shape& shape);
+
   // Permutes the dimensions by the given permutation, so
   // return_value.dimensions[i] = argument.dimensions[permutation[i]].
   //
@@ -783,6 +790,15 @@ class ShapeUtil {
   // Decomposes a bitcast to one of the possible decompositions.
   static BitcastDecomposition DecomposeBitcast(const Shape& input_shape,
                                                const Shape& output_shape);
+
+  // Find a physical layout for 'output_shape' such that
+  // ShapeUtil::ReshapeIsBitcast(input_shape, output_shape_with_layout) returns
+  // true (where 'output_shape_with_layout' is 'output_shape' with the found
+  // layout). The layout of 'input_shape' is kept fixed. Returns
+  // 'output_shape_with_layout' if such a layout can be found, and an error
+  // otherwise.
+  static std::optional<Shape> AlignLayouts(const Shape& input_shape,
+                                           const Shape& output_shape);
 
   // Returns a shape with the given dimension deleted.
   // For example:

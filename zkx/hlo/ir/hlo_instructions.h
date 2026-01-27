@@ -1152,6 +1152,12 @@ class HloConstantInstruction : public HloInstruction {
   // Returns a serialized representation of this instruction.
   HloInstructionProto ToProto() const override;
 
+  // Changes the layout of the Constant Hlo instruction to match new_layout. For
+  // tuple shaped constants shape_index is the path to the internal array
+  // subshape whose layout needs to be changed.
+  void RelayoutConstant(const Layout& new_layout,
+                        const ShapeIndex& shape_index = {});
+
   static bool ClassOf(const HloInstruction* hlo) {
     return hlo->opcode() == HloOpcode::kConstant;
   }
