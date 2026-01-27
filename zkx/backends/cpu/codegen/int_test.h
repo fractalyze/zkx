@@ -333,6 +333,22 @@ class IntScalarBinaryTest : public BaseIntTest<T>, public CpuKernelEmitterTest {
     expected_literal_ = LiteralUtil::CreateR0<T>(expected);
   }
 
+  void SetUpFusion() {
+    hlo_text_ = absl::Substitute(R"(
+      ENTRY %main {
+        %x = $0[] parameter(0)
+        %y = $0[] parameter(1)
+        %c = $0[] constant(2)
+
+        %add = $0[] add(%x, %y)
+        %mul = $0[] multiply(%add, %x)
+        ROOT %ret = $0[] multiply(%mul, %c)
+      }
+    )",
+                                 x_typename_);
+    expected_literal_ = LiteralUtil::CreateR0<T>((x_ + y_) * x_ * 2);
+  }
+
   void SetUpMaximum() {
     hlo_text_ = absl::Substitute(R"(
       ENTRY %main {

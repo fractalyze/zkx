@@ -101,6 +101,11 @@ TYPED_TEST(IntScalarBinaryTest, Div) {
   this->RunAndVerify();
 }
 
+TYPED_TEST(IntScalarBinaryTest, Fusion) {
+  this->SetUpFusion();
+  this->RunAndVerify(true);
+}
+
 TYPED_TEST(IntScalarBinaryTest, Maximum) {
   this->SetUpMaximum();
   this->RunAndVerify();

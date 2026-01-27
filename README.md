@@ -93,7 +93,7 @@ longer-form discussions take place in the
 | dynamic-reshape        | ⚪                      | ⚪  |
 | dynamic-slice          | ✅                      | ⚪  |
 | dynamic-update-slice   | ✅                      | ⚪  |
-| fusion                 | 🟡                      | ✅  |
+| fusion                 | ✅                      | ✅  |
 | fft                    | ✅                      | ⚪  |
 | gather                 | 🟡                      | ⚪  |
 | get-dimension-size     | ⚪                      | ⚪  |

@@ -126,46 +126,13 @@ mlir::prime_ir::field::PrimeFieldType GetMlirPrimeFieldType(
 }
 
 template <typename T>
-mlir::prime_ir::field::QuadraticExtFieldType GetMlirQuadraticExtFieldType(
-    mlir::MLIRContext* context) {
-  using BaseField = typename T::BaseField;
-
-  return mlir::prime_ir::field::QuadraticExtFieldType::get(
-      context, GetMlirPrimeFieldType<BaseField>(context),
-      GetMlirIntegerAttr(context, T::Config::kNonResidue.value()));
-}
-
-template <typename T>
-mlir::prime_ir::field::CubicExtFieldType GetMlirCubicExtFieldType(
-    mlir::MLIRContext* context) {
-  using BaseField = typename T::BaseField;
-
-  return mlir::prime_ir::field::CubicExtFieldType::get(
-      context, GetMlirPrimeFieldType<BaseField>(context),
-      GetMlirIntegerAttr(context, T::Config::kNonResidue.value()));
-}
-
-template <typename T>
-mlir::prime_ir::field::QuarticExtFieldType GetMlirQuarticExtFieldType(
-    mlir::MLIRContext* context) {
-  using BaseField = typename T::BaseField;
-
-  return mlir::prime_ir::field::QuarticExtFieldType::get(
-      context, GetMlirPrimeFieldType<BaseField>(context),
-      GetMlirIntegerAttr(context, T::Config::kNonResidue.value()));
-}
-
-template <typename T>
 mlir::Type GetMlirExtFieldType(mlir::MLIRContext* context) {
   constexpr uint32_t kDegree = T::Config::kDegreeOverBaseField;
-  if constexpr (kDegree == 2) {
-    return GetMlirQuadraticExtFieldType<T>(context);
-  } else if constexpr (kDegree == 3) {
-    return GetMlirCubicExtFieldType<T>(context);
-  } else {
-    static_assert(kDegree == 4);
-    return GetMlirQuarticExtFieldType<T>(context);
-  }
+  using BaseField = typename T::BaseField;
+
+  return mlir::prime_ir::field::ExtensionFieldType::get(
+      context, kDegree, GetMlirPrimeFieldType<BaseField>(context),
+      GetMlirIntegerAttr(context, T::Config::kNonResidue.value()));
 }
 
 template <typename T>
@@ -214,7 +181,7 @@ GetMlirG2ShortWeierstrassAttr(mlir::MLIRContext* context) {
   mlir::DenseIntElementsAttr y = GetMlirDenseIntElementsAttr(
       context, llvm::ArrayRef<UnderlyingType>(y_value.data(), y_value.size()));
   return mlir::prime_ir::elliptic_curve::ShortWeierstrassAttr::get(
-      context, GetMlirQuadraticExtFieldType<BaseField>(context), a, b, x, y);
+      context, GetMlirExtFieldType<BaseField>(context), a, b, x, y);
 }
 template <typename T>
 mlir::prime_ir::elliptic_curve::AffineType GetMlirAffinePointType(
@@ -314,7 +281,7 @@ mlir::Value CreateMlirQuadraticExtFieldConstant(mlir::ImplicitLocOpBuilder& b,
 
   std::array<UnderlyingType, 2> values{value[0].value(), value[1].value()};
   return b.create<mlir::prime_ir::field::ConstantOp>(
-      GetMlirQuadraticExtFieldType<T>(b.getContext()),
+      GetMlirExtFieldType<T>(b.getContext()),
       GetMlirDenseIntElementsAttr(
           b.getContext(),
           llvm::ArrayRef<UnderlyingType>(values.data(), values.size())));
@@ -338,14 +305,14 @@ mlir::Value CreateMlirEcPointConstant(mlir::ImplicitLocOpBuilder& b,
     llvm::SmallVector<mlir::Value, 2> values;
     values.push_back(CreateMlirFieldConstant(b, value.x()));
     values.push_back(CreateMlirFieldConstant(b, value.y()));
-    return b.create<mlir::prime_ir::elliptic_curve::PointOp>(
+    return b.create<mlir::prime_ir::elliptic_curve::FromCoordsOp>(
         GetMlirAffinePointType<T>(b.getContext()), values);
   } else if constexpr (zk_dtypes::IsJacobianPoint<T>) {
     llvm::SmallVector<mlir::Value, 3> values;
     values.push_back(CreateMlirFieldConstant(b, value.x()));
     values.push_back(CreateMlirFieldConstant(b, value.y()));
     values.push_back(CreateMlirFieldConstant(b, value.z()));
-    return b.create<mlir::prime_ir::elliptic_curve::PointOp>(
+    return b.create<mlir::prime_ir::elliptic_curve::FromCoordsOp>(
         GetMlirJacobianPointType<T>(b.getContext()), values);
   } else {
     static_assert(zk_dtypes::IsPointXyzz<T>);
@@ -354,7 +321,7 @@ mlir::Value CreateMlirEcPointConstant(mlir::ImplicitLocOpBuilder& b,
     values.push_back(CreateMlirFieldConstant(b, value.y()));
     values.push_back(CreateMlirFieldConstant(b, value.zz()));
     values.push_back(CreateMlirFieldConstant(b, value.zzz()));
-    return b.create<mlir::prime_ir::elliptic_curve::PointOp>(
+    return b.create<mlir::prime_ir::elliptic_curve::FromCoordsOp>(
         GetMlirPointXyzzType<T>(b.getContext()), values);
   }
 }

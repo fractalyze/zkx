@@ -148,9 +148,7 @@ struct IsUnsignedIntegerType {
 struct IsFieldType {
   bool operator()(Type t) {
     return isa<prime_ir::field::PrimeFieldType>(t) ||
-           isa<prime_ir::field::QuadraticExtFieldType>(t) ||
-           isa<prime_ir::field::CubicExtFieldType>(t) ||
-           isa<prime_ir::field::QuarticExtFieldType>(t);
+           isa<prime_ir::field::ExtensionFieldType>(t);
   }
 };
 
@@ -219,7 +217,7 @@ inline Value mapConvertOpToStdScalarOp(Location loc, ArrayRef<Type> targetTypes,
         lb, resultTypes, sourceType, targetType, args,
         IsSignedIntegerType{}(sourceType), attributes);
   } else if (isa<prime_ir::field::PrimeFieldType>(sourceType) ||
-             isa<prime_ir::field::QuadraticExtFieldType>(sourceType)) {
+             isa<prime_ir::field::ExtensionFieldType>(sourceType)) {
     return zkx::mlir_utils::ConvertField(lb, resultTypes, sourceType,
                                          targetType, args, attributes);
   } else if (isa<prime_ir::elliptic_curve::AffineType>(sourceType) ||
@@ -323,7 +321,7 @@ struct IsPrimeFieldType {
 
 struct IsExtFieldType {
   bool operator()(Type t) {
-    return isa<prime_ir::field::ExtensionFieldTypeInterface>(t);
+    return isa<prime_ir::field::ExtensionFieldType>(t);
   }
 };
 

@@ -31,14 +31,13 @@ load(
     # TODO(chokobole): Uncomment this when we need cuDNN.
     # "cudnn_redist_init_repository",
 )
-load("@zkx//third_party/llvm:setup.bzl", "llvm_setup")
+load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 
 def zkx_deps2():
     """ZKX dependencies."""
 
-    # Load the raw llvm-project.  llvm does not have build rules set up by default,
-    # but provides a script for setting up build rules via overlays.
-    llvm_setup(name = "llvm-project")
+    llvm("llvm-raw")
+
     lastchange_setup(name = "lastchange")
 
     grpc_deps()

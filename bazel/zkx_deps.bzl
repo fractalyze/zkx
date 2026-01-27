@@ -23,7 +23,6 @@ load("@zkx//third_party/gloo:workspace.bzl", gloo = "repo")
 load("@zkx//third_party/gpus/cuda/hermetic:cuda_json_init_repository.bzl", "cuda_json_init_repository")
 load("@zkx//third_party/highwayhash:workspace.bzl", highwayhash = "repo")
 load("@zkx//third_party/implib_so:workspace.bzl", implib_so = "repo")
-load("@zkx//third_party/llvm:workspace.bzl", llvm = "repo")
 load("@zkx//third_party/nanobind:workspace.bzl", nanobind = "repo")
 load("@zkx//third_party/prime_ir:workspace.bzl", prime_ir = "repo")
 load("@zkx//third_party/robin_map:workspace.bzl", robin_map = "repo")
@@ -44,10 +43,6 @@ def zkx_deps():
     uv()
     version()
     prime_ir()
-
-    # Load the raw llvm-project.  llvm does not have build rules set up by default,
-    # but provides a script for setting up build rules via overlays.
-    llvm("llvm-raw")
 
     cuda_json_init_repository()
 

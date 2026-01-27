@@ -57,7 +57,7 @@ def HLO_SInt : SignlessIntOfWidths<[2, 4, 8, 16, 32, 64]>;
 def HLO_UInt : UnsignedIntOfWidths<[2, 4, 8, 16, 32, 64]>;
 def HLO_Int : AnyTypeOf<[HLO_SInt, HLO_UInt]>;
 
-def HLO_Field : AnyTypeOf<[Field_PrimeFieldType, Field_QuadraticExtFieldType, Field_CubicExtFieldType, Field_QuarticExtFieldType]>;
+def HLO_Field : AnyTypeOf<[Field_PrimeFieldType, Field_ExtensionFieldType]>;
 
 // Token type.
 def HLO_Token : Type<CPred<"isa<TokenType>($_self)">, "token">;
