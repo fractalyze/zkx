@@ -20,6 +20,8 @@ limitations under the License.
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
+#include <tuple>
 
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
@@ -27,6 +29,7 @@ limitations under the License.
 #include "zkx/service/gpu/launch_dimensions.h"
 #include "zkx/service/hlo_module_config.h"
 #include "zkx/stream_executor/device_memory.h"
+#include "zkx/stream_executor/dnn.h"
 #include "zkx/stream_executor/kernel.h"
 #include "zkx/stream_executor/launch_dim.h"
 #include "zkx/stream_executor/stream_executor.h"
@@ -34,6 +37,16 @@ limitations under the License.
 // Helper functions for interacting with StreamExecutor.
 
 namespace zkx::gpu {
+
+// Returns DNN version info from provided stream executor.
+absl::StatusOr<se::dnn::VersionInfo> GetDnnVersionInfo(
+    se::StreamExecutor* stream_exec);
+
+// Returns DNN version info from provided stream executor when possible,
+// fallback version otherwise.
+se::dnn::VersionInfo GetDnnVersionInfoOrDefault(
+    se::StreamExecutor* stream_exec,
+    se::dnn::VersionInfo fallback_version = se::dnn::VersionInfo{0, 0, 0});
 
 // Generates and returns a unique lock per the provided executor.
 // Guarantees that blocks of code running for the same provided executor will

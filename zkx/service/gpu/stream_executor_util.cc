@@ -27,6 +27,25 @@ limitations under the License.
 
 namespace zkx::gpu {
 
+absl::StatusOr<se::dnn::VersionInfo> GetDnnVersionInfo(
+    se::StreamExecutor* stream_exec) {
+  if (!stream_exec) {
+    return absl::InvalidArgumentError("StreamExecutor is null");
+  }
+  se::dnn::DnnSupport* dnn = stream_exec->AsDnn();
+  if (!dnn) {
+    return absl::FailedPreconditionError(
+        "DNN library initialization failed. Look at the errors above for more "
+        "details.");
+  }
+  return dnn->GetVersion();
+}
+
+se::dnn::VersionInfo GetDnnVersionInfoOrDefault(
+    se::StreamExecutor* stream_exec, se::dnn::VersionInfo fallback_version) {
+  return GetDnnVersionInfo(stream_exec).value_or(fallback_version);
+}
+
 // Returns a mutex that can be used to lock the given stream executor.
 absl::Mutex& GetGpuMutex(const se::StreamExecutor* stream_exec) {
   static absl::Mutex mu(absl::kConstInit);
