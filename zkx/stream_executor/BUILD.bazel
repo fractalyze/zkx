@@ -34,6 +34,18 @@ cc_proto_library(
 )
 
 zkx_cc_library(
+    name = "dnn",
+    srcs = ["dnn.cc"],
+    hdrs = ["dnn.h"],
+    deps = [
+        ":namespace_alias",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+zkx_cc_library(
     name = "activate_context",
     hdrs = ["activate_context.h"],
     deps = [":namespace_alias"],

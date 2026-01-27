@@ -31,6 +31,12 @@ limitations under the License.
 #include "absl/types/span.h"
 
 #include "zkx/stream_executor/activate_context.h"
+// Forward declarations
+namespace stream_executor {
+namespace dnn {
+class DnnSupport;
+}  // namespace dnn
+}  // namespace stream_executor
 #include "zkx/stream_executor/allocator_stats.h"
 #include "zkx/stream_executor/command_buffer.h"
 #include "zkx/stream_executor/device_description.h"
@@ -251,6 +257,13 @@ class StreamExecutor {
   // underlying platform.
   // TODO(chokobole): Uncomment this. Dependency: BLAS
   // virtual blas::BlasSupport* AsBlas() { return nullptr; }
+
+  // Gets-or-creates a DnnSupport datatype that can be used to execute DNN
+  // routines on the current platform.
+  //
+  // Returns null if there was an error initializing the DNN support for the
+  // underlying platform.
+  virtual dnn::DnnSupport* AsDnn() { return nullptr; }
 
   // Creates a new CommandBuffer object.
   virtual absl::StatusOr<std::unique_ptr<CommandBuffer>> CreateCommandBuffer(
