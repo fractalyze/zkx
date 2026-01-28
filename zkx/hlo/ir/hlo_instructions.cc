@@ -2582,6 +2582,219 @@ std::unique_ptr<HloInstruction> HloOutfeedInstruction::CloneWithNewOperandsImpl(
       outfeed_shape(), new_operands[0], new_operands[1], outfeed_config());
 }
 
+HloCustomCallInstruction::HloCustomCallInstruction(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    std::string_view custom_call_target, std::string opaque,
+    CustomCallApiVersion api_version)
+    : HloCallableInstruction(HloOpcode::kCustomCall, shape, operands),
+      custom_call_target_(custom_call_target),
+      layout_constrained_(false),
+      custom_call_has_side_effect_(false),
+      custom_call_schedule_(SCHEDULE_NONE),
+      api_version_(api_version) {
+  set_raw_backend_config_string(std::move(opaque));
+}
+
+HloCustomCallInstruction::HloCustomCallInstruction(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    HloComputation* to_apply, std::string_view custom_call_target,
+    std::string opaque, CustomCallApiVersion api_version)
+    : HloCallableInstruction(HloOpcode::kCustomCall, shape, operands, to_apply),
+      custom_call_target_(custom_call_target),
+      layout_constrained_(false),
+      custom_call_has_side_effect_(false),
+      custom_call_schedule_(SCHEDULE_NONE),
+      api_version_(api_version) {
+  set_raw_backend_config_string(std::move(opaque));
+  to_apply->SetCustomCallInstruction(this);
+}
+
+HloCustomCallInstruction::HloCustomCallInstruction(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    absl::Span<HloComputation* const> called_computations,
+    std::string_view custom_call_target, std::string opaque,
+    CustomCallApiVersion api_version)
+    : HloCallableInstruction(HloOpcode::kCustomCall, shape, operands,
+                             called_computations),
+      custom_call_target_(custom_call_target),
+      layout_constrained_(false),
+      custom_call_has_side_effect_(false),
+      custom_call_schedule_(SCHEDULE_NONE),
+      api_version_(api_version) {
+  set_raw_backend_config_string(std::move(opaque));
+  for (auto comp : called_computations) {
+    comp->SetCustomCallInstruction(this);
+  }
+}
+
+HloCustomCallInstruction::HloCustomCallInstruction(
+    const Shape& shape, absl::Span<HloInstruction* const> operands,
+    std::string_view custom_call_target, std::string opaque,
+    absl::Span<const Shape> operand_shapes_with_layout,
+    CustomCallApiVersion api_version)
+    : HloCallableInstruction(HloOpcode::kCustomCall, shape, operands),
+      custom_call_target_(custom_call_target),
+      layout_constrained_(true),
+      operand_shapes_with_layout_(operand_shapes_with_layout.begin(),
+                                  operand_shapes_with_layout.end()),
+      custom_call_has_side_effect_(false),
+      custom_call_schedule_(SCHEDULE_NONE),
+      api_version_(api_version) {
+  set_raw_backend_config_string(std::move(opaque));
+}
+
+HloInstructionProto HloCustomCallInstruction::ToProto() const {
+  HloInstructionProto proto = HloInstruction::ToProto();
+  proto.set_custom_call_target(custom_call_target_);
+  proto.set_custom_call_has_side_effect(custom_call_has_side_effect_);
+  proto.set_custom_call_schedule(custom_call_schedule_);
+  proto.set_custom_call_api_version(api_version_);
+  for (const Shape& shape : operand_shapes_with_layout_) {
+    *proto.add_operand_shapes_with_layout() = shape.ToProto();
+  }
+  for (const auto& pair : output_to_operand_aliasing()) {
+    auto* aliasing = proto.add_output_operand_aliasing();
+    aliasing->set_operand_index(pair.second.first);
+    for (int64_t index : pair.first) {
+      aliasing->add_output_shape_index(index);
+    }
+    for (int64_t index : pair.second.second) {
+      aliasing->add_operand_shape_index(index);
+    }
+  }
+  return proto;
+}
+
+void HloCustomCallInstruction::PrintExtraAttributesImpl(
+    AttributePrinter& printer, const HloPrintOptions& options) const {
+  printer.Next([this](Printer* printer) {
+    printer->Append("custom_call_target=\"");
+    printer->Append(custom_call_target_);
+    printer->Append("\"");
+  });
+
+  if (custom_call_has_side_effect_) {
+    printer.Next([](Printer* printer) {
+      printer->Append("custom_call_has_side_effect=true");
+    });
+  }
+
+  if (layout_constrained_) {
+    printer.Next([this](Printer* printer) {
+      printer->Append("operand_shapes_with_layout={");
+      bool first = true;
+      for (const Shape& shape : operand_shapes_with_layout_) {
+        if (!first) {
+          printer->Append(", ");
+        }
+        ShapeUtil::PrintHumanStringWithLayout(printer, shape);
+        first = false;
+      }
+      printer->Append("}");
+    });
+  }
+
+  if (custom_call_schedule_ != SCHEDULE_NONE) {
+    printer.Next([this](Printer* printer) {
+      printer->Append("schedule=");
+      printer->Append(CustomCallSchedule_Name(custom_call_schedule_));
+    });
+  }
+
+  if (api_version_ != API_VERSION_ORIGINAL) {
+    printer.Next([this](Printer* printer) {
+      printer->Append("api_version=");
+      printer->Append(CustomCallApiVersion_Name(api_version_));
+    });
+  }
+}
+
+bool HloCustomCallInstruction::IdenticalSlowPath(
+    const HloInstruction& other,
+    absl::FunctionRef<bool(const HloComputation*, const HloComputation*)>
+        eq_computations) const {
+  const auto& casted_other =
+      static_cast<const HloCustomCallInstruction&>(other);
+  if (custom_call_target_ != casted_other.custom_call_target_) {
+    return false;
+  }
+  if (custom_call_has_side_effect_ !=
+      casted_other.custom_call_has_side_effect_) {
+    return false;
+  }
+  if (layout_constrained_ != casted_other.layout_constrained_) {
+    return false;
+  }
+  if (layout_constrained_) {
+    if (operand_shapes_with_layout_.size() !=
+        casted_other.operand_shapes_with_layout_.size()) {
+      return false;
+    }
+    for (size_t i = 0; i < operand_shapes_with_layout_.size(); ++i) {
+      if (!ShapeUtil::Equal(operand_shapes_with_layout_[i],
+                            casted_other.operand_shapes_with_layout_[i])) {
+        return false;
+      }
+    }
+  }
+  if (custom_call_schedule_ != casted_other.custom_call_schedule_) {
+    return false;
+  }
+  if (api_version_ != casted_other.api_version_) {
+    return false;
+  }
+  if (HasLiteral() != casted_other.HasLiteral()) {
+    return false;
+  }
+  if (HasLiteral() && literal() != casted_other.literal()) {
+    return false;
+  }
+  if (output_to_operand_aliasing() !=
+      casted_other.output_to_operand_aliasing()) {
+    return false;
+  }
+  // Compare called computations.
+  if (called_computations().size() !=
+      casted_other.called_computations().size()) {
+    return false;
+  }
+  for (size_t i = 0; i < called_computations().size(); ++i) {
+    if (!eq_computations(called_computations()[i],
+                         casted_other.called_computations()[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+std::unique_ptr<HloInstruction>
+HloCustomCallInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  std::unique_ptr<HloCustomCallInstruction> cloned;
+  if (layout_constrained_) {
+    cloned = std::make_unique<HloCustomCallInstruction>(
+        shape, new_operands, custom_call_target_,
+        std::string(raw_backend_config_string()), operand_shapes_with_layout_,
+        api_version_);
+  } else if (!called_computations().empty()) {
+    auto cloned_computations = GetOrCloneCalledComputations(context);
+    cloned = std::make_unique<HloCustomCallInstruction>(
+        shape, new_operands, cloned_computations, custom_call_target_,
+        std::string(raw_backend_config_string()), api_version_);
+  } else {
+    cloned = std::make_unique<HloCustomCallInstruction>(
+        shape, new_operands, custom_call_target_,
+        std::string(raw_backend_config_string()), api_version_);
+  }
+  cloned->set_custom_call_has_side_effect(custom_call_has_side_effect_);
+  cloned->set_custom_call_schedule(custom_call_schedule_);
+  cloned->set_output_to_operand_aliasing(output_to_operand_aliasing());
+  if (HasLiteral()) {
+    cloned->set_literal(literal().Clone());
+  }
+  return cloned;
+}
 HloPadInstruction::HloPadInstruction(const Shape& shape,
                                      HloInstruction* operand,
                                      HloInstruction* padding_value,
