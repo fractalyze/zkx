@@ -394,6 +394,59 @@ absl::StatusOr<SmallVector<Value, 1>> EmitConvert(
   return {{out}};
 }
 
+absl::StatusOr<SmallVector<Value, 1>> EmitDynamicSlice(
+    const HloInstruction* instr, ValueRange indices,
+    const OperandProvider& operand_provider, ImplicitLocOpBuilder& b) {
+  // For dynamic-slice, output[i₀, ..., iₙ] =
+  //   input[clamp(start₀, 0, dim₀ - size₀) + i₀, ...,
+  //         clamp(startₙ, 0, dimₙ - sizeₙ) + iₙ]
+  //
+  // Operand 0 is the input tensor. Operands 1..N are scalar start indices.
+  const auto& input_shape = instr->operand(0)->shape();
+  int64_t rank = input_shape.rank();
+  SmallVector<Value, 3> input_indices;
+  input_indices.reserve(rank);
+
+  for (int64_t dim = 0; dim < rank; ++dim) {
+    // Get the start index for this dimension (scalar operand at dim + 1).
+    TF_ASSIGN_OR_RETURN(auto start_val,
+                        GetSingleOperandValue(operand_provider, instr,
+                                              dim + 1, /*indices=*/{}));
+
+    // Clamp: max(0, min(start, input_dim - slice_size))
+    int64_t input_dim = input_shape.dimensions(dim);
+    int64_t slice_size = instr->dynamic_slice_sizes()[dim];
+    int64_t max_start = input_dim - slice_size;
+
+    auto zero = b.create<ConstantIndexOp>(0);
+    auto max_val = b.create<ConstantIndexOp>(max_start);
+
+    // Cast start index to index type.
+    Value start_index = b.create<arith::IndexCastOp>(b.getIndexType(),
+                                                     start_val);
+
+    // Clamp: min(start, max_start)
+    auto cmp_upper =
+        b.create<CmpIOp>(arith::CmpIPredicate::slt, start_index, max_val);
+    auto clamped_upper =
+        b.create<mlir::arith::SelectOp>(cmp_upper, start_index, max_val);
+
+    // Clamp: max(0, ...)
+    auto cmp_lower =
+        b.create<CmpIOp>(arith::CmpIPredicate::sgt, clamped_upper, zero);
+    auto clamped =
+        b.create<mlir::arith::SelectOp>(cmp_lower, clamped_upper, zero);
+
+    // input_index = clamped_start + output_index
+    auto input_idx =
+        b.create<mlir::arith::AddIOp>(clamped, indices[dim]);
+    input_indices.push_back(input_idx);
+  }
+
+  // Fetch the element from the input at the computed indices.
+  return operand_provider(instr, 0, input_indices);
+}
+
 absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
     const HloInstruction* instr, func::FuncOp this_fn, ValueRange indices,
     const OperandProvider& operand_provider,
@@ -414,10 +467,7 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
     case HloOpcode::kConstant:
       return EmitConstant(instr, indices, builder);
     case HloOpcode::kDynamicSlice:
-      // TODO(chokobole): Implement this. Dependency: EmitDynamicSlice
-      // return EmitDynamicSlice(instr, indices, operand_provider, builder);
-      return absl::UnimplementedError(
-          "HloToMlir not implemented for HloOpcode::kDynamicSlice");
+      return EmitDynamicSlice(instr, indices, operand_provider, builder);
     case HloOpcode::kDynamicUpdateSlice:
       // TODO(chokobole): Implement this. Dependency: EmitDynamicUpdateSlice
       // return EmitDynamicUpdateSlice(instr, indices, operand_provider,

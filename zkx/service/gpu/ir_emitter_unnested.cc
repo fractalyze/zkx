@@ -244,6 +244,10 @@ absl::Status IrEmitterUnnested::EmitFusion(const HloFusionInstruction* instr) {
   VLOG(3) << "IrEmitterUnnested::EmitFusion:start";
   std::unique_ptr<FusionInterface> emitter = GetFusionEmitter(HloFusionInfo(
       fusion_analysis, instr, &ir_emitter_context_->buffer_assignment()));
+  if (!emitter) {
+    return absl::UnimplementedError(absl::StrFormat(
+        "No fusion emitter for instruction: %s", instr->ToShortString()));
+  }
   TF_ASSIGN_OR_RETURN(auto result, emitter->Emit(*ir_emitter_context_, *instr));
 
   const ExecutionStreamAssignment& stream_assignment =

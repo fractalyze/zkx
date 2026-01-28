@@ -65,12 +65,15 @@ limitations under the License.
 #include "zkx/hlo/ir/hlo_module_group.h"
 #include "zkx/maybe_owning.h"
 #include "zkx/service/buffer_assignment.h"
+#include "zkx/service/call_inliner.h"
 #include "zkx/service/dump.h"
 #include "zkx/service/gpu/compile_module_to_llvm_ir.h"
 #include "zkx/service/gpu/execution_stream_assignment.h"
+#include "zkx/service/gpu/fusion_pipeline.h"
 #include "zkx/service/gpu/gpu_executable.h"
 #include "zkx/service/gpu/gpu_hlo_schedule.h"
 #include "zkx/service/gpu/gpu_latency_hiding_scheduler.h"
+#include "zkx/service/gpu/hlo_fusion_stats.h"
 #include "zkx/service/gpu/ir_emitter_context.h"
 #include "zkx/service/gpu/ir_emitter_unnested.h"
 #include "zkx/service/gpu/kernel_reuse_cache.h"
@@ -171,6 +174,32 @@ class GpuThunkAotCompilationResult : public AotCompilationResult {
   std::unique_ptr<HloModule> module_;
   CompilationResultProto proto_;
 };
+
+absl::Status RunFusionPasses(HloModule* hlo_module,
+                             const Compiler::TargetConfig& gpu_target_config,
+                             tsl::thread::ThreadPool* thread_pool,
+                             HloCostAnalysis::ShapeSizeFunction shape_size_fn) {
+  const se::DeviceDescription& gpu_device_info =
+      gpu_target_config.device_description;
+
+  TF_RETURN_IF_ERROR(FusionPipeline(hlo_module->config().debug_options(),
+                                    shape_size_fn, thread_pool, gpu_device_info)
+                         .Run(hlo_module)
+                         .status());
+
+  // TODO(batzor): Uncomment this. Dependency: HorizontalLoopFusion,
+  // HorizontalInputFusion
+  // TF_RETURN_IF_ERROR(
+  //     HorizontalFusionPipeline(gpu_device_info).Run(hlo_module).status());
+
+  if (VLOG_IS_ON(2)) {
+    HloFusionStatsVisitor stats;
+    TF_RETURN_IF_ERROR(hlo_module->entry_computation()->Accept(&stats));
+    VLOG(2) << stats.ToString();
+  }
+
+  return absl::OkStatus();
+}
 
 }  // namespace
 
@@ -346,13 +375,19 @@ absl::Status GpuCompiler::OptimizeHloModule(
   //     thread_pool.get_mutable()));
 
   // This is a "low effort, high impact" fusion that should be run first.
-  // TODO(chokobole): Uncomment this. Dependency: RunDynamicSliceFusionPasses
+  // TODO(batzor): Uncomment this. Dependency: RunDynamicSliceFusionPasses
   // TF_RETURN_IF_ERROR(RunDynamicSliceFusionPasses(hlo_module, PlatformId()));
 
-  // TODO(chokobole): Uncomment this. Dependency: RunFusionPasses
-  // TF_RETURN_IF_ERROR(RunFusionPasses(hlo_module, gpu_target_config,
-  //                                    thread_pool.get_mutable(),
-  //                                    ShapeSizeBytesFunction()));
+  // TODO(batzor): Enable CallInliner. Blocked on:
+  // 1. Implementing InPlaceDynamicUpdateSliceFusion in fusions.cc
+  // 2. Implementing scatter fusion emitter
+  // Without inlining, called computations (e.g., from func.call inside while
+  // loops) are excluded from fusion, leaving elementwise ops unfused.
+  // TF_RETURN_IF_ERROR(CallInliner().Run(hlo_module).status());
+
+  TF_RETURN_IF_ERROR(RunFusionPasses(hlo_module, gpu_target_config,
+                                     thread_pool.get_mutable(),
+                                     ShapeSizeBytesFunction()));
   // TODO(chokobole): Uncomment this. Dependency: RunPostFusionPasses
   // TF_RETURN_IF_ERROR(RunPostFusionPasses(
   //     hlo_module, gpu_target_config.device_description, pointer_size_));
@@ -1219,9 +1254,7 @@ absl::Status GpuCompiler::LoadAutotuneResultsFromFile(
   //   });
   //   TF_RETURN_IF_ERROR(status);
   // }
-  // return absl::OkStatus();
-  return absl::UnimplementedError(
-      "not implemented for LoadAutotuneResultsFromFile");
+  return absl::OkStatus();
 }
 
 absl::Status GpuCompiler::SerializeAutotuneResultsToFile(
