@@ -206,6 +206,15 @@ std::string LiteralUtil::MultiIndexAsString(
   return absl::StrCat("{", absl::StrJoin(multi_index, ","), "}");
 }
 
+// static
+std::optional<int64_t> LiteralUtil::LiteralAsScalarInt64(const Literal& l) {
+  if (!ShapeUtil::IsEffectiveScalar(l.shape())) {
+    VLOG(2) << "literal is not an effective scalar: " << l.ToString();
+    return std::nullopt;
+  }
+  return l.GetFirstInteger();
+}
+
 absl::StatusOr<Literal> MakeFakeLiteral(const Shape& shape,
                                         bool pseudo_random) {
   auto engine = pseudo_random ? std::make_unique<std::minstd_rand0>() : nullptr;

@@ -22,11 +22,16 @@ limitations under the License.
 #include "xla/tsl/platform/statusor.h"
 #include "zkx/backends/gpu/codegen/fusion_emitter.h"
 #include "zkx/backends/gpu/codegen/fusions.h"
+#include "zkx/backends/gpu/runtime/command_buffer_cmd.h"
+#include "zkx/backends/gpu/runtime/command_buffer_cmd_emitter.h"
+#include "zkx/backends/gpu/runtime/command_buffer_thunk.h"
 #include "zkx/backends/gpu/runtime/wait_for_streams_thunk.h"
+#include "zkx/backends/gpu/runtime/while_thunk.h"
 #include "zkx/hlo/ir/hlo_casting_utils.h"
 #include "zkx/service/gpu/hlo_fusion_analysis.h"
 #include "zkx/service/gpu/ir_emission_utils.h"
 #include "zkx/service/gpu/stream_executor_util.h"
+#include "zkx/service/llvm_ir/buffer_assignment_util.h"
 #include "zkx/status_macros.h"
 
 namespace zkx::gpu {
@@ -45,25 +50,22 @@ std::unique_ptr<IrEmitterUnnested> IrEmitterUnnested::Create(
 
 absl::Status IrEmitterUnnested::EmitConstant(
     const HloConstantInstruction* instr) {
-  // TODO(chokobole): Uncomment this. Dependency: ConstantHloToGlobalName
-  // TF_ASSIGN_OR_RETURN(DenseDataIntermediate content,
-  //                     LiteralToZkxFormat(instr->literal()));
+  TF_ASSIGN_OR_RETURN(DenseDataIntermediate content,
+                      LiteralToZkxFormat(instr->literal()));
 
-  // int element_bytes =
-  //     primitive_util::ByteWidth(instr->literal().shape().element_type());
-  // TF_RET_CHECK(content.span().size() % element_bytes == 0);
-  // // Treat packed constants as a byte constant.
-  // int num_elements = content.span().size() / element_bytes;
+  int element_bytes =
+      primitive_util::ByteWidth(instr->literal().shape().element_type());
+  TF_RET_CHECK(content.span().size() % element_bytes == 0);
+  // Treat packed constants as a byte constant.
+  int num_elements = content.span().size() / element_bytes;
 
-  // std::string global_name = llvm_ir::ConstantHloToGlobalName(*instr);
-  // TF_ASSIGN_OR_RETURN(BufferAllocation::Slice slice,
-  //                     GetAllocationSliceForHlo(instr, {}));
+  std::string global_name = llvm_ir::ConstantHloToGlobalName(*instr);
+  TF_ASSIGN_OR_RETURN(BufferAllocation::Slice slice,
+                      GetAllocationSliceForHlo(instr, {}));
 
-  // ir_emitter_context_->emit_constant(num_elements, element_bytes,
-  // global_name,
-  //                                    slice.index(), std::move(content), &b_);
-  // return absl::OkStatus();
-  return absl::UnimplementedError("Not implemented for EmitConstant");
+  ir_emitter_context_->emit_constant(num_elements, element_bytes, global_name,
+                                     slice.index(), std::move(content), &b_);
+  return absl::OkStatus();
 }
 
 absl::Status IrEmitterUnnested::EmitConditional(const HloInstruction* instr) {
@@ -142,8 +144,37 @@ absl::Status IrEmitterUnnested::EmitConditional(const HloInstruction* instr) {
 
 absl::Status IrEmitterUnnested::EmitCommandBufferThunk(
     const HloInstruction* instr) {
-  // TODO(chokobole): Implement this.
-  return absl::UnimplementedError("Not implemented for EmitCommandBufferThunk");
+  // Spawn a new IrEmitterUnnested to emit thunks for the command buffer
+  // computation. Then convert emitted thunks to a sequence of CommandBufferCmd.
+  // The resulting thunk added to the thunk sequence is a CommandBufferThunk.
+  // Thunks emitted from the command buffer computation are discarded.
+  DCHECK_EQ(instr->called_computations().size(), 1);
+  const HloComputation* command_buffer = instr->called_computations().front();
+  auto ir_emitter = IrEmitterUnnested::Create(ir_emitter_context_);
+  TF_RETURN_IF_ERROR(ir_emitter->EmitHloComputation(command_buffer));
+  std::unique_ptr<SequentialThunk> thunk_sequence =
+      ir_emitter->ConsumeThunkSequence();
+
+  // Maybe serialize all commands in a sequence by forcing barriers between all
+  // recorded commands. This guarantees that we execute all device operations
+  // in the exact same order as a thunk sequence.
+  CommandBufferCmdSequence::SynchronizationMode synchronization_mode =
+      ir_emitter_context_->debug_options()
+              .zkx_gpu_graph_enable_concurrent_region()
+          ? CommandBufferCmdSequence::SynchronizationMode::kAutomatic
+          : CommandBufferCmdSequence::SynchronizationMode::kSerialize;
+
+  TF_ASSIGN_OR_RETURN(
+      CommandBufferCmdSequence cmd_sequence,
+      ConvertToCommands(thunk_sequence->thunks(), synchronization_mode));
+
+  AddThunkToThunkSequence(std::make_unique<CommandBufferThunk>(
+      std::move(cmd_sequence), Thunk::ThunkInfo::WithProfileAnnotation(instr),
+      std::move(thunk_sequence),
+      ir_emitter_context_->debug_options()
+          .zkx_enable_command_buffers_during_profiling()));
+
+  return absl::OkStatus();
 }
 
 // TODO(chokobole): Implement this. Dependency: HloCustomCallInstruction.
@@ -262,8 +293,19 @@ absl::Status IrEmitterUnnested::AssertNonDeterminismIsOkay(
 }
 
 absl::Status IrEmitterUnnested::EmitWhile(const HloInstruction* instr) {
-  // TODO(chokobole): Implement this.
-  return absl::UnimplementedError("Not implemented for EmitWhile");
+  TF_ASSIGN_OR_RETURN(auto config,
+                      instr->backend_config<WhileLoopBackendConfig>());
+
+  std::optional<int64_t> trip_count = std::nullopt;
+  if (config.has_known_trip_count()) trip_count = config.known_trip_count().n();
+
+  TF_ASSIGN_OR_RETURN(
+      auto thunk,
+      BuildWhileThunk(instr, Thunk::ThunkInfo::WithProfileAnnotation(instr),
+                      trip_count));
+
+  AddThunkToThunkSequence(std::move(thunk));
+  return absl::OkStatus();
 }
 
 // TODO(chokobole): Implement this. Dependency: HloSortInstruction.
@@ -326,8 +368,32 @@ absl::Status IrEmitterUnnested::EmitOutfeed(
 absl::StatusOr<std::unique_ptr<Thunk>> IrEmitterUnnested::BuildWhileThunk(
     const HloInstruction* instr, const Thunk::ThunkInfo& thunk_info,
     std::optional<int64_t> trip_count) {
-  // TODO(chokobole): Implement this.
-  return absl::UnimplementedError("Not implemented for BuildWhileThunk");
+  HloComputation* condition = instr->while_condition();
+  HloComputation* body = instr->while_body();
+
+  // Generate thunk sequence for while 'condition'.
+  auto ir_emitter_condition = IrEmitterUnnested::Create(ir_emitter_context_);
+  TF_RETURN_IF_ERROR(ir_emitter_condition->EmitHloComputation(condition));
+
+  // Generate thunk sequence for while 'body'.
+  auto ir_emitter_body = IrEmitterUnnested::Create(ir_emitter_context_);
+  TF_RETURN_IF_ERROR(ir_emitter_body->EmitHloComputation(body));
+
+  // Buffer slice holding while loop predicate.
+  TF_ASSIGN_OR_RETURN(
+      auto pred, GetAllocationSliceForHlo(condition->root_instruction(), {}));
+
+  Thunk::ThunkInfo cond_thunk_info =
+      Thunk::ThunkInfo::WithProfileAnnotation(instr);
+  cond_thunk_info.profile_annotation += "_condition";
+  Thunk::ThunkInfo body_thunk_info =
+      Thunk::ThunkInfo::WithProfileAnnotation(instr);
+  body_thunk_info.profile_annotation += "_body";
+
+  return std::unique_ptr<Thunk>(new WhileThunk(
+      thunk_info, pred,
+      ir_emitter_condition->ConsumeThunkSequence(cond_thunk_info),
+      ir_emitter_body->ConsumeThunkSequence(body_thunk_info), trip_count));
 }
 
 // TODO(chokobole): Uncomment this. Dependency: ElementGenerator.
@@ -687,6 +753,9 @@ absl::Status IrEmitterUnnested::EmitHloInstruction(
     case HloOpcode::kTuple:
       return absl::OkStatus();
     default:
+      LOG(ERROR) << "Unsupported instruction opcode: "
+                 << HloOpcodeString(instr->opcode()) << "\nHLO module:\n"
+                 << instr->parent()->parent()->ToString();
       return absl::InternalError(
           absl::StrFormat("Unsupported instruction opcode: %s",
                           HloOpcodeString(instr->opcode())));
