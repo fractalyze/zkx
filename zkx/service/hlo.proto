@@ -88,7 +88,7 @@ message HloInstructionProto {
   repeated int64 dimensions = 14;
 
   // Describes the window in a windowed operation such as ReduceWindow.
-  zkx.Window window = 15;
+  Window window = 15;
 
   // Describes the [begin, end) index range and stride for slices.
   message SliceDimensions {

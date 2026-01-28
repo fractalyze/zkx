@@ -193,6 +193,7 @@ class ShapeVerifier : public DfsHloVisitor {
   absl::Status HandleGetTupleElement(
       HloInstruction* get_tuple_element) override;
   absl::Status HandleReduce(HloInstruction* reduce) override;
+  absl::Status HandleReduceWindow(HloInstruction* reduce_window) override;
   absl::Status HandleBitcast(HloInstruction* bitcast) override;
   absl::Status HandleBroadcast(HloInstruction* broadcast) override;
   absl::Status HandleReshape(HloInstruction* reshape) override;
