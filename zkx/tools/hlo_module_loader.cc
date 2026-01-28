@@ -54,12 +54,12 @@ absl::Status OverrideConfig(const hlo_module_loader_details::Config& ovr_config,
 
 }  // namespace
 
-std::string StripLogHeaders(absl::string_view hlo_string) {
+std::string StripLogHeaders(std::string_view hlo_string) {
   // I0521 12:04:45.883483    1509 service.cc:186] ...
   static RE2* matcher = new RE2(
       "[IWEF]\\d{4} "
       "\\d{2}:\\d{2}:\\d{2}\\.\\d+\\s+\\d+\\s+[^:]+:\\d+\\]\\s?(.*)");
-  absl::string_view matches[4];
+  std::string_view matches[4];
   std::vector<std::string> lines = absl::StrSplit(hlo_string, '\n');
   for (auto& line : lines) {
     if (matcher->Match(line, 0, line.size(), RE2::ANCHOR_START, matches, 4)) {
@@ -73,7 +73,7 @@ std::string StripLogHeaders(absl::string_view hlo_string) {
 }
 
 absl::StatusOr<std::unique_ptr<HloModule>> LoadModuleFromData(
-    const std::string& data, absl::string_view format,
+    const std::string& data, std::string_view format,
     const hlo_module_loader_details::Config& ovr_config,
     const std::function<void(HloModuleConfig*)>& config_modifier_hook,
     BufferAssignmentProto* buffer_assignment_proto, bool fill_missing_layouts) {
@@ -151,7 +151,7 @@ absl::StatusOr<std::unique_ptr<HloModule>> LoadModuleFromFile(
 }
 
 absl::StatusOr<std::unique_ptr<RunHloModuleIterationLiterals>>
-LoadInputFromData(const std::string& data, absl::string_view format) {
+LoadInputFromData(const std::string& data, std::string_view format) {
   HloSnapshot proto;
   if (format == "pb") {
     if (!proto.ParseFromString(data) &&

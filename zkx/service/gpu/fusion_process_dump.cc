@@ -17,6 +17,7 @@ limitations under the License.
 #include "zkx/service/gpu/fusion_process_dump.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "absl/container/flat_hash_map.h"
@@ -44,7 +45,7 @@ namespace {
 HloInstruction* AddFusionInstruction(HloInstruction* producer,
                                      HloInstruction* consumer,
                                      HloComputation* computation,
-                                     absl::string_view fusion_name) {
+                                     std::string_view fusion_name) {
   if (consumer->opcode() == HloOpcode::kFusion) {
     return consumer;
   }
@@ -64,7 +65,7 @@ HloInstruction* AddFusionInstruction(HloInstruction* producer,
 
 HloInstruction* Fuse(HloInstruction* producer, HloInstruction* consumer,
                      HloComputation* computation,
-                     absl::string_view fusion_name) {
+                     std::string_view fusion_name) {
   HloInstruction* fusion_instruction =
       AddFusionInstruction(producer, consumer, computation, fusion_name);
   if (producer->opcode() == HloOpcode::kFusion) {
@@ -80,7 +81,7 @@ HloInstruction* Fuse(HloInstruction* producer, HloInstruction* consumer,
   return fusion_instruction;
 }
 
-absl::string_view GetProducerName(const FusionStep& step) {
+std::string_view GetProducerName(const FusionStep& step) {
   if (step.has_fusion()) {
     return step.fusion().producer_name();
   }
@@ -107,7 +108,7 @@ absl::StatusOr<FusionProcessDump> FusionProcessDump::LoadFromFile(
 }
 
 absl::StatusOr<FusionProcessDump> FusionProcessDump::LoadFromData(
-    const std::string& data, absl::string_view format) {
+    const std::string& data, std::string_view format) {
   FusionProcessDumpProto fusion_process_dump_proto;
   if (format == "txt" || format == "pbtxt") {
     if (!google::protobuf::TextFormat::ParseFromString(
@@ -158,7 +159,7 @@ HloComputation* FusionProcessDump::GetCurrentComputation() {
 }
 
 HloInstruction* FusionProcessDump::GetInstructionWithName(
-    absl::string_view name) {
+    std::string_view name) {
   return instruction_name_to_computation_map_[name]->GetInstructionWithName(
       name);
 }
