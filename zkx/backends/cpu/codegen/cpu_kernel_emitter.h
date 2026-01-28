@@ -19,6 +19,7 @@ limitations under the License.
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "mlir/IR/MLIRContext.h"
 
@@ -161,6 +162,33 @@ class CpuKernelEmitter final : public KernelEmitter {
                                            EmitterLocOpBuilder& b,
                                            mlir::ValueRange inputs,
                                            mlir::ValueRange inits);
+
+  absl::StatusOr<mlir::Value> EmitReduceWindowOp(const HloInstruction* instr,
+                                                 EmitterLocOpBuilder& b,
+                                                 mlir::ValueRange inputs,
+                                                 mlir::ValueRange inits);
+
+  struct WindowDimConstants;
+
+  std::pair<mlir::Value, mlir::Value> ComputeWindowInputIndexForDim(
+      EmitterLocOpBuilder& b, const WindowDimension& dim,
+      const WindowDimConstants& constants, mlir::Value output_iv,
+      mlir::Value window_iv, mlir::Value zero);
+
+  mlir::Value ApplyReduction(EmitterLocOpBuilder& b, HloComputation* to_apply,
+                             mlir::Value acc, mlir::Value value);
+
+  mlir::Value EmitBoundsCheckedReduction(
+      EmitterLocOpBuilder& b, HloComputation* to_apply, mlir::Value in_bounds,
+      mlir::Value acc, mlir::Value input,
+      llvm::ArrayRef<mlir::Value> input_indices, mlir::Value init_scalar);
+
+  struct ReduceWindowContext;
+
+  mlir::Value BuildWindowLoopNest(
+      EmitterLocOpBuilder& b, ReduceWindowContext& ctx, int64_t dim,
+      mlir::Value acc, llvm::ArrayRef<mlir::Value> output_ivs,
+      llvm::SmallVectorImpl<mlir::Value>& window_ivs);
 
   absl::StatusOr<mlir::Value> EmitReshapeOp(const HloInstruction* instr,
                                             EmitterLocOpBuilder& b,

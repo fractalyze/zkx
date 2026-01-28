@@ -1640,6 +1640,83 @@ def StableHLO_TransposeOp: StableHLO_ShapedInterfaceOp<"transpose",
   }];
 }
 
+def StableHLO_ReduceWindowOp: StableHLO_Op<"reduce_window", [
+      HLO_RecursivelySpeculatableIfAllInputsStatic,
+      RecursiveMemoryEffects,
+      SameVariadicOperandSize /*reduce_window_c1*/,
+      SingleBlockImplicitTerminator<"ReturnOp">,
+      InferTensorType /*reduce_window_c1, reduce_window_c14, reduce_window_c15, reduce_window_c16*/]> {
+  let summary = "ReduceWindow operation";
+  let description = [{
+    Applies a reduction function `body` to windows of `inputs` and `init_values`
+    and produces `results`.
+
+    See:
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#reduce_window
+
+    Example:
+    ```mlir
+    %result = "stablehlo.reduce_window"(%input, %init_value) ({
+      ^bb0(%arg0: tensor<i64>, %arg1: tensor<i64>):
+        %0 = stablehlo.add %arg0, %arg1 : tensor<i64>
+        stablehlo.return %0 : tensor<i64>
+    }) {
+      window_dimensions = array<i64: 2, 1>,
+      window_strides = array<i64: 4, 1>,
+      base_dilations = array<i64: 2, 1>,
+      window_dilations = array<i64: 3, 1>,
+      padding = dense<[[2, 1], [0, 0]]> : tensor<2x2xi64>
+    } : (tensor<3x2xi64>, tensor<i64>) -> tensor<2x2xi64>
+    ```
+  }];
+
+  let arguments = (ins
+    Variadic<HLO_Tensor>:$inputs /*reduce_window_i1*/,
+    Variadic<HLO_Tensor>:$init_values /*reduce_window_i2*/,
+    DenseI64ArrayAttr:$window_dimensions /*reduce_window_i3*/,
+    // If strides or dilations attributes are missing then the default value is
+    // one for each of the operand dimensions. Similarly, padding values are zero
+    // for both low and high in each of the dimensions, if not specified.
+    OptionalAttr<DenseI64ArrayAttr>:$window_strides /*reduce_window_i4*/,
+    OptionalAttr<DenseI64ArrayAttr>:$base_dilations /*reduce_window_i5*/,
+    OptionalAttr<DenseI64ArrayAttr>:$window_dilations /*reduce_window_i6*/,
+    OptionalAttr<I64ElementsAttr>:$padding /*reduce_window_i7*/
+  );
+
+  let results = (outs Variadic<HLO_Tensor>);
+
+  let regions = (region SizedRegion<1>:$body /*reduce_window_i8*/);
+
+  let hasVerifier = 1;
+
+
+  // Builder for non-variadic version of the operation.
+  let builders = [
+    OpBuilder<(ins "Type":$result_type, "Value":$operand,
+      "Value":$init_value,
+      "DenseI64ArrayAttr":$window_dimensions,
+      "DenseI64ArrayAttr":$window_strides,
+      "DenseI64ArrayAttr":$base_dilations,
+      "DenseI64ArrayAttr":$window_dilations,
+      "DenseIntElementsAttr":$padding),
+    [{
+      build($_builder, $_state, TypeRange(result_type), ValueRange(operand),
+            ValueRange(init_value), window_dimensions, window_strides,
+            base_dilations, window_dilations, padding);
+    }]>,
+    OpBuilder<(ins "ValueRange":$operands,
+      "ValueRange":$init_values,
+      "DenseI64ArrayAttr":$window_dimensions,
+      "DenseI64ArrayAttr":$window_strides,
+      "DenseI64ArrayAttr":$base_dilations,
+      "DenseI64ArrayAttr":$window_dilations,
+      "DenseIntElementsAttr":$padding,
+      "function_ref<void(OpBuilder &, Location, ValueRange)>":$bodyBuilder
+    )>,
+  ];
+  // TODO(hinsu): Implement custom printer and parser.
+}
+
 def StableHLO_ReturnOp : StableHLO_Op<"return", [Pure, Terminator]> {
   let summary = "Return operation";
   let description = [{

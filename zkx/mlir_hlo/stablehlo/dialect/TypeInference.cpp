@@ -631,6 +631,58 @@ inferReduceOp(std::optional<Location> location, TypeRange inputTypes,
   return success();
 }
 
+LogicalResult inferReduceWindowOp(
+    std::optional<Location> location, ValueRange inputs, ValueRange initValues,
+    ArrayRef<int64_t> windowDimensions,
+    std::optional<ArrayRef<int64_t>> windowStrides,
+    std::optional<ArrayRef<int64_t>> baseDilations,
+    std::optional<ArrayRef<int64_t>> windowDilations,
+    std::optional<DenseIntElementsAttr> padding, Region &body,
+    SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
+  auto accumulatorTypesOrErr = getAccumulatorTypes(location, body);
+  if (failed(accumulatorTypesOrErr))
+    return failure();
+
+  for (uint64_t inputIdx = 0; inputIdx < inputs.size(); ++inputIdx) {
+    auto inputType = cast<ShapedType>(inputs[inputIdx].getType());
+    Type elementType = (*accumulatorTypesOrErr)[inputIdx].getElementType();
+
+    if (!inputType.hasRank()) {
+      inferredReturnShapes.emplace_back(elementType);
+      continue;
+    }
+
+    auto rank = inputType.getRank();
+    SmallVector<int64_t> outputDims;
+    for (int64_t i = 0; i < rank; ++i) {
+      if (inputType.isDynamicDim(i)) {
+        outputDims.push_back(ShapedType::kDynamic);
+        continue;
+      }
+      int64_t inputDim = inputType.getDimSize(i);
+      int64_t winDim = windowDimensions[i];
+      int64_t stride = windowStrides ? (*windowStrides)[i] : 1;
+      int64_t baseDil = baseDilations ? (*baseDilations)[i] : 1;
+      int64_t winDil = windowDilations ? (*windowDilations)[i] : 1;
+      int64_t padLow = 0, padHigh = 0;
+      if (padding) {
+        auto paddingValues = padding->getValues<int64_t>();
+        padLow = paddingValues[{static_cast<uint64_t>(i), 0}];
+        padHigh = paddingValues[{static_cast<uint64_t>(i), 1}];
+      }
+
+      int64_t dilatedBase = (inputDim - 1) * baseDil + 1;
+      int64_t dilatedWindow = (winDim - 1) * winDil + 1;
+      int64_t paddedDim = padLow + dilatedBase + padHigh;
+      int64_t outputDim = (paddedDim - dilatedWindow) / stride + 1;
+      outputDims.push_back(outputDim);
+    }
+    inferredReturnShapes.emplace_back(outputDims, elementType);
+  }
+
+  return success();
+}
+
 LogicalResult inferReverseOp(std::optional<Location> location, Type operandType,
                              SmallVectorImpl<Type> &inferredReturnTypes) {
   inferredReturnTypes.push_back(operandType);
@@ -1669,6 +1721,91 @@ LogicalResult verifyReduceOpInputsAndInferShape(
   encoding = nullptr;
   if (!newBounds.empty())
     encoding = boundsToEncoding(witnessType.getEncoding(), newBounds);
+  return success();
+}
+
+LogicalResult
+verifyReduceWindowOp(std::optional<Location> location, ValueRange inputs,
+                     ValueRange initValues, ArrayRef<int64_t> windowDimensions,
+                     std::optional<ArrayRef<int64_t>> windowStrides,
+                     std::optional<ArrayRef<int64_t>> baseDilations,
+                     std::optional<ArrayRef<int64_t>> windowDilations,
+                     std::optional<DenseIntElementsAttr> padding,
+                     Region &body) {
+  // reduce_window_c1
+  if (inputs.size() != initValues.size())
+    return emitOptionalError(
+        location,
+        "expects the number of inputs and init_values to be equal, but got ",
+        inputs.size(), " and ", initValues.size());
+
+  if (inputs.empty())
+    return emitOptionalError(location, "expects at least one input");
+
+  auto inputType = cast<ShapedType>(inputs[0].getType());
+  if (!inputType.hasRank())
+    return success();
+
+  auto rank = inputType.getRank();
+
+  // Verify all inputs have compatible shapes.
+  for (uint64_t i = 1; i < inputs.size(); ++i) {
+    auto otherType = cast<ShapedType>(inputs[i].getType());
+    if (failed(mlir::verifyCompatibleShape(inputType, otherType)))
+      return emitOptionalError(
+          location,
+          "expects all inputs to have compatible shapes, but input at index ",
+          i, " is incompatible with input at index 0");
+  }
+
+  // Verify window_dimensions size matches rank.
+  if (static_cast<int64_t>(windowDimensions.size()) != rank)
+    return emitOptionalError(
+        location, "expects window_dimensions size to be equal to input rank (",
+        rank, "), but got ", windowDimensions.size());
+
+  // Verify optional attribute sizes.
+  if (windowStrides && static_cast<int64_t>(windowStrides->size()) != rank)
+    return emitOptionalError(
+        location, "expects window_strides size to be equal to input rank (",
+        rank, "), but got ", windowStrides->size());
+
+  if (baseDilations && static_cast<int64_t>(baseDilations->size()) != rank)
+    return emitOptionalError(
+        location, "expects base_dilations size to be equal to input rank (",
+        rank, "), but got ", baseDilations->size());
+
+  if (windowDilations && static_cast<int64_t>(windowDilations->size()) != rank)
+    return emitOptionalError(
+        location, "expects window_dilations size to be equal to input rank (",
+        rank, "), but got ", windowDilations->size());
+
+  if (padding) {
+    auto paddingType = padding->getType();
+    if (paddingType.getRank() != 2 || paddingType.getDimSize(0) != rank ||
+        paddingType.getDimSize(1) != 2)
+      return emitOptionalError(location, "expects padding to be a ", rank,
+                               "x2 tensor, but got ", paddingType.getDimSize(0),
+                               "x", paddingType.getDimSize(1));
+  }
+
+  // Verify reducer shape.
+  auto inputTypes = llvm::map_to_vector(
+      inputs.getTypes(), [](Type t) { return cast<ShapedType>(t); });
+  auto initValueTypes = llvm::map_to_vector(
+      initValues.getTypes(), [](Type t) { return cast<ShapedType>(t); });
+
+  // reduce_window_c13
+  SmallVector<int64_t> windowResultDims;
+  for (int64_t i = 0; i < rank; ++i)
+    windowResultDims.push_back(inputType.isDynamicDim(i)
+                                   ? ShapedType::kDynamic
+                                   : inputType.getDimSize(i));
+
+  if (failed(verifyReducerShape(location, body.front(), inputTypes,
+                                initValueTypes, windowResultDims)))
+    return failure();
+
   return success();
 }
 
