@@ -117,7 +117,7 @@ def StableHLO_IotaOp : StableHLO_Op<"iota", [Pure]> {
     ConfinedAttr<I64Attr, [IntNonNegative]>:$iota_dimension /*iota_c1*/
   );
 
-  let results = (outs HLO_StaticShapeIntTensor:$output);
+  let results = (outs HLO_StaticShapeIntOrFieldTensor:$output);
 
   let hasVerifier = 1;
 
@@ -279,7 +279,7 @@ def StableHLO_NotOp: StableHLO_UnaryElementwiseOp<"not",
 }
 
 def StableHLO_NegOp: StableHLO_UnaryElementwiseOp<"negate",
-    [HLO_CompatibleOperandsAndResultType], HLO_IntTensor> {
+    [HLO_CompatibleOperandsAndResultType], HLO_IntOrFieldTensor> {
   let summary = "Neg operation";
   let description = [{
     Performs element-wise negation of `operand` tensor and produces a `result`
@@ -409,7 +409,7 @@ def StableHLO_AddOp : StableHLO_BinaryElementwiseOp<"add", [HLO_Commutative,
 
 def StableHLO_DivOp : StableHLO_BinaryElementwiseOp<"divide",
     [HLO_CompatibleOperandsAndResultType /* div_c1 */],
-    HLO_IntTensor /* div_i1, div_i2 */> {
+    HLO_IntOrFieldTensor /* div_i1, div_i2 */> {
   let summary = "Div operation";
   let description = [{
     Performs element-wise division of dividend `lhs` and divisor `rhs` tensors
@@ -478,7 +478,7 @@ def StableHLO_MulOp : StableHLO_BinaryElementwiseOp<"multiply",
 
 def StableHLO_PowOp : StableHLO_BinaryElementwiseOp<"power",
       [HLO_CompatibleOperandsAndResultType /* pow_c1 */],
-      HLO_IntTensor /* pow_i1, pow_i2 */> {
+      HLO_IntOrFieldTensor /* pow_i1, pow_i2 */> {
   let summary = "Power operation";
   let description = [{
     Performs element-wise exponentiation of `lhs` tensor by `rhs` tensor and
