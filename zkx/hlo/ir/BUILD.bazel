@@ -308,6 +308,16 @@ zkx_cc_library(
 )
 
 zkx_cc_unittest(
+    name = "hlo_instruction_test",
+    srcs = ["hlo_instruction_test.cc"],
+    deps = [
+        ":hlo",
+        "//zkx:shape_util",
+        "//zkx:zkx_data_cc_proto",
+    ],
+)
+
+zkx_cc_unittest(
     name = "ir_unittests",
     srcs = [
         "backend_config_unittest.cc",

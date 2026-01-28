@@ -37,10 +37,65 @@ import "zkx/zkx_data.proto";
 
 option cc_enable_arenas = true;
 
+// Specifies the desired schedule for the custom-call.
 enum CustomCallSchedule {
   SCHEDULE_NONE = 0;
   SCHEDULE_LATEST = 1;
   SCHEDULE_EARLIEST = 2;
+}
+
+// The version of the API used by the custom call function. The signatures for
+// each version are given below.
+enum CustomCallApiVersion {
+  API_VERSION_UNSPECIFIED = 0;
+
+  // The first version of the API, with the following signatures:
+  //
+  // CPU:
+  //   void do_custom_call(void* out, const void** in);
+  //
+  // GPU:
+  //   void do_custom_call(CUstream stream, void** buffers,
+  //                       const char* opaque, size_t opaque_len);
+  API_VERSION_ORIGINAL = 1;
+
+  // When the ability to return success/failure status was added:
+  //
+  // CPU:
+  //   void do_custom_call(void* out, const void** in,
+  //                       XlaCustomCallStatus* status);
+  //
+  // GPU:
+  //   void do_custom_call(CUstream stream, void** buffers,
+  //                       const char* opaque, size_t opaque_len,
+  //                       XlaCustomCallStatus* status);
+  API_VERSION_STATUS_RETURNING = 2;
+
+  // Fixes the API signatures on the CPU side of the version STATUS_RETURNING by
+  // adding the opaque string so that the custom call API is consistent across
+  // CPUs and GPUs. For GPUs, the behaviors invoked by
+  // API_VERSION_STATUS_RETURNING and API_VERSION_STATUS_RETURNING_UNIFIED are
+  // the same.
+  //
+  // CPU:
+  //   void do_custom_call(void* out, const void** in,
+  //                       const char* opaque, size_t opaque_len,
+  //                       XlaCustomCallStatus* status);
+  //
+  // GPU:
+  //   void do_custom_call(CUstream stream, void** buffers,
+  //                       const char* opaque, size_t opaque_len,
+  //                       XlaCustomCallStatus* status);
+  API_VERSION_STATUS_RETURNING_UNIFIED = 3;
+
+  // API version implementing XLA runtime custom call calling convention. These
+  // custom calls can be registered as an XLA runtime custom call or as XLA
+  // runtime FFI binding.
+  //
+  // This type of custom call uses custom ABI to pass type information along
+  // with custom call arguments. Also it passes buffer arguments together with
+  // data type, sizes and strides.
+  API_VERSION_TYPED_FFI = 4;
 }
 
 // Serialization of HloInstruction.
@@ -113,6 +168,10 @@ message HloInstructionProto {
 
   // The string representation of the infeed configuration.
   bytes infeed_config = 27;
+
+  // Name of a external target (eg, global symbol) to call, only present for
+  // kCustomCall.
+  string custom_call_target = 28;
 
   // Shape of outfeed request.
   ShapeProto outfeed_shape = 29;
@@ -203,6 +262,14 @@ message HloInstructionProto {
   // A list of OutputOperandAliasing pairs that specifies aliasing buffers
   // between output and operands for kCustomCall and kFusion.
   repeated OutputOperandAliasing output_operand_aliasing = 74;
+
+  // Specifies the desired schedule for the custom-call. The field is only
+  // present for custom-call.
+  CustomCallSchedule custom_call_schedule = 76;
+
+  // The API version used by the custom call function. This field is only
+  // present for custom-call.
+  CustomCallApiVersion custom_call_api_version = 77;
 
   // The delta value for kRngGetAndUpdateState.
   int64 delta = 66;
