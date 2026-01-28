@@ -627,8 +627,39 @@ zkx_cc_library(
 
 zkx_cc_library(
     name = "hlo_cost_analysis",
+    srcs = ["hlo_cost_analysis.cc"],
     hdrs = ["hlo_cost_analysis.h"],
-    deps = ["//zkx:shape_util"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//zkx:shape_util",
+        "//zkx:status_macros",
+        "//zkx:util",
+        "//zkx:zkx_data_cc_proto",
+        "//zkx/base:bits",
+        "//zkx/hlo/ir:hlo",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "hlo_cost_analysis_unittest",
+    srcs = ["hlo_cost_analysis_unittest.cc"],
+    deps = [
+        ":hlo_cost_analysis",
+        "//xla/tsl/platform:status",
+        "//xla/tsl/platform:statusor",
+        "//zkx:shape_util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/tests:hlo_test_base",
+        "@com_google_googletest//:gtest",
+    ],
 )
 
 zkx_cc_library(
