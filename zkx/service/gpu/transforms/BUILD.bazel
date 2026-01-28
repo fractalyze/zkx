@@ -34,6 +34,32 @@ zkx_cc_library(
 )
 
 zkx_cc_library(
+    name = "layout_assignment",
+    srcs = ["layout_assignment.cc"],
+    hdrs = ["layout_assignment.h"],
+    deps = [
+        "//xla/tsl/platform:errors",
+        "//xla/tsl/platform:statusor",
+        "//zkx:primitive_util",
+        "//zkx:shape_layout",
+        "//zkx:shape_util",
+        "//zkx:util",
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service:computation_layout",
+        "//zkx/service:host_memory_offload_annotations",
+        "//zkx/service:layout_assignment",
+        "//zkx/service:logical_buffer",
+        "//zkx/service/gpu:matmul_indexing_utils",
+        "//zkx/service/gpu:reduction_utils",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+zkx_cc_library(
     name = "pgle_accuracy_checker",
     srcs = ["pgle_accuracy_checker.cc"],
     hdrs = ["pgle_accuracy_checker.h"],
