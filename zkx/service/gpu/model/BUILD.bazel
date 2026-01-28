@@ -3,6 +3,33 @@ load("//bazel:zkx_cc.bzl", "zkx_cc_library", "zkx_cc_unittest")
 package(default_visibility = ["//visibility:public"])
 
 zkx_cc_library(
+    name = "fusion_analysis_cache",
+    srcs = ["fusion_analysis_cache.cc"],
+    hdrs = ["fusion_analysis_cache.h"],
+    deps = [
+        "//zkx/hlo/ir:hlo",
+        "//zkx/service/gpu:hlo_fusion_analysis",
+        "//zkx/stream_executor:device_description",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+zkx_cc_unittest(
+    name = "fusion_analysis_cache_unittest",
+    srcs = ["fusion_analysis_cache_unittest.cc"],
+    deps = [
+        ":fusion_analysis_cache",
+        "//zkx/service/gpu:gpu_device_info_for_tests",
+        "//zkx/service/gpu:hlo_fusion_analysis",
+        "//zkx/stream_executor:device_description",
+        "//zkx/tests:hlo_test_base",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+zkx_cc_library(
     name = "gpu_hlo_cost_analysis",
     srcs = ["gpu_hlo_cost_analysis.cc"],
     hdrs = ["gpu_hlo_cost_analysis.h"],
