@@ -399,6 +399,12 @@ absl::StatusOr<std::unique_ptr<HloInstruction>> HloInstruction::CreateFromProto(
                         std::vector<int64_t>(proto.dimensions().begin(),
                                              proto.dimensions().end()));
       break;
+    case HloOpcode::kBitReverse:
+      instruction =
+          CreateBitReverse(shape, operands(0),
+                           std::vector<int64_t>(proto.dimensions().begin(),
+                                                proto.dimensions().end()));
+      break;
     case HloOpcode::kConcatenate:
       TF_RET_CHECK(proto.dimensions_size() == 1)
           << "Concatenate instruction should have 1 dimension but sees "
@@ -1606,6 +1612,13 @@ std::unique_ptr<HloInstruction> HloInstruction::CreateReverse(
 }
 
 // static
+std::unique_ptr<HloInstruction> HloInstruction::CreateBitReverse(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> dimensions) {
+  return std::make_unique<HloBitReverseInstruction>(shape, operand, dimensions);
+}
+
+// static
 std::unique_ptr<HloInstruction> HloInstruction::CreateTuple(
     absl::Span<HloInstruction* const> elements) {
   std::vector<const Shape*> element_shapes;
@@ -2104,6 +2117,7 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kRaggedAllToAll:
     case HloOpcode::kRaggedDot:
     case HloOpcode::kRecv:
+    case HloOpcode::kBitReverse:
     case HloOpcode::kRecvDone:
     case HloOpcode::kReduce:
     case HloOpcode::kReduceScatter:
@@ -2554,6 +2568,7 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kAsyncStart:
     case HloOpcode::kAsyncUpdate:
     case HloOpcode::kAsyncDone:
+    case HloOpcode::kBitReverse:
     case HloOpcode::kBroadcast:
     case HloOpcode::kCollectiveBroadcast:
     case HloOpcode::kCollectivePermute:
@@ -3650,6 +3665,8 @@ absl::Status HloInstruction::Visit(
       return visitor->HandleBitcast(this);
     case HloOpcode::kBitcastConvert:
       return visitor->HandleBitcastConvert(this);
+    case HloOpcode::kBitReverse:
+      return visitor->HandleBitReverse(this);
     case HloOpcode::kBroadcast:
       return visitor->HandleBroadcast(this);
     case HloOpcode::kCall:
@@ -4018,6 +4035,7 @@ static UseKind OperandElementUse(const HloInstruction& instr,
                                  int64_t operand_num) {
   switch (instr.opcode()) {
     case HloOpcode::kBitcast:
+    case HloOpcode::kBitReverse:
     case HloOpcode::kConcatenate:
     case HloOpcode::kReshape:
     case HloOpcode::kReverse:

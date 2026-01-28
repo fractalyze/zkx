@@ -1069,6 +1069,12 @@ absl::Status ShapeVerifier::HandleBitcast(HloInstruction* bitcast) {
   return absl::OkStatus();
 }
 
+absl::Status ShapeVerifier::HandleBitReverse(HloInstruction* bit_reverse) {
+  return CheckShape(bit_reverse, ShapeInference::InferBitReverseShape(
+                                     bit_reverse->operand(0)->shape(),
+                                     bit_reverse->dimensions()));
+}
+
 absl::Status ShapeVerifier::HandleBroadcast(HloInstruction* broadcast) {
   // HLO broadcast has no exact analog at the client level so there is no
   // ShapeInference method. Check the output shape explicitly.

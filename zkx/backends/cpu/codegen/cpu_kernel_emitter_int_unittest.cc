@@ -187,6 +187,11 @@ TYPED_TEST(IntR2TensorBinaryTest, AddWithLayout) {
 
 TYPED_TEST_SUITE(IntTest, IntTypes);
 
+TYPED_TEST(IntTest, BitReverse) {
+  this->SetUpBitReverse();
+  this->RunAndVerify();
+}
+
 TYPED_TEST(IntTest, BroadcastScalar) {
   this->SetUpBroadcastScalar();
   this->RunAndVerify();

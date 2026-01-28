@@ -2078,6 +2078,25 @@ absl::Status HloEvaluator::HandleReverse(const HloInstruction* reverse) {
   return absl::OkStatus();
 }
 
+absl::Status HloEvaluator::HandleBitReverse(const HloInstruction* bit_reverse) {
+  const Shape& result_shape = bit_reverse->shape();
+  const auto bit_reverse_dimensions = bit_reverse->dimensions();
+
+  auto operand = bit_reverse->operand(0);
+  TF_ASSIGN_OR_RETURN(auto inferred_return_shape,
+                      ShapeInference::InferBitReverseShape(
+                          operand->shape(), bit_reverse_dimensions));
+
+  TF_RET_CHECK(ShapeUtil::Compatible(result_shape, inferred_return_shape))
+      << "return shape set to: " << ShapeUtil::HumanString(result_shape)
+      << " but is inferred to be: "
+      << ShapeUtil::HumanString(inferred_return_shape);
+
+  const Literal& operand_literal = GetEvaluatedLiteralFor(operand);
+  evaluated_[bit_reverse] = operand_literal.BitReverse(bit_reverse_dimensions);
+  return absl::OkStatus();
+}
+
 absl::Status HloEvaluator::HandleSlice(const HloInstruction* slice) {
   auto operand = slice->operand(0);
   const Shape& shape = slice->shape();

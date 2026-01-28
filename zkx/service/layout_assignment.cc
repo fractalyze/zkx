@@ -2850,6 +2850,7 @@ bool LayoutAssignment::InstructionCanChangeLayout(
     case HloOpcode::kSort:
     case HloOpcode::kSubtract:
     case HloOpcode::kPopulationCount:
+    case HloOpcode::kBitReverse:
     case HloOpcode::kWhile:
     case HloOpcode::kSetDimensionSize:
     // AllReduce is variadic so it needs to be careful to assign the same layout

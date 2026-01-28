@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "absl/container/inlined_vector.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/numeric/bits.h"
 #include "zk_dtypes/include/all_types.h"
 
 #include "xla/tsl/platform/errors.h"
@@ -393,6 +394,84 @@ Literal LiteralBase::Slice(absl::Span<const int64_t> start_indices,
         return SliceInternal<NativeT>(*this, start_indices, result_literal);
       },
       result_shape.element_type());
+  return result_literal;
+}
+
+namespace {
+
+// Computes the bit-reversed value for a given index.
+// Uses compiler builtin when available for better performance.
+uint64_t BitRev(uint64_t n) {
+#if defined(__clang__) && __has_builtin(__builtin_bitreverse64)
+  return __builtin_bitreverse64(n);
+#else
+  uint64_t rev = 0;
+  for (int i = 0; i < 64; ++i) {
+    rev <<= 1;
+    if (n & 1) rev |= 1;
+    n >>= 1;
+  }
+  return rev;
+#endif
+}
+
+// Computes the bit-reversed index for a given index within a range of size n.
+// n must be a power of 2.
+int64_t BitReverseIndex(int64_t index, int64_t n) {
+  CHECK_GT(n, 0);
+  CHECK_EQ(n & (n - 1), 0) << "n must be a power of 2";
+  int64_t log_n = absl::bit_width(static_cast<uint64_t>(n)) - 1;
+  uint64_t reversed = BitRev(static_cast<uint64_t>(index));
+  // Shift right to get only log_n bits
+  return static_cast<int64_t>(reversed >> (64 - log_n));
+}
+
+template <typename NativeT>
+void BitReverseInternal(const LiteralBase& src_literal,
+                        absl::Span<const int64_t> dimensions,
+                        Literal& result_literal) {
+  const Shape& src_shape = src_literal.shape();
+  DimensionVector src_indices(src_shape.rank());
+  // Precompute dimension sizes for the dimensions to reverse
+  std::vector<int64_t> dim_sizes;
+  dim_sizes.reserve(dimensions.size());
+  for (int64_t dim : dimensions) {
+    dim_sizes.push_back(src_shape.dimensions(dim));
+  }
+  CHECK_OK(
+      result_literal.Populate<NativeT>([&](absl::Span<const int64_t> indices) {
+        for (int64_t i = 0; i < src_shape.rank(); ++i) {
+          src_indices[i] = indices[i];
+        }
+        // Apply bit-reversal to each specified dimension
+        for (size_t i = 0; i < dimensions.size(); ++i) {
+          int64_t dim = dimensions[i];
+          src_indices[dim] = BitReverseIndex(indices[dim], dim_sizes[i]);
+        }
+        return src_literal.Get<NativeT>(src_indices);
+      }));
+}
+
+}  // namespace
+
+Literal LiteralBase::BitReverse(absl::Span<const int64_t> dimensions) const {
+  CHECK(shape().IsArray()) << "tuple is not supported for bit-reverse";
+  for (int64_t dimension : dimensions) {
+    CHECK_GE(dimension, 0);
+    CHECK_LT(dimension, shape().rank());
+    int64_t dim_size = shape().dimensions(dimension);
+    CHECK_GT(dim_size, 0);
+    CHECK_EQ(dim_size & (dim_size - 1), 0)
+        << "dimension size must be a power of 2, got " << dim_size;
+  }
+
+  Literal result_literal(shape());
+  primitive_util::ArrayTypeSwitch<void>(
+      [&](auto primitive_type_constant) -> void {
+        using NativeT = primitive_util::NativeTypeOf<primitive_type_constant>;
+        return BitReverseInternal<NativeT>(*this, dimensions, result_literal);
+      },
+      shape().element_type());
   return result_literal;
 }
 

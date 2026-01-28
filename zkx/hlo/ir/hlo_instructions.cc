@@ -1133,6 +1133,22 @@ std::unique_ptr<HloInstruction> HloReverseInstruction::CloneWithNewOperandsImpl(
                                                  dimensions());
 }
 
+HloBitReverseInstruction::HloBitReverseInstruction(
+    const Shape& shape, HloInstruction* operand,
+    absl::Span<const int64_t> dimensions)
+    : HloDimensionsInstruction(HloOpcode::kBitReverse, shape, dimensions) {
+  AppendOperand(operand);
+}
+
+std::unique_ptr<HloInstruction>
+HloBitReverseInstruction::CloneWithNewOperandsImpl(
+    const Shape& shape, absl::Span<HloInstruction* const> new_operands,
+    HloCloneContext* context) const {
+  CHECK_EQ(new_operands.size(), 1);
+  return std::make_unique<HloBitReverseInstruction>(shape, new_operands[0],
+                                                    dimensions());
+}
+
 HloConcatenateInstruction::HloConcatenateInstruction(
     const Shape& shape, absl::Span<HloInstruction* const> operands,
     int64_t dimension)

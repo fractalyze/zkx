@@ -182,6 +182,12 @@ class ShapeInference {
   static absl::StatusOr<Shape> InferReverseShape(
       const Shape& operand_shape, absl::Span<const int64_t> dimensions);
 
+  // Infers the shape produced by a bit-reverse operation that reorders elements
+  // according to bit-reversed indices along the given dimensions. The size of
+  // each dimension must be a power of 2.
+  static absl::StatusOr<Shape> InferBitReverseShape(
+      const Shape& operand_shape, absl::Span<const int64_t> dimensions);
+
   // Infers the shape produced by a slice operation spanning from the starts to
   // the limits in the original shape's dimensions.
   //

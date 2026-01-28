@@ -75,6 +75,7 @@ bool CanInferShape(HloOpcode code) {
     case HloOpcode::kAddDependency:
     case HloOpcode::kAfterAll:
     case HloOpcode::kAnd:
+    case HloOpcode::kBitReverse:
     case HloOpcode::kBroadcast:
     case HloOpcode::kCall:
     case HloOpcode::kClamp:
@@ -2694,6 +2695,24 @@ HloInstruction* HloParserImpl::CreateInstruction(  // NOLINT
       }
       return builder->AddInstruction(
           HloInstruction::CreateReverse(*shape, operands[0], *dimensions));
+    }
+    case HloOpcode::kBitReverse: {
+      std::optional<std::vector<int64_t>> dimensions;
+      attrs["dimensions"] = {/*required=*/true, AttrTy::kBracedInt64List,
+                             &dimensions};
+      if ((!preset_operands &&
+           !ParseOperands(&operands, builder, /*expected_size=*/1)) ||
+          !ParseAttributes(attrs, allow_attributes, shape)) {
+        return nullptr;
+      }
+      if (!maybe_infer_shape([&] {
+            return ShapeInference::InferBitReverseShape(operands[0]->shape(),
+                                                        *dimensions);
+          })) {
+        return nullptr;
+      }
+      return builder->AddInstruction(
+          HloInstruction::CreateBitReverse(*shape, operands[0], *dimensions));
     }
     case HloOpcode::kSlice: {
       std::optional<SliceRanges> slice_ranges;

@@ -1157,6 +1157,7 @@ ColorScheme HloDotDumper::GetInstructionColor(const HloInstruction* instr) {
     case HloOpcode::kBroadcast:
     case HloOpcode::kDynamicUpdateSlice:
       return kYellow;
+    case HloOpcode::kBitReverse:
     case HloOpcode::kConcatenate:
     case HloOpcode::kDynamicSlice:
     case HloOpcode::kReshape:

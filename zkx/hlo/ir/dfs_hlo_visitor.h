@@ -191,6 +191,7 @@ class DfsHloVisitorBase {
 
   /* go/keep-sorted start */
   virtual absl::Status HandleBitcast(HloInstructionPtr hlo) = 0;
+  virtual absl::Status HandleBitReverse(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleBroadcast(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleCall(HloInstructionPtr hlo) = 0;
   virtual absl::Status HandleConditional(HloInstructionPtr hlo) = 0;

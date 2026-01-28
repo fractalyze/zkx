@@ -186,6 +186,9 @@ class DfsHloVisitorWithDefaultBase
   absl::Status HandleBitcast(HloInstructionPtr bitcast) override {
     return DefaultAction(bitcast);
   }
+  absl::Status HandleBitReverse(HloInstructionPtr bit_reverse) override {
+    return DefaultAction(bit_reverse);
+  }
   absl::Status HandleBroadcast(HloInstructionPtr broadcast) override {
     return DefaultAction(broadcast);
   }

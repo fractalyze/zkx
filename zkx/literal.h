@@ -420,6 +420,12 @@ class LiteralBase {
   Literal Slice(absl::Span<const int64_t> start_indices,
                 absl::Span<const int64_t> limit_indices) const;
 
+  // Creates a new literal by applying bit-reversal permutation to elements
+  // along the specified dimensions. This is used for NTT (Number Theoretic
+  // Transform) operations. The size of each dimension must be a power of 2.
+  // This literal must be an array.
+  Literal BitReverse(absl::Span<const int64_t> dimensions) const;
+
   // Returns true if the leaf arrays of the literal within the given shape index
   // are all determined.
   // See comments on ArrayValueState for detailed explanation.
