@@ -378,8 +378,11 @@ absl::Status GpuCompiler::OptimizeHloModule(
   // TODO(batzor): Uncomment this. Dependency: RunDynamicSliceFusionPasses
   // TF_RETURN_IF_ERROR(RunDynamicSliceFusionPasses(hlo_module, PlatformId()));
 
-  // TODO(batzor): Enable CallInliner after fixing the crash with while loops.
-  // Inline calls so that fusion can work on all operations.
+  // TODO(batzor): Enable CallInliner. Blocked on:
+  // 1. Implementing InPlaceDynamicUpdateSliceFusion in fusions.cc
+  // 2. Implementing scatter fusion emitter
+  // Without inlining, called computations (e.g., from func.call inside while
+  // loops) are excluded from fusion, leaving elementwise ops unfused.
   // TF_RETURN_IF_ERROR(CallInliner().Run(hlo_module).status());
 
   TF_RETURN_IF_ERROR(RunFusionPasses(hlo_module, gpu_target_config,

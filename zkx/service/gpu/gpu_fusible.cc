@@ -334,7 +334,8 @@ std::vector<HloComputation*> GetFusibleComputations(
       if (HloInstruction::MightHaveCalledComputations(instr->opcode()) &&
           instr->opcode() != HloOpcode::kWhile &&
           instr->opcode() != HloOpcode::kConditional &&
-          instr->opcode() != HloOpcode::kFusion) {
+          instr->opcode() != HloOpcode::kFusion &&
+          instr->opcode() != HloOpcode::kCall) {
         for (auto* called : instr->called_computations()) {
           computations_not_to_fuse.insert(called);
         }
@@ -396,7 +397,9 @@ FusionDecision FusionFitsInBudget(const HloInstruction& instr1,
         // If the operand is a fusion, the operands of the fusion are
         // potentially shared.
         for (auto* operand : instr_operand->fused_parameters()) {
-          if (!absl::c_linear_search(instr.operands(), operand->operand(0))) {
+          auto* actual_operand =
+              instr_operand->operand(operand->parameter_number());
+          if (!absl::c_linear_search(instr.operands(), actual_operand)) {
             ++n_instr_operands;
           }
         }
