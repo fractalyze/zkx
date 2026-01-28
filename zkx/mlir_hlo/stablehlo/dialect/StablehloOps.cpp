@@ -799,6 +799,90 @@ Speculation::Speculatability MapOp::getSpeculatability() {
 }
 
 //===----------------------------------------------------------------------===//
+// ReduceWindowOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult ReduceWindowOp::inferReturnTypeComponents(
+    MLIRContext *, std::optional<Location> location, ValueShapeRange operands,
+    DictionaryAttr attributes, OpaqueProperties properties, RegionRange regions,
+    SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
+  ReduceWindowOp::Adaptor adaptor(operands, attributes, properties, regions);
+  return hlo::inferReduceWindowOp(
+      location, adaptor.getInputs(), adaptor.getInitValues(),
+      adaptor.getWindowDimensions(), adaptor.getWindowStrides(),
+      adaptor.getBaseDilations(), adaptor.getWindowDilations(),
+      adaptor.getPadding(), adaptor.getBody(), inferredReturnShapes);
+}
+
+LogicalResult ReduceWindowOp::verify() {
+  return hlo::verifyReduceWindowOp(getLoc(), getInputs(), getInitValues(),
+                                   getWindowDimensions(), getWindowStrides(),
+                                   getBaseDilations(), getWindowDilations(),
+                                   getPadding(), getBody());
+}
+
+// Builder that takes a constructor for its region and infers result types
+void ReduceWindowOp::build(
+    OpBuilder &odsBuilder, OperationState &odsState, ValueRange inputs,
+    ValueRange init_values, DenseI64ArrayAttr window_dimensions,
+    /*optional*/ DenseI64ArrayAttr window_strides,
+    /*optional*/ DenseI64ArrayAttr base_dilations,
+    /*optional*/ DenseI64ArrayAttr window_dilations,
+    /*optional*/ DenseIntElementsAttr padding,
+    function_ref<void(OpBuilder &, Location, ValueRange)> bodyBuilder) {
+  odsState.addOperands(inputs);
+  odsState.addOperands(init_values);
+  odsState.addAttribute(getWindowDimensionsAttrName(odsState.name),
+                        window_dimensions);
+  if (window_strides)
+    odsState.addAttribute(getWindowStridesAttrName(odsState.name),
+                          window_strides);
+  if (base_dilations)
+    odsState.addAttribute(getBaseDilationsAttrName(odsState.name),
+                          base_dilations);
+  if (window_dilations)
+    odsState.addAttribute(getWindowDilationsAttrName(odsState.name),
+                          window_dilations);
+  if (padding)
+    odsState.addAttribute(getPaddingAttrName(odsState.name), padding);
+  Region *region = odsState.addRegion();
+
+  llvm::SmallVector<Type> blockArgTypes;
+  llvm::SmallVector<Location> locs;
+  auto numValues = inputs.size() + init_values.size();
+  blockArgTypes.reserve(numValues);
+  locs.reserve(numValues);
+  for (auto i : inputs) {
+    auto iType = cast<ShapedType>(i.getType());
+    blockArgTypes.push_back(
+        iType.cloneWith(ArrayRef<int64_t>{}, iType.getElementType()));
+    locs.push_back(i.getLoc());
+  }
+  for (auto i : init_values) {
+    auto iType = cast<ShapedType>(i.getType());
+    blockArgTypes.push_back(
+        iType.cloneWith(ArrayRef<int64_t>{}, iType.getElementType()));
+    locs.push_back(i.getLoc());
+  }
+
+  {
+    OpBuilder::InsertionGuard g(odsBuilder);
+    Block *body =
+        odsBuilder.createBlock(region, /*insertPt=*/{}, blockArgTypes, locs);
+    bodyBuilder(odsBuilder, odsState.location, body->getArguments());
+  }
+
+  llvm::SmallVector<mlir::Type, 2> inferredReturnTypes;
+  if (mlir::succeeded(ReduceWindowOp::inferReturnTypes(
+          odsBuilder.getContext(), odsState.location, odsState.operands,
+          odsState.attributes.getDictionary(odsState.getContext()),
+          odsState.getRawProperties(), odsState.regions, inferredReturnTypes)))
+    odsState.addTypes(inferredReturnTypes);
+  else
+    llvm::report_fatal_error("Failed to infer result type(s).");
+}
+
+//===----------------------------------------------------------------------===//
 // ReduceOp
 //===----------------------------------------------------------------------===//
 

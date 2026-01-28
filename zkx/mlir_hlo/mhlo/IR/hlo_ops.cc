@@ -2412,6 +2412,29 @@ LogicalResult ReduceOp::verify() {
       llvm::to_vector(getDimensions().getValues<int64_t>()), getBody());
 }
 
+//===----------------------------------------------------------------------===//
+// ReduceWindowOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult ReduceWindowOp::inferReturnTypeComponents(
+    MLIRContext *, std::optional<Location> location, ValueShapeRange operands,
+    DictionaryAttr attributes, OpaqueProperties properties, RegionRange regions,
+    SmallVectorImpl<ShapedTypeComponents> &inferredReturnShapes) {
+  ReduceWindowOp::Adaptor adaptor(operands, attributes, properties, regions);
+  return hlo::inferReduceWindowOp(
+      location, adaptor.getInputs(), adaptor.getInitValues(),
+      adaptor.getWindowDimensions(), adaptor.getWindowStrides(),
+      adaptor.getBaseDilations(), adaptor.getWindowDilations(),
+      adaptor.getPadding(), adaptor.getBody(), inferredReturnShapes);
+}
+
+LogicalResult ReduceWindowOp::verify() {
+  return hlo::verifyReduceWindowOp(getLoc(), getInputs(), getInitValues(),
+                                   getWindowDimensions(), getWindowStrides(),
+                                   getBaseDilations(), getWindowDilations(),
+                                   getPadding(), getBody());
+}
+
 namespace {
 
 // Enable constant folding to occur within the region of the ReduceOp

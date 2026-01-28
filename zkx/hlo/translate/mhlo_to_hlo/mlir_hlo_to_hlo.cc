@@ -1009,6 +1009,51 @@ LogicalResult ExportZkxOp(ReduceOp op, OpLoweringContext ctx) {
   return success();
 }
 
+LogicalResult ExportZkxOp(ReduceWindowOp op, OpLoweringContext ctx) {
+  auto& value_map = *ctx.values;
+  zkx::ZkxComputation body;
+  if (failed(ctx.converter->LowerRegionAsComputation(&op.getBody(), &body))) {
+    return failure();
+  }
+  llvm::SmallVector<zkx::ZkxOp> operands, init_values;
+  if (failed(GetTuple(op, op.getInputs(), ctx, operands)) ||
+      failed(GetTuple(op, op.getInitValues(), ctx, init_values))) {
+    return failure();
+  }
+
+  // Construct Window proto from MHLO attributes.
+  zkx::Window window;
+  auto window_dimensions = op.getWindowDimensions();
+  auto window_strides = op.getWindowStrides();
+  auto base_dilations = op.getBaseDilations();
+  auto window_dilations = op.getWindowDilations();
+  auto padding = zkx::ConvertNx2Attribute(op.getPadding());
+  if (!padding.ok()) {
+    return op.emitError() << "failed to convert padding attribute";
+  }
+
+  for (int64_t i = 0, e = window_dimensions.size(); i < e; ++i) {
+    auto* dim = window.add_dimensions();
+    dim->set_size(window_dimensions[i]);
+    dim->set_stride(window_strides ? (*window_strides)[i] : 1);
+    dim->set_base_dilation(base_dilations ? (*base_dilations)[i] : 1);
+    dim->set_window_dilation(window_dilations ? (*window_dilations)[i] : 1);
+    if (!padding->empty()) {
+      dim->set_padding_low((*padding)[i].first);
+      dim->set_padding_high((*padding)[i].second);
+    }
+  }
+
+  zkx::ZkxOp result =
+      zkx::ReduceWindow(ctx.builder, operands, init_values, body, window);
+  if (op.getNumResults() == 1) {
+    value_map[op.getResult(0)] = result;
+  } else {
+    BuildGetTupleElementsForTupleResults(op, result, ctx);
+  }
+  return success();
+}
+
 LogicalResult ExportZkxOp(ReshapeOp op, OpLoweringContext ctx) {
   auto& value_map = *ctx.values;
   zkx::ZkxOp operand;
