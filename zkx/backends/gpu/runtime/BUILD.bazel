@@ -183,6 +183,7 @@ zkx_cc_library(
         ":thunk",
         "//xla/tsl/platform:errors",
         "//xla/tsl/platform:statusor",
+        "//zkx:status_macros",
         "//zkx/service:buffer_assignment",
         "//zkx/stream_executor",
         "//zkx/stream_executor:device_memory",

@@ -254,6 +254,7 @@ absl::Status CommandBufferCmdSequence::Record(
   absl::flat_hash_map<ExecutionScopeId, int64_t> num_recorded_commands;
 
   for (CommandInfo& command : commands_) {
+    // TODO(batzor): Uncomment this. Dependency: CollectiveCmd.
     // if (execute_params.mock_collectives &&
     //     dynamic_cast<CollectiveCmd*>(command.cmd.get())) {
     //   continue;
@@ -261,6 +262,7 @@ absl::Status CommandBufferCmdSequence::Record(
 
     ExecutionScopeId execution_scope_id =
         command.cmd->GetExecutionScope(record_params);
+    // TODO(batzor): Uncomment this. Dependency: Profiler.
     // std::optional<tsl::profiler::ScopedAnnotation> annotation =
     //     GetKernelAnnotation(command.cmd->profile_annotation());
 
