@@ -449,8 +449,7 @@ TEST_F(ElementalHloToMlirTest, DISABLED_ConcatenateUnsigned) {
   )"));
 }
 
-// TODO(chokobole): Enable this test. Dependency: mhlo::GatherOp
-TEST_F(ElementalHloToMlirTest, DISABLED_Gather) {
+TEST_F(ElementalHloToMlirTest, Gather) {
   TF_EXPECT_OK(Run(R"(
     ENTRY main {
       operand = s32[33,34] parameter(0)
@@ -477,8 +476,7 @@ TEST_F(ElementalHloToMlirTest, DISABLED_Gather) {
   )"));
 }
 
-// TODO(chokobole): Enable this test. Dependency: mhlo::GatherOp
-TEST_F(ElementalHloToMlirTest, DISABLED_GatherWithImplicitVectorDim) {
+TEST_F(ElementalHloToMlirTest, GatherWithImplicitVectorDim) {
   TF_EXPECT_OK(Run(R"(
     ENTRY main {
       operand = s32[33,34] parameter(0)
@@ -489,7 +487,7 @@ TEST_F(ElementalHloToMlirTest, DISABLED_GatherWithImplicitVectorDim) {
     })",
                    R"(
     // CHECK:      @main_r(
-    // CHECK-SAME:     %[[ARG0:.*]]: tensor<33x34xs32>,
+    // CHECK-SAME:     %[[ARG0:.*]]: tensor<33x34xi32>,
     // CHECK-SAME:     %[[ARG1:.*]]: tensor<1806xi32>,
     // CHECK-SAME:     %[[X:.*]]: index {{{.*}}}, %[[Y:.*]]: index {{{.*}}},
     // CHECK-SAME:     %[[Z:.*]]: index {{{.*}}}

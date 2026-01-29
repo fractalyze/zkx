@@ -744,8 +744,7 @@ class GatherLoopFusionTest
     : public OpcodeFusionTest,
       public ::testing::WithParamInterface<GatherLoopFusionTestSpec> {};
 
-// TODO(batzor): Enable this test. Dependency: HloGatherInstruction
-TEST_P(GatherLoopFusionTest, DISABLED_GatherLoopFusion) {
+TEST_P(GatherLoopFusionTest, GatherLoopFusion) {
   const GatherLoopFusionTestSpec& spec = GetParam();
   std::string hlo_string = absl::StrCat("HloModule ", spec.test_name, "\n\n",
                                         spec.hlo_computation_text);
