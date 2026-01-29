@@ -49,6 +49,15 @@ absl::StatusOr<int64_t> ContractingDimensionIndex(const HloInstruction& dot,
 absl::StatusOr<int64_t> NonContractingDimensionIndex(const HloInstruction& dot,
                                                      int operand_number);
 
+// Validates that batch/row/col dims are physically contiguous in the layout.
+// This is a simplified version of XLA's MatrixLayout::For() validation.
+// Returns true if the layout arranges dimensions in groups: [batch][rows][cols]
+// from major to minor in memory.
+bool CanBatchRowColLayoutFor(const Shape& shape,
+                             absl::Span<const int64_t> batch_dims,
+                             absl::Span<const int64_t> row_dims,
+                             absl::Span<const int64_t> col_dims);
+
 }  // namespace zkx::gpu
 
 #endif  // ZKX_SERVICE_GPU_MATMUL_INDEXING_UTILS_H_
