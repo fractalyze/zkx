@@ -815,6 +815,11 @@ class ShapeUtil {
   static Shape DeleteDimensions(absl::Span<int64_t const> dims_to_delete,
                                 Shape shape);
 
+  // Constructs a new shape with the given dimension as the most major dimension
+  // in the layout. If the shape does not have a layout, assumes a default
+  // layout. If the shape is a tuple, applies this to all the leaf shapes.
+  static Shape MoveDimToMajor(const Shape& shape, int64_t dim);
+
   // Returns a shape with all the dimensions of the input shape for which `p`
   // returns true.
   // For examples:
