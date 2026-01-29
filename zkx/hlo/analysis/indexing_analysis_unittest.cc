@@ -843,8 +843,7 @@ TEST_F(IndexingAnalysisTest, FusionExponentialDuplication) {
                           )"))));
 }
 
-// TODO(chokobole): Enable this test. Dependency: mhlo::GatherOp
-TEST_F(IndexingAnalysisTest, DISABLED_GatherOp) {
+TEST_F(IndexingAnalysisTest, GatherOp) {
   auto input_indexing = GetOutputToInputIndexing(ParseAndGetRoot(R"(
     HloModule m
     ENTRY main {
@@ -2101,8 +2100,7 @@ TEST_F(IndexingAnalysisTest, FusionWithRTVarsSimplification_ScalarConstant) {
   )"));
 }
 
-// TODO(chokobole): Enable this test. Dependency: HloGatherInstruction
-TEST_F(IndexingAnalysisTest, DISABLED_FusionWithRTVarsSimplification_Iota) {
+TEST_F(IndexingAnalysisTest, FusionWithRTVarsSimplification_Iota) {
   auto input_indexing = GetOutputToInputIndexing(ParseAndGetRoot(R"hlo(
       HloModule m
       fused_computation {
@@ -2130,9 +2128,7 @@ TEST_F(IndexingAnalysisTest, DISABLED_FusionWithRTVarsSimplification_Iota) {
   )"));
 }
 
-// TODO(chokobole): Enable this test. Dependency: HloGatherInstruction
-TEST_F(IndexingAnalysisTest,
-       DISABLED_FusionWithRTVarsSimplification_IotaAsConstant) {
+TEST_F(IndexingAnalysisTest, FusionWithRTVarsSimplification_IotaAsConstant) {
   auto input_indexing = GetOutputToInputIndexing(ParseAndGetRoot(R"hlo(
       HloModule m
       fused_computation {
@@ -2160,9 +2156,7 @@ TEST_F(IndexingAnalysisTest,
   )"));
 }
 
-// TODO(chokobole): Enable this test. Dependency: HloGatherInstruction
-TEST_F(IndexingAnalysisTest,
-       DISABLED_FusionWithRTVarsSimplification_Broadcast) {
+TEST_F(IndexingAnalysisTest, FusionWithRTVarsSimplification_Broadcast) {
   auto input_indexing = GetOutputToInputIndexing(ParseAndGetRoot(R"hlo(
       HloModule m
       fused_computation {
@@ -2191,8 +2185,7 @@ TEST_F(IndexingAnalysisTest,
   )"));
 }
 
-// TODO(chokobole): Enable this test. Dependency: HloGatherInstruction
-TEST_F(IndexingAnalysisTest, DISABLED_FusionWithRTVarsSimplification_Reverse) {
+TEST_F(IndexingAnalysisTest, FusionWithRTVarsSimplification_Reverse) {
   auto input_indexing = GetOutputToInputIndexing(ParseAndGetRoot(R"hlo(
       HloModule m
       fused_computation {
