@@ -204,6 +204,50 @@ absl::StatusOr<SmallVector<Value, 1>> EmitCompare(
       /*attributes=*/std::nullopt, &builder)}};
 }
 
+absl::StatusOr<SmallVector<Value, 1>> EmitGather(
+    const HloInstruction* instr, ValueRange indices,
+    const OperandProvider& operand_provider, ImplicitLocOpBuilder& b) {
+  auto row = indices[0];
+  auto zero = b.create<ConstantIndexOp>(0);
+  // Gather allows the index vector to contain fewer elements than the rank
+  // of the input. In that case, the remaining indices are 0.
+  SmallVector<Value, 3> operand_indices(instr->operand(0)->shape().rank(),
+                                        zero);
+
+  // Produce start indices.
+  // HLO allows the index vector dimension to be implicit, and the algebraic
+  // simplifier prefers this form. Therefore, we need to check the rank of the
+  // indices here and do the implicit reshape in place.
+  const auto& indices_shape = instr->operand(1)->shape();
+  int num_indices = indices_shape.rank() == 1 ? 1 : indices_shape.dimensions(1);
+  for (int i = 0; i < num_indices; ++i) {
+    auto i_val = i == 0 ? zero : b.create<ConstantIndexOp>(i);
+    int64_t slice_size = instr->gather_slice_sizes()[i];
+    int64_t input_size = instr->operand(0)->shape().dimensions()[i];
+    // Read and clamp index.
+    TF_ASSIGN_OR_RETURN(
+        auto input_index,
+        operand_provider(instr, 1,
+                         indices_shape.rank() == 1 ? ValueRange{row}
+                                                   : ValueRange{row, i_val}));
+    TF_RET_CHECK(input_index.size() == 1)
+        << "Expected operand to be a single value.";
+    operand_indices[i] =
+        ClampIndex(input_index.front(),
+                   primitive_util::IsUnsignedIntegralType(
+                       instr->operand(1)->shape().element_type()),
+                   input_size - slice_size, b);
+  }
+
+  // Add offsets.
+  for (int i = 0; i < operand_indices.size(); ++i) {
+    operand_indices[i] =
+        b.createOrFold<arith::AddIOp>(operand_indices[i], indices[i + 1]);
+  }
+
+  return operand_provider(instr, 0, operand_indices);
+}
+
 }  // namespace
 
 SmallVector<Value, 3> ApplyIndexing(const IndexingMap& map_in, ValueRange dims,
@@ -425,11 +469,7 @@ absl::StatusOr<SmallVector<Value, 1>> HloToMlir(
       return absl::UnimplementedError(
           "HloToMlir not implemented for HloOpcode::kDynamicUpdateSlice");
     case HloOpcode::kGather:
-      // clang-format off
-      // TODO(chokobole): Implement this. Dependency: HloInstruction::gather_slice_sizes
-      // clang-format on
-      return absl::UnimplementedError(
-          "HloToMlir not implemented for HloOpcode::kGather");
+      return EmitGather(instr, indices, operand_provider, builder);
     case HloOpcode::kIota:
       // TODO(chokobole): Uncomment this. Dependency: EmitIota
       // return EmitIota(instr, indices, builder);
@@ -999,6 +1039,30 @@ ValueRange EmitZkxLoopOp(
   };
   return b.create<LoopOp>(indexing_map, dim_values, iter_args_inits, bb)
       .getResults();
+}
+
+Value ClampIndex(Value index, bool is_unsigned, int64_t high,
+                 ImplicitLocOpBuilder& b) {
+  auto zero = b.create<ConstantOp>(b.getIndexAttr(0));
+  if (high <= 0) {
+    return zero;
+  }
+
+  if (is_unsigned) {
+    if (index.getType() != b.getIndexType()) {
+      index = b.create<arith::IndexCastUIOp>(b.getIndexType(), index);
+    }
+    index = b.create<arith::MinUIOp>(
+        index, b.create<ConstantOp>(b.getIndexAttr(high)));
+  } else {
+    if (index.getType() != b.getIndexType()) {
+      index = b.create<arith::IndexCastOp>(b.getIndexType(), index);
+    }
+    index = b.create<arith::MinSIOp>(
+        index, b.create<ConstantOp>(b.getIndexAttr(high)));
+    index = b.create<arith::MaxSIOp>(index, zero);
+  }
+  return index;
 }
 
 }  // namespace zkx::emitters
